@@ -60,12 +60,18 @@ type GithubRepoScanItem struct {
 	// UsedByRepos is the list of full repo names (owner/repo) that reference this
 	// repo as a git submodule. Shown on the card as an affiliation hint.
 	UsedByRepos []string
+	// EPFViaSubmoduleOf is the list of EPF repo slugs this repo subscribes to
+	// via git submodule (e.g. ["emergent-company/emergent-epf"]). Non-empty when
+	// the repo uses EPF indirectly rather than hosting its own instance.
+	EPFViaSubmoduleOf []string
 }
 
 // GithubDetectedInstance is one EPF instance found within a repo.
 type GithubDetectedInstance struct {
-	BasePath    string
-	HasMetaFile bool
+	BasePath      string
+	HasMetaFile   bool
+	IsSubmodule   bool   // true when EPF lives in a git submodule checkout
+	SubmoduleSlug string // "owner/repo" of the EPF source repo
 }
 
 // WorkspaceScanItem is a workspace the user can assign an import into.
@@ -424,9 +430,23 @@ templ githubEPFBadge(repo GithubRepoScanItem) {
 	if repo.ScanError != "" {
 		<span class="badge badge-warning badge-xs">Scan error</span>
 	} else if repo.HasEPF {
+		{{ allSubmodule := len(repo.DetectedInstances) > 0 }}
+		{{ for _, inst := range repo.DetectedInstances { if !inst.IsSubmodule { allSubmodule = false } } }}
 		if len(repo.DetectedInstances) > 1 {
-			<span class="badge badge-info badge-xs">
-				{ fmt.Sprintf("%d EPF instances", len(repo.DetectedInstances)) }
+			if allSubmodule {
+				<span class="badge badge-info badge-xs gap-1" title="EPF instances are hosted in git submodules">
+					<span class="iconify lucide--git-branch size-3"></span>
+					{ fmt.Sprintf("%d EPF via submodule", len(repo.DetectedInstances)) }
+				</span>
+			} else {
+				<span class="badge badge-info badge-xs">
+					{ fmt.Sprintf("%d EPF instances", len(repo.DetectedInstances)) }
+				</span>
+			}
+		} else if len(repo.DetectedInstances) == 1 && repo.DetectedInstances[0].IsSubmodule {
+			<span class="badge badge-success badge-xs gap-1" title={ "EPF hosted in submodule: " + repo.DetectedInstances[0].SubmoduleSlug }>
+				<span class="iconify lucide--git-branch size-3"></span>
+				EPF via submodule
 			</span>
 		} else {
 			<span class="badge badge-success badge-xs">EPF found</span>
@@ -434,6 +454,11 @@ templ githubEPFBadge(repo GithubRepoScanItem) {
 		if repo.ScanTruncated {
 			<span class="badge badge-warning badge-xs" title="Large repo — scan results may be incomplete">Partial scan</span>
 		}
+	} else if len(repo.EPFViaSubmoduleOf) > 0 {
+		<span class="badge badge-ghost badge-xs gap-1 text-base-content/50" title={ "Uses EPF from: " + strings.Join(repo.EPFViaSubmoduleOf, ", ") }>
+			<span class="iconify lucide--git-branch size-3"></span>
+			EPF subscriber
+		</span>
 	} else {
 		<span class="badge badge-ghost badge-xs text-base-content/30">No EPF</span>
 	}
@@ -442,8 +467,20 @@ templ githubEPFBadge(repo GithubRepoScanItem) {
 // githubImportForm renders the per-instance assignment + import form.
 templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, workspaces []WorkspaceScanItem) {
 	<div class="rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3">
-		<!-- Only show base path when it's non-root (monorepo with multiple instances) -->
-		if inst.BasePath != "" {
+		<!-- Path + submodule notice -->
+		if inst.IsSubmodule {
+			<div class="flex items-center gap-2 flex-wrap">
+				if inst.BasePath != "" {
+					<span class="iconify lucide--folder size-3.5 text-base-content/40"></span>
+					<code class="text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
+				}
+				<span class="badge badge-info badge-xs gap-1">
+					<span class="iconify lucide--git-branch size-3"></span>
+					submodule
+				</span>
+				<span class="text-xs text-base-content/40">from <code class="font-mono">{ inst.SubmoduleSlug }</code></span>
+			</div>
+		} else if inst.BasePath != "" {
 			<div class="flex items-center gap-2">
 				<span class="iconify lucide--folder size-3.5 text-base-content/40"></span>
 				<code class="text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>

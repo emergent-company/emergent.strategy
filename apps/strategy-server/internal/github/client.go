@@ -659,6 +659,11 @@ func (c *Client) ListInstallationRepos(ctx context.Context, token string) ([]Ins
 type DetectedInstance struct {
 	BasePath    string // repo-relative base path, "" = root
 	HasMetaFile bool   // true when _meta.yaml or _epf.yaml found alongside READY/
+	// IsSubmodule is true when the EPF instance lives inside a git submodule checkout.
+	// The EPF content belongs to a separate repo; this host repo references it via .gitmodules.
+	// The SubmoduleSlug identifies the source repo (owner/repo).
+	IsSubmodule   bool
+	SubmoduleSlug string // e.g. "emergent-company/emergent-epf"
 }
 
 // CommitInfo holds summary information about a single git commit.
@@ -959,15 +964,29 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 	}
 
 	// Build a set of all paths for meta-file lookups.
-	// Also collect submodule checkout paths from type "commit" entries — used to
-	// filter out EPF content that originates from a git submodule.
+	// Also collect submodule checkout paths from type "commit" entries, keyed by
+	// submodule path → repo slug (from .gitmodules). This lets us distinguish between:
+	//   - Committed framework dirs (e.g. huma-blueprint-ui/docs/EPF/templates/) — skip
+	//   - Submodule-mounted EPF instances (e.g. emergent-strategy/docs/EPF/_instances/emergent/) — include
 	pathSet := make(map[string]bool, len(fullTree.Entries))
-	var submodulePaths []string
+	submodulePathToSlug := make(map[string]string) // path → "owner/repo" slug
 	for _, e := range fullTree.Entries {
 		pathSet[e.GetPath()] = true
 		if e.GetType() == "commit" {
-			submodulePaths = append(submodulePaths, e.GetPath())
+			submodulePathToSlug[e.GetPath()] = "" // known submodule, slug resolved below
 		}
+	}
+
+	// Cross-reference .gitmodules refs to get slugs for each submodule path.
+	for _, ref := range submodules {
+		if _, ok := submodulePathToSlug[ref.Path]; ok {
+			submodulePathToSlug[ref.Path] = ref.RepoSlug
+		}
+	}
+
+	submodulePaths := make([]string, 0, len(submodulePathToSlug))
+	for p := range submodulePathToSlug {
+		submodulePaths = append(submodulePaths, p)
 	}
 
 	if len(submodulePaths) > 0 {
@@ -976,8 +995,15 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 	}
 
 	// Find all READY/ directories — collect base paths first.
+	// For each candidate, determine whether it is native or submodule-hosted.
+	type candidate struct {
+		basePath      string
+		isSubmodule   bool
+		submoduleSlug string
+	}
 	seen := make(map[string]bool)
-	var candidateBasePaths []string
+	var candidates []candidate
+
 	for _, e := range fullTree.Entries {
 		if e.GetType() != "tree" {
 			continue
@@ -999,13 +1025,16 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 			continue
 		}
 
-		// Skip paths sourced from a git submodule — the canonical EPF instance
-		// lives in its own repo and will be discovered there. Subscriber repos
-		// (e.g. twentyfirst with 21st-epf as a submodule) should not produce a
-		// duplicate import target.
-		if isUnderSubmodule(basePath, submodulePaths) {
-			slog.DebugContext(ctx, "EPF scan: skipping submodule-sourced path",
-				"base_path", basePath, "submodule_paths", submodulePaths)
+		// Check if this path lives inside a git submodule.
+		// If so, it may still be a valid EPF instance — just hosted in the submodule repo.
+		// We include it but flag it as IsSubmodule=true rather than silently dropping it.
+		// Exception: if the submodule is not declared in .gitmodules (no slug), it is likely
+		// committed framework content — skip it to avoid false positives.
+		isUnderSub, subSlug := submoduleContaining(basePath, submodulePathToSlug)
+		if isUnderSub && subSlug == "" {
+			// Submodule with no .gitmodules entry — committed framework content, skip.
+			slog.DebugContext(ctx, "EPF scan: skipping uncommitted submodule path",
+				"base_path", basePath)
 			continue
 		}
 
@@ -1013,17 +1042,21 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 			continue
 		}
 		seen[basePath] = true
-		candidateBasePaths = append(candidateBasePaths, basePath)
+		candidates = append(candidates, candidate{
+			basePath:      basePath,
+			isSubmodule:   isUnderSub,
+			submoduleSlug: subSlug,
+		})
 	}
 
 	// Keep only shallowest base paths — discard any path that is a child of another.
-	for _, candidate := range candidateBasePaths {
+	for _, c := range candidates {
 		isNested := false
-		for _, other := range candidateBasePaths {
-			if other == candidate {
+		for _, other := range candidates {
+			if other.basePath == c.basePath {
 				continue
 			}
-			if other == "" || strings.HasPrefix(candidate, other+"/") {
+			if other.basePath == "" || strings.HasPrefix(c.basePath, other.basePath+"/") {
 				isNested = true
 				break
 			}
@@ -1035,8 +1068,8 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 		hasMeta := false
 		for _, marker := range epfRootMarkers {
 			lookup := marker
-			if candidate != "" {
-				lookup = candidate + "/" + marker
+			if c.basePath != "" {
+				lookup = c.basePath + "/" + marker
 			}
 			if pathSet[lookup] {
 				hasMeta = true
@@ -1044,10 +1077,26 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 			}
 		}
 
-		instances = append(instances, DetectedInstance{BasePath: candidate, HasMetaFile: hasMeta})
+		instances = append(instances, DetectedInstance{
+			BasePath:      c.basePath,
+			HasMetaFile:   hasMeta,
+			IsSubmodule:   c.isSubmodule,
+			SubmoduleSlug: c.submoduleSlug,
+		})
 	}
 
 	return instances, submodules, truncated, commitInfo, nil
+}
+
+// submoduleContaining returns (true, slug) if basePath is under a known submodule path.
+// Returns (false, "") when no submodule contains the path.
+func submoduleContaining(basePath string, submodulePathToSlug map[string]string) (bool, string) {
+	for subPath, slug := range submodulePathToSlug {
+		if basePath == subPath || strings.HasPrefix(basePath, subPath+"/") {
+			return true, slug
+		}
+	}
+	return false, ""
 }
 
 // firstLine returns the first line of a string (commit message subject).

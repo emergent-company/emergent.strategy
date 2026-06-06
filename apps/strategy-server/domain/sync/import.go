@@ -110,6 +110,11 @@ func (e *RateLimitError) Error() string { return e.Message }
 type DetectedEPFInstance struct {
 	BasePath    string `json:"base_path"`     // repo-relative base path; "" = root
 	HasMetaFile bool   `json:"has_meta_file"` // true when _meta.yaml or _epf.yaml found
+	// IsSubmodule is true when the EPF instance lives inside a git submodule checkout
+	// (e.g. emergent-strategy has its EPF at docs/EPF/_instances/emergent/ as a submodule).
+	// The EPF content belongs to SubmoduleSlug; importing requires reading from that repo.
+	IsSubmodule   bool   `json:"is_submodule,omitempty"`
+	SubmoduleSlug string `json:"submodule_slug,omitempty"` // "owner/repo" of the EPF source repo
 }
 
 // SubmoduleRef is a git submodule declared in .gitmodules, with its checkout path

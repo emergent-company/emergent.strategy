@@ -185,8 +185,10 @@ func (a *RepoReaderAdapter) DetectEPFInRepo(ctx context.Context, token, owner, r
 	out := make([]sync.DetectedEPFInstance, len(detected))
 	for i, d := range detected {
 		out[i] = sync.DetectedEPFInstance{
-			BasePath:    d.BasePath,
-			HasMetaFile: d.HasMetaFile,
+			BasePath:      d.BasePath,
+			HasMetaFile:   d.HasMetaFile,
+			IsSubmodule:   d.IsSubmodule,
+			SubmoduleSlug: d.SubmoduleSlug,
 		}
 	}
 	refs := make([]sync.SubmoduleRef, len(submodules))

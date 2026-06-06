@@ -68,12 +68,18 @@ type GithubRepoScanItem struct {
 	// UsedByRepos is the list of full repo names (owner/repo) that reference this
 	// repo as a git submodule. Shown on the card as an affiliation hint.
 	UsedByRepos []string
+	// EPFViaSubmoduleOf is the list of EPF repo slugs this repo subscribes to
+	// via git submodule (e.g. ["emergent-company/emergent-epf"]). Non-empty when
+	// the repo uses EPF indirectly rather than hosting its own instance.
+	EPFViaSubmoduleOf []string
 }
 
 // GithubDetectedInstance is one EPF instance found within a repo.
 type GithubDetectedInstance struct {
-	BasePath    string
-	HasMetaFile bool
+	BasePath      string
+	HasMetaFile   bool
+	IsSubmodule   bool   // true when EPF lives in a git submodule checkout
+	SubmoduleSlug string // "owner/repo" of the EPF source repo
 }
 
 // WorkspaceScanItem is a workspace the user can assign an import into.
@@ -203,7 +209,7 @@ func GithubConnectContent(data GithubConnectData) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.GithubUserLogin)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 106, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 112, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -529,7 +535,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.ScanError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 271, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 277, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -571,7 +577,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", len(data.Repos)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 298, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 304, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -604,7 +610,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", nonEPFCount))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 312, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 318, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
@@ -671,7 +677,7 @@ func githubEPFCountBadge(repos []GithubRepoScanItem) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d / %d repos with EPF", epfCount, len(repos)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 336, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 342, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -714,7 +720,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 		var templ_7745c5c3_Var19 templ.SafeURL
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(repo.HTMLURL))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 347, Col: 42}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 353, Col: 42}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -727,7 +733,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(repo.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 349, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 355, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -758,7 +764,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(repo.FullName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 359, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 365, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -776,7 +782,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(githubRelativeTime(repo.PushedAt))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 363, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 369, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -799,7 +805,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(repo.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 368, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 374, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -818,7 +824,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var24 templ.SafeURL
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(repo.HTMLURL + "/commit/" + repo.HeadCommit.SHA))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 374, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 380, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -831,7 +837,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.HeadCommit.SHA)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 378, Col: 34}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 384, Col: 34}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 			if templ_7745c5c3_Err != nil {
@@ -844,7 +850,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(repo.HeadCommit.SHA[:7])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 379, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 385, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -857,7 +863,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.HeadCommit.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 381, Col: 111}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 387, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 			if templ_7745c5c3_Err != nil {
@@ -870,7 +876,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(repo.HeadCommit.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 381, Col: 139}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 387, Col: 139}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -888,7 +894,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(repo.HeadCommit.AuthorName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 384, Col: 79}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 390, Col: 79}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -937,7 +943,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(repo.ScanError)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 402, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 408, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -1021,42 +1027,104 @@ func githubEPFBadge(repo GithubRepoScanItem) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if repo.HasEPF {
+			allSubmodule := len(repo.DetectedInstances) > 0
+			for _, inst := range repo.DetectedInstances {
+				if !inst.IsSubmodule {
+					allSubmodule = false
+				}
+			}
 			if len(repo.DetectedInstances) > 1 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<span class=\"badge badge-info badge-xs\">")
+				if allSubmodule {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<span class=\"badge badge-info badge-xs gap-1\" title=\"EPF instances are hosted in git submodules\"><span class=\"iconify lucide--git-branch size-3\"></span> ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var33 string
+					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d EPF via submodule", len(repo.DetectedInstances)))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 439, Col: 71}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<span class=\"badge badge-info badge-xs\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var34 string
+					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d EPF instances", len(repo.DetectedInstances)))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 443, Col: 67}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+			} else if len(repo.DetectedInstances) == 1 && repo.DetectedInstances[0].IsSubmodule {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<span class=\"badge badge-success badge-xs gap-1\" title=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var33 string
-				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d EPF instances", len(repo.DetectedInstances)))
+				var templ_7745c5c3_Var35 string
+				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue("EPF hosted in submodule: " + repo.DetectedInstances[0].SubmoduleSlug)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 429, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 447, Col: 129}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\"><span class=\"iconify lucide--git-branch size-3\"></span> EPF via submodule</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<span class=\"badge badge-success badge-xs\">EPF found</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<span class=\"badge badge-success badge-xs\">EPF found</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if repo.ScanTruncated {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<span class=\"badge badge-warning badge-xs\" title=\"Large repo — scan results may be incomplete\">Partial scan</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<span class=\"badge badge-warning badge-xs\" title=\"Large repo — scan results may be incomplete\">Partial scan</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
+		} else if len(repo.EPFViaSubmoduleOf) > 0 {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<span class=\"badge badge-ghost badge-xs gap-1 text-base-content/50\" title=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var36 string
+			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue("Uses EPF from: " + strings.Join(repo.EPFViaSubmoduleOf, ", "))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 458, Col: 140}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\"><span class=\"iconify lucide--git-branch size-3\"></span> EPF subscriber</span>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<span class=\"badge badge-ghost badge-xs text-base-content/30\">No EPF</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<span class=\"badge badge-ghost badge-xs text-base-content/30\">No EPF</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1082,138 +1150,179 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var34 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var34 == nil {
-			templ_7745c5c3_Var34 = templ.NopComponent
+		templ_7745c5c3_Var37 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var37 == nil {
+			templ_7745c5c3_Var37 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<div class=\"rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3\"><!-- Only show base path when it's non-root (monorepo with multiple instances) -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<div class=\"rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3\"><!-- Path + submodule notice -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if inst.BasePath != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--folder size-3.5 text-base-content/40\"></span> <code class=\"text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
+		if inst.IsSubmodule {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"flex items-center gap-2 flex-wrap\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var35 string
-			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(inst.BasePath)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 449, Col: 109}
+			if inst.BasePath != "" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"iconify lucide--folder size-3.5 text-base-content/40\"></span> <code class=\"text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var38 string
+				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(inst.BasePath)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 475, Col: 110}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</code> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<span class=\"badge badge-info badge-xs gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> submodule</span> <span class=\"text-xs text-base-content/40\">from <code class=\"font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</code></div>")
+			var templ_7745c5c3_Var39 string
+			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(inst.SubmoduleSlug)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 481, Col: 96}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</code></span></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else if inst.BasePath != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--folder size-3.5 text-base-content/40\"></span> <code class=\"text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var40 string
+			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(inst.BasePath)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 486, Col: 109}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</code></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<!-- Assign to workspace + import --><form method=\"POST\" action=\"/github/connect/import\" class=\"flex items-center gap-3 flex-wrap\"><input type=\"hidden\" name=\"github_repo\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<!-- Assign to workspace + import --><form method=\"POST\" action=\"/github/connect/import\" class=\"flex items-center gap-3 flex-wrap\"><input type=\"hidden\" name=\"github_repo\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var36 string
-		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.FullName)
+		var templ_7745c5c3_Var41 string
+		templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.FullName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 455, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 492, Col: 64}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\"> <input type=\"hidden\" name=\"github_base_path\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var37 string
-		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(inst.BasePath)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 456, Col: 69}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "\"> <input type=\"hidden\" name=\"github_base_path\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\"> <input type=\"hidden\" name=\"branch\" value=\"")
+		var templ_7745c5c3_Var42 string
+		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(inst.BasePath)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 493, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var38 string
-		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.DefaultBranch)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 457, Col: 64}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\"> <input type=\"hidden\" name=\"branch\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\"> ")
+		var templ_7745c5c3_Var43 string
+		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(repo.DefaultBranch)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 494, Col: 64}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(workspaces) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<!-- No workspaces yet — let the user name one inline --> <span class=\"text-xs text-base-content/50\">New workspace name:</span> <input type=\"text\" name=\"new_workspace_name\" placeholder=\"e.g. My Company\" required class=\"input input-xs input-bordered w-44\"> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<!-- No workspaces yet — let the user name one inline --> <span class=\"text-xs text-base-content/50\">New workspace name:</span> <input type=\"text\" name=\"new_workspace_name\" placeholder=\"e.g. My Company\" required class=\"input input-xs input-bordered w-44\"> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<select name=\"workspace_id\" class=\"select select-xs select-bordered\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<select name=\"workspace_id\" class=\"select select-xs select-bordered\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, ws := range workspaces {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<option value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<option value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var39 string
-				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(ws.ID)
+				var templ_7745c5c3_Var44 string
+				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(ws.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 476, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 513, Col: 27}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "\">")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var40 string
-				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(ws.OrgName)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 477, Col: 19}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, " / ")
+				var templ_7745c5c3_Var45 string
+				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(ws.OrgName)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 514, Col: 19}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var41 string
-				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(ws.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 477, Col: 33}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, " / ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</option>")
+				var templ_7745c5c3_Var46 string
+				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(ws.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 514, Col: 33}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</option>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</select> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button> <button type=\"submit\" name=\"action\" value=\"link\" class=\"btn btn-xs btn-ghost border border-base-content/20 gap-1\"><span class=\"iconify lucide--link size-3\"></span> Link only</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</select> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button> <button type=\"submit\" name=\"action\" value=\"link\" class=\"btn btn-xs btn-ghost border border-base-content/20 gap-1\"><span class=\"iconify lucide--link size-3\"></span> Link only</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "</form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1238,35 +1347,35 @@ func githubConnectAppInstallInfo(appInstallURL string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var42 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var42 == nil {
-			templ_7745c5c3_Var42 = templ.NopComponent
+		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var47 == nil {
+			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 space-y-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/50 shrink-0\"></span><p class=\"text-sm font-semibold text-base-content\">How GitHub access works</p></div><div class=\"grid grid-cols-1 sm:grid-cols-3 gap-3\"><!-- Public repos --><div class=\"rounded-lg bg-success/5 border border-success/20 px-4 py-3 space-y-1\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--check-circle size-3.5 text-success\"></span><p class=\"text-xs font-semibold text-base-content\">Public repos</p></div><p class=\"text-xs text-base-content/60\">Work immediately. No admin setup required.</p></div><!-- Private repos — OAuth App approval --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--shield size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">Private repos — import & push</p></div><p class=\"text-xs text-base-content/60\">Requires an org admin to approve this app in the org's third-party access settings. One-time action per org.</p><a href=\"https://github.com/settings/connections/applications/Ov23li4YmALzCozRwWgk\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Request org access <span class=\"iconify lucide--external-link size-3\"></span></a></div><!-- AIM auto-push --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--zap size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">AIM auto-push</p></div><p class=\"text-xs text-base-content/60\">Background PRs after AIM cycles. Requires an org admin to install the GitHub App on the org. One-time action per org.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 space-y-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/50 shrink-0\"></span><p class=\"text-sm font-semibold text-base-content\">How GitHub access works</p></div><div class=\"grid grid-cols-1 sm:grid-cols-3 gap-3\"><!-- Public repos --><div class=\"rounded-lg bg-success/5 border border-success/20 px-4 py-3 space-y-1\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--check-circle size-3.5 text-success\"></span><p class=\"text-xs font-semibold text-base-content\">Public repos</p></div><p class=\"text-xs text-base-content/60\">Work immediately. No admin setup required.</p></div><!-- Private repos — OAuth App approval --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--shield size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">Private repos — import & push</p></div><p class=\"text-xs text-base-content/60\">Requires an org admin to approve this app in the org's third-party access settings. One-time action per org.</p><a href=\"https://github.com/settings/connections/applications/Ov23li4YmALzCozRwWgk\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Request org access <span class=\"iconify lucide--external-link size-3\"></span></a></div><!-- AIM auto-push --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--zap size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">AIM auto-push</p></div><p class=\"text-xs text-base-content/60\">Background PRs after AIM cycles. Requires an org admin to install the GitHub App on the org. One-time action per org.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if appInstallURL != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var43 templ.SafeURL
-			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(appInstallURL))
+			var templ_7745c5c3_Var48 templ.SafeURL
+			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(appInstallURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 541, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 578, Col: 44}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Install GitHub App <span class=\"iconify lucide--external-link size-3\"></span></a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Install GitHub App <span class=\"iconify lucide--external-link size-3\"></span></a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</div></div><p class=\"text-xs text-base-content/40\">Both actions are one-time per org. Once done, all users in the org can import and push without further setup.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</div></div><p class=\"text-xs text-base-content/40\">Both actions are one-time per org. Once done, all users in the org can import and push without further setup.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1292,64 +1401,64 @@ func githubRateLimitedState(retryAfter time.Duration) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var44 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var44 == nil {
-			templ_7745c5c3_Var44 = templ.NopComponent
+		templ_7745c5c3_Var49 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var49 == nil {
+			templ_7745c5c3_Var49 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		retrySeconds := int(retryAfter.Seconds()) + 5
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<div class=\"px-5 py-8 flex flex-col items-center gap-4 text-center\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<div class=\"px-5 py-8 flex flex-col items-center gap-4 text-center\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if retrySeconds > 5 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, " hx-get=\"/github/connect/repos\" hx-trigger=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, " hx-get=\"/github/connect/repos\" hx-trigger=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var45 string
-			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("load delay:%ds", retrySeconds))
+			var templ_7745c5c3_Var50 string
+			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("load delay:%ds", retrySeconds))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 564, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 601, Col: 59}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" hx-target=\"#github-repo-list\" hx-swap=\"outerHTML\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\" hx-target=\"#github-repo-list\" hx-swap=\"outerHTML\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "><span class=\"iconify lucide--clock size-8 text-warning\"></span><div class=\"space-y-1\"><p class=\"text-sm font-semibold text-base-content\">GitHub API rate limit reached</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "><span class=\"iconify lucide--clock size-8 text-warning\"></span><div class=\"space-y-1\"><p class=\"text-sm font-semibold text-base-content\">GitHub API rate limit reached</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if retryAfter > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<p class=\"text-xs text-base-content/60\">Resets in ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<p class=\"text-xs text-base-content/60\">Resets in ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var46 string
-			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d min %d sec", int(retryAfter.Minutes()), int(retryAfter.Seconds())%60))
+			var templ_7745c5c3_Var51 string
+			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d min %d sec", int(retryAfter.Minutes()), int(retryAfter.Seconds())%60))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 574, Col: 102}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 611, Col: 102}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, " — this page will retry automatically.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, " — this page will retry automatically.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<p class=\"text-xs text-base-content/60\">The limit has likely reset — try refreshing.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<p class=\"text-xs text-base-content/60\">The limit has likely reset — try refreshing.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "</div><button class=\"btn btn-sm btn-ghost border border-base-content/20 gap-1.5\" hx-post=\"/github/connect/scan\" hx-target=\"#github-repo-list\" hx-swap=\"outerHTML\"><span class=\"iconify lucide--refresh-cw size-3.5\"></span> Retry now</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "</div><button class=\"btn btn-sm btn-ghost border border-base-content/20 gap-1.5\" hx-post=\"/github/connect/scan\" hx-target=\"#github-repo-list\" hx-swap=\"outerHTML\"><span class=\"iconify lucide--refresh-cw size-3.5\"></span> Retry now</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1394,12 +1503,12 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var47 == nil {
-			templ_7745c5c3_Var47 = templ.NopComponent
+		templ_7745c5c3_Var52 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var52 == nil {
+			templ_7745c5c3_Var52 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "<div class=\"flex items-center gap-1.5 mt-1 flex-wrap\"><span class=\"text-xs text-base-content/40 flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> Used by</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<div class=\"flex items-center gap-1.5 mt-1 flex-wrap\"><span class=\"text-xs text-base-content/40 flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> Used by</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1408,51 +1517,51 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			if _, after, ok := strings.Cut(fullName, "/"); ok {
 				repoName = after
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, " <a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, " <a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var48 templ.SafeURL
-			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + fullName))
+			var templ_7745c5c3_Var53 templ.SafeURL
+			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + fullName))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 625, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 662, Col: 58}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\" target=\"_blank\" rel=\"noopener\" title=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var49 string
-			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(fullName)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 628, Col: 20}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "\" target=\"_blank\" rel=\"noopener\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" class=\"badge badge-ghost badge-xs hover:badge-primary transition-colors\">")
+			var templ_7745c5c3_Var54 string
+			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(fullName)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 665, Col: 20}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var50 string
-			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(repoName)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 631, Col: 14}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "\" class=\"badge badge-ghost badge-xs hover:badge-primary transition-colors\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "</a>")
+			var templ_7745c5c3_Var55 string
+			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(repoName)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 668, Col: 14}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

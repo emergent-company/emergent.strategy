@@ -243,8 +243,32 @@ func toUIRepoItems(repos []syncdom.RepoScanResult) []ui.GithubRepoScanItem {
 		item.DetectedInstances = make([]ui.GithubDetectedInstance, len(r.DetectedInstances))
 		for j, d := range r.DetectedInstances {
 			item.DetectedInstances[j] = ui.GithubDetectedInstance{
-				BasePath:    d.BasePath,
-				HasMetaFile: d.HasMetaFile,
+				BasePath:      d.BasePath,
+				HasMetaFile:   d.HasMetaFile,
+				IsSubmodule:   d.IsSubmodule,
+				SubmoduleSlug: d.SubmoduleSlug,
+			}
+		}
+		// Derive EPFViaSubmoduleOf: submodule refs where the repo has EPF instances
+		// that are submodule-hosted (i.e. this repo subscribes to EPF via submodule).
+		// We use unique submodule slugs from detected submodule instances.
+		slugSeen := make(map[string]bool)
+		for _, d := range r.DetectedInstances {
+			if d.IsSubmodule && d.SubmoduleSlug != "" && !slugSeen[d.SubmoduleSlug] {
+				slugSeen[d.SubmoduleSlug] = true
+				item.EPFViaSubmoduleOf = append(item.EPFViaSubmoduleOf, d.SubmoduleSlug)
+			}
+		}
+		// Also add any submodule refs from the scan that aren't already captured above.
+		// These cover repos that have .gitmodules pointing to EPF repos but where
+		// the submodule checkout didn't yield a detected instance (e.g. 21st-captable).
+		for _, ref := range r.SubmoduleRefs {
+			if ref.RepoSlug != "" && !slugSeen[ref.RepoSlug] {
+				// Check if this slug appears as an EPF source in UsedByRepos lookup.
+				// For simplicity, include all submodule refs since they were already
+				// parsed from .gitmodules and represent intentional dependencies.
+				slugSeen[ref.RepoSlug] = true
+				item.EPFViaSubmoduleOf = append(item.EPFViaSubmoduleOf, ref.RepoSlug)
 			}
 		}
 		items[i] = item
