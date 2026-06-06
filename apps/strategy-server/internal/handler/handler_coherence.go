@@ -10,14 +10,16 @@ import (
 	"github.com/labstack/echo/v4"
 
 	domainPkg "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
 // handleCoherence serves /aim/coherence — lists active ripple signals.
 func (s *Server) handleCoherence(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		content := s.loadCoherenceView(c.Request().Context(), instanceID)
-		return ui.PhaseRenderData{Title: "Coherence", Content: content}
+		ctx := c.Request().Context()
+		content := s.loadCoherenceView(ctx, instanceID)
+		return ui.PhaseRenderData{Title: langs.T(ctx, "nav.screen.coherence"), Content: content}
 	})
 }
 
@@ -149,7 +151,7 @@ func (s *Server) handleSignalResolve(c echo.Context) error {
 func (s *Server) handleSignalDismiss(c echo.Context) error {
 	reason := c.FormValue("reason")
 	if reason == "" {
-		reason = "dismissed via UI"
+		reason = langs.T(c.Request().Context(), "signal.dismiss_reason_ui")
 	}
 	return s.applySignalAction(c, func(ctx context.Context, signalID uuid.UUID) (*ui.CoherenceSignal, error) {
 		sig, err := s.rippleSvc.DismissSignal(ctx, signalID, reason)
@@ -163,14 +165,15 @@ func (s *Server) handleSignalDismiss(c echo.Context) error {
 // applySignalAction is the shared HTMX action handler: parse signal ID, apply
 // the action fn, render the updated card fragment.
 func (s *Server) applySignalAction(c echo.Context, fn func(context.Context, uuid.UUID) (*ui.CoherenceSignal, error)) error {
+	ctx := c.Request().Context()
 	if s.rippleSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "ripple service not available")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.ripple_not_available"))
 	}
 	signalID, err := uuid.Parse(c.Param("signalID"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid signal ID")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_signal_id"))
 	}
-	sig, err := fn(c.Request().Context(), signalID)
+	sig, err := fn(ctx, signalID)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
 	}

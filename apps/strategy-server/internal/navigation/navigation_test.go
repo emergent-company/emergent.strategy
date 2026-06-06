@@ -50,15 +50,16 @@ func TestBreadcrumbChain(t *testing.T) {
 		t.Fatal("expected breadcrumb chain for FeatureDetail")
 	}
 
-	// Should be: Dashboard > Execution > FIRE > Features > Feature
+	// Should be: GlobalDashboard > ExecutionDashboard > FireOverview > ProductTrack > FeatureDetail
+	// Title holds a langs key (e.g. "nav.screen.dashboard") — check ScreenID for correctness.
 	labels := make([]string, len(chain))
 	for i, e := range chain {
-		labels[i] = e.Label
+		labels[i] = string(e.ScreenID)
 	}
-	t.Logf("breadcrumb chain: %v", labels)
+	t.Logf("breadcrumb chain (screen IDs): %v", labels)
 
-	if labels[0] != "Dashboard" {
-		t.Errorf("first crumb should be Dashboard, got %q", labels[0])
+	if chain[0].ScreenID != GlobalDashboard {
+		t.Errorf("first crumb should be GlobalDashboard, got %q", chain[0].ScreenID)
 	}
 	if chain[len(chain)-1].Href != "" {
 		t.Errorf("last crumb should have empty href, got %q", chain[len(chain)-1].Href)

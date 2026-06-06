@@ -31,9 +31,10 @@ type AppError struct {
 	Code       int
 	// MsgKey is a langs translation key (e.g. "error.not_found").
 	// Use Localize(ctx, err) to get the user-facing string.
-	MsgKey   string
-	detail   string
-	internal error
+	MsgKey    string
+	detail    string
+	detailKey string // langs key for the detail — preferred over raw detail string
+	internal  error
 }
 
 // Error implements the error interface. Returns a machine-readable string
@@ -51,9 +52,21 @@ func (e *AppError) Unwrap() error {
 }
 
 // WithDetail returns a shallow copy of the error with an additional detail string.
+// Prefer WithDetailKey when a langs translation key exists for the detail message.
 func (e *AppError) WithDetail(detail string) *AppError {
 	cp := *e
 	cp.detail = detail
+	cp.detailKey = ""
+	return &cp
+}
+
+// WithDetailKey returns a shallow copy of the error with a langs translation key
+// as the detail. The key is resolved via langs.T at Localize time, so the
+// detail is fully translated alongside the base message.
+func (e *AppError) WithDetailKey(key string) *AppError {
+	cp := *e
+	cp.detailKey = key
+	cp.detail = ""
 	return &cp
 }
 
@@ -67,9 +80,13 @@ func (e *AppError) WithInternal(err error) *AppError {
 
 // Localize returns the user-facing error message translated into the locale
 // stored in ctx. Falls back to the MsgKey if no translation is found.
-// If detail is set, it is appended after the translated message.
+// If detailKey is set it is resolved via langs.T; otherwise the raw detail
+// string is appended. Both are separated from the base message with ": ".
 func Localize(ctx context.Context, err *AppError) string {
 	msg := langs.T(ctx, err.MsgKey)
+	if err.detailKey != "" {
+		return msg + ": " + langs.T(ctx, err.detailKey)
+	}
 	if err.detail != "" {
 		return msg + ": " + err.detail
 	}

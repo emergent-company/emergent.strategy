@@ -4,14 +4,16 @@ import (
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/labstack/echo/v4"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
 func (s *Server) handleReadyOverview(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		data := s.loadReadyPhaseData(c.Request().Context(), instanceID)
+		ctx := c.Request().Context()
+		data := s.loadReadyPhaseData(ctx, instanceID)
 		return ui.PhaseRenderData{
-			Title:   "READY",
+			Title:   langs.T(ctx, "nav.screen.ready"),
 			Content: ui.ReadyPhaseContent(data),
 		}
 	})
@@ -19,9 +21,10 @@ func (s *Server) handleReadyOverview(c echo.Context) error {
 
 func (s *Server) handleFireOverview(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		data := s.loadFirePhaseData(c.Request().Context(), instanceID)
+		ctx := c.Request().Context()
+		data := s.loadFirePhaseData(ctx, instanceID)
 		return ui.PhaseRenderData{
-			Title:   "FIRE",
+			Title:   langs.T(ctx, "nav.screen.fire"),
 			Content: ui.FirePhaseContent(data),
 		}
 	})
@@ -29,9 +32,10 @@ func (s *Server) handleFireOverview(c echo.Context) error {
 
 func (s *Server) handleAimOverview(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		data := s.loadAimPipelineData(c.Request().Context(), instanceID)
+		ctx := c.Request().Context()
+		data := s.loadAimPipelineData(ctx, instanceID)
 		return ui.PhaseRenderData{
-			Title:   "AIM",
+			Title:   langs.T(ctx, "nav.screen.aim"),
 			Content: ui.AimPipelineContent(data),
 		}
 	})
@@ -45,7 +49,7 @@ func (s *Server) renderPhaseContent(c echo.Context, loadFn func(string, echo.Con
 
 	instance, err := s.loadInstance(ctx, instanceID)
 	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
 	phaseData := loadFn(instanceID, c)

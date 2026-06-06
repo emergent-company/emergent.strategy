@@ -12,6 +12,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -24,7 +25,7 @@ func (s *Server) handleArtifactView(c echo.Context) error {
 
 	instance, err := s.loadInstance(ctx, instanceID)
 	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
 	// Load the artifact
@@ -44,7 +45,7 @@ func (s *Server) handleArtifactView(c echo.Context) error {
 		Scan(ctx, &row)
 	if err != nil {
 		s.log.Error("artifact not found", "err", err, "key", artifactKey)
-		return echo.NewHTTPError(404, "Artifact not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.not_found"))
 	}
 
 	var payload map[string]any
@@ -83,7 +84,7 @@ func (s *Server) handleArtifactViewByType(artifactType string) echo.HandlerFunc 
 
 		instance, err := s.loadInstance(ctx, instanceID)
 		if err != nil {
-			return echo.NewHTTPError(404, "Instance not found")
+			return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 		}
 
 		// Load the artifact by type (singletons)

@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -25,7 +26,7 @@ func (s *Server) handleExecutionDashboard(c echo.Context) error {
 
 	instance, err := s.loadInstance(ctx, instanceID)
 	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
 	data := s.loadExecutionData(ctx, instanceID, instance.Name)

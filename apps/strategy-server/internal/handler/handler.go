@@ -4,6 +4,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/emergent-company/go-daisy/components/layout"
@@ -25,6 +26,7 @@ import (
 	userdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
@@ -338,19 +340,24 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 
 // sidebarGroups builds sidebar navigation groups with instance list.
 func (s *Server) sidebarGroups(c echo.Context) []layout.SidebarGroup {
+	ctx := c.Request().Context()
 	currentPath := c.Request().URL.Path
 
-	instances, err := s.loadInstanceSummaries(c.Request().Context())
+	instances, err := s.loadInstanceSummaries(ctx)
 	if err != nil {
 		s.log.Error("failed to load instances for sidebar", "err", err)
 	}
 
-	return ui.BuildSidebarGroups(currentPath, instances)
+	return ui.BuildSidebarGroups(ctx, currentPath, instances)
 }
 
 // strategyTabs builds the strategy tabs, setting the active tab based on
 // the navigation graph's tab resolution.
 func (s *Server) strategyTabs(instanceID, currentPath string) []ui.TabProps {
+	return s.strategyTabsCtx(context.Background(), instanceID, currentPath)
+}
+
+func (s *Server) strategyTabsCtx(ctx context.Context, instanceID, currentPath string) []ui.TabProps {
 	activeTab := navGraph.ResolveTabForPath(instanceID, currentPath)
 	tabs := navGraph.InstanceTabGroups()
 
@@ -359,7 +366,7 @@ func (s *Server) strategyTabs(instanceID, currentPath string) []ui.TabProps {
 		meta := navigation.TabDisplay(tab)
 		href := "/strategies/" + instanceID + meta.LandingURL
 		result = append(result, ui.TabProps{
-			Label:    meta.Label,
+			Label:    langs.T(ctx, meta.Label),
 			Icon:     meta.Icon,
 			URL:      href,
 			IsActive: tab == activeTab,
@@ -382,7 +389,7 @@ func (s *Server) renderInstancePage(c echo.Context, pageTitle string, content ui
 
 	instance, err := s.loadInstance(ctx, instanceID)
 	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
 	tabs := s.strategyTabs(instanceID, currentPath)

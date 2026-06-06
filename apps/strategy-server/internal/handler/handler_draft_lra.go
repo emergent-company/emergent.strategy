@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // ---------------------------------------------------------------------------
@@ -20,12 +22,12 @@ func (s *Server) handleDraftLRA(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.skillExecutor == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "Skill executor not available — LLM provider required for LRA drafting")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.skill_executor_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	params := map[string]any{
@@ -36,7 +38,7 @@ func (s *Server) handleDraftLRA(c echo.Context) error {
 	result, err := s.skillExecutor.RunChunked(ctx, instID, "draft-lra", params)
 	if err != nil {
 		s.log.Error("draft-lra skill failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "draft LRA failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.draft_assessment_failed"))
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+result.BatchID.String())

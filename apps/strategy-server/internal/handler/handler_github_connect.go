@@ -14,6 +14,7 @@ import (
 
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
@@ -97,7 +98,7 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 
 			// Other non-auth error — show with retry button, keep token.
 			s.log.Warn("github scan failed", "user_id", user.ID, "err", err)
-			data.ScanError = "Scan failed — please try again."
+			data.ScanError = langs.T(ctx, "error.github_scan_failed")
 		}
 	} else {
 		data.Repos = toUIRepoItems(repos)
@@ -111,7 +112,7 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 // GET /github/connect/authorize
 func (s *Server) handleGithubConnectAuthorize(c echo.Context) error {
 	if s.githubOAuth == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub OAuth is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(c.Request().Context(), "error.github_oauth_not_configured"))
 	}
 
 	state, err := ghclient.GenerateState()
@@ -143,23 +144,23 @@ func (s *Server) handleGithubConnectCallback(c echo.Context) error {
 	user := web.UserFromContext(ctx)
 
 	if s.githubOAuth == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub OAuth is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_oauth_not_configured"))
 	}
 
 	// Verify CSRF state.
 	stateCookie, err := c.Cookie("github_oauth_state")
 	if err != nil {
-		return c.String(http.StatusBadRequest, "missing state cookie — please try again")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.oauth_missing_state_cookie"))
 	}
 	callbackState := c.QueryParam("state")
 	_, ok := ghclient.VerifyState(stateCookie.Value, s.githubOAuth.StateSecret)
 	if !ok || callbackState == "" {
-		return c.String(http.StatusBadRequest, "invalid OAuth state — possible CSRF attack")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.oauth_invalid_state"))
 	}
 	// Also verify the state param matches what's in the cookie.
 	signedFromParam := ghclient.SignState(callbackState, s.githubOAuth.StateSecret)
 	if signedFromParam != stateCookie.Value {
-		return c.String(http.StatusBadRequest, "state mismatch — please try again")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.oauth_state_mismatch"))
 	}
 
 	// Clear the state cookie.
@@ -173,14 +174,14 @@ func (s *Server) handleGithubConnectCallback(c echo.Context) error {
 
 	code := c.QueryParam("code")
 	if code == "" {
-		return c.String(http.StatusBadRequest, "missing code parameter")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.oauth_missing_code"))
 	}
 
 	// Exchange code for access token.
 	accessToken, err := s.githubOAuth.ExchangeCode(ctx, code)
 	if err != nil {
 		s.log.Error("github oauth code exchange failed", "err", err)
-		return c.String(http.StatusBadGateway, "failed to exchange GitHub authorization code")
+		return c.String(http.StatusBadGateway, langs.T(ctx, "error.oauth_exchange_failed"))
 	}
 
 	// Fetch GitHub user to log the login.
@@ -210,7 +211,7 @@ func (s *Server) handleGithubConnectScan(c echo.Context) error {
 	user := web.UserFromContext(ctx)
 
 	if s.syncSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_sync_not_configured"))
 	}
 
 	githubToken := s.loadUserGithubToken(ctx, user.ID)

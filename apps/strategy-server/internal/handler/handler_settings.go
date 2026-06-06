@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -44,17 +44,18 @@ func (s *Server) handleSettings(c echo.Context) error {
 // handleSettingsImport handles POST /settings/import — triggers a GitHub import
 // for a specific instance. Redirects back to settings with a flash message.
 func (s *Server) handleSettingsImport(c echo.Context) error {
+	ctx := c.Request().Context()
 	if s.syncSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_sync_not_configured"))
 	}
 
 	instanceIDStr := c.FormValue("instance_id")
 	if instanceIDStr == "" {
-		return c.String(http.StatusBadRequest, "instance_id required")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.instance_id_required"))
 	}
 	instanceID, err := uuid.Parse(instanceIDStr)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid instance_id")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id2"))
 	}
 
 	branch := c.FormValue("branch") // optional
@@ -73,17 +74,18 @@ func (s *Server) handleSettingsImport(c echo.Context) error {
 // handleSettingsSync handles POST /settings/sync — triggers a manual GitHub sync
 // for a specific instance. Redirects back to settings.
 func (s *Server) handleSettingsSync(c echo.Context) error {
+	ctx := c.Request().Context()
 	if s.syncSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_sync_not_configured"))
 	}
 
 	instanceIDStr := c.FormValue("instance_id")
 	if instanceIDStr == "" {
-		return c.String(http.StatusBadRequest, "instance_id required")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.instance_id_required"))
 	}
 	instanceID, err := uuid.Parse(instanceIDStr)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid instance_id")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id2"))
 	}
 
 	_, err = s.syncSvc.SyncToGithub(c.Request().Context(), sync.SyncParams{
@@ -113,7 +115,7 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 
 	client := s.semanticSvc.Client()
 	if client == nil {
-		status.Error = "memory client not initialized"
+		status.Error = langs.T(ctx, "error.memory_client_not_initialized")
 		return status
 	}
 
@@ -129,13 +131,13 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 
 	detail, err := client.HealthDetailed(healthCtx)
 	if err != nil {
-		status.Error = fmt.Sprintf("health check failed: %v", err)
+		status.Error = langs.T(ctx, "error.memory_health_check_failed")
 		return status
 	}
 	status.Version = detail.Version
 	status.Healthy = detail.Healthy
 	if !detail.Healthy {
-		status.Error = "database subsystem not healthy"
+		status.Error = langs.T(ctx, "error.memory_db_not_healthy")
 	}
 
 	return status

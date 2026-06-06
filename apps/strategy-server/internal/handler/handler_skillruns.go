@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -31,8 +32,9 @@ func (s *Server) handleActivityOverview(c echo.Context) error {
 	}
 
 	content := ui.ActivityPageContent(data)
-	return s.renderInstancePage(c, "Activity", ui.PhaseRenderData{
-		Title:   "Activity",
+	title := langs.T(ctx, "nav.screen.activity")
+	return s.renderInstancePage(c, title, ui.PhaseRenderData{
+		Title:   title,
 		Content: content,
 	})
 }
@@ -54,8 +56,9 @@ func (s *Server) handleSkillRuns(c echo.Context) error {
 
 	instUUID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return s.renderInstancePage(c, "Skill Runs", ui.PhaseRenderData{
-			Title:   "Skill Runs",
+		t := langs.T(ctx, "nav.screen.skill_runs")
+		return s.renderInstancePage(c, t, ui.PhaseRenderData{
+			Title:   t,
 			Content: ui.SkillRunsPageContent(data),
 		})
 	}
@@ -108,8 +111,9 @@ func (s *Server) handleSkillRuns(c echo.Context) error {
 	}
 
 	content := ui.SkillRunsPageContent(data)
-	return s.renderInstancePage(c, "Skill Runs", ui.PhaseRenderData{
-		Title:   "Skill Runs",
+	t := langs.T(ctx, "nav.screen.skill_runs")
+	return s.renderInstancePage(c, t, ui.PhaseRenderData{
+		Title:   t,
 		Content: content,
 	})
 }
@@ -131,17 +135,17 @@ func (s *Server) handleSkillRunDetail(c echo.Context) error {
 	}
 
 	if s.skillRunSvc == nil {
-		return echo.NewHTTPError(404, "skill run service not available")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.skill_run_service_not_available"))
 	}
 
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {
-		return echo.NewHTTPError(400, "invalid run ID")
+		return echo.NewHTTPError(400, langs.T(ctx, "error.invalid_run_id"))
 	}
 
 	run, err := s.skillRunSvc.GetByID(ctx, runID)
 	if err != nil {
-		return echo.NewHTTPError(404, "skill run not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.skill_run_not_found"))
 	}
 
 	data.RunID = run.ID.String()
@@ -196,8 +200,9 @@ func (s *Server) handleSkillRunDetail(c echo.Context) error {
 	}
 
 	content := ui.SkillRunDetailContent(data)
-	return s.renderInstancePage(c, "Skill Run Detail", ui.PhaseRenderData{
-		Title:   "Skill Run Detail",
+	t := langs.T(ctx, "page.skill_run_detail")
+	return s.renderInstancePage(c, t, ui.PhaseRenderData{
+		Title:   t,
 		Content: content,
 	})
 }

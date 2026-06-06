@@ -5,6 +5,8 @@ import (
 
 	"github.com/emergent-company/go-daisy/components/layout"
 	"github.com/emergent-company/go-daisy/components/ui"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // GlobalDashboardData holds the data for the global dashboard.
@@ -66,20 +68,20 @@ templ GlobalDashboardMainContent(data GlobalDashboardData) {
 templ GlobalDashboardContent(data GlobalDashboardData) {
 	<div class="p-6 pb-12">
 		<div class="mb-6">
-			<h1 class="text-2xl font-bold text-base-content">Strategy Dashboard</h1>
-			<p class="text-sm text-base-content/60 mt-1">Overview of your strategy instances</p>
+			<h1 class="text-2xl font-bold text-base-content">{ langs.T(ctx, "ui.dashboard.title") }</h1>
+			<p class="text-sm text-base-content/60 mt-1">{ langs.T(ctx, "ui.dashboard.subtitle") }</p>
 		</div>
 
 		@ui.StatCards([]ui.StatCardProps{
-			{Label: "Workspaces", Value: strconv.Itoa(len(data.Workspaces)), Icon: "lucide--folder", IconColor: "bg-primary/10 text-primary"},
-			{Label: "Strategy Instances", Value: strconv.Itoa(len(data.Instances)), Icon: "lucide--layers", IconColor: "bg-secondary/10 text-secondary"},
-			{Label: "Active", Value: strconv.Itoa(countActive(data.Instances)), Icon: "lucide--circle-check", IconColor: "bg-success/10 text-success"},
-			{Label: "Draft", Value: strconv.Itoa(countDraft(data.Instances)), Icon: "lucide--circle-dashed", IconColor: "bg-warning/10 text-warning"},
+			{Label: langs.T(ctx, "ui.stat.workspaces"), Value: strconv.Itoa(len(data.Workspaces)), Icon: "lucide--folder", IconColor: "bg-primary/10 text-primary"},
+			{Label: langs.T(ctx, "ui.stat.strategy_instances"), Value: strconv.Itoa(len(data.Instances)), Icon: "lucide--layers", IconColor: "bg-secondary/10 text-secondary"},
+			{Label: langs.T(ctx, "ui.stat.active"), Value: strconv.Itoa(countActive(data.Instances)), Icon: "lucide--circle-check", IconColor: "bg-success/10 text-success"},
+			{Label: langs.T(ctx, "ui.stat.draft"), Value: strconv.Itoa(countDraft(data.Instances)), Icon: "lucide--circle-dashed", IconColor: "bg-warning/10 text-warning"},
 		})
 
 		if len(data.Instances) > 0 {
 			<div class="mt-6">
-				<h2 class="text-lg font-semibold text-base-content mb-3">Strategy Instances</h2>
+				<h2 class="text-lg font-semibold text-base-content mb-3">{ langs.T(ctx, "ui.dashboard.instances_header") }</h2>
 				<div class="grid gap-4 lg:grid-cols-2">
 					for _, inst := range data.Instances {
 						@instanceCard(inst)
@@ -140,52 +142,52 @@ templ instanceCard(inst InstanceInfo) {
 
 			// ── Health indicators row ──
 			<div class="flex items-center gap-3 flex-wrap text-xs">
-				// Coherence score
-				if inst.CoherenceScore != "" {
-					<span class="tooltip" data-tip="Coherence score">
+			// Coherence score
+			if inst.CoherenceScore != "" {
+				<span class="tooltip" data-tip={ langs.T(ctx, "ui.tooltip.coherence_score") }>
 						<span class={ "inline-flex items-center gap-1 font-mono", instanceCoherenceColor(inst.CoherenceScore) }>
 							<span class="iconify lucide--shield-check size-3"></span>
 							{ inst.CoherenceScore }
 						</span>
 					</span>
 				}
-				// Signal health
-				if inst.CriticalSignals > 0 {
-					<span class="tooltip" data-tip="Critical coherence signals">
+			// Signal health
+			if inst.CriticalSignals > 0 {
+				<span class="tooltip" data-tip={ langs.T(ctx, "ui.tooltip.critical_signals") }>
 						<span class="inline-flex items-center gap-1 text-error font-semibold">
 							<span class="iconify lucide--alert-circle size-3"></span>
 							{ strconv.Itoa(inst.CriticalSignals) }
 						</span>
 					</span>
 				}
-				if inst.WarningSignals > 0 {
-					<span class="tooltip" data-tip="Warning signals">
+			if inst.WarningSignals > 0 {
+				<span class="tooltip" data-tip={ langs.T(ctx, "ui.tooltip.warning_signals") }>
 						<span class="inline-flex items-center gap-1 text-warning font-semibold">
 							<span class="iconify lucide--alert-triangle size-3"></span>
 							{ strconv.Itoa(inst.WarningSignals) }
 						</span>
 					</span>
 				}
-				if inst.CriticalSignals == 0 && inst.WarningSignals == 0 && inst.CoherenceScore != "" {
-					<span class="inline-flex items-center gap-1 text-success">
-						<span class="iconify lucide--check-circle-2 size-3"></span>
-						Healthy
-					</span>
-				}
+			if inst.CriticalSignals == 0 && inst.WarningSignals == 0 && inst.CoherenceScore != "" {
+				<span class="inline-flex items-center gap-1 text-success">
+					<span class="iconify lucide--check-circle-2 size-3"></span>
+					{ langs.T(ctx, "ui.status.healthy") }
+				</span>
+			}
 			</div>
 
 			// ── Stats strip ──
 			<div class="flex items-center gap-1 flex-wrap pt-1 border-t border-base-content/5">
-				@instanceStatChip("lucide--file-text", strconv.Itoa(inst.FeatureCount), "features")
-				if inst.EvidenceCount > 0 {
-					@instanceStatChip("lucide--archive", strconv.Itoa(inst.EvidenceCount), "evidence")
-				}
-				if inst.AssumptionCount > 0 {
-					@instanceStatChip("lucide--flask-conical", strconv.Itoa(inst.TestedAssumptionCount) + "/" + strconv.Itoa(inst.AssumptionCount), "tested")
-				}
-				if inst.VersionCount > 0 {
-					@instanceStatChip("lucide--history", strconv.Itoa(inst.VersionCount), "versions")
-				}
+			@instanceStatChip("lucide--file-text", strconv.Itoa(inst.FeatureCount), langs.T(ctx, "ui.chip.features"))
+			if inst.EvidenceCount > 0 {
+				@instanceStatChip("lucide--archive", strconv.Itoa(inst.EvidenceCount), langs.T(ctx, "ui.chip.evidence"))
+			}
+			if inst.AssumptionCount > 0 {
+				@instanceStatChip("lucide--flask-conical", strconv.Itoa(inst.TestedAssumptionCount) + "/" + strconv.Itoa(inst.AssumptionCount), langs.T(ctx, "ui.chip.tested"))
+			}
+			if inst.VersionCount > 0 {
+				@instanceStatChip("lucide--history", strconv.Itoa(inst.VersionCount), langs.T(ctx, "ui.chip.versions"))
+			}
 			</div>
 		</div>
 	</a>
@@ -202,11 +204,11 @@ templ instanceStatChip(icon string, value string, label string) {
 templ statusBadge(status string) {
 	switch status {
 		case "active":
-			<span class="badge badge-sm badge-success">Active</span>
+			<span class="badge badge-sm badge-success">{ langs.T(ctx, "ui.status.active") }</span>
 		case "draft":
-			<span class="badge badge-sm badge-warning">Draft</span>
+			<span class="badge badge-sm badge-warning">{ langs.T(ctx, "ui.status.draft") }</span>
 		case "archived":
-			<span class="badge badge-sm badge-ghost">Archived</span>
+			<span class="badge badge-sm badge-ghost">{ langs.T(ctx, "ui.status.archived") }</span>
 		default:
 			<span class="badge badge-sm badge-ghost">{ status }</span>
 	}
@@ -217,10 +219,9 @@ templ emptyDashboard() {
 		<div class="rounded-full bg-base-content/5 p-6 mb-4">
 			<span class="iconify lucide--layers size-12 text-base-content/30"></span>
 		</div>
-		<h3 class="text-lg font-semibold text-base-content mb-2">No strategy instances yet</h3>
+		<h3 class="text-lg font-semibold text-base-content mb-2">{ langs.T(ctx, "ui.dashboard.empty_title") }</h3>
 		<p class="text-sm text-base-content/60 max-w-md">
-			Create a workspace and import a strategy instance to get started.
-			Use the MCP tools or CLI to scaffold your first EPF strategy.
+			{ langs.T(ctx, "ui.dashboard.empty_body") }
 		</p>
 	</div>
 }

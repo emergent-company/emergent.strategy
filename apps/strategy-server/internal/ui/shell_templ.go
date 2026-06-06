@@ -9,9 +9,12 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"context"
+
 	"github.com/emergent-company/go-daisy/components/layout"
 	"github.com/emergent-company/go-daisy/components/nav"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	strategynav "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 )
 
@@ -292,22 +295,40 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"bg-base-100 border-b border-base-200 px-6 py-3\"><nav class=\"flex items-center gap-2 text-sm\" aria-label=\"Breadcrumb\"><a href=\"/strategies\" class=\"text-base-content/70 hover:text-base-content transition-colors\">Strategies</a> <svg class=\"w-3 h-3 text-base-content/50\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 5l7 7-7 7\"></path></svg> <span class=\"font-bold text-base-content text-lg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"bg-base-100 border-b border-base-200 px-6 py-3\"><nav class=\"flex items-center gap-2 text-sm\" aria-label=\"Breadcrumb\"><a href=\"/strategies\" class=\"text-base-content/70 hover:text-base-content transition-colors\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "nav.breadcrumb.strategies"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 69, Col: 139}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a> <svg class=\"w-3 h-3 text-base-content/50\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 5l7 7-7 7\"></path></svg> <span class=\"font-bold text-base-content text-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if instanceName != "" {
-			var templ_7745c5c3_Var11 string
-			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(instanceName)
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(instanceName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 70, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 73, Col: 19}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "Strategy")
+			var templ_7745c5c3_Var13 string
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "nav.breadcrumb.strategy_fallback"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 75, Col: 55}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -316,7 +337,7 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Var12 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -334,7 +355,7 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = instanceTabContent(tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = instanceTabContent(tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -373,9 +394,9 @@ func activityStreamSSE() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var13 == nil {
-			templ_7745c5c3_Var13 = templ.NopComponent
+		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var15 == nil {
+			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<script>\n\t(function() {\n\t\t// Extract instance ID from URL: /strategies/:id/...\n\t\tvar m = window.location.pathname.match(/^\\/strategies\\/([0-9a-f-]{36})/);\n\t\tif (!m) return;\n\t\tvar instanceId = m[1];\n\n\t\t// --- Tear down previous instance's resources ---\n\t\t// On HTMX Tier 2 swaps, the old <script> IIFE's closure is orphaned\n\t\t// but its EventSource, setInterval, and document listeners survive.\n\t\t// Clean them up before creating new ones.\n\t\tvar prev = window.__activitySSE;\n\t\tif (prev) {\n\t\t\tif (prev.es) { prev.es.close(); prev.es = null; }\n\t\t\tif (prev.reconcileTimer) { clearInterval(prev.reconcileTimer); prev.reconcileTimer = null; }\n\t\t\tif (prev.visHandler) {\n\t\t\t\tdocument.removeEventListener('visibilitychange', prev.visHandler);\n\t\t\t}\n\t\t}\n\n\t\t// Skill name → affected artifact CSS IDs (for toggling generating badges).\n\t\tvar skillArtifacts = {\n\t\t\t'adapt-strategy':     ['strategy_formula', 'roadmap_recipe'],\n\t\t\t'adapt-foundations':  ['north_star', 'strategy_foundations', 'insight_analyses', 'insight_opportunity'],\n\t\t\t'draft-north-star':   ['north_star'],\n\t\t\t'draft-insights':     ['insight_analyses'],\n\t\t\t'draft-foundations':  ['strategy_foundations'],\n\t\t\t'draft-opportunity':  ['insight_opportunity'],\n\t\t\t'draft-formula':      ['strategy_formula'],\n\t\t\t'draft-roadmap':      ['roadmap_recipe'],\n\t\t\t'align-portfolio':    ['strategy_formula', 'roadmap_recipe']\n\t\t};\n\t\t// Flat set of all artifact IDs that can have a generating badge.\n\t\tvar allBadgeIds = [];\n\t\tfor (var k in skillArtifacts) {\n\t\t\tskillArtifacts[k].forEach(function(id) {\n\t\t\t\tif (allBadgeIds.indexOf(id) === -1) allBadgeIds.push(id);\n\t\t\t});\n\t\t}\n\n\t\t// --- Singleton state on window ---\n\t\tvar state = { es: null, reconcileTimer: null, errorCount: 0, visHandler: null };\n\t\twindow.__activitySSE = state;\n\n\t\tvar MAX_ERRORS = 5;        // close after 5 consecutive failures\n\t\tvar RECONCILE_MS = 30000;  // 30s polling fallback\n\n\t\t// reconcileBadges checks the cascade endpoint and shows/hides generating\n\t\t// badges based on which skill runs are actually active right now.\n\t\tfunction reconcileBadges() {\n\t\t\tfetch('/strategies/' + instanceId + '/cascade')\n\t\t\t\t.then(function(r) { return r.text(); })\n\t\t\t\t.then(function(html) {\n\t\t\t\t\tvar hasRunningRow = html.indexOf('animate-spin') !== -1 && html.indexOf('lucide--loader') !== -1;\n\t\t\t\t\tvar activeIds = {};\n\t\t\t\t\tif (hasRunningRow) {\n\t\t\t\t\t\tfor (var sk in skillArtifacts) {\n\t\t\t\t\t\t\tif (html.indexOf(sk) !== -1) {\n\t\t\t\t\t\t\t\tskillArtifacts[sk].forEach(function(id) { activeIds[id] = true; });\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t\tallBadgeIds.forEach(function(id) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + id);\n\t\t\t\t\t\tif (!badge) return;\n\t\t\t\t\t\tif (activeIds[id]) {\n\t\t\t\t\t\t\tbadge.classList.remove('hidden');\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbadge.classList.add('hidden');\n\t\t\t\t\t\t}\n\t\t\t\t\t});\n\t\t\t\t})\n\t\t\t\t.catch(function() { /* ignore network errors */ });\n\t\t}\n\n\t\tfunction onActivity(e) {\n\t\t\ttry {\n\t\t\t\tvar evt = JSON.parse(e.data);\n\t\t\t\tvar payload = evt.payload || {};\n\t\t\t\tvar skillName = payload.skill_name || '';\n\t\t\t\tvar targets = skillArtifacts[skillName] || [];\n\n\t\t\t\tif (evt.event_type === 'skill.started') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.remove('hidden');\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t\tif (evt.event_type === 'skill.completed' || evt.event_type === 'skill.failed') {\n\t\t\t\t\ttargets.forEach(function(t) {\n\t\t\t\t\t\tvar badge = document.getElementById('generating-' + t);\n\t\t\t\t\t\tif (badge) badge.classList.add('hidden');\n\t\t\t\t\t});\n\t\t\t\t\tif (evt.event_type === 'skill.completed' && payload.batch_id) {\n\t\t\t\t\t\tvar banner = document.getElementById('pending-draft-banner');\n\t\t\t\t\t\tif (banner) {\n\t\t\t\t\t\t\tbanner.classList.remove('hidden');\n\t\t\t\t\t\t\tvar link = banner.querySelector('a');\n\t\t\t\t\t\t\tif (link) link.href = '/strategies/' + instanceId + '/aim/draft-review/' + payload.batch_id;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(err) { /* ignore parse errors */ }\n\t\t}\n\n\t\tfunction connectSSE() {\n\t\t\tif (state.es) { state.es.close(); state.es = null; }\n\t\t\tstate.errorCount = 0;\n\n\t\t\tstate.es = new EventSource('/strategies/' + instanceId + '/activity/stream');\n\t\t\tstate.es.addEventListener('activity', onActivity);\n\n\t\t\tstate.es.onopen = function() {\n\t\t\t\tstate.errorCount = 0;\n\t\t\t};\n\n\t\t\tstate.es.onerror = function() {\n\t\t\t\tstate.errorCount++;\n\t\t\t\tif (state.errorCount >= MAX_ERRORS) {\n\t\t\t\t\tstate.es.close();\n\t\t\t\t\tstate.es = null;\n\t\t\t\t}\n\t\t\t};\n\t\t}\n\n\t\tfunction disconnectSSE() {\n\t\t\tif (state.es) { state.es.close(); state.es = null; }\n\t\t}\n\n\t\tfunction startReconcile() {\n\t\t\tif (state.reconcileTimer) return;\n\t\t\treconcileBadges();\n\t\t\tstate.reconcileTimer = setInterval(reconcileBadges, RECONCILE_MS);\n\t\t}\n\n\t\tfunction stopReconcile() {\n\t\t\tif (state.reconcileTimer) { clearInterval(state.reconcileTimer); state.reconcileTimer = null; }\n\t\t}\n\n\t\tfunction teardown() {\n\t\t\tdisconnectSSE();\n\t\t\tstopReconcile();\n\t\t}\n\n\t\t// --- Page visibility handling ---\n\t\t// Single named handler so we can remove it on teardown.\n\t\tstate.visHandler = function() {\n\t\t\tif (document.hidden) {\n\t\t\t\tdisconnectSSE();\n\t\t\t\tstopReconcile();\n\t\t\t} else {\n\t\t\t\tconnectSSE();\n\t\t\t\tstartReconcile();\n\t\t\t}\n\t\t};\n\t\tdocument.addEventListener('visibilitychange', state.visHandler);\n\n\t\t// --- Initial setup ---\n\t\tconnectSSE();\n\t\tstartReconcile();\n\n\t\t// Close on full page unload (refresh, hard navigation).\n\t\twindow.addEventListener('beforeunload', teardown);\n\t})();\n\t</script>")
@@ -404,9 +425,9 @@ func instanceTabContent(tabs []TabProps, currentPath string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var14 == nil {
-			templ_7745c5c3_Var14 = templ.NopComponent
+		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var16 == nil {
+			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"tab-content\" class=\"flex flex-col flex-1 min-h-0\"><div class=\"sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0\">")
@@ -421,7 +442,7 @@ func instanceTabContent(tabs []TabProps, currentPath string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ_7745c5c3_Var14.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templ_7745c5c3_Var16.Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -452,12 +473,12 @@ func InstanceTabContent(tabs []TabProps, currentPath string, content templ.Compo
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var15 == nil {
-			templ_7745c5c3_Var15 = templ.NopComponent
+		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var17 == nil {
+			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var16 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var18 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -475,7 +496,7 @@ func InstanceTabContent(tabs []TabProps, currentPath string, content templ.Compo
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = instanceTabContent(tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = instanceTabContent(tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -508,9 +529,9 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var17 == nil {
-			templ_7745c5c3_Var17 = templ.NopComponent
+		templ_7745c5c3_Var19 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var19 == nil {
+			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div role=\"tablist\" class=\"flex gap-1\">")
@@ -518,9 +539,9 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, tab := range tabs {
-			var templ_7745c5c3_Var18 = []any{"tab tab-bordered pb-3 px-4 gap-2 text-sm font-medium",
+			var templ_7745c5c3_Var20 = []any{"tab tab-bordered pb-3 px-4 gap-2 text-sm font-medium",
 				templ.KV("tab-active", tab.IsActive)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -528,12 +549,12 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var19 templ.SafeURL
-			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(tab.URL))
+			var templ_7745c5c3_Var21 templ.SafeURL
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(tab.URL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 298, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 301, Col: 29}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -541,12 +562,12 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var20 string
-			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(tab.URL)
+			var templ_7745c5c3_Var22 string
+			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(tab.URL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 299, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 302, Col: 20}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -554,12 +575,12 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var21 string
-			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var18).String())
+			var templ_7745c5c3_Var23 string
+			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var20).String())
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -568,8 +589,8 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if tab.Icon != "" {
-				var templ_7745c5c3_Var22 = []any{"iconify size-4 " + tab.Icon}
-				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
+				var templ_7745c5c3_Var24 = []any{"iconify size-4 " + tab.Icon}
+				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -577,12 +598,12 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var23 string
-				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var22).String())
+				var templ_7745c5c3_Var25 string
+				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var24).String())
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -591,12 +612,12 @@ func StrategyTabs(tabs []TabProps, currentPath string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			var templ_7745c5c3_Var24 string
-			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(tab.Label)
+			var templ_7745c5c3_Var26 string
+			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(tab.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 309, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 312, Col: 15}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -627,7 +648,8 @@ type TabSubNavItem struct {
 var navGraph = strategynav.DefaultGraph()
 
 // tabSubNavItems returns sub-navigation items for a tab's child pages.
-func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath string) []TabSubNavItem {
+// ctx is used to resolve screen title lang keys via langs.T.
+func tabSubNavItems(ctx context.Context, tabGroup strategynav.TabGroup, instanceID, currentPath string) []TabSubNavItem {
 	screens := navGraph.TabSubNavScreens(tabGroup)
 	if len(screens) == 0 {
 		return nil
@@ -640,7 +662,7 @@ func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath strin
 			icon = "lucide--circle"
 		}
 		items = append(items, TabSubNavItem{
-			Label:  s.Title,
+			Label:  langs.T(ctx, s.Title),
 			Icon:   icon,
 			Href:   href,
 			Active: currentPath == href,
@@ -667,13 +689,13 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var25 == nil {
-			templ_7745c5c3_Var25 = templ.NopComponent
+		templ_7745c5c3_Var27 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var27 == nil {
+			templ_7745c5c3_Var27 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		tab := strategynav.TabGroup(tabGroup)
-		items := tabSubNavItems(tab, instanceID, currentPath)
+		items := tabSubNavItems(ctx, tab, instanceID, currentPath)
 		if len(items) > 0 {
 			meta := strategynav.TabDisplay(tab)
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"flex flex-wrap items-center gap-1 mb-4 text-sm\">")
@@ -681,10 +703,10 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				return templ_7745c5c3_Err
 			}
 			landingHref := "/strategies/" + instanceID + meta.LandingURL
-			var templ_7745c5c3_Var26 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
+			var templ_7745c5c3_Var28 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 				templ.KV("bg-primary/10 text-primary font-medium", currentPath == landingHref),
 				templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", currentPath != landingHref)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -692,12 +714,12 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var27 templ.SafeURL
-			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(landingHref))
+			var templ_7745c5c3_Var29 templ.SafeURL
+			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(landingHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 361, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 365, Col: 37}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -705,12 +727,12 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 string
-			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(landingHref)))
+			var templ_7745c5c3_Var30 string
+			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(landingHref)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 362, Col: 47}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 366, Col: 47}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -718,30 +740,8 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var29 string
-			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var26).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var30 = []any{"iconify size-3.5 " + meta.Icon}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var30...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 			var templ_7745c5c3_Var31 string
-			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var30).String())
+			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var28).String())
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 			}
@@ -749,16 +749,38 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var32 = []any{"iconify size-3.5 " + meta.Icon}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var32...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var33 string
+			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var32).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var32 string
-			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Label)
+			var templ_7745c5c3_Var34 string
+			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(meta.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 371, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 375, Col: 16}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -767,10 +789,10 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				return templ_7745c5c3_Err
 			}
 			for _, item := range items {
-				var templ_7745c5c3_Var33 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
+				var templ_7745c5c3_Var35 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 					templ.KV("bg-primary/10 text-primary font-medium", item.Active),
 					templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", !item.Active)}
-				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var33...)
+				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var35...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -778,12 +800,12 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var34 templ.SafeURL
-				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
+				var templ_7745c5c3_Var36 templ.SafeURL
+				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Href))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 376, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 380, Col: 36}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -791,12 +813,12 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var35 string
-				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(item.Href)))
+				var templ_7745c5c3_Var37 string
+				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(item.Href)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 377, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 381, Col: 46}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -804,30 +826,8 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var36 string
-				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var33).String())
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var37 = []any{"iconify size-3.5 " + item.Icon}
-				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<span class=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
 				var templ_7745c5c3_Var38 string
-				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var37).String())
+				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var35).String())
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
 				}
@@ -835,16 +835,38 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var39 = []any{"iconify size-3.5 " + item.Icon}
+				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var39...)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<span class=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var40 string
+				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var39).String())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 1, Col: 0}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var39 string
-				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
+				var templ_7745c5c3_Var41 string
+				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 386, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 390, Col: 17}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -880,9 +902,9 @@ func TabBackLink(tabGroup string, instanceID string, currentPath string) templ.C
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var40 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var40 == nil {
-			templ_7745c5c3_Var40 = templ.NopComponent
+		templ_7745c5c3_Var42 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var42 == nil {
+			templ_7745c5c3_Var42 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = TabRelatedPages(tabGroup, instanceID, currentPath).Render(ctx, templ_7745c5c3_Buffer)
@@ -898,14 +920,15 @@ func TabBackLink(tabGroup string, instanceID string, currentPath string) templ.C
 // graphCrumbs builds breadcrumb steps for a screen from the navigation graph.
 // For instance-scoped screens, steps above the current tab landing are removed
 // since the chrome already shows the instance name and tab bar.
-func graphCrumbs(screenID string, instanceID string, instanceName string) []nav.BreadcrumbStep {
+// ctx is required to resolve screen title lang keys.
+func graphCrumbs(ctx context.Context, screenID string, instanceID string, instanceName string) []nav.BreadcrumbStep {
 	chain := navGraph.BreadcrumbChain(strategynav.ScreenID(screenID), instanceID)
 
-	// Skip entries up to and including Execution (the instance landing).
+	// Skip entries up to and including ExecutionDashboard (the instance landing).
 	// The chrome already shows instance name + tab bar.
 	cutIdx := -1
 	for i, entry := range chain {
-		if entry.Label == "Dashboard" || entry.Label == "Execution" {
+		if entry.ScreenID == strategynav.GlobalDashboard || entry.ScreenID == strategynav.ExecutionDashboard {
 			cutIdx = i
 		}
 	}
@@ -918,7 +941,7 @@ func graphCrumbs(screenID string, instanceID string, instanceName string) []nav.
 	steps := make([]nav.BreadcrumbStep, 0, len(chain))
 	for _, entry := range chain {
 		steps = append(steps, nav.BreadcrumbStep{
-			Label: entry.Label,
+			Label: langs.T(ctx, entry.Label),
 			URL:   entry.Href,
 		})
 	}
@@ -991,12 +1014,12 @@ func InstancePhaseFullPage(title string, currentPath string, sidebarGroups []lay
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var41 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var41 == nil {
-			templ_7745c5c3_Var41 = templ.NopComponent
+		templ_7745c5c3_Var43 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var43 == nil {
+			templ_7745c5c3_Var43 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var42 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var44 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1014,7 +1037,7 @@ func InstancePhaseFullPage(title string, currentPath string, sidebarGroups []lay
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs).Render(templ.WithChildren(ctx, templ_7745c5c3_Var42), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs).Render(templ.WithChildren(ctx, templ_7745c5c3_Var44), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1040,12 +1063,12 @@ func InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var43 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var43 == nil {
-			templ_7745c5c3_Var43 = templ.NopComponent
+		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var45 == nil {
+			templ_7745c5c3_Var45 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var44 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var46 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1063,7 +1086,7 @@ func InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = InstanceChrome(instanceName, tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var44), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = InstanceChrome(instanceName, tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var46), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1089,13 +1112,52 @@ func systemWarningBanner() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var45 == nil {
-			templ_7745c5c3_Var45 = templ.NopComponent
+		templ_7745c5c3_Var47 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var47 == nil {
+			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if !GetSystemConfig().MemoryConfigured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0\"><span class=\"iconify lucide--alert-triangle size-4 text-warning shrink-0\"></span> <span class=\"text-warning-content/80\"><strong>Memory not configured</strong> — semantic search, contradiction detection, and graph features are disabled.</span> <a href=\"/settings\" class=\"ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline\">Settings</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0\"><span class=\"iconify lucide--alert-triangle size-4 text-warning shrink-0\"></span> <span class=\"text-warning-content/80\"><strong>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var48 string
+			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.title"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 507, Col: 65}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</strong>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var49 string
+			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.body"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 507, Col: 128}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</span> <a href=\"/settings\" class=\"ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var50 string
+			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "nav.screen.settings"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 512, Col: 41}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1121,12 +1183,12 @@ func themeRestoreScript() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var46 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var46 == nil {
-			templ_7745c5c3_Var46 = templ.NopComponent
+		templ_7745c5c3_Var51 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var51 == nil {
+			templ_7745c5c3_Var51 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

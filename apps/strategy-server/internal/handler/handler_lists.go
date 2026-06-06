@@ -8,6 +8,7 @@ import (
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/labstack/echo/v4"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
@@ -234,7 +235,7 @@ func (s *Server) renderFireTrackPage(c echo.Context, title string, data ui.FireT
 
 	instance, err := s.loadInstance(ctx, instanceID)
 	if err != nil {
-		return echo.NewHTTPError(404, "Instance not found")
+		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
 	tabs := s.strategyTabs(instanceID, currentPath)

@@ -13,6 +13,7 @@ import (
 
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	domain "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -20,7 +21,7 @@ import (
 func (s *Server) handleVersions(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
 		content := s.loadVersionsView(instanceID, c)
-		return ui.PhaseRenderData{Title: "Version History", Content: content}
+		return ui.PhaseRenderData{Title: langs.T(c.Request().Context(), "page.version_history"), Content: content}
 	})
 }
 
@@ -90,21 +91,21 @@ func (s *Server) handleVersionDetail(c echo.Context) error {
 	}
 
 	if s.versionSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "version service not available")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.version_service_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 	verID, err := uuid.Parse(versionIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid version ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_version_id"))
 	}
 
 	ver, err := s.versionSvc.Get(ctx, instID, verID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "version not found")
+		return echo.NewHTTPError(http.StatusNotFound, langs.T(ctx, "error.version_not_found"))
 	}
 
 	// Extract artifact count from snapshot metadata without a separate List() call.
@@ -148,13 +149,13 @@ func (s *Server) handleVersionDetail(c echo.Context) error {
 			changeSummaries := s.loadChangeSummariesBetweenVersions(ctx, instID, ver)
 
 			for _, a := range diff.Added {
-				detailData.Added = append(detailData.Added, enrichDiffEntry(a.ArtifactKey, instanceID))
+				detailData.Added = append(detailData.Added, enrichDiffEntry(ctx, a.ArtifactKey, instanceID))
 			}
 			for _, r := range diff.Removed {
-				detailData.Removed = append(detailData.Removed, enrichDiffEntry(r.ArtifactKey, instanceID))
+				detailData.Removed = append(detailData.Removed, enrichDiffEntry(ctx, r.ArtifactKey, instanceID))
 			}
 			for _, ch := range diff.Changed {
-				entry := enrichDiffEntry(ch.ArtifactKey, instanceID)
+				entry := enrichDiffEntry(ctx, ch.ArtifactKey, instanceID)
 				// Use LLM-generated change summary if available; fall back to
 				// field-level diff details.
 				if summary := lookupChangeSummary(changeSummaries, ch.ArtifactKey); summary != "" {
@@ -190,21 +191,21 @@ func (s *Server) handleVersionRestore(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.versionSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "version service not available")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.version_service_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 	verID, err := uuid.Parse(versionIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid version ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_version_id"))
 	}
 
 	if _, err := s.versionSvc.Restore(ctx, instID, verID); err != nil {
 		s.log.Error("failed to restore version", "instance_id", instanceID, "version_id", versionIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "restore failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.version_restore_failed"))
 	}
 
 	// Redirect to the version list after a successful restore.
@@ -218,12 +219,12 @@ func (s *Server) handlePublishVersion(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.versionSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "version service not available")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.version_service_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	label := c.FormValue("label")
@@ -231,7 +232,7 @@ func (s *Server) handlePublishVersion(c echo.Context) error {
 
 	if _, err := s.versionSvc.Publish(ctx, instID, label, description); err != nil {
 		s.log.Error("failed to publish version", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "publish failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.version_publish_failed"))
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/versions")
@@ -433,42 +434,42 @@ func splitChangeSummary(summary string) []string {
 
 // enrichDiffEntry resolves an artifact key into a rich VersionDiffEntry with
 // human-readable label, category, artifact type, and a link to the view page.
-func enrichDiffEntry(artifactKey, instanceID string) ui.VersionDiffEntry {
+func enrichDiffEntry(ctx context.Context, artifactKey, instanceID string) ui.VersionDiffEntry {
 	entry := ui.VersionDiffEntry{ArtifactKey: artifactKey}
 
 	// Map well-known singleton artifact keys to their type and category.
 	type artInfo struct {
 		artType  string
-		label    string
+		labelKey string
 		category string
 		path     string // URL suffix after /strategies/:id
 	}
 
 	singletons := map[string]artInfo{
-		"north_star":                  {"north_star", "North Star", "READY", "/ready/north-star"},
-		"north-star":                  {"north_star", "North Star", "READY", "/ready/north-star"},
-		"insight_analyses":            {"insight_analyses", "Insight Analyses", "READY", "/ready/insights"},
-		"insight-analyses":            {"insight_analyses", "Insight Analyses", "READY", "/ready/insights"},
-		"strategy_foundations":        {"strategy_foundations", "Strategy Foundations", "READY", "/ready/foundations"},
-		"strategy-foundations":        {"strategy_foundations", "Strategy Foundations", "READY", "/ready/foundations"},
-		"insight_opportunity":         {"insight_opportunity", "Validated Opportunity", "READY", "/ready/opportunity"},
-		"insight-opportunity":         {"insight_opportunity", "Validated Opportunity", "READY", "/ready/opportunity"},
-		"strategy_formula":            {"strategy_formula", "Strategy Formula", "READY", "/ready/formula"},
-		"strategy-formula":            {"strategy_formula", "Strategy Formula", "READY", "/ready/formula"},
-		"roadmap_recipe":              {"roadmap_recipe", "Roadmap Recipe", "READY", "/ready/roadmap"},
-		"roadmap-recipe":              {"roadmap_recipe", "Roadmap Recipe", "READY", "/ready/roadmap"},
-		"product_portfolio":           {"product_portfolio", "Product Portfolio", "READY", "/ready/portfolio"},
-		"assessment_report":           {"assessment_report", "Assessment Report", "AIM", "/aim/assessment"},
-		"assessment-report":           {"assessment_report", "Assessment Report", "AIM", "/aim/assessment"},
-		"calibration-memo":            {"calibration_memo", "Calibration Memo", "AIM", "/aim/calibration"},
-		"calibration_memo":            {"calibration_memo", "Calibration Memo", "AIM", "/aim/calibration"},
-		"living-reality-assessment":   {"living_reality_assessment", "Living Reality Assessment", "AIM", "/aim/lra"},
-		"living_reality_assessment":   {"living_reality_assessment", "Living Reality Assessment", "AIM", "/aim/lra"},
+		"north_star":                {"north_star", "artifact.label.north_star", "READY", "/ready/north-star"},
+		"north-star":                {"north_star", "artifact.label.north_star", "READY", "/ready/north-star"},
+		"insight_analyses":          {"insight_analyses", "artifact.label.insight_analyses", "READY", "/ready/insights"},
+		"insight-analyses":          {"insight_analyses", "artifact.label.insight_analyses", "READY", "/ready/insights"},
+		"strategy_foundations":      {"strategy_foundations", "artifact.label.strategy_foundations", "READY", "/ready/foundations"},
+		"strategy-foundations":      {"strategy_foundations", "artifact.label.strategy_foundations", "READY", "/ready/foundations"},
+		"insight_opportunity":       {"insight_opportunity", "artifact.label.insight_opportunity", "READY", "/ready/opportunity"},
+		"insight-opportunity":       {"insight_opportunity", "artifact.label.insight_opportunity", "READY", "/ready/opportunity"},
+		"strategy_formula":          {"strategy_formula", "artifact.label.strategy_formula", "READY", "/ready/formula"},
+		"strategy-formula":          {"strategy_formula", "artifact.label.strategy_formula", "READY", "/ready/formula"},
+		"roadmap_recipe":            {"roadmap_recipe", "artifact.label.roadmap_recipe", "READY", "/ready/roadmap"},
+		"roadmap-recipe":            {"roadmap_recipe", "artifact.label.roadmap_recipe", "READY", "/ready/roadmap"},
+		"product_portfolio":         {"product_portfolio", "artifact.label.product_portfolio", "READY", "/ready/portfolio"},
+		"assessment_report":         {"assessment_report", "artifact.label.assessment_report", "AIM", "/aim/assessment"},
+		"assessment-report":         {"assessment_report", "artifact.label.assessment_report", "AIM", "/aim/assessment"},
+		"calibration-memo":          {"calibration_memo", "artifact.label.calibration_memo", "AIM", "/aim/calibration"},
+		"calibration_memo":          {"calibration_memo", "artifact.label.calibration_memo", "AIM", "/aim/calibration"},
+		"living-reality-assessment": {"living_reality_assessment", "artifact.label.living_reality_assessment", "AIM", "/aim/lra"},
+		"living_reality_assessment": {"living_reality_assessment", "artifact.label.living_reality_assessment", "AIM", "/aim/lra"},
 	}
 
 	if info, ok := singletons[artifactKey]; ok {
 		entry.ArtifactType = info.artType
-		entry.Label = info.label
+		entry.Label = langs.T(ctx, info.labelKey)
 		entry.Category = info.category
 		entry.Href = "/strategies/" + instanceID + info.path
 		return entry

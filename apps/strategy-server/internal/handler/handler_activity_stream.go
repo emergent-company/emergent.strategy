@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // handleActivityStream opens an SSE connection and streams activity events for
@@ -24,17 +26,16 @@ import (
 // A keepalive comment (": keepalive") is sent every 30 seconds to prevent
 // proxy/CDN timeouts.
 func (s *Server) handleActivityStream(c echo.Context) error {
+	ctx := c.Request().Context()
 	if s.activitySvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "activity stream not configured")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	instanceIDStr := c.Param("id")
 	instanceID, err := uuid.Parse(instanceIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
-
-	ctx := c.Request().Context()
 	w := c.Response().Writer
 
 	// Set SSE headers.

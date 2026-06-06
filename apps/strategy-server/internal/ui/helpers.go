@@ -2,12 +2,15 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/emergent-company/go-daisy/components/layout"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // SystemConfig holds server-wide flags surfaced in the UI.
@@ -36,12 +39,12 @@ type InstanceSummary struct {
 
 // BuildSidebarGroups builds the sidebar navigation with a dashboard link
 // and strategy instances grouped by organisation.
-func BuildSidebarGroups(currentPath string, instances []InstanceSummary) []layout.SidebarGroup {
+func BuildSidebarGroups(ctx context.Context, currentPath string, instances []InstanceSummary) []layout.SidebarGroup {
 	groups := []layout.SidebarGroup{
 		{
-			Label: "Overview",
+			Label: langs.T(ctx, "nav.sidebar_group.overview"),
 			Items: []layout.SidebarItem{
-				{Label: "Dashboard", Icon: "lucide--layout-dashboard", Href: "/", Active: currentPath == "/"},
+				{Label: langs.T(ctx, "nav.screen.dashboard"), Icon: "lucide--layout-dashboard", Href: "/", Active: currentPath == "/"},
 			},
 		},
 	}
@@ -90,9 +93,9 @@ func BuildSidebarGroups(currentPath string, instances []InstanceSummary) []layou
 
 	// System group — always at the bottom.
 	groups = append(groups, layout.SidebarGroup{
-		Label: "System",
+		Label: langs.T(ctx, "nav.sidebar_group.system"),
 		Items: []layout.SidebarItem{
-			{Label: "Settings", Icon: "lucide--settings", Href: "/settings", Active: hasPrefix(currentPath, "/settings")},
+			{Label: langs.T(ctx, "nav.screen.settings"), Icon: "lucide--settings", Href: "/settings", Active: hasPrefix(currentPath, "/settings")},
 		},
 	})
 

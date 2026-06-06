@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
@@ -25,7 +27,7 @@ func (s *Server) handleStartAIMRun(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.orchestrationEngine == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "orchestration not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	run, err := s.orchestrationEngine.StartRun(ctx, aimdom.WorkflowName, instanceID, map[string]any{
@@ -36,12 +38,12 @@ func (s *Server) handleStartAIMRun(c echo.Context) error {
 			// Browser request — redirect to AIM page with a message.
 			// HTMX request — return 409 so the UI can show a toast.
 			if c.Request().Header.Get("HX-Request") == "true" {
-				return c.String(http.StatusConflict, "An AIM cycle is already running for this instance")
+				return c.String(http.StatusConflict, langs.T(ctx, "error.aim_cycle_already_running"))
 			}
 			return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 		}
 		s.log.Error("failed to start AIM cycle run", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to start AIM cycle")
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.aim_cycle_start_failed"))
 	}
 
 	// Redirect browser to the run panel.
@@ -59,17 +61,17 @@ func (s *Server) handleAbortAIMRun(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.orchestrationEngine == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "orchestration not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid run ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_run_id"))
 	}
 
 	if err := s.orchestrationEngine.Abort(ctx, runID); err != nil {
 		s.log.Error("failed to abort AIM cycle run", "run_id", runID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to abort run")
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.aim_run_abort_failed"))
 	}
 
 	// Redirect back to the run panel to show updated status.
@@ -87,12 +89,12 @@ func (s *Server) handleRetryAIMRun(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.orchestrationEngine == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "orchestration not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid run ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_run_id"))
 	}
 
 	if err := s.orchestrationEngine.Retry(ctx, runID); err != nil {
@@ -133,8 +135,9 @@ func (s *Server) handleListAIMRuns(c echo.Context) error {
 	}
 
 	content := ui.AimCycleRunsContent(data)
-	return s.renderInstancePage(c, "Cycle Runs", ui.PhaseRenderData{
-		Title:   "Cycle Runs",
+	title := langs.T(ctx, "nav.screen.cycle_runs")
+	return s.renderInstancePage(c, title, ui.PhaseRenderData{
+		Title:   title,
 		Content: content,
 	})
 }
@@ -216,23 +219,24 @@ func (s *Server) handleGetAIMRun(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.orchestrationEngine == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "orchestration not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid run ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_run_id"))
 	}
 
 	run, err := s.orchestrationEngine.GetRun(ctx, runID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "run not found")
+		return echo.NewHTTPError(http.StatusNotFound, langs.T(ctx, "error.run_not_found"))
 	}
 
-	data := s.buildRunPanelData(instanceID, run)
+	data := s.buildRunPanelData(ctx, instanceID, run)
 	content := ui.AimRunPanelContent(data)
-	return s.renderInstancePage(c, "AIM Cycle Run", ui.PhaseRenderData{
-		Title:   "AIM Cycle Run",
+	title := langs.T(ctx, "page.aim_cycle_run")
+	return s.renderInstancePage(c, title, ui.PhaseRenderData{
+		Title:   title,
 		Content: content,
 	})
 }
@@ -247,12 +251,12 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.orchestrationEngine == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "orchestration not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.orchestration_not_available"))
 	}
 
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid run ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_run_id"))
 	}
 
 	// Set SSE headers.
@@ -278,7 +282,7 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 		if err != nil {
 			return "", ""
 		}
-		data := s.buildRunPanelData(instanceID, run)
+		data := s.buildRunPanelData(ctx, instanceID, run)
 		var buf bytes.Buffer
 		_ = ui.AimRunTimeline(data).Render(ctx, &buf)
 		return buf.String(), run.Status
@@ -319,7 +323,7 @@ func (s *Server) handleAIMRunStream(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 // buildRunPanelData converts a Run into the view model for the run panel template.
-func (s *Server) buildRunPanelData(instanceID string, run *orchestration.Run) ui.AimRunPanelData {
+func (s *Server) buildRunPanelData(ctx context.Context, instanceID string, run *orchestration.Run) ui.AimRunPanelData {
 	stepRows := make([]ui.AimRunStepRow, len(run.Steps))
 	anyStepUsedLLM := false
 	for i, sl := range run.Steps {
@@ -372,7 +376,7 @@ func (s *Server) buildRunPanelData(instanceID string, run *orchestration.Run) ui
 				linkTypes = inferArtifactTypes(sl.Name)
 			}
 			for _, at := range linkTypes {
-				if link, ok := artifactLink(at, instanceID); ok {
+				if link, ok := artifactLink(ctx, at, instanceID); ok {
 					artifactLinks = append(artifactLinks, link)
 				}
 			}
@@ -476,30 +480,30 @@ func inferArtifactTypes(stepName string) []string {
 // artifactLink builds a UI link for a singleton artifact type.
 // Returns false for keyed artifact types (features, value models) that
 // require a specific key to build a URL.
-func artifactLink(artifactType, instanceID string) (ui.ArtifactLink, bool) {
+func artifactLink(ctx context.Context, artifactType, instanceID string) (ui.ArtifactLink, bool) {
 	type linkDef struct {
-		label string
-		path  string
-		icon  string
+		labelKey string
+		path     string
+		icon     string
 	}
 	defs := map[string]linkDef{
-		"north_star":                  {"North Star", "/ready/north-star", "lucide--star"},
-		"insight_analyses":            {"Insight Analyses", "/ready/insights", "lucide--search"},
-		"strategy_foundations":        {"Strategy Foundations", "/ready/foundations", "lucide--building"},
-		"insight_opportunity":         {"Validated Opportunity", "/ready/opportunity", "lucide--lightbulb"},
-		"strategy_formula":            {"Strategy Formula", "/ready/formula", "lucide--beaker"},
-		"roadmap_recipe":              {"Roadmap Recipe", "/ready/roadmap", "lucide--map"},
-		"product_portfolio":           {"Product Portfolio", "/ready/portfolio", "lucide--package"},
-		"living_reality_assessment":   {"Living Reality Assessment", "/aim/lra", "lucide--eye"},
-		"assessment_report":           {"Assessment Report", "/aim/assessment", "lucide--clipboard-check"},
-		"calibration_memo":            {"Calibration Memo", "/aim/calibration", "lucide--sliders-horizontal"},
+		"north_star":                {"artifact.label.north_star", "/ready/north-star", "lucide--star"},
+		"insight_analyses":          {"artifact.label.insight_analyses", "/ready/insights", "lucide--search"},
+		"strategy_foundations":      {"artifact.label.strategy_foundations", "/ready/foundations", "lucide--building"},
+		"insight_opportunity":       {"artifact.label.insight_opportunity", "/ready/opportunity", "lucide--lightbulb"},
+		"strategy_formula":          {"artifact.label.strategy_formula", "/ready/formula", "lucide--beaker"},
+		"roadmap_recipe":            {"artifact.label.roadmap_recipe", "/ready/roadmap", "lucide--map"},
+		"product_portfolio":         {"artifact.label.product_portfolio", "/ready/portfolio", "lucide--package"},
+		"living_reality_assessment": {"artifact.label.living_reality_assessment", "/aim/lra", "lucide--eye"},
+		"assessment_report":         {"artifact.label.assessment_report", "/aim/assessment", "lucide--clipboard-check"},
+		"calibration_memo":          {"artifact.label.calibration_memo", "/aim/calibration", "lucide--sliders-horizontal"},
 	}
 	def, ok := defs[artifactType]
 	if !ok {
 		return ui.ArtifactLink{}, false
 	}
 	return ui.ArtifactLink{
-		Label: def.label,
+		Label: langs.T(ctx, def.labelKey),
 		Href:  "/strategies/" + instanceID + def.path,
 		Icon:  def.icon,
 	}, true

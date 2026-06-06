@@ -15,6 +15,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // handleInstallDefinitions handles POST /strategies/:id/fire/install-definitions.
@@ -26,13 +27,13 @@ func (s *Server) handleInstallDefinitions(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	// List all canonical definition templates.
 	allTemplates, err := embedded.ListTemplates()
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to list templates")
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.templates_list_failed"))
 	}
 
 	// Filter to FIRE/definitions/ and parse each YAML template.

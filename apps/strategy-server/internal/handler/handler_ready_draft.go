@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // ---------------------------------------------------------------------------
@@ -42,23 +43,23 @@ func (s *Server) handleReadyDraft(c echo.Context) error {
 
 	cfg, ok := readyDraftSkills[key]
 	if !ok {
-		return echo.NewHTTPError(http.StatusNotFound, "unknown draft key: "+key)
+		return echo.NewHTTPError(http.StatusNotFound, langs.T(ctx, "error.unknown_draft_key"))
 	}
 
 	if s.skillExecutor == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "Skill executor not available — LLM provider required for AI drafting")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.skill_executor_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	// Enforce prerequisite artifacts.
 	for _, prereq := range cfg.prereqs {
 		if !s.hasArtifactType(ctx, instanceID, prereq) {
 			return echo.NewHTTPError(http.StatusBadRequest,
-				fmt.Sprintf("prerequisite artifact %q must exist before drafting %q", prereq, cfg.artifactType))
+				fmt.Sprintf("%s: %q → %q", langs.T(ctx, "error.ready_draft_prereq_missing"), prereq, cfg.artifactType))
 		}
 	}
 

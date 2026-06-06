@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -38,12 +39,12 @@ func (s *Server) handleDraftAssessment(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.aimSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "AIM service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.aim_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.isSkillRunning(ctx, instID) {
@@ -53,7 +54,7 @@ func (s *Server) handleDraftAssessment(c echo.Context) error {
 	batchID, _, err := s.aimSvc.DraftAssessment(ctx, instID)
 	if err != nil {
 		s.log.Error("draft assessment failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "draft assessment failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.draft_assessment_failed"))
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+batchID.String())
@@ -69,12 +70,12 @@ func (s *Server) handleDraftCalibration(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.aimSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "AIM service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.aim_not_available"))
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.isSkillRunning(ctx, instID) {
@@ -84,7 +85,7 @@ func (s *Server) handleDraftCalibration(c echo.Context) error {
 	batchID, _, err := s.aimSvc.DraftCalibration(ctx, instID)
 	if err != nil {
 		s.log.Error("draft calibration failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "draft calibration failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.draft_calibration_failed"))
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+batchID.String())
@@ -102,7 +103,7 @@ func (s *Server) handleApplyCalibration(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.isSkillRunning(ctx, instID) {
@@ -118,20 +119,20 @@ func (s *Server) handleApplyCalibration(c echo.Context) error {
 		result, runErr := s.skillExecutor.RunChunked(ctx, instID, "adapt-strategy", params)
 		if runErr != nil {
 			s.log.Error("apply calibration (adapt-strategy) failed", "instance_id", instanceID, "err", runErr)
-			return echo.NewHTTPError(http.StatusInternalServerError, "apply calibration failed: "+runErr.Error())
+			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.apply_calibration_failed"))
 		}
 		return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+result.BatchID.String())
 	}
 
 	// Fallback: legacy stub when executor is nil (e.g. no LLM configured).
 	if s.aimSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "AIM service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.aim_not_available"))
 	}
 
 	batchID, _, err := s.aimSvc.ApplyCalibration(ctx, instID)
 	if err != nil {
 		s.log.Error("apply calibration (legacy) failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "apply calibration failed: "+err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.apply_calibration_failed"))
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim/draft-review/"+batchID.String())
@@ -150,7 +151,7 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 
 	batchID, err := uuid.Parse(batchIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid batch ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_batch_id"))
 	}
 
 	// Load all staged mutations for this batch (including payload for preview).
@@ -172,7 +173,7 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		Scan(ctx, &rows)
 	if err != nil {
 		s.log.Error("failed to load draft review batch", "batch_id", batchIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusNotFound, "batch not found")
+		return echo.NewHTTPError(http.StatusNotFound, langs.T(ctx, "error.batch_not_found"))
 	}
 	if len(rows) == 0 {
 		// Batch may have been committed or discarded already.
@@ -244,8 +245,9 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 	}
 
 	content := ui.AimDraftReviewContent(data)
-	return s.renderInstancePage(c, "Draft Review", ui.PhaseRenderData{
-		Title:   "Draft Review",
+	title := langs.T(ctx, "page.draft_review")
+	return s.renderInstancePage(c, title, ui.PhaseRenderData{
+		Title:   title,
 		Content: content,
 	})
 }
@@ -262,7 +264,7 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 
 	batchID, err := uuid.Parse(batchIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid batch ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_batch_id"))
 	}
 
 	// Determine the primary artifact type before committing (for redirect routing).
@@ -281,7 +283,7 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 	// ApplyCalibration to fail because it queries strategy_artifacts for the memo.
 	instID, parseErr := uuid.Parse(instanceID)
 	if parseErr != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.strategySvc != nil {
@@ -296,7 +298,7 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 				return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 			}
 			s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
+			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
 		}
 	} else {
 		// Fallback: raw SQL only (no index derivation) — strategySvc should always be wired.
@@ -308,7 +310,7 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 			Exec(ctx)
 		if err != nil {
 			s.log.Error("failed to commit draft batch (fallback)", "batch_id", batchIDStr, "err", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, "commit failed")
+			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
 		}
 	}
 
@@ -454,7 +456,7 @@ func (s *Server) handleDraftDiscard(c echo.Context) error {
 
 	batchID, err := uuid.Parse(batchIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid batch ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_batch_id"))
 	}
 
 	_, err = s.db.NewUpdate().
@@ -464,7 +466,7 @@ func (s *Server) handleDraftDiscard(c echo.Context) error {
 		Exec(ctx)
 	if err != nil {
 		s.log.Error("failed to discard draft batch", "batch_id", batchIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "discard failed")
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.discard_failed"))
 	}
 
 	// Look up the run before resuming so we can redirect to it after abort.

@@ -25,6 +25,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -83,11 +84,11 @@ func registerPhaseArtifactTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_phase_artifacts",
 		mcp.WithDescription("USE WHEN you need to know which artifact types belong to a specific EPF phase (READY, FIRE, or AIM). Returns artifact types with descriptions, schema files, and template paths."),
 		mcp.WithString("phase", mcp.Required(), mcp.Description("EPF phase: READY, FIRE, or AIM")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		phase := strings.ToUpper(argString(req, "phase"))
 		artifacts, ok := phaseArtifacts[phase]
 		if !ok {
-			return mcp.NewToolResultError(fmt.Sprintf("unknown phase %q; use READY, FIRE, or AIM", phase)), nil
+			return mcp.NewToolResultError(fmt.Sprintf(langs.T(ctx, "error.mcp_unknown_phase"), phase)), nil
 		}
 		return mustJSON(map[string]any{
 			"phase":     phase,
@@ -466,7 +467,7 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 		targetType := argString(req, "target_type")
 
 		if sourceKey == "" || targetKey == "" || relType == "" {
-			return mcp.NewToolResultError("source_key, target_key, and relationship are required"), nil
+			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_relationship_fields_required")), nil
 		}
 
 		validRels := map[string]bool{
@@ -474,7 +475,7 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 			"enables": true, "in_tracks": true, "implements": true,
 		}
 		if !validRels[relType] {
-			return mcp.NewToolResultError(fmt.Sprintf("invalid relationship type %q; use one of: contributes_to, depends_on, tests_assumption, enables, in_tracks, implements", relType)), nil
+			return mcp.NewToolResultError(fmt.Sprintf(langs.T(ctx, "error.mcp_invalid_relationship_type"), relType)), nil
 		}
 
 		// Auto-infer target type from relationship if not provided.
@@ -550,7 +551,7 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 
 		featureKey := argString(req, "feature_key")
 		if featureKey == "" {
-			return mcp.NewToolResultError("feature_key is required"), nil
+			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_feature_key_required")), nil
 		}
 
 		// Get current relationships for this feature.
@@ -636,11 +637,11 @@ func registerDiscardScenarioTool(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID := argString(req, "instance_id")
 		if instID == "" {
-			return mcp.NewToolResultError("instance_id is required"), nil
+			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_instance_id_required")), nil
 		}
 		scenarioID := argString(req, "scenario_id")
 		if scenarioID == "" {
-			return mcp.NewToolResultError("scenario_id is required"), nil
+			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_scenario_id_required")), nil
 		}
 
 		if svc.Semantic == nil {

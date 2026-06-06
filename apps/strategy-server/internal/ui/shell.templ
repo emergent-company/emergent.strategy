@@ -1,9 +1,12 @@
 package ui
 
 import (
+	"context"
+
 	"github.com/emergent-company/go-daisy/components/layout"
 	"github.com/emergent-company/go-daisy/components/nav"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	strategynav "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 )
 
@@ -63,13 +66,13 @@ templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
 	// Breadcrumb bar — "Strategies > Instance Name"
 	<div class="bg-base-100 border-b border-base-200 px-6 py-3">
 		<nav class="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
-			<a href="/strategies" class="text-base-content/70 hover:text-base-content transition-colors">Strategies</a>
+			<a href="/strategies" class="text-base-content/70 hover:text-base-content transition-colors">{ langs.T(ctx, "nav.breadcrumb.strategies") }</a>
 			<svg class="w-3 h-3 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
 			<span class="font-bold text-base-content text-lg">
 				if instanceName != "" {
 					{ instanceName }
 				} else {
-					Strategy
+					{ langs.T(ctx, "nav.breadcrumb.strategy_fallback") }
 				}
 			</span>
 		</nav>
@@ -326,7 +329,8 @@ type TabSubNavItem struct {
 var navGraph = strategynav.DefaultGraph()
 
 // tabSubNavItems returns sub-navigation items for a tab's child pages.
-func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath string) []TabSubNavItem {
+// ctx is used to resolve screen title lang keys via langs.T.
+func tabSubNavItems(ctx context.Context, tabGroup strategynav.TabGroup, instanceID, currentPath string) []TabSubNavItem {
 	screens := navGraph.TabSubNavScreens(tabGroup)
 	if len(screens) == 0 {
 		return nil
@@ -339,7 +343,7 @@ func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath strin
 			icon = "lucide--circle"
 		}
 		items = append(items, TabSubNavItem{
-			Label:  s.Title,
+			Label:  langs.T(ctx, s.Title),
 			Icon:   icon,
 			Href:   href,
 			Active: currentPath == href,
@@ -352,7 +356,7 @@ func tabSubNavItems(tabGroup strategynav.TabGroup, instanceID, currentPath strin
 // The landing item is shown first (highlighted), followed by related sub-pages.
 templ TabRelatedPages(tabGroup string, instanceID string, currentPath string) {
 	{{ tab := strategynav.TabGroup(tabGroup) }}
-	{{ items := tabSubNavItems(tab, instanceID, currentPath) }}
+	{{ items := tabSubNavItems(ctx, tab, instanceID, currentPath) }}
 	if len(items) > 0 {
 		{{ meta := strategynav.TabDisplay(tab) }}
 		<div class="flex flex-wrap items-center gap-1 mb-4 text-sm">
@@ -401,14 +405,15 @@ templ TabBackLink(tabGroup string, instanceID string, currentPath string) {
 // graphCrumbs builds breadcrumb steps for a screen from the navigation graph.
 // For instance-scoped screens, steps above the current tab landing are removed
 // since the chrome already shows the instance name and tab bar.
-func graphCrumbs(screenID string, instanceID string, instanceName string) []nav.BreadcrumbStep {
+// ctx is required to resolve screen title lang keys.
+func graphCrumbs(ctx context.Context, screenID string, instanceID string, instanceName string) []nav.BreadcrumbStep {
 	chain := navGraph.BreadcrumbChain(strategynav.ScreenID(screenID), instanceID)
 
-	// Skip entries up to and including Execution (the instance landing).
+	// Skip entries up to and including ExecutionDashboard (the instance landing).
 	// The chrome already shows instance name + tab bar.
 	cutIdx := -1
 	for i, entry := range chain {
-		if entry.Label == "Dashboard" || entry.Label == "Execution" {
+		if entry.ScreenID == strategynav.GlobalDashboard || entry.ScreenID == strategynav.ExecutionDashboard {
 			cutIdx = i
 		}
 	}
@@ -421,7 +426,7 @@ func graphCrumbs(screenID string, instanceID string, instanceName string) []nav.
 	steps := make([]nav.BreadcrumbStep, 0, len(chain))
 	for _, entry := range chain {
 		steps = append(steps, nav.BreadcrumbStep{
-			Label: entry.Label,
+			Label: langs.T(ctx, entry.Label),
 			URL:   entry.Href,
 		})
 	}
@@ -499,12 +504,12 @@ templ systemWarningBanner() {
 		<div class="bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0">
 			<span class="iconify lucide--alert-triangle size-4 text-warning shrink-0"></span>
 			<span class="text-warning-content/80">
-				<strong>Memory not configured</strong> — semantic search, contradiction detection, and graph features are disabled.
+				<strong>{ langs.T(ctx, "warning.memory_not_configured.title") }</strong>{ langs.T(ctx, "warning.memory_not_configured.body") }
 			</span>
 			<a
 				href="/settings"
 				class="ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline"
-			>Settings</a>
+			>{ langs.T(ctx, "nav.screen.settings") }</a>
 		</div>
 	}
 }

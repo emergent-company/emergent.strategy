@@ -10,6 +10,7 @@ import (
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
 
@@ -20,7 +21,7 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.syncSvc == nil {
-		return c.String(http.StatusServiceUnavailable, "GitHub sync is not configured")
+		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_sync_not_configured"))
 	}
 
 	// Read form values.
@@ -31,14 +32,14 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	branch := c.FormValue("branch")
 
 	if githubRepo == "" {
-		return c.String(http.StatusBadRequest, "github_repo is required")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.github_repo_required"))
 	}
 	if workspaceIDStr == "" {
-		return c.String(http.StatusBadRequest, "workspace_id is required")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.workspace_id_required"))
 	}
 	workspaceID, err := uuid.Parse(workspaceIDStr)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid workspace_id")
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
 	}
 
 	// Derive a sensible instance name from the repo name.
@@ -58,7 +59,7 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	})
 	if err != nil {
 		s.log.Error("create instance for github import", "repo", githubRepo, "err", err)
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("failed to create instance: %v", err))
+		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
 	}
 
 	// Set base path if provided.

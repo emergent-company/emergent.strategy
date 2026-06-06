@@ -86,18 +86,19 @@ type TabMeta struct {
 }
 
 // TabDisplay returns display metadata for each tab group.
+// Label holds a langs translation key — resolve with langs.T(ctx, meta.Label).
 func TabDisplay(tab TabGroup) TabMeta {
 	switch tab {
 	case TabExecution:
-		return TabMeta{"Execution", "lucide--zap", 1, ""}
+		return TabMeta{"nav.screen.execution", "lucide--zap", 1, ""}
 	case TabReady:
-		return TabMeta{"READY", "lucide--compass", 2, "/ready"}
+		return TabMeta{"nav.screen.ready", "lucide--compass", 2, "/ready"}
 	case TabFire:
-		return TabMeta{"FIRE", "lucide--rocket", 3, "/fire"}
+		return TabMeta{"nav.screen.fire", "lucide--rocket", 3, "/fire"}
 	case TabAim:
-		return TabMeta{"AIM", "lucide--target", 4, "/aim"}
+		return TabMeta{"nav.screen.aim", "lucide--target", 4, "/aim"}
 	default:
-		return TabMeta{"Unknown", "", 99, ""}
+		return TabMeta{"nav.screen.execution", "", 99, ""}
 	}
 }
 
@@ -201,8 +202,11 @@ func (g *Graph) TabSubNavScreens(tab TabGroup) []ScreenDef {
 
 // BreadcrumbEntry represents one segment of a breadcrumb trail.
 type BreadcrumbEntry struct {
-	Label string
-	Href  string // Empty for the last (current) entry.
+	// Label holds the langs translation key for the screen title.
+	// Callers must resolve it via langs.T(ctx, entry.Label) before display.
+	Label    string
+	Href     string   // Empty for the last (current) entry.
+	ScreenID ScreenID // The screen this entry corresponds to.
 }
 
 // BreadcrumbChain walks the Parent chain from a screen back to the root,
@@ -226,8 +230,9 @@ func (g *Graph) BreadcrumbChain(screenID ScreenID, instanceID string) []Breadcru
 		}
 
 		chain = append(chain, BreadcrumbEntry{
-			Label: s.Title,
-			Href:  href,
+			Label:    s.Title,
+			Href:     href,
+			ScreenID: s.ID,
 		})
 		current = s.Parent
 	}

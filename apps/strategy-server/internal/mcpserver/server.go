@@ -54,6 +54,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/pipeline"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
@@ -178,7 +179,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 			categories := buildCategoryList(sessionID)
 			raw, err := json.Marshal(categories)
 			if err != nil {
-				return mcp.NewToolResultError("failed to marshal categories"), nil
+				return mcp.NewToolResultError(langs.T(ctx, "error.mcp_marshal_categories")), nil
 			}
 			return mcp.NewToolResultText(string(raw)), nil
 		},
@@ -197,7 +198,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			session := server.ClientSessionFromContext(ctx)
 			if session == nil {
-				return mcp.NewToolResultText("Tool filter set (no session — filter applies to next request)."), nil
+				return mcp.NewToolResultText(langs.T(ctx, "mcp.tool_filter.no_session")), nil
 			}
 
 			categoryNames := req.GetStringSlice("categories", nil)
@@ -231,7 +232,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 			}
 
 			return mcp.NewToolResultText(fmt.Sprintf(
-				"Tool filter updated. %d categories active, ~%d tools now visible. Call tools/list to see them.",
+				langs.T(ctx, "mcp.tool_filter.updated"),
 				len(categoryNames)+1, // +1 for core
 				activeCount,
 			)), nil
@@ -1373,10 +1374,10 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	s.AddTool(mcp.NewTool("get_agent_for_task",
 		mcp.WithDescription("USE FIRST to route any task to the right tool or agent. Returns direct_tool or agent recommendation."),
 		mcp.WithString("task_description", mcp.Required(), mcp.Description("Natural-language description of what you want to do")),
-	), func(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		desc := argString(req, "task_description")
 		if desc == "" {
-			return mcp.NewToolResultError("task_description is required"), nil
+			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_task_description_required")), nil
 		}
 		result := agent.RouteTask(desc)
 		return mustJSON(result)

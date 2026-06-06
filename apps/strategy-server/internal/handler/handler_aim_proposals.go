@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,6 +13,7 @@ import (
 
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
@@ -24,8 +24,9 @@ import (
 
 func (s *Server) handleAimProposals(c echo.Context) error {
 	return s.renderPhaseContent(c, func(instanceID string, c echo.Context) ui.PhaseRenderData {
-		content := s.loadProposalsView(c.Request().Context(), instanceID)
-		return ui.PhaseRenderData{Title: "Proposals", Content: content}
+		ctx := c.Request().Context()
+		content := s.loadProposalsView(ctx, instanceID)
+		return ui.PhaseRenderData{Title: langs.T(ctx, "nav.screen.proposals"), Content: content}
 	})
 }
 
@@ -38,12 +39,12 @@ func (s *Server) loadProposalsView(ctx context.Context, instanceID string) templ
 	}
 
 	if s.heartbeatSvc == nil {
-		return ui.ArtifactPlaceholder(navCtx, "Proposals", "Heartbeat service not configured.", "lucide--inbox")
+		return ui.ArtifactPlaceholder(navCtx, langs.T(ctx, "nav.screen.proposals"), langs.T(ctx, "error.heartbeat_not_configured"), "lucide--inbox")
 	}
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return ui.ArtifactPlaceholder(navCtx, "Proposals", "Invalid instance ID.", "lucide--inbox")
+		return ui.ArtifactPlaceholder(navCtx, langs.T(ctx, "nav.screen.proposals"), langs.T(ctx, "error.invalid_instance_id"), "lucide--inbox")
 	}
 
 	proposals := loadAllProposals(ctx, s.heartbeatSvc, instID)
@@ -123,12 +124,12 @@ func (s *Server) handleProposalApprove(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.heartbeatSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "heartbeat service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.heartbeat_not_available"))
 	}
 
 	proposalID, err := uuid.Parse(proposalIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid proposal ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_proposal_id"))
 	}
 
 	var starter heartbeat.CycleStarter
@@ -139,10 +140,10 @@ func (s *Server) handleProposalApprove(c echo.Context) error {
 	approved, err := s.heartbeatSvc.ApproveProposal(ctx, proposalID, starter, aimdom.WorkflowName)
 	if err != nil {
 		if errors.Is(err, orchestration.ErrAlreadyActive) {
-			return echo.NewHTTPError(http.StatusConflict, "an AIM cycle is already running for this instance")
+			return echo.NewHTTPError(http.StatusConflict, langs.T(ctx, "error.aim_cycle_already_running"))
 		}
 		s.log.Error("approve proposal failed", "proposal_id", proposalIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not approve: %v", err))
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.proposal_approve_failed"))
 	}
 
 	row := proposalToRow(approved)
@@ -160,12 +161,12 @@ func (s *Server) handleProposalDefer(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.heartbeatSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "heartbeat service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.heartbeat_not_available"))
 	}
 
 	proposalID, err := uuid.Parse(proposalIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid proposal ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_proposal_id"))
 	}
 
 	hours, _ := strconv.Atoi(c.QueryParam("hours"))
@@ -176,7 +177,7 @@ func (s *Server) handleProposalDefer(c echo.Context) error {
 	deferred, err := s.heartbeatSvc.DeferProposal(ctx, proposalID, time.Duration(hours)*time.Hour)
 	if err != nil {
 		s.log.Error("defer proposal failed", "proposal_id", proposalIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not defer: %v", err))
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.proposal_defer_failed"))
 	}
 
 	row := proposalToRow(deferred)
@@ -193,17 +194,17 @@ func (s *Server) handleProposalDismiss(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if s.heartbeatSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "heartbeat service not available")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.heartbeat_not_available"))
 	}
 
 	proposalID, err := uuid.Parse(proposalIDStr)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid proposal ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_proposal_id"))
 	}
 
 	if _, err := s.heartbeatSvc.DismissProposal(ctx, proposalID); err != nil {
 		s.log.Error("dismiss proposal failed", "proposal_id", proposalIDStr, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("could not dismiss: %v", err))
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.proposal_dismiss_failed"))
 	}
 
 	// Return empty content — HTMX outerHTML swap removes the card.

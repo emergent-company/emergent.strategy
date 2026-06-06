@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -23,7 +24,7 @@ func (s *Server) handleEvidencePage(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	data := ui.EvidencePageData{
@@ -75,11 +76,11 @@ func (s *Server) handleIngestEvidence(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.evidenceSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "evidence service not configured")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.evidence_service_not_configured"))
 	}
 
 	sourceName := strings.TrimSpace(c.FormValue("source_name"))
@@ -90,10 +91,10 @@ func (s *Server) handleIngestEvidence(c echo.Context) error {
 	confidence := strings.TrimSpace(c.FormValue("confidence"))
 
 	if sourceName == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "source_name is required")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.source_name_required"))
 	}
 	if content == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "content is required")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.content_required"))
 	}
 
 	tags := splitTags(tagsRaw)
@@ -117,7 +118,7 @@ func (s *Server) handleIngestEvidence(c echo.Context) error {
 	key, err := s.evidenceSvc.Ingest(ctx, req)
 	if err != nil {
 		s.log.Error("evidence: ingest failed", "instance_id", instanceID, "err", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to store evidence")
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.evidence_store_failed"))
 	}
 
 	s.log.Info("evidence: ingested", "instance_id", instanceID, "key", key, "source", sourceName)
@@ -138,46 +139,47 @@ type interviewQuestionDef struct {
 }
 
 // guidedInterviewQuestions is the canonical ordered list of strategy questions.
+// Question/Hint fields use langs keys — resolved at request time via langs.T(ctx, ...).
 var guidedInterviewQuestions = []interviewQuestionDef{
 	{
 		ID:         "q_vision",
-		Question:   "What is your product vision? What future are you building toward?",
-		Hint:       "One or two paragraphs on the 3-5 year outcome you're after.",
+		Question:   "evidence.interview.q_vision",
+		Hint:       "evidence.interview.q_vision_hint",
 		Tags:       []string{"vision", "strategy"},
 		SourceType: "interview",
 	},
 	{
 		ID:         "q_problem",
-		Question:   "What problem does your product solve, and for whom?",
-		Hint:       "Describe the target persona and the core pain point. Include any evidence you have.",
+		Question:   "evidence.interview.q_problem",
+		Hint:       "evidence.interview.q_problem_hint",
 		Tags:       []string{"user_research", "market"},
 		SourceType: "interview",
 	},
 	{
 		ID:         "q_market",
-		Question:   "What is the market opportunity? Size, growth trends, timing.",
-		Hint:       "Include any market research, analyst reports, or first-hand observations.",
+		Question:   "evidence.interview.q_market",
+		Hint:       "evidence.interview.q_market_hint",
 		Tags:       []string{"market", "trends"},
 		SourceType: "interview",
 	},
 	{
 		ID:         "q_competition",
-		Question:   "Who are your main competitors and how do you differentiate?",
-		Hint:       "List 3-5 competitors, their main strengths, and your edge.",
+		Question:   "evidence.interview.q_competition",
+		Hint:       "evidence.interview.q_competition_hint",
 		Tags:       []string{"competitive"},
 		SourceType: "interview",
 	},
 	{
 		ID:         "q_value",
-		Question:   "What is your unique value proposition?",
-		Hint:       "Why would a customer choose you over alternatives?",
+		Question:   "evidence.interview.q_value",
+		Hint:       "evidence.interview.q_value_hint",
 		Tags:       []string{"strategy", "pitch"},
 		SourceType: "interview",
 	},
 	{
 		ID:         "q_team",
-		Question:   "Describe your team and its relevant strengths.",
-		Hint:       "Relevant experience, unfair advantages, key hires needed.",
+		Question:   "evidence.interview.q_team",
+		Hint:       "evidence.interview.q_team_hint",
 		Tags:       []string{"team", "strategy"},
 		SourceType: "interview",
 	},
@@ -190,7 +192,7 @@ func (s *Server) handleEvidenceInterviewPage(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	// Check which tag groups already have evidence, to skip those questions.
@@ -221,8 +223,8 @@ func (s *Server) handleEvidenceInterviewPage(c echo.Context) error {
 		}
 		questions = append(questions, ui.InterviewQuestion{
 			ID:             def.ID,
-			Question:       def.Question,
-			Hint:           def.Hint,
+			Question:       langs.T(ctx, def.Question),
+			Hint:           langs.T(ctx, def.Hint),
 			Tags:           def.Tags,
 			SourceType:     def.SourceType,
 			AlreadyCovered: covered,
@@ -236,8 +238,9 @@ func (s *Server) handleEvidenceInterviewPage(c echo.Context) error {
 	}
 
 	content := ui.EvidenceInterviewContent(data)
-	return s.renderInstancePage(c, "Strategy Interview", ui.PhaseRenderData{
-		Title:   "Strategy Interview",
+	title := langs.T(ctx, "page.strategy_interview")
+	return s.renderInstancePage(c, title, ui.PhaseRenderData{
+		Title:   title,
 		Content: content,
 	})
 }
@@ -254,11 +257,11 @@ func (s *Server) handleSubmitInterview(c echo.Context) error {
 
 	instID, err := uuid.Parse(instanceID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid instance ID")
+		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
 	if s.evidenceSvc == nil {
-		return echo.NewHTTPError(http.StatusServiceUnavailable, "evidence service not configured")
+		return echo.NewHTTPError(http.StatusServiceUnavailable, langs.T(ctx, "error.evidence_service_not_configured"))
 	}
 
 	stored := 0
@@ -271,7 +274,7 @@ func (s *Server) handleSubmitInterview(c echo.Context) error {
 		req := evidencedom.IngestRequest{
 			InstanceID: instID,
 			Source: evidencedom.Source{
-				Name:       "Guided Interview",
+				Name:       langs.T(ctx, "evidence.source.guided_interview"),
 				Type:       def.SourceType,
 				Confidence: "high",
 			},
