@@ -47,13 +47,16 @@ type RepoScanResult struct {
 // ---------------------------------------------------------------------------
 
 const scanCacheTTL = 30 * time.Minute
+const scanErrorTTL = 30 * time.Second // retry errors quickly
 
 type scanCacheEntry struct {
-	results []RepoScanResult
-	expiry  time.Time
+	results   []RepoScanResult
+	scanError error      // non-nil when the last scan failed
+	expiry    time.Time
+	running   bool       // true while a background scan goroutine is active
 }
 
-// scanCache holds in-memory scan results keyed by github_owner.
+// scanCache holds in-memory scan results keyed by cache key.
 type scanCache struct {
 	mu      gosync.Mutex
 	entries map[string]scanCacheEntry
@@ -63,34 +66,70 @@ func newScanCache() *scanCache {
 	return &scanCache{entries: make(map[string]scanCacheEntry)}
 }
 
-func (sc *scanCache) get(owner string) ([]RepoScanResult, bool) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	entry, ok := sc.entries[owner]
-	if !ok || time.Now().After(entry.expiry) {
-		return nil, false
-	}
-	return entry.results, true
+// ScanState is the result of a non-blocking cache peek.
+type ScanState struct {
+	Ready   bool             // true when results (or a terminal error) are available
+	Results []RepoScanResult // non-nil when Ready and no error
+	Err     error            // non-nil when Ready and scan failed
 }
 
-func (sc *scanCache) set(owner string, results []RepoScanResult) {
+// peek returns the current state of the cache entry without blocking.
+func (sc *scanCache) peek(key string) ScanState {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	sc.entries[owner] = scanCacheEntry{
+	entry, ok := sc.entries[key]
+	if !ok {
+		return ScanState{}
+	}
+	if time.Now().After(entry.expiry) {
+		// Expired — treat as not ready (will re-trigger scan).
+		delete(sc.entries, key)
+		return ScanState{}
+	}
+	if entry.running {
+		return ScanState{} // scan in progress
+	}
+	return ScanState{Ready: true, Results: entry.results, Err: entry.scanError}
+}
+
+// markRunning sets the running flag, preventing duplicate goroutines.
+// Returns false if a scan is already running or results are fresh.
+func (sc *scanCache) markRunning(key string) bool {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	entry := sc.entries[key]
+	if entry.running {
+		return false // already in progress
+	}
+	if !entry.expiry.IsZero() && time.Now().Before(entry.expiry) && !entry.running {
+		return false // fresh result already cached
+	}
+	sc.entries[key] = scanCacheEntry{running: true, expiry: time.Now().Add(10 * time.Minute)}
+	return true
+}
+
+func (sc *scanCache) setResult(key string, results []RepoScanResult) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.entries[key] = scanCacheEntry{
 		results: results,
 		expiry:  time.Now().Add(scanCacheTTL),
 	}
 }
 
-func (sc *scanCache) invalidate(owner string) {
+func (sc *scanCache) setError(key string, err error) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	delete(sc.entries, owner)
+	sc.entries[key] = scanCacheEntry{
+		scanError: err,
+		expiry:    time.Now().Add(scanErrorTTL),
+	}
 }
 
-// peek returns cached results without blocking, or (nil, false) when not ready.
-func (sc *scanCache) peek(key string) ([]RepoScanResult, bool) {
-	return sc.get(key)
+func (sc *scanCache) invalidate(key string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	delete(sc.entries, key)
 }
 
 // ---------------------------------------------------------------------------
@@ -142,11 +181,21 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 
 	// Cache key: first 16 chars of token (never log the full token).
 	cacheKey := "user:" + userToken[:min(16, len(userToken))]
-	if cached, ok := cache.get(cacheKey); ok {
+	if state := cache.peek(cacheKey); state.Ready {
 		slog.DebugContext(ctx, "scan repos: returning cached results")
-		return cached, nil
+		return state.Results, state.Err
 	}
 
+	results, err := s.doScan(ctx, userToken)
+	if err != nil {
+		return nil, err
+	}
+	cache.setResult(cacheKey, results)
+	return results, nil
+}
+
+// doScan performs the actual repo listing and EPF detection without touching the cache.
+func (s *Service) doScan(ctx context.Context, userToken string) ([]RepoScanResult, error) {
 	// Fetch all repos the user has access to via OAuth (repo scope).
 	userRepos, err := s.reader.ListUserRepos(ctx, userToken)
 	if err != nil {
@@ -181,9 +230,6 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 				HasAppInstall: appInstallOwners[r.Owner],
 			}
 
-			// To detect EPF we need an App token for this owner, or we use
-			// the user token directly to call the tree API.
-			// Try App token first (for write-capable owners); fall back to user token.
 			scanToken := userToken
 			if result.HasAppInstall {
 				if appTok, tokErr := s.reader.GetInstallationToken(ctx, r.Owner); tokErr == nil {
@@ -216,11 +262,7 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 	wg.Wait()
 
 	// Post-scan: cross-reference submodule subscriptions.
-	// For each repo that declares submodules pointing at other repos in the scan,
-	// annotate those target repos with this repo as a subscriber ("used by").
 	annotateSubmoduleSubscribers(results)
-
-	cache.set(cacheKey, results)
 
 	slog.InfoContext(ctx, "scan user repos complete",
 		"repos", len(userRepos),
@@ -231,29 +273,32 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 }
 
 // StartScanUserRepos kicks off a background scan goroutine and returns immediately.
-// The caller should poll GetCachedUserRepos until results appear.
-// If a scan is already cached for this token, it is a no-op.
+// Uses markRunning to ensure only one goroutine runs per cache key at a time.
+// No-op if results are fresh or a scan is already in progress.
 func (s *Service) StartScanUserRepos(userToken string) {
 	cache := s.getScanCache()
 	cacheKey := "user:" + userToken[:min(16, len(userToken))]
-	if _, ok := cache.peek(cacheKey); ok {
-		return // already cached, no need to re-scan
+	if !cache.markRunning(cacheKey) {
+		return // already running or results fresh
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		// ScanUserRepos populates the cache internally on success.
-		if _, err := s.ScanUserRepos(ctx, userToken); err != nil {
+		results, err := s.doScan(ctx, userToken)
+		if err != nil {
 			slog.Warn("background scan failed", "err", err)
+			cache.setError(cacheKey, err)
+			return
 		}
+		cache.setResult(cacheKey, results)
 	}()
 }
 
-// GetCachedUserRepos returns cached scan results for the user token, or (nil, false)
-// if the scan is still in progress.
-func (s *Service) GetCachedUserRepos(userToken string) ([]RepoScanResult, bool) {
+// GetCachedScanState returns the current scan state for the user token.
+// Ready=false means the scan is still in progress.
+func (s *Service) GetCachedScanState(userToken string) ScanState {
 	if userToken == "" {
-		return nil, false
+		return ScanState{}
 	}
 	cache := s.getScanCache()
 	cacheKey := "user:" + userToken[:min(16, len(userToken))]
@@ -271,8 +316,8 @@ func (s *Service) ScanInstallationRepos(ctx context.Context, githubOwner string)
 	}
 
 	cache := s.getScanCache()
-	if cached, ok := cache.get(githubOwner); ok {
-		return cached, nil
+	if state := cache.peek(githubOwner); state.Ready {
+		return state.Results, state.Err
 	}
 
 	token, err := s.reader.GetInstallationToken(ctx, githubOwner)
@@ -320,7 +365,7 @@ func (s *Service) ScanInstallationRepos(ctx context.Context, githubOwner string)
 	}
 
 	wg.Wait()
-	cache.set(githubOwner, results)
+	cache.setResult(githubOwner, results)
 	return results, nil
 }
 

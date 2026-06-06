@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -61,19 +62,31 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 		return c.Redirect(http.StatusFound, "/github/connect")
 	}
 
-	// Check if results are already cached.
-	if repos, ok := s.syncSvc.GetCachedUserRepos(githubToken); ok {
+	// Check if results (or an error) are ready in the cache.
+	state := s.syncSvc.GetCachedScanState(githubToken)
+	if state.Ready {
 		data := ui.GithubConnectData{
 			AppInstallURL: s.githubAppInstallURL,
 			ReposLoaded:   true,
 			Workspaces:    s.loadWorkspacesForAssignment(ctx),
-			Repos:         toUIRepoItems(repos),
+		}
+		if state.Err != nil {
+			// Distinguish rate limit from other errors.
+			var rle *syncdom.RateLimitError
+			if errors.As(state.Err, &rle) {
+				data.RateLimited = true
+				data.RetryAfter = rle.RetryAfter
+			} else {
+				data.ScanError = langs.T(ctx, "error.github_scan_failed")
+			}
+		} else {
+			data.Repos = toUIRepoItems(state.Results)
 		}
 		render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
 		return nil
 	}
 
-	// Not cached yet — kick off the background scan (no-op if already running)
+	// Not ready yet — kick off the background scan (no-op if already running)
 	// and return a polling skeleton. HTMX will retry in 3 seconds.
 	s.syncSvc.StartScanUserRepos(githubToken)
 	render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoPollingSkeleton())
