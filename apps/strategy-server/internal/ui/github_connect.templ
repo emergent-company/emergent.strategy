@@ -31,6 +31,14 @@ type GithubConnectData struct {
 	RetryAfter  time.Duration
 }
 
+// GithubRepoCommit holds summary information about the HEAD commit of a repo.
+type GithubRepoCommit struct {
+	SHA        string
+	Message    string    // first line only
+	AuthorName string
+	AuthoredAt time.Time
+}
+
 // GithubRepoScanItem is one repository with EPF detection results.
 type GithubRepoScanItem struct {
 	Name              string
@@ -38,8 +46,9 @@ type GithubRepoScanItem struct {
 	HTMLURL           string
 	DefaultBranch     string
 	Private           bool
-	Description       string    // repo description from GitHub
-	PushedAt          time.Time // time of last push (zero when not set)
+	Description       string           // repo description from GitHub
+	PushedAt          time.Time        // time of last push (zero when not set)
+	HeadCommit        GithubRepoCommit // HEAD commit info (zero when not set)
 	HasEPF            bool
 	InstanceCount     int
 	DetectedInstances []GithubDetectedInstance
@@ -357,6 +366,24 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 				</div>
 				if repo.Description != "" {
 					<p class="text-xs text-base-content/55 mt-1 leading-relaxed">{ repo.Description }</p>
+				}
+				if repo.HeadCommit.SHA != "" {
+					<div class="flex items-center gap-1.5 mt-1.5 text-xs text-base-content/40 font-mono">
+						<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
+						<a
+							href={ templ.SafeURL(repo.HTMLURL + "/commit/" + repo.HeadCommit.SHA) }
+							target="_blank"
+							rel="noopener"
+							class="hover:text-primary transition-colors shrink-0"
+							title={ repo.HeadCommit.SHA }
+						>{ repo.HeadCommit.SHA[:7] }</a>
+						<span class="text-base-content/25">·</span>
+						<span class="truncate max-w-xs not-italic font-sans text-base-content/55" title={ repo.HeadCommit.Message }>{ repo.HeadCommit.Message }</span>
+						if repo.HeadCommit.AuthorName != "" {
+							<span class="text-base-content/25 shrink-0">by</span>
+							<span class="shrink-0 text-base-content/40">{ repo.HeadCommit.AuthorName }</span>
+						}
+					</div>
 				}
 				if len(repo.UsedByRepos) > 0 {
 					@githubUsedByBadges(repo.UsedByRepos)

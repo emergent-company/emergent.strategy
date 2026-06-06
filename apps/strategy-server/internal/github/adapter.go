@@ -177,10 +177,10 @@ func (a *RepoReaderAdapter) ListInstallationRepos(ctx context.Context, token str
 }
 
 // DetectEPFInRepo delegates to the client's two-pass EPF detection.
-func (a *RepoReaderAdapter) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) ([]sync.DetectedEPFInstance, []sync.SubmoduleRef, bool, error) {
-	detected, submodules, truncated, err := a.client.DetectEPFInRepo(ctx, token, owner, repo, branch)
+func (a *RepoReaderAdapter) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) ([]sync.DetectedEPFInstance, []sync.SubmoduleRef, bool, sync.RepoCommitInfo, error) {
+	detected, submodules, truncated, ci, err := a.client.DetectEPFInRepo(ctx, token, owner, repo, branch)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, sync.RepoCommitInfo{}, err
 	}
 	out := make([]sync.DetectedEPFInstance, len(detected))
 	for i, d := range detected {
@@ -197,7 +197,13 @@ func (a *RepoReaderAdapter) DetectEPFInRepo(ctx context.Context, token, owner, r
 			RepoSlug: s.RepoSlug,
 		}
 	}
-	return out, refs, truncated, nil
+	commit := sync.RepoCommitInfo{
+		SHA:        ci.SHA,
+		Message:    ci.Message,
+		AuthorName: ci.AuthorName,
+		AuthoredAt: ci.AuthoredAt,
+	}
+	return out, refs, truncated, commit, nil
 }
 
 func isYAML(path string) bool {

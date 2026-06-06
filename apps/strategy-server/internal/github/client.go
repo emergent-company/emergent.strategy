@@ -661,6 +661,14 @@ type DetectedInstance struct {
 	HasMetaFile bool   // true when _meta.yaml or _epf.yaml found alongside READY/
 }
 
+// CommitInfo holds summary information about a single git commit.
+type CommitInfo struct {
+	SHA       string    // full 40-char SHA
+	Message   string    // first line of the commit message
+	AuthorName string   // committer display name
+	AuthoredAt time.Time
+}
+
 // RateLimitError is returned when a GitHub API call is rejected due to rate limiting.
 // It carries the time at which the limit resets so callers can schedule a retry.
 type RateLimitError struct {
@@ -873,26 +881,34 @@ func isIgnoredEPFBasePath(basePath string) bool {
 // Returns instances, submodule references declared in .gitmodules, and whether
 // the tree response was truncated. Submodule-sourced EPF paths are filtered out
 // so subscriber repos do not produce duplicate import targets.
-func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) (instances []DetectedInstance, submodules []SubmoduleRef, scanTruncated bool, err error) { //nolint:gocognit // two-pass scan logic is inherently complex
+func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) (instances []DetectedInstance, submodules []SubmoduleRef, scanTruncated bool, commitInfo CommitInfo, err error) { //nolint:gocognit // two-pass scan logic is inherently complex
 	client := c.ghClient(token)
 
 	// Resolve branch to tree SHA via ref → commit → tree.
 	ref, _, refErr := client.Git.GetRef(ctx, owner, repo, "refs/heads/"+branch)
 	if refErr != nil {
-		return nil, nil, false, fmt.Errorf("get ref for branch %q: %w", branch, refErr)
+		return nil, nil, false, CommitInfo{}, fmt.Errorf("get ref for branch %q: %w", branch, refErr)
 	}
 	commitSHA := ref.Object.GetSHA()
 
 	commit, _, commitErr := client.Git.GetCommit(ctx, owner, repo, commitSHA)
 	if commitErr != nil {
-		return nil, nil, false, fmt.Errorf("get commit %q: %w", commitSHA, commitErr)
+		return nil, nil, false, CommitInfo{}, fmt.Errorf("get commit %q: %w", commitSHA, commitErr)
 	}
 	treeSHA := commit.Tree.GetSHA()
+
+	// Capture commit summary — already fetched, zero extra API calls.
+	commitInfo = CommitInfo{
+		SHA:        commitSHA,
+		Message:    firstLine(commit.GetMessage()),
+		AuthorName: commit.GetAuthor().GetName(),
+		AuthoredAt: commit.GetAuthor().GetDate().Time,
+	}
 
 	// Pass 1 — non-recursive root scan.
 	rootTree, _, rootErr := client.Git.GetTree(ctx, owner, repo, treeSHA, false)
 	if rootErr != nil {
-		return nil, nil, false, fmt.Errorf("get root tree: %w", rootErr)
+		return nil, nil, false, commitInfo, fmt.Errorf("get root tree: %w", rootErr)
 	}
 
 	hasReadyDir := false
@@ -922,18 +938,18 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 	if !hasReadyDir && gitmodulesSHA != "" && len(submodules) > 0 && isLikelyPureSubscriber(submodules) {
 		slog.DebugContext(ctx, "EPF scan: pure subscriber detected via .gitmodules — skipping Pass 2",
 			"owner", owner, "repo", repo)
-		return nil, submodules, false, nil
+		return nil, submodules, false, commitInfo, nil
 	}
 
 	if hasReadyDir {
 		// Root-level READY/ — no submodule filtering needed (root is never a submodule path).
-		return []DetectedInstance{{BasePath: "", HasMetaFile: metaAtRoot}}, submodules, false, nil
+		return []DetectedInstance{{BasePath: "", HasMetaFile: metaAtRoot}}, submodules, false, commitInfo, nil
 	}
 
 	// Pass 2 — recursive scan (monorepo fallback).
 	fullTree, _, fullErr := client.Git.GetTree(ctx, owner, repo, treeSHA, true)
 	if fullErr != nil {
-		return nil, nil, false, fmt.Errorf("get full tree: %w", fullErr)
+		return nil, nil, false, commitInfo, fmt.Errorf("get full tree: %w", fullErr)
 	}
 
 	truncated := fullTree.GetTruncated()
@@ -1031,7 +1047,15 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 		instances = append(instances, DetectedInstance{BasePath: candidate, HasMetaFile: hasMeta})
 	}
 
-	return instances, submodules, truncated, nil
+	return instances, submodules, truncated, commitInfo, nil
+}
+
+// firstLine returns the first line of a string (commit message subject).
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
 }
 
 // fetchSubmoduleRefs fetches and parses .gitmodules when a blob SHA is provided.

@@ -615,7 +615,7 @@ func TestDetectEPFInRepo_AtRoot(t *testing.T) {
 		{"path": "FIRE", "type": "tree", "sha": "firesha"},
 	}
 	c := mockTreeServer(t, rootEntries, nil, false)
-	instances, _, truncated, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, truncated, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -651,7 +651,7 @@ func TestDetectEPFInRepo_InSubdirectory(t *testing.T) {
 		{"path": "README.md", "type": "blob", "sha": "readmesha"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, truncated, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, truncated, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -682,7 +682,7 @@ func TestDetectEPFInRepo_MultipleInstances(t *testing.T) {
 		{"path": "strategy/product-b/READY/north_star.yaml", "type": "blob", "sha": "sha7"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -709,7 +709,7 @@ func TestDetectEPFInRepo_NotFound(t *testing.T) {
 		{"path": "README.md", "type": "blob", "sha": "sha2"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, truncated, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, truncated, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -730,7 +730,7 @@ func TestDetectEPFInRepo_TruncatedTree(t *testing.T) {
 		{"path": "docs/strategy/READY", "type": "tree", "sha": "sha2"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, true)
-	instances, _, truncated, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, truncated, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -764,7 +764,7 @@ func TestDetectEPFInRepo_SubmoduleSkipped(t *testing.T) {
 		{"path": "src", "type": "tree", "sha": "srcsha"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -789,7 +789,7 @@ func TestDetectEPFInRepo_SubmoduleAndNativeInstance(t *testing.T) {
 		{"path": "README.md", "type": "blob", "sha": "sha1"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}
@@ -827,7 +827,7 @@ func TestDetectEPFInRepo_CommittedFrameworkWithInstance(t *testing.T) {
 		{"path": "docs/EPF/_instances/huma-blueprint/READY/00_north_star.yaml", "type": "blob", "sha": "sha13"},
 	}
 	c := mockTreeServer(t, rootEntries, fullEntries, false)
-	instances, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
+	instances, _, _, _, err := c.DetectEPFInRepo(context.Background(), "tok", "owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("DetectEPFInRepo: %v", err)
 	}

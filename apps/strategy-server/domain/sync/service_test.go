@@ -276,8 +276,8 @@ func (m *mockRepoReader) ListUserRepos(_ context.Context, _ string) ([]syncdom.U
 	return nil, nil
 }
 
-func (m *mockRepoReader) DetectEPFInRepo(_ context.Context, _, _, _, _ string) ([]syncdom.DetectedEPFInstance, []syncdom.SubmoduleRef, bool, error) {
-	return nil, nil, false, nil
+func (m *mockRepoReader) DetectEPFInRepo(_ context.Context, _, _, _, _ string) ([]syncdom.DetectedEPFInstance, []syncdom.SubmoduleRef, bool, syncdom.RepoCommitInfo, error) {
+	return nil, nil, false, syncdom.RepoCommitInfo{}, nil
 }
 
 // mockInstanceReimporter records calls to ReimportArtifacts.
@@ -608,12 +608,12 @@ func (m *scanMockReader) ListInstallationRepos(_ context.Context, _ string) ([]s
 	return m.repos, nil
 }
 
-func (m *scanMockReader) DetectEPFInRepo(_ context.Context, _, _, repo, _ string) ([]syncdom.DetectedEPFInstance, []syncdom.SubmoduleRef, bool, error) {
+func (m *scanMockReader) DetectEPFInRepo(_ context.Context, _, _, repo, _ string) ([]syncdom.DetectedEPFInstance, []syncdom.SubmoduleRef, bool, syncdom.RepoCommitInfo, error) {
 	m.detectCalls++
 	if instances, ok := m.detectedByRepo[repo]; ok {
-		return instances, nil, false, nil
+		return instances, nil, false, syncdom.RepoCommitInfo{}, nil
 	}
-	return nil, nil, false, nil
+	return nil, nil, false, syncdom.RepoCommitInfo{}, nil
 }
 
 func newScanTestService(t *testing.T, db *bun.DB) (*syncdom.Service, *scanMockReader) {

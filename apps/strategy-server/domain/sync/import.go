@@ -54,7 +54,7 @@ type RepoReader interface {
 	// DetectEPFInRepo uses a two-pass scan to find EPF instances in a repository.
 	// Returns detected instances, declared submodule references, whether the tree
 	// was truncated, and any error.
-	DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) ([]DetectedEPFInstance, []SubmoduleRef, bool, error)
+	DetectEPFInRepo(ctx context.Context, token, owner, repo, branch string) ([]DetectedEPFInstance, []SubmoduleRef, bool, RepoCommitInfo, error)
 }
 
 // UserRepoInfo is a repository the user has direct access to via OAuth token.
@@ -70,6 +70,14 @@ type UserRepoInfo struct {
 	HasAppInstall bool      `json:"has_app_install"` // true when App is installed on this owner
 	Description   string    `json:"description,omitempty"`
 	PushedAt      time.Time `json:"pushed_at,omitempty"`
+}
+
+// RepoCommitInfo holds summary information about the HEAD commit of a repository.
+type RepoCommitInfo struct {
+	SHA        string
+	Message    string    // first line only
+	AuthorName string
+	AuthoredAt time.Time
 }
 
 // InstallationInfo describes a GitHub App installation on an org or personal account.

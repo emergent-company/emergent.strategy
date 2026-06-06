@@ -236,13 +236,13 @@ func TestAlignPortfolio_StructuralPreservation(t *testing.T) {
 		"description": "This is the strategy value model",
 		"layers": []any{
 			map[string]any{
-				"id":   "l1-vision",
-				"name": "Vision & Mission",
+				"id":           "l1-vision",
+				"name":         "Vision & Mission",
 				"custom_field": "must be preserved",
 				"components": []any{
 					map[string]any{
-						"id":   "l2-brand",
-						"name": "Brand",
+						"id":         "l2-brand",
+						"name":       "Brand",
 						"components": []any{}, // note: canonical uses sub_components, but we handle either
 						"sub_components": []any{
 							map[string]any{
@@ -385,6 +385,236 @@ func TestAlignPortfolio_UnresolvablePath(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected unresolvable path 'l1-vision.l2-brand.l3-nonexistent', got %v", result.UnresolvablePaths)
+	}
+}
+
+// ── AlignPortfolio: KR targets an L2 component (path resolves above L3) ────────
+
+func TestAlignPortfolio_ActivatesL2TargetedComponent(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	// KR component_path ends in an L2 component id (two-segment path L2.<...> is
+	// common in real instances; here the final segment is the L2 id itself).
+	roadmap := buildRoadmapWithKRTarget("strategy", "l1-vision.l2-brand", "")
+	commitArtifact(t, db, instID, domain.ArtifactTypeRoadmap, "roadmap_recipe", roadmap)
+
+	// L2 "l2-brand" has two sub-components; targeting the L2 activates both.
+	vm := buildValueModel("strategy", []l3Component{
+		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-messaging", active: false},
+		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-positioning", active: false},
+		{l1ID: "l1-growth", l2ID: "l2-acquisition", l3ID: "l3-seo", active: false},
+	})
+	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model.strategy", vmWithName(vm, "Strategy"))
+
+	result, err := svc.AlignPortfolio(ctx, instID)
+	if err != nil {
+		t.Fatalf("AlignPortfolio: %v", err)
+	}
+
+	// The path must resolve (no unresolvable paths).
+	if len(result.UnresolvablePaths) != 0 {
+		t.Errorf("expected 0 unresolvable paths, got %v", result.UnresolvablePaths)
+	}
+	if result.TracksChanged != 1 {
+		t.Errorf("expected 1 track changed, got %d", result.TracksChanged)
+	}
+	// Both sub-components under the targeted L2 activate.
+	if result.TotalActivated != 2 {
+		t.Errorf("expected 2 activated (both subs under targeted L2), got %d", result.TotalActivated)
+	}
+
+	committed, err := svc.GetCurrentArtifact(ctx, instID, "value_model.strategy")
+	if err != nil {
+		t.Fatalf("GetCurrentArtifact: %v", err)
+	}
+	var updated map[string]any
+	if err := json.Unmarshal(committed, &updated); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	for _, id := range []string{"l3-messaging", "l3-positioning"} {
+		l3 := findL3(updated, id)
+		if l3 == nil {
+			t.Fatalf("%s not found", id)
+		}
+		if active, _ := l3["active"].(bool); !active {
+			t.Errorf("%s should be active (parent L2 targeted)", id)
+		}
+		if note, _ := l3["activation_notes"].(string); note == "" {
+			t.Errorf("%s should carry an activation note from the targeting KR", id)
+		}
+	}
+	// A sub-component under a non-targeted L2 stays inactive.
+	if seo := findL3(updated, "l3-seo"); seo != nil {
+		if active, _ := seo["active"].(bool); active {
+			t.Error("l3-seo should NOT be active (its L2 was not targeted)")
+		}
+	}
+}
+
+// ── AlignPortfolio: a track with multiple value models (product sub-models) ────
+
+func TestAlignPortfolio_MultipleValueModelsPerTrack(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	// Two KRs target the product track: one component lives in the "hardware"
+	// product sub-model, the other in the "software" sub-model.
+	roadmap := map[string]any{
+		"roadmap": map[string]any{
+			"tracks": map[string]any{
+				"product": map[string]any{
+					"okrs": []any{
+						map[string]any{
+							"objective": "Ship across product lines",
+							"key_results": []any{
+								map[string]any{
+									"id":          "kr-hw",
+									"description": "Battery core",
+									"value_model_target": map[string]any{
+										"track":          "product",
+										"component_path": "energy.lmc-battery-core",
+									},
+								},
+								map[string]any{
+									"id":          "kr-sw",
+									"description": "Analytics",
+									"value_model_target": map[string]any{
+										"track":          "product",
+										"component_path": "apps.analytics-insights",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	commitArtifact(t, db, instID, domain.ArtifactTypeRoadmap, "roadmap_recipe", roadmap)
+
+	// Hardware product sub-model contains lmc-battery-core (as an L2) but NOT analytics.
+	hardware := buildValueModel("product", []l3Component{
+		{l1ID: "l1-hw", l2ID: "lmc-battery-core", l3ID: "cell-core", active: false},
+	})
+	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model_product.hardware.value_model", vmWithName(hardware, "Product"))
+
+	// Software product sub-model contains analytics-insights (as an L2) but NOT battery.
+	software := buildValueModel("product", []l3Component{
+		{l1ID: "l1-sw", l2ID: "analytics-insights", l3ID: "dashboards", active: false},
+	})
+	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model_product.software.value_model", vmWithName(software, "Product"))
+
+	result, err := svc.AlignPortfolio(ctx, instID)
+	if err != nil {
+		t.Fatalf("AlignPortfolio: %v", err)
+	}
+
+	// Both paths resolve — one in each sub-model — so none are unresolvable.
+	if len(result.UnresolvablePaths) != 0 {
+		t.Errorf("expected 0 unresolvable paths (each resolves in one sub-model), got %v", result.UnresolvablePaths)
+	}
+	// Both sub-models activate their targeted component.
+	if result.TotalActivated != 2 {
+		t.Errorf("expected 2 activated (one per sub-model), got %d", result.TotalActivated)
+	}
+
+	// Verify both sub-models were actually updated.
+	hw, err := svc.GetCurrentArtifact(ctx, instID, "value_model_product.hardware.value_model")
+	if err != nil {
+		t.Fatalf("get hardware: %v", err)
+	}
+	var hwVM map[string]any
+	if err := json.Unmarshal(hw, &hwVM); err != nil {
+		t.Fatalf("unmarshal hardware: %v", err)
+	}
+	if c := findL3(hwVM, "cell-core"); c == nil {
+		t.Fatal("cell-core missing in hardware")
+	} else if active, _ := c["active"].(bool); !active {
+		t.Error("cell-core should be active (parent L2 lmc-battery-core targeted)")
+	}
+
+	sw, err := svc.GetCurrentArtifact(ctx, instID, "value_model_product.software.value_model")
+	if err != nil {
+		t.Fatalf("get software: %v", err)
+	}
+	var swVM map[string]any
+	if err := json.Unmarshal(sw, &swVM); err != nil {
+		t.Fatalf("unmarshal software: %v", err)
+	}
+	if c := findL3(swVM, "dashboards"); c == nil {
+		t.Fatal("dashboards missing in software")
+	} else if active, _ := c["active"].(bool); !active {
+		t.Error("dashboards should be active (parent L2 analytics-insights targeted)")
+	}
+}
+
+// ── RunConsistencyCheck: orphaned staged batch detection ──────────────────────
+
+func TestConsistencyCheck_DetectsOrphanedBatch(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	// Stage a batch but do not commit it, then backdate it past the 24h cutoff.
+	batchID, err := svc.Stage(ctx, strategy.StageParams{
+		InstanceID:   instID,
+		ArtifactType: domain.ArtifactTypeNorthStar,
+		ArtifactKey:  "north_star",
+		Action:       domain.MutationActionCreate,
+		Payload:      map[string]any{"vision": "orphan"},
+	})
+	if err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+	old := time.Now().UTC().Add(-48 * time.Hour)
+	if _, err := db.NewUpdate().TableExpr("strategy_mutations").
+		Set("created_at = ?", old).
+		Where("batch_id = ?", batchID).
+		Exec(ctx); err != nil {
+		t.Fatalf("backdate batch: %v", err)
+	}
+
+	result, err := svc.RunConsistencyCheck(ctx, instID)
+	if err != nil {
+		t.Fatalf("RunConsistencyCheck: %v", err)
+	}
+	if result.OrphanedBatchErr != nil {
+		t.Fatalf("orphaned batch detection errored: %v", result.OrphanedBatchErr)
+	}
+	if result.OrphanedBatchCount != 1 {
+		t.Errorf("expected 1 orphaned batch, got %d", result.OrphanedBatchCount)
+	}
+}
+
+func TestConsistencyCheck_RecentBatchNotOrphaned(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	// A freshly staged batch (created just now) must not count as orphaned.
+	if _, err := svc.Stage(ctx, strategy.StageParams{
+		InstanceID:   instID,
+		ArtifactType: domain.ArtifactTypeNorthStar,
+		ArtifactKey:  "north_star",
+		Action:       domain.MutationActionCreate,
+		Payload:      map[string]any{"vision": "fresh"},
+	}); err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+
+	result, err := svc.RunConsistencyCheck(ctx, instID)
+	if err != nil {
+		t.Fatalf("RunConsistencyCheck: %v", err)
+	}
+	if result.OrphanedBatchErr != nil {
+		t.Fatalf("orphaned batch detection errored: %v", result.OrphanedBatchErr)
+	}
+	if result.OrphanedBatchCount != 0 {
+		t.Errorf("expected 0 orphaned batches (batch is recent), got %d", result.OrphanedBatchCount)
 	}
 }
 

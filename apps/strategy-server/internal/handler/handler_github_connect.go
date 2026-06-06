@@ -227,6 +227,12 @@ func toUIRepoItems(repos []syncdom.RepoScanResult) []ui.GithubRepoScanItem {
 			Private:       r.Private,
 			Description:   r.Description,
 			PushedAt:      r.PushedAt,
+			HeadCommit: ui.GithubRepoCommit{
+				SHA:        r.HeadCommit.SHA,
+				Message:    r.HeadCommit.Message,
+				AuthorName: r.HeadCommit.AuthorName,
+				AuthoredAt: r.HeadCommit.AuthoredAt,
+			},
 			HasEPF:        r.HasEPF,
 			InstanceCount: len(r.DetectedInstances),
 			ScanTruncated: r.ScanTruncated,

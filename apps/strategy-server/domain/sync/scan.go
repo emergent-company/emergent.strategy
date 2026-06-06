@@ -26,6 +26,7 @@ type RepoScanResult struct {
 	Private           bool                  `json:"private"`
 	Description       string                `json:"description,omitempty"`
 	PushedAt          time.Time             `json:"pushed_at,omitempty"`
+	HeadCommit        RepoCommitInfo        `json:"head_commit,omitempty"`
 	HasEPF            bool                  `json:"has_epf"`
 	DetectedInstances []DetectedEPFInstance `json:"detected_instances"`
 	ScanTruncated     bool                  `json:"scan_truncated,omitempty"`
@@ -195,7 +196,7 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 				branch = "main"
 			}
 
-			instances, submodRefs, truncated, detectErr := s.reader.DetectEPFInRepo(ctx, scanToken, r.Owner, r.Name, branch)
+			instances, submodRefs, truncated, headCommit, detectErr := s.reader.DetectEPFInRepo(ctx, scanToken, r.Owner, r.Name, branch)
 			if detectErr != nil {
 				slog.WarnContext(ctx, "epf detection failed",
 					"owner", r.Owner, "repo", r.Name, "err", detectErr)
@@ -205,6 +206,7 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 				result.HasEPF = len(instances) > 0
 				result.ScanTruncated = truncated
 				result.SubmoduleRefs = submodRefs
+				result.HeadCommit = headCommit
 			}
 
 			results[idx] = result
@@ -303,7 +305,7 @@ func (s *Service) ScanInstallationRepos(ctx context.Context, githubOwner string)
 			if branch == "" {
 				branch = "main"
 			}
-			instances, submodRefs, truncated, detectErr := s.reader.DetectEPFInRepo(ctx, token, githubOwner, r.Name, branch)
+			instances, submodRefs, truncated, headCommit, detectErr := s.reader.DetectEPFInRepo(ctx, token, githubOwner, r.Name, branch)
 			if detectErr != nil {
 				result.ScanError = detectErr.Error()
 			} else {
@@ -311,6 +313,7 @@ func (s *Service) ScanInstallationRepos(ctx context.Context, githubOwner string)
 				result.HasEPF = len(instances) > 0
 				result.SubmoduleRefs = submodRefs
 				result.ScanTruncated = truncated
+				result.HeadCommit = headCommit
 			}
 			results[idx] = result
 		}(i, repo)

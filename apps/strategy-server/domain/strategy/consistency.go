@@ -12,7 +12,6 @@ package strategy
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -142,27 +141,30 @@ func (s *Service) cleanStaleSkillRuns(ctx context.Context, instanceID uuid.UUID)
 
 // detectOrphanedBatches counts staged batches older than orphanedBatchAge.
 // Does not discard them — returns the count for logging.
+//
+// A batch is a group of mutations sharing a batch_id. The batch is considered
+// orphaned when its earliest mutation was created before the cutoff. We count
+// distinct orphaned batches; the mutation payloads are not needed (counting only),
+// so we avoid aggregating the jsonb payload column (Postgres has no min(jsonb)).
 func (s *Service) detectOrphanedBatches(ctx context.Context, instanceID uuid.UUID) (int, error) {
 	cutoff := time.Now().UTC().Add(-orphanedBatchAge)
-	type batchRow struct {
-		BatchID   uuid.UUID       `bun:"batch_id"`
-		CreatedAt time.Time       `bun:"created_at"`
-		Payload   json.RawMessage `bun:"payload"`
-	}
-	var rows []batchRow
-	err := s.db.NewSelect().
+
+	grouped := s.db.NewSelect().
 		TableExpr("strategy_mutations").
-		ColumnExpr("batch_id, MIN(created_at) AS created_at, MIN(payload) AS payload").
+		ColumnExpr("batch_id").
 		Where("instance_id = ?", instanceID).
 		Where("status = ?", "staged").
 		Where("batch_id IS NOT NULL").
 		GroupExpr("batch_id").
-		Having("MIN(created_at) < ?", cutoff).
-		Scan(ctx, &rows)
+		Having("MIN(created_at) < ?", cutoff)
+
+	count, err := s.db.NewSelect().
+		TableExpr("(?) AS orphaned", grouped).
+		Count(ctx)
 	if err != nil {
 		return 0, err
 	}
-	return len(rows), nil
+	return count, nil
 }
 
 // ─── RunConsistencyCheckForAll ────────────────────────────────────────────────

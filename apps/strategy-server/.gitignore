@@ -1,6 +1,7 @@
 build/
 tmp/
 .env.local
+.env.local.secrets
 strategy-server
 # Allow .envrc to be committed (contains no secrets — only dotenv_if_exists .env.local)
 !.envrc

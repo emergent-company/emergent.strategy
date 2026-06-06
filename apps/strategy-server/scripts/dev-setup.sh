@@ -320,9 +320,51 @@ EOF
     warn "LLM not configured — GOOGLE_GENERATIVE_AI_API_KEY not found. Skills will run in skeleton mode."
 fi
 
-# Ensure .env.local is gitignored.
+# ---------------------------------------------------------------------------
+# Preserve user-managed secrets across regeneration.
+#
+# .env.local is rewritten on every run, so any credentials NOT derived by this
+# script (GitHub App / OAuth, custom overrides) would be lost. Keep those in a
+# gitignored .env.local.secrets file; it is appended verbatim here so it always
+# survives. Values in this file override the generated ones above (later
+# definitions win when the file is sourced).
+# ---------------------------------------------------------------------------
+
+SECRETS_FILE="${PROJECT_DIR}/.env.local.secrets"
+if [ -f "${SECRETS_FILE}" ]; then
+    cat >> "${ENV_FILE}" << EOF
+
+# ── Preserved from .env.local.secrets (user-managed, not regenerated) ──
+EOF
+    cat "${SECRETS_FILE}" >> "${ENV_FILE}"
+    ok "Merged user secrets from .env.local.secrets (GitHub / custom overrides preserved)"
+else
+    cat >> "${ENV_FILE}" << 'EOF'
+
+# ── GitHub integration (optional) ──────────────────────────────────────────
+# Not configured. dev-setup.sh rewrites this file on every run, so put GitHub
+# credentials in a gitignored .env.local.secrets file (appended verbatim here
+# on every run so they always survive). Example .env.local.secrets:
+#
+#   # GitHub App (powers the Settings → GitHub Sync card + AIM auto-push)
+#   GITHUB_APP_ID=123456
+#   GITHUB_APP_PRIVATE_KEY_PATH=/absolute/path/to/app-private-key.pem
+#   GITHUB_APP_SLUG=your-app-slug
+#
+#   # GitHub OAuth (powers the /github/connect user flow)
+#   GITHUB_OAUTH_CLIENT_ID=Iv1.xxxxxxxx
+#   GITHUB_OAUTH_CLIENT_SECRET=xxxxxxxx
+#   GITHUB_OAUTH_STATE_SECRET=some-random-string
+EOF
+    warn "GitHub not configured — create .env.local.secrets to enable (see .env.local for the template)"
+fi
+
+# Ensure .env.local and .env.local.secrets are gitignored.
 if ! grep -q '\.env\.local' "${PROJECT_DIR}/.gitignore" 2>/dev/null; then
     echo '.env.local' >> "${PROJECT_DIR}/.gitignore"
+fi
+if ! grep -q '\.env\.local\.secrets' "${PROJECT_DIR}/.gitignore" 2>/dev/null; then
+    echo '.env.local.secrets' >> "${PROJECT_DIR}/.gitignore"
 fi
 
 # ---------------------------------------------------------------------------
