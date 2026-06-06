@@ -4,6 +4,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	gosync "sync"
@@ -46,8 +47,9 @@ type RepoScanResult struct {
 // Scan cache
 // ---------------------------------------------------------------------------
 
-const scanCacheTTL = 30 * time.Minute
-const scanErrorTTL = 30 * time.Second // retry errors quickly
+const scanCacheTTL    = 30 * time.Minute
+const scanErrorTTL    = 60 * time.Second // minimum retry gap on non-rate-limit errors
+const scanErrorBuffer = 10 * time.Second // extra buffer added to rate limit RetryAfter
 
 type scanCacheEntry struct {
 	results   []RepoScanResult
@@ -117,12 +119,12 @@ func (sc *scanCache) setResult(key string, results []RepoScanResult) {
 	}
 }
 
-func (sc *scanCache) setError(key string, err error) {
+func (sc *scanCache) setError(key string, err error, ttl time.Duration) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.entries[key] = scanCacheEntry{
 		scanError: err,
-		expiry:    time.Now().Add(scanErrorTTL),
+		expiry:    time.Now().Add(ttl),
 	}
 }
 
@@ -287,7 +289,14 @@ func (s *Service) StartScanUserRepos(userToken string) {
 		results, err := s.doScan(ctx, userToken)
 		if err != nil {
 			slog.Warn("background scan failed", "err", err)
-			cache.setError(cacheKey, err)
+			// Use the actual rate-limit reset window as the error TTL so we don't
+			// hammer GitHub again until it's ready.
+			errTTL := scanErrorTTL
+			var rle *RateLimitError
+			if errors.As(err, &rle) && rle.RetryAfter > 0 {
+				errTTL = rle.RetryAfter + scanErrorBuffer
+			}
+			cache.setError(cacheKey, err, errTTL)
 			return
 		}
 		cache.setResult(cacheKey, results)
