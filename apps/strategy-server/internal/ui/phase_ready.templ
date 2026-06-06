@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"context"
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // ReadyGap represents a single named section that is expected in a READY artifact.
@@ -141,8 +144,8 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<!-- Map header -->
 		<div class="flex items-center justify-between mb-4">
 			<div>
-				<h2 class="text-base font-semibold text-base-content">READY Phase</h2>
-				<p class="text-xs text-base-content/60 mt-0.5">Strategic foundation — artifacts are interconnected, not independent</p>
+				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "ui.ready.phase_title") }</h2>
+				<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.ready.phase_subtitle") }</p>
 				if data.EvidenceCount > 0 {
 					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-primary/70 hover:text-primary mt-0.5 flex items-center gap-1">
 						<span class="iconify lucide--database size-3"></span>
@@ -151,27 +154,27 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 				} else {
 					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/40 hover:text-base-content/60 mt-0.5 flex items-center gap-1">
 						<span class="iconify lucide--database size-3"></span>
-						Add evidence to improve AI drafts
+						{ langs.T(ctx, "ui.ready.add_evidence_hint") }
 					</a>
 				}
 			</div>
 			<div class="flex items-center gap-3 text-xs text-base-content/50">
-				<span class="text-base-content/35">Change cadence:</span>
+				<span class="text-base-content/35">{ langs.T(ctx, "ui.ready.change_cadence_label") }</span>
 				<span class="flex items-center gap-1">
 					<span class="inline-block size-2 rounded-full bg-primary/30"></span>
-					Years
+					{ langs.T(ctx, "ui.cadence.years") }
 				</span>
 				<span class="flex items-center gap-1">
 					<span class="inline-block size-2 rounded-full bg-secondary/40"></span>
-					Each cycle
+					{ langs.T(ctx, "ui.cadence.each_cycle") }
 				</span>
 				<span class="flex items-center gap-1">
 					<span class="inline-block size-2 rounded-full bg-accent/40"></span>
-					Quarterly
+					{ langs.T(ctx, "ui.cadence.quarterly") }
 				</span>
 				<span class="flex items-center gap-1">
 					<span class="inline-block size-2 rounded-full bg-info/40"></span>
-					Current cycle
+					{ langs.T(ctx, "ui.cadence.current_cycle") }
 				</span>
 			</div>
 		</div>
@@ -193,29 +196,29 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 			@readyInsightCard(data)
 			<!-- Mid connector: → with label "informs" -->
 			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
-				<span class="text-xs text-base-content/50 mb-1 whitespace-nowrap">informs</span>
+				<span class="text-xs text-base-content/50 mb-1 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.informs") }</span>
 				@svgArrowRight()
 			</div>
 			<!-- Insight Opportunity -->
 			{{ insightOpportCanDraft := data.InsightExists }}
 			@readyMapCard(readyMapCardProps{
-				Title:           "Insight Opportunity",
-				Subtitle:        "Synthesised big opportunity from analyses",
+				Title:           langs.T(ctx, "artifact.label.insight_opportunity"),
+				Subtitle:        langs.T(ctx, "artifact.subtitle.insight_opportunity"),
 				Icon:            "lucide--lightbulb",
 				Href:            "/strategies/" + data.InstanceID + "/ready/opportunity",
 				Exists:          data.OpportunityExists,
 				ArtifactType:   "insight_opportunity",
 				Tier:            2,
-				TierLabel:       "Each cycle",
+				TierLabel:       langs.T(ctx, "ui.cadence.each_cycle"),
 				TierColor:       "bg-secondary/10 border-secondary/20",
 				BadgeColor:      "bg-secondary/20 text-secondary",
 				Line1:           data.OpportunityTitle,
 				Line2:           data.OpportunityUrgency,
 				Gaps:            data.OpportunityGaps,
-				SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["insight_opportunity"]),
+				SufficiencyHint: evidenceSufficiencyHint(ctx, data.EvidenceSufficiency["insight_opportunity"]),
 				EvidenceReady:   data.EvidenceSufficiency["insight_opportunity"].Sufficient,
 				DraftURL:        readyDraftURL(data.InstanceID, "opportunity"),
-				DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["insight_opportunity"].Sufficient, data.HasSkillExecutor && insightOpportCanDraft),
+				DraftLabel:      readyDraftLabel(ctx, data.EvidenceSufficiency["insight_opportunity"].Sufficient, data.HasSkillExecutor && insightOpportCanDraft),
 				CanDraft:        data.HasSkillExecutor && insightOpportCanDraft,
 			})
 		</div>
@@ -226,23 +229,23 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 			<!-- Strategy Formula -->
 			{{ formulaCanDraft := data.NorthStarExists && data.FoundationExists }}
 			@readyMapCard(readyMapCardProps{
-				Title:           "Strategy Formula",
-				Subtitle:        "Positioning · Moat · Value creation · Business model",
+				Title:           langs.T(ctx, "artifact.label.strategy_formula"),
+				Subtitle:        langs.T(ctx, "artifact.subtitle.strategy_formula"),
 				Icon:            "lucide--flask-conical",
 				Href:            "/strategies/" + data.InstanceID + "/ready/formula",
 				Exists:          data.FormulaExists,
 				ArtifactType:   "strategy_formula",
 				Tier:            3,
-				TierLabel:       "Quarterly",
+				TierLabel:       langs.T(ctx, "ui.cadence.quarterly"),
 				TierColor:       "bg-accent/10 border-accent/20",
 				BadgeColor:      "bg-accent/20 text-accent",
 				Line1:           data.FormulaCategory,
 				Line2:           data.FormulaUVP,
 				Gaps:            data.FormulaGaps,
-				SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["strategy_formula"]),
+				SufficiencyHint: evidenceSufficiencyHint(ctx, data.EvidenceSufficiency["strategy_formula"]),
 				EvidenceReady:   data.EvidenceSufficiency["strategy_formula"].Sufficient,
 				DraftURL:        readyDraftURL(data.InstanceID, "formula"),
-				DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["strategy_formula"].Sufficient, data.HasSkillExecutor && formulaCanDraft),
+				DraftLabel:      readyDraftLabel(ctx, data.EvidenceSufficiency["strategy_formula"].Sufficient, data.HasSkillExecutor && formulaCanDraft),
 				CanDraft:        data.HasSkillExecutor && formulaCanDraft,
 			})
 		<!-- Mid divider: no arrow, just a vertical separator -->
@@ -252,23 +255,23 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<!-- Strategy Foundations -->
 		{{ foundCanDraft := data.NorthStarExists }}
 		@readyMapCard(readyMapCardProps{
-			Title:           "Strategy Foundations",
-			Subtitle:        "Product vision · Value prop · Sequencing · Principles",
+			Title:           langs.T(ctx, "artifact.label.strategy_foundations"),
+			Subtitle:        langs.T(ctx, "artifact.subtitle.strategy_foundations"),
 			Icon:            "lucide--building-2",
 			Href:            "/strategies/" + data.InstanceID + "/ready/foundations",
 			Exists:          data.FoundationExists,
 			ArtifactType:   "strategy_foundations",
 			Tier:            3,
-			TierLabel:       "Quarterly",
+			TierLabel:       langs.T(ctx, "ui.cadence.quarterly"),
 			TierColor:       "bg-accent/10 border-accent/20",
 			BadgeColor:      "bg-accent/20 text-accent",
 			Line1:           data.FoundationValueProp,
 			Line2:           data.FoundationVision,
 			Gaps:            data.FoundationGaps,
-			SufficiencyHint: evidenceSufficiencyHint(data.EvidenceSufficiency["strategy_foundations"]),
+			SufficiencyHint: evidenceSufficiencyHint(ctx, data.EvidenceSufficiency["strategy_foundations"]),
 			EvidenceReady:   data.EvidenceSufficiency["strategy_foundations"].Sufficient,
 			DraftURL:        readyDraftURL(data.InstanceID, "foundations"),
-			DraftLabel:      readyDraftLabel(data.EvidenceSufficiency["strategy_foundations"].Sufficient, data.HasSkillExecutor && foundCanDraft),
+			DraftLabel:      readyDraftLabel(ctx, data.EvidenceSufficiency["strategy_foundations"].Sufficient, data.HasSkillExecutor && foundCanDraft),
 			CanDraft:        data.HasSkillExecutor && foundCanDraft,
 		})
 		</div>
@@ -289,23 +292,23 @@ func readyDraftURL(instanceID, draftKey string) string {
 }
 
 // readyDraftLabel returns the button label based on evidence sufficiency and prerequisite state.
-func readyDraftLabel(sufficient, canDraft bool) string {
+func readyDraftLabel(ctx context.Context, sufficient, canDraft bool) string {
 	if !canDraft {
-		return "Prerequisites missing"
+		return langs.T(ctx, "ui.draft_btn.prereqs_missing")
 	}
 	if sufficient {
-		return "Draft from evidence"
+		return langs.T(ctx, "ui.draft_btn.from_evidence")
 	}
-	return "Draft with AI"
+	return langs.T(ctx, "ui.draft_btn.with_ai")
 }
 
 // evidenceSufficiencyHint builds a display hint string from a sufficiency result.
-func evidenceSufficiencyHint(s EvidenceSufficiencyResult) string {
+func evidenceSufficiencyHint(ctx context.Context, s EvidenceSufficiencyResult) string {
 	if s.Sufficient {
 		return strconv.Itoa(s.EvidenceCount) + " evidence item(s) ready for draft"
 	}
 	if len(s.MissingTags) == 0 {
-		return "Add evidence to improve AI draft"
+		return langs.T(ctx, "ui.evidence_hint.add")
 	}
 	if len(s.MissingTags) == 1 {
 		return "Add " + s.MissingTags[0] + " evidence to improve draft"
@@ -387,7 +390,7 @@ templ readyMapCard(p readyMapCardProps) {
 			</div>
 		} else if !p.Exists {
 			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
-				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				if p.SufficiencyHint != "" {
 					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", p.EvidenceReady), templ.KV("text-base-content/40", !p.EvidenceReady) }>
 						if p.EvidenceReady {
@@ -461,14 +464,14 @@ templ readyInsightCard(data ReadyPhaseData) {
 				</div>
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2 flex-wrap">
-						<h3 class="text-sm font-semibold text-base-content leading-tight">Insight Analyses</h3>
+						<h3 class="text-sm font-semibold text-base-content leading-tight">{ langs.T(ctx, "artifact.label.insight_analyses") }</h3>
 						<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-secondary/20 text-secondary">
 							<span class="iconify lucide--clock size-3 opacity-70"></span>
-							Each cycle
+							{ langs.T(ctx, "ui.cadence.each_cycle") }
 						</span>
 	
 					</div>
-					<p class="text-xs text-base-content/50 mt-0.5">Trends · Market · SWOT · User Problems</p>
+					<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "artifact.subtitle.insight_analyses") }</p>
 				</div>
 				if data.InsightExists {
 					<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
@@ -505,12 +508,12 @@ templ readyInsightCard(data ReadyPhaseData) {
 				</div>
 		} else {
 			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
-				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				{{ s := data.EvidenceSufficiency["insight_analyses"] }}
 				if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
 					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
 						<span class="iconify lucide--database size-3"></span>
-						{ evidenceSufficiencyHint(s) }
+						{ evidenceSufficiencyHint(ctx, s) }
 					</p>
 				}
 				if data.HasSkillExecutor {
@@ -518,7 +521,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 						<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "insights")) }>
 							<button type="submit" class="btn btn-xs btn-ghost text-secondary hover:bg-secondary/10 w-full">
 								<span class="iconify lucide--sparkles size-3"></span>
-								{ readyDraftLabel(s.Sufficient, true) }
+								{ readyDraftLabel(ctx, s.Sufficient, true) }
 							</button>
 						</form>
 					</div>
@@ -550,7 +553,7 @@ templ detailGapBanner(gaps []ReadyGap) {
 		<!-- All sections present — show compact "complete" bar -->
 		<div class="flex items-center gap-2 rounded-lg bg-success/5 border border-success/20 px-4 py-2.5">
 			<span class="iconify lucide--circle-check-big size-4 text-success shrink-0"></span>
-			<p class="text-sm text-success font-medium">All sections complete</p>
+			<p class="text-sm text-success font-medium">{ langs.T(ctx, "ui.readiness.all_complete") }</p>
 			<div class="flex flex-wrap gap-1 ml-2">
 			for _, g := range gaps {
 				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-success bg-success/10">
@@ -566,14 +569,9 @@ templ detailGapBanner(gaps []ReadyGap) {
 			<div class="flex items-center gap-3 px-4 py-3 border-b border-error/15">
 				<span class="iconify lucide--triangle-alert size-4 text-error shrink-0"></span>
 				<p class="text-sm font-semibold text-error">
-					{ strconv.Itoa(missing) } section
-					if missing == 1 {
-						{ " needs content" }
-					} else {
-						{ "s need content" }
-					}
+					{ strconv.Itoa(missing) }{ " " }{ langs.T(ctx, "ui.readiness.sections_need_content") }
 				</p>
-				<p class="text-xs text-base-content/50 ml-1">Develop these to strengthen this artifact</p>
+				<p class="text-xs text-base-content/50 ml-1">{ langs.T(ctx, "ui.readiness.develop_hint") }</p>
 			</div>
 			<div class="px-4 py-3 flex flex-wrap gap-2">
 				for _, g := range gaps {
@@ -622,14 +620,14 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 				</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2 mb-1">
-					<h3 class="text-sm font-semibold text-base-content">North Star</h3>
+					<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "artifact.label.north_star") }</h3>
 					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-primary/20 text-primary shrink-0">
 						<span class="iconify lucide--clock size-3 opacity-70"></span>
-						Years
+						{ langs.T(ctx, "ui.cadence.years") }
 					</span>
 	
 				</div>
-				<p class="text-xs text-base-content/50">Purpose · Vision · Mission · Values — immovable anchor</p>
+				<p class="text-xs text-base-content/50">{ langs.T(ctx, "artifact.subtitle.north_star") }</p>
 					if data.NorthStarExists && data.NorthStarPurpose != "" {
 						<p class="text-sm font-medium text-base-content/90 mt-2.5 leading-snug">{ data.NorthStarPurpose }</p>
 					}
@@ -647,7 +645,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 		if data.NorthStarOrg != "" {
 			<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
 				<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
-				<span class="text-xs text-base-content/35 italic">calibration feeds back ↑</span>
+				<span class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.ready.calibration_feedback") }</span>
 			</div>
 		}
 	</div>
@@ -657,13 +655,13 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 		if !data.NorthStarExists {
 			<div class="border-t border-base-content/10 pt-2.5 space-y-2">
 				<div class="flex items-center gap-2">
-					<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+					<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 					{{ s := data.EvidenceSufficiency["north_star"] }}
 					if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
 						<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
 							<span class="mx-1 text-base-content/20">·</span>
 							<span class="iconify lucide--database size-3"></span>
-							{ evidenceSufficiencyHint(s) }
+							{ evidenceSufficiencyHint(ctx, s) }
 						</p>
 					}
 				</div>
@@ -672,7 +670,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 						<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "north-star")) }>
 							<button type="submit" class="btn btn-xs btn-ghost text-primary hover:bg-primary/10">
 								<span class="iconify lucide--sparkles size-3"></span>
-								{ readyDraftLabel(data.EvidenceSufficiency["north_star"].Sufficient, true) }
+								{ readyDraftLabel(ctx, data.EvidenceSufficiency["north_star"].Sufficient, true) }
 							</button>
 						</form>
 					</div>
@@ -700,14 +698,14 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 				</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2 mb-1">
-					<h3 class="text-sm font-semibold text-base-content">Roadmap Recipe</h3>
+					<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "artifact.label.roadmap_recipe") }</h3>
 					<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-sans font-medium bg-info/20 text-info shrink-0">
 						<span class="iconify lucide--clock size-3 opacity-70"></span>
-						Each cycle
+						{ langs.T(ctx, "ui.cadence.each_cycle") }
 					</span>
 	
 				</div>
-				<p class="text-xs text-base-content/50">Current cycle priorities — four-track OKRs, assumptions, milestones</p>
+				<p class="text-xs text-base-content/50">{ langs.T(ctx, "artifact.subtitle.roadmap_recipe") }</p>
 				if data.RoadmapExists && data.RoadmapCycle != "" {
 					<p class="text-xs font-medium text-base-content/80 mt-2">Cycle: { data.RoadmapCycle }</p>
 				}
@@ -725,7 +723,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 							<div class="flex flex-col items-center text-center min-w-[36px]">
 								<span class={ "iconify size-4 text-base-content/40 " + t.Icon }></span>
 								<span class="text-sm font-semibold text-base-content leading-tight mt-0.5">{ strconv.Itoa(t.KeyResults) }</span>
-								<span class="text-xs text-base-content/50 leading-none">KRs</span>
+								<span class="text-xs text-base-content/50 leading-none">{ langs.T(ctx, "ui.roadmap.kr_label") }</span>
 							</div>
 						}
 					</div>
@@ -738,7 +736,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 		if !data.RoadmapExists && data.HasSkillExecutor {
 			{{ roadmapCanDraft := data.FormulaExists && data.FoundationExists }}
 			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5" onclick="event.preventDefault(); event.stopPropagation();">
-				<p class="text-xs text-base-content/35 italic">Not yet authored</p>
+				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "roadmap")) }>
 					<button
 						type="submit"
@@ -746,7 +744,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 						disabled?={ !roadmapCanDraft }
 					>
 						<span class="iconify lucide--sparkles size-3"></span>
-						{ readyDraftLabel(data.EvidenceSufficiency["roadmap_recipe"].Sufficient, roadmapCanDraft) }
+						{ readyDraftLabel(ctx, data.EvidenceSufficiency["roadmap_recipe"].Sufficient, roadmapCanDraft) }
 					</button>
 				</form>
 			</div>
@@ -761,7 +759,7 @@ templ readyConnectorRow2(data ReadyPhaseData) {
 		<!-- Left: NS → Insight Analyses -->
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
-				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 				@svgArrowDown()
 			</div>
 		</div>
@@ -770,7 +768,7 @@ templ readyConnectorRow2(data ReadyPhaseData) {
 		<!-- Right: NS → Insight Opportunity -->
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
-				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 				@svgArrowDown()
 			</div>
 		</div>
@@ -786,18 +784,18 @@ templ readyConnectorRow3() {
 		<div class="flex justify-center pt-1">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">evidence grounds</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.evidence_grounds") }</span>
 			</div>
 		</div>
 		<!-- Center: converge label -->
 		<div class="flex flex-col items-center justify-center min-w-[80px] pt-1">
-			<span class="text-xs text-base-content/35 italic text-center leading-tight">both<br/>synthesise</span>
+			<span class="text-xs text-base-content/35 italic text-center leading-tight">{ langs.T(ctx, "ui.ready.connector.both_synthesise") }</span>
 		</div>
 		<!-- Right: Insight Opportunity → Strategy Formula (synthesises) -->
 		<div class="flex justify-center pt-1">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">synthesises into</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.synthesises_into") }</span>
 			</div>
 		</div>
 	</div>
@@ -810,7 +808,7 @@ templ readyConnectorRow4() {
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">constrains</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 			</div>
 		</div>
 		<!-- Center: merge indicator -->
@@ -821,7 +819,7 @@ templ readyConnectorRow4() {
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">sequences</span>
+				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.sequences") }</span>
 			</div>
 		</div>
 	</div>
@@ -835,7 +833,7 @@ templ readyFireConnector() {
 			<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
 			<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
 		</svg>
-		<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">hands off to</span>
+		<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.ready.connector.hands_off") }</span>
 	</div>
 }
 
@@ -918,7 +916,7 @@ templ svgArrowRight() {
 templ roadmapOKRSummary(tracks []TrackOKRSummary) {
 	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
 		<div class="card-body p-5">
-			<h3 class="text-base font-semibold text-base-content mb-3">Roadmap OKRs by Track</h3>
+			<h3 class="text-base font-semibold text-base-content mb-3">{ langs.T(ctx, "ui.roadmap.okrs_by_track") }</h3>
 			<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
 				for _, t := range tracks {
 					<div class="flex items-center gap-3 rounded-lg bg-base-200/50 px-3 py-2.5">
@@ -941,7 +939,7 @@ templ readyScoreBar(data ReadyPhaseData) {
 		<div class="flex items-center gap-3">
 			<div class="flex-1">
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-xs text-base-content/50">Foundation readiness</span>
+					<span class="text-xs text-base-content/50">{ langs.T(ctx, "ui.ready.score.label") }</span>
 					<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/60", data.ReadinessScore < 50) }>
 						{ strconv.Itoa(data.ReadinessScore) }%
 					</span>
@@ -978,7 +976,7 @@ templ readyScoreBreakdown(items []ReadinessItem, score int) {
 						if item.MaxPts > 0 {
 							<span class="text-base-content/50 font-normal">({ "+" + strconv.Itoa(item.MaxPts) + " pts" })</span>
 						} else {
-							<span class="text-base-content/30 font-normal">(optional)</span>
+							<span class="text-base-content/30 font-normal">{ langs.T(ctx, "ui.readiness.optional") }</span>
 						}
 					</span>
 				}
@@ -1005,7 +1003,7 @@ templ readyPublishBanner(instanceID string) {
 				<div class="flex items-start gap-3">
 					<span class="iconify lucide--rocket size-5 text-success mt-0.5 shrink-0"></span>
 					<div class="space-y-1.5">
-						<p class="text-sm font-semibold">Your strategy is ready to publish</p>
+						<p class="text-sm font-semibold">{ langs.T(ctx, "ui.ready.publish_banner.title") }</p>
 						<p class="text-xs text-base-content/70 leading-relaxed max-w-lg">
 							Publishing creates a frozen snapshot of all your strategy artifacts and their
 							relationships as <strong>Version 1</strong>. Nothing changes in your current
@@ -1024,7 +1022,7 @@ templ readyPublishBanner(instanceID string) {
 					<input type="hidden" name="description" value="First strategy version — published from the READY dashboard."/>
 					<button type="submit" class="btn btn-sm btn-success">
 						<span class="iconify lucide--bookmark size-4"></span>
-						Publish initial version
+						{ langs.T(ctx, "ui.ready.publish_btn") }
 					</button>
 				</form>
 			</div>

@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+
 // ActivityPageData holds the data for the Activity page.
 type ActivityPageData struct {
 	Nav     NavContext
@@ -16,7 +18,7 @@ templ ActivityPageContent(data ActivityPageData) {
 			<div class="flex items-center gap-3">
 				<span class="iconify lucide--activity size-5 text-primary"></span>
 				<div>
-					<h2 class="text-lg font-bold text-base-content">Live Activity</h2>
+					<h2 class="text-lg font-bold text-base-content">{ langs.T(ctx, "nav.screen.activity") }</h2>
 					<p class="text-xs text-base-content/50">Active skill runs, pending drafts, and AIM cycles</p>
 				</div>
 			</div>

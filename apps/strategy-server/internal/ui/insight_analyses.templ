@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // InsightAnalysesData holds all data for the bespoke Insight Analyses view.
@@ -116,7 +118,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 					<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<span class="iconify lucide--search size-5 text-info"></span>
-							<span class="text-xs font-semibold uppercase tracking-widest text-info">Insight Analyses</span>
+							<span class="text-xs font-semibold uppercase tracking-widest text-info">{ langs.T(ctx, "artifact.label.insight_analyses") }</span>
 							if data.Confidence != "" {
 								<span class="tooltip" data-tip={ confidenceHint(data.Confidence) }><span class={ "badge badge-sm", confidenceBadgeClass(data.Confidence) }>{ data.Confidence }</span></span>
 							}

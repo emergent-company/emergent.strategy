@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // ---------------------------------------------------------------------------
@@ -176,7 +178,7 @@ templ aimPipelineActiveRun(data AimPipelineData) {
 	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
 		<span class={ "iconify size-5 shrink-0 text-primary", aimActiveRunIcon(data.ActiveRunStatus) }></span>
 		<div class="grow min-w-0">
-			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">AIM Cycle In Progress</p>
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">{ langs.T(ctx, "ui.aim.phase_badge") }</p>
 			<p class="text-sm text-base-content mt-0.5">
 				if data.ActiveRunStep != "" {
 					{ runStepLabel(data.ActiveRunStep) } · { runStatusLabel(data.ActiveRunStatus) }
@@ -207,7 +209,7 @@ templ aimPipelineTriggerBanner(data AimPipelineData) {
 	<div class="rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 flex items-center gap-4">
 		<span class="iconify lucide--bell-ring size-6 text-primary shrink-0"></span>
 		<div class="grow min-w-0">
-			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">New AIM Cycle Due</p>
+			<p class="text-xs font-semibold uppercase tracking-widest text-primary/70">{ langs.T(ctx, "ui.aim.phase_badge") }</p>
 			<p class="text-sm text-base-content mt-0.5">{ data.TriggerReasonMessage }</p>
 		</div>
 		<div class="flex items-center gap-2 shrink-0">
@@ -298,7 +300,7 @@ templ pipelineReviewItem(item PipelineReviewItem, instanceID string) {
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
 				<form method="POST" action={ templ.URL("/strategies/" + instanceID + "/aim/draft-review/" + item.BatchID + "/discard") }>
-					<button type="submit" class="btn btn-xs btn-ghost text-error">Discard</button>
+					<button type="submit" class="btn btn-xs btn-ghost text-error">{ langs.T(ctx, "action.discard") }</button>
 				</form>
 				<a href={ templ.URL(item.ReviewURL) } class="btn btn-xs btn-info">Review</a>
 			</div>
@@ -406,11 +408,11 @@ templ aimPipelineSignalSummary(data AimPipelineData) {
 			<div class="grid grid-cols-3 gap-2 mb-3">
 				<div class="text-center rounded-lg bg-error/5 border border-error/10 px-3 py-2">
 					<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
-					<p class="text-xs text-base-content/60">Critical</p>
+					<p class="text-xs text-base-content/60">{ langs.T(ctx, "ui.tooltip.critical_signals") }</p>
 				</div>
 				<div class="text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
 					<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
-					<p class="text-xs text-base-content/60">Warning</p>
+					<p class="text-xs text-base-content/60">{ langs.T(ctx, "ui.tooltip.warning_signals") }</p>
 				</div>
 				<div class="text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2">
 					<p class="text-lg font-bold text-info">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>

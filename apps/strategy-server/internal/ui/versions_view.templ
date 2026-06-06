@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // VersionRow is a single published strategy version for the list view.
@@ -67,7 +69,7 @@ templ VersionsContent(data VersionsViewData) {
 	<div class="space-y-6">
 		// ── Header ──
 		<div>
-			<h2 class="text-xl font-bold text-base-content">Version History</h2>
+			<h2 class="text-xl font-bold text-base-content">{ langs.T(ctx, "page.version_history") }</h2>
 			<p class="text-sm text-base-content/60 mt-0.5">
 				Published snapshots of this strategy instance
 			</p>
@@ -155,7 +157,7 @@ templ versionListRow(v VersionRow) {
 
 		// Artifact count + equilibrium
 		<div class="text-right shrink-0 hidden sm:block">
-			<p class="text-xs text-base-content/50">{ fmt.Sprintf("%d artifacts", v.ArtifactCount) }</p>
+			<p class="text-xs text-base-content/50">{ fmt.Sprintf(langs.T(ctx, "settings.instance.artifact_count"), v.ArtifactCount) }</p>
 			if v.EquilibScore != "" {
 				<div class="tooltip tooltip-left" data-tip="Equilibrium — how aligned the strategy artifacts are">
 					<p class="text-xs text-base-content/40">eq { v.EquilibScore }</p>
@@ -392,15 +394,15 @@ templ calibrationDecisionMini(decision string) {
 	switch decision {
 		case "persevere":
 			<div class="tooltip" data-tip="Continue with current strategy direction">
-				<span class="badge badge-xs badge-success gap-1">Persevere</span>
+				<span class="badge badge-xs badge-success gap-1">{ langs.T(ctx, "calibration.decision.persevere") }</span>
 			</div>
 		case "pivot":
 			<div class="tooltip" data-tip="Significant change in strategy direction">
-				<span class="badge badge-xs badge-warning gap-1">Pivot</span>
+				<span class="badge badge-xs badge-warning gap-1">{ langs.T(ctx, "calibration.decision.pivot") }</span>
 			</div>
 		case "pull_the_plug":
 			<div class="tooltip" data-tip="Abandon this strategic direction">
-				<span class="badge badge-xs badge-error gap-1">Pull the plug</span>
+				<span class="badge badge-xs badge-error gap-1">{ langs.T(ctx, "calibration.decision.pull_the_plug") }</span>
 			</div>
 	}
 }

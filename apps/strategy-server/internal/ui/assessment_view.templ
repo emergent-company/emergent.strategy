@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // AssessmentViewData holds all data for the bespoke Assessment Report view.
@@ -91,7 +93,7 @@ templ assessmentHero(data AssessmentViewData) {
 				<div class="space-y-2">
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--clipboard-check size-5 text-secondary"></span>
-						<span class="text-xs font-semibold uppercase tracking-widest text-secondary">Assessment Report</span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-secondary">{ langs.T(ctx, "artifact.label.assessment_report") }</span>
 						if data.Cycle > 0 {
 							<span class="badge badge-sm badge-info">Cycle { strconv.Itoa(data.Cycle) }</span>
 						}

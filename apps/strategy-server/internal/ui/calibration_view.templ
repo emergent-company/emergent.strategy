@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // CalibrationViewData holds all data for the bespoke Calibration Memo view.
 type CalibrationViewData struct {
@@ -109,7 +113,7 @@ templ calibrationHero(data CalibrationViewData) {
 				<div class="space-y-3">
 					<div class="flex items-center gap-2 flex-wrap">
 						<span class="iconify lucide--sliders-horizontal size-5 text-base-content/60"></span>
-						<span class="text-xs font-semibold uppercase tracking-widest text-base-content/60">Calibration Memo</span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-base-content/60">{ langs.T(ctx, "artifact.label.calibration_memo") }</span>
 						if data.Cycle > 0 {
 							<span class="badge badge-sm badge-ghost">Cycle { strconv.Itoa(data.Cycle) }</span>
 						}

@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // StrategyFormulaData holds all data for the bespoke Strategy Formula view.
@@ -112,7 +114,7 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 					<div class="space-y-2">
 						<div class="flex items-center gap-2">
 							<span class="iconify lucide--brain size-5 text-secondary"></span>
-							<span class="text-xs font-semibold uppercase tracking-widest text-secondary">Strategy Formula</span>
+							<span class="text-xs font-semibold uppercase tracking-widest text-secondary">{ langs.T(ctx, "artifact.label.strategy_formula") }</span>
 							if data.Status != "" {
 								@artifactStatusBadge(data.Status)
 							}

@@ -1,5 +1,11 @@
 package ui
 
+import (
+	"context"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
+
 // AimDraftReviewData holds data for the AI draft review screen.
 type AimDraftReviewData struct {
 	NavContext
@@ -38,7 +44,7 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 			<div class="flex items-start gap-4">
 				<span class="iconify lucide--sparkles size-6 text-primary mt-0.5 shrink-0"></span>
 				<div class="grow min-w-0">
-					<p class="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">AI Draft — Requires Review</p>
+					<p class="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-1">{ langs.T(ctx, "page.draft_review") }</p>
 					<p class="text-sm text-base-content leading-relaxed">
 						if data.Description != "" {
 							{ data.Description }
@@ -61,13 +67,13 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/discard") }>
 						<button type="submit" class="btn btn-sm btn-ghost text-error">
 							<span class="iconify lucide--trash-2 size-3.5"></span>
-							Discard all
+							{ langs.T(ctx, "action.discard") }
 						</button>
 					</form>
 					<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/aim/draft-review/" + data.BatchID + "/commit") }>
 						<button type="submit" class="btn btn-sm btn-primary gap-2">
 							<span class="iconify lucide--check size-3.5"></span>
-							Commit all
+							{ langs.T(ctx, "action.commit") }
 						</button>
 					</form>
 				</div>
@@ -115,7 +121,7 @@ templ aimDraftReviewItem(item AimDraftReviewItem) {
 		<div class="flex items-center gap-3 px-5 py-3">
 			<span class={ "iconify size-4 shrink-0", draftActionIcon(item.Action), draftActionColor(item.Action) }></span>
 			<div class="grow min-w-0">
-				<p class="text-sm font-semibold text-base-content">{ artifactTypeLabel(item.ArtifactType) }</p>
+				<p class="text-sm font-semibold text-base-content">{ artifactTypeLabelI18n(ctx, item.ArtifactType) }</p>
 			</div>
 			<span class="tooltip shrink-0" data-tip={ draftActionHint(item.Action) }><span class={ "badge badge-sm", draftActionBadgeClass(item.Action) }>{ item.Action }</span></span>
 		</div>
@@ -231,6 +237,32 @@ func artifactTypeLabel(t string) string {
 			}
 		}
 		return string(out)
+	}
+}
+
+// artifactTypeLabelI18n returns a translated human-readable label for an artifact type string.
+func artifactTypeLabelI18n(ctx context.Context, t string) string {
+	switch t {
+	case "north_star":
+		return langs.T(ctx, "artifact.label.north_star")
+	case "strategy_foundations":
+		return langs.T(ctx, "artifact.label.strategy_foundations")
+	case "insight_analyses":
+		return langs.T(ctx, "artifact.label.insight_analyses")
+	case "insight_opportunity":
+		return langs.T(ctx, "artifact.label.insight_opportunity")
+	case "strategy_formula":
+		return langs.T(ctx, "artifact.label.strategy_formula")
+	case "roadmap_recipe":
+		return langs.T(ctx, "artifact.label.roadmap_recipe")
+	case "living_reality_assessment":
+		return langs.T(ctx, "artifact.label.living_reality_assessment")
+	case "assessment_report":
+		return langs.T(ctx, "artifact.label.assessment_report")
+	case "calibration_memo":
+		return langs.T(ctx, "artifact.label.calibration_memo")
+	default:
+		return artifactTypeLabel(t)
 	}
 }
 

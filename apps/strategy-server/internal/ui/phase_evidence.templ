@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // EvidenceItem is a single evidence item shown in the evidence collection page.
 type EvidenceItem struct {
@@ -56,7 +60,7 @@ templ EvidencePageContent(data EvidencePageData) {
 		// Header
 		<div class="flex items-center justify-between">
 			<div>
-				<h2 class="text-base font-semibold text-base-content">Evidence</h2>
+				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "nav.screen.evidence") }</h2>
 				<p class="text-xs text-base-content/60 mt-0.5">
 					Load source material to ground AI-generated strategy drafts in real context.
 				</p>
@@ -312,7 +316,7 @@ templ EvidenceInterviewContent(data EvidenceInterviewData) {
 				<span class="iconify lucide--arrow-left size-3"></span>
 				Back to evidence
 			</a>
-			<h2 class="text-base font-semibold text-base-content">Guided Strategy Interview</h2>
+			<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "page.strategy_interview") }</h2>
 			<p class="text-xs text-base-content/60 mt-0.5">
 				Answer these questions to load structured context for AI-generated strategy drafts.
 				Each answer becomes a tagged evidence item. Skip questions you cannot answer yet.
@@ -333,7 +337,7 @@ templ EvidenceInterviewContent(data EvidenceInterviewData) {
 			<div class="flex justify-end">
 				<button type="submit" class="btn btn-primary">
 					<span class="iconify lucide--save size-4"></span>
-					Save all answers
+					{ langs.T(ctx, "action.save") }
 				</button>
 			</div>
 		</form>

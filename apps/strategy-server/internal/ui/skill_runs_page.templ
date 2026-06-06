@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+
 // SkillRunsPageData holds data for the Skill Runs listing page.
 type SkillRunsPageData struct {
 	Nav  NavContext
@@ -43,7 +45,7 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 		<div class="flex items-center gap-3">
 			<span class="iconify lucide--cpu size-5 text-primary"></span>
 			<div>
-				<h2 class="text-lg font-bold text-base-content">Skill Runs</h2>
+				<h2 class="text-lg font-bold text-base-content">{ langs.T(ctx, "nav.screen.skill_runs") }</h2>
 				<p class="text-xs text-base-content/50">Autonomous skill execution history and LLM token usage</p>
 			</div>
 		</div>
@@ -175,17 +177,17 @@ templ skillRunStatusBadge(status string) {
 	case "running":
 		<span class="badge badge-xs badge-info gap-1">
 			<span class="iconify lucide--loader-2 size-2.5 animate-spin"></span>
-			Running
+			{ langs.T(ctx, "ui.status.active") }
 		</span>
 	case "completed":
 		<span class="badge badge-xs badge-success gap-1">
 			<span class="iconify lucide--check size-2.5"></span>
-			Completed
+			{ langs.T(ctx, "ui.status.synced") }
 		</span>
 	case "failed":
 		<span class="badge badge-xs badge-error gap-1">
 			<span class="iconify lucide--x size-2.5"></span>
-			Failed
+			{ langs.T(ctx, "ui.status.failed") }
 		</span>
 	default:
 		<span class="badge badge-xs badge-ghost">{ status }</span>

@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // FireTrackDashboardData holds everything needed to render one track's FIRE dashboard.
 type FireTrackDashboardData struct {
@@ -122,11 +126,11 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 			<div class="card-body p-5 gap-4">
 				<div class="flex items-center gap-2">
 					<span class="iconify lucide--target size-4 text-base-content/40"></span>
-					<h3 class="text-sm font-semibold text-base-content">Roadmap OKRs</h3>
+					<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "ui.fire.track.roadmap_krs") }</h3>
 					<span class="text-xs text-base-content/40">from READY handoff</span>
 				</div>
 				if len(data.Objectives) == 0 {
-					<p class="text-sm text-base-content/40 italic">No OKRs defined for this track in the roadmap.</p>
+					<p class="text-sm text-base-content/40 italic">{ langs.T(ctx, "ui.fire.track.no_okrs") }</p>
 				} else {
 					<div class="space-y-4">
 						for i, obj := range data.Objectives {
@@ -169,12 +173,12 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--layers size-4 text-base-content/40"></span>
-						<h3 class="text-sm font-semibold text-base-content">Value Model</h3>
+						<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "ui.fire.track.value_model") }</h3>
 						<span class="text-xs text-base-content/40">names the value generators that deliver outcomes</span>
 					</div>
 				</div>
 				if len(data.ValueModels) == 0 {
-					<p class="text-sm text-base-content/40 italic">No value model defined for this track yet.</p>
+					<p class="text-sm text-base-content/40 italic">{ langs.T(ctx, "ui.fire.value_model.not_defined") }</p>
 				} else {
 					<div class="space-y-4">
 						for _, vm := range data.ValueModels {
@@ -211,7 +215,7 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 			<div class="card-body p-5 gap-4">
 				<div class="flex items-center gap-2">
 					<span class="iconify lucide--file-text size-4 text-base-content/40"></span>
-					<h3 class="text-sm font-semibold text-base-content">Definitions</h3>
+					<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "ui.fire.track.definitions") }</h3>
 					<span class="text-xs text-base-content/40">requirements for delivering outcomes — each traces to a KR</span>
 					<span class={ "ml-auto inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold bg-" + data.Color + "/15 text-" + data.Color }>
 						{ strconv.Itoa(len(data.Definitions)) }
@@ -373,8 +377,8 @@ templ FireTrackDashboardContent(data FireTrackDashboardData) {
 						<table class="table table-sm w-full">
 							<thead>
 								<tr class="text-xs text-base-content/50">
-									<th class="font-medium">Name</th>
-									<th class="font-medium">Status</th>
+								<th class="font-medium">{ langs.T(ctx, "ui.table.name") }</th>
+								<th class="font-medium">{ langs.T(ctx, "ui.table.status") }</th>
 									<th class="font-medium">Maturity</th>
 								</tr>
 							</thead>

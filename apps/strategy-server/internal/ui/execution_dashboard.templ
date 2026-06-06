@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // ExecutionData holds all data for the execution dashboard.
@@ -214,7 +216,7 @@ templ executionTrackCard(track ExecutionTrack, instanceID string, hasAIM bool) {
 		// Definitions strip — what we are building/operationalizing to reach the OKRs
 		if len(track.Definitions) > 0 {
 			<div class="flex flex-wrap gap-2 px-5 py-3 border-b border-base-content/5 bg-base-200/30">
-				<span class="text-xs text-base-content/40 font-medium self-center mr-1">Definitions</span>
+				<span class="text-xs text-base-content/40 font-medium self-center mr-1">{ langs.T(ctx, "ui.fire.track.definitions") }</span>
 				for _, def := range track.Definitions {
 					@execDefinitionChip(def)
 				}
@@ -498,7 +500,7 @@ templ strategicFocusSection(data ExecutionData) {
 						// Coherence
 						if data.CoherenceScore != "" {
 							<div class="flex items-center justify-between gap-3 text-xs">
-								<span class="text-base-content/60">Coherence</span>
+								<span class="text-base-content/60">{ langs.T(ctx, "nav.screen.coherence") }</span>
 								<span class={ "font-mono font-semibold", instanceCoherenceColor(data.CoherenceScore) }>{ data.CoherenceScore }</span>
 							</div>
 						}
@@ -526,7 +528,7 @@ templ strategicFocusSection(data ExecutionData) {
 						// Versions
 						if data.VersionCount > 0 {
 							<div class="flex items-center justify-between gap-3 text-xs">
-								<span class="text-base-content/60">Versions</span>
+								<span class="text-base-content/60">{ langs.T(ctx, "nav.screen.versions") }</span>
 								<span class="font-semibold text-base-content/70">{ strconv.Itoa(data.VersionCount) }</span>
 							</div>
 						}

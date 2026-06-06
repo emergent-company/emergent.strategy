@@ -1,6 +1,11 @@
 package ui
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // AimRunPanelData is the view model for an orchestrated AIM cycle run panel.
 type AimRunPanelData struct {
@@ -78,18 +83,18 @@ templ AimRunPanelContent(data AimRunPanelData) {
 				<div class="flex items-center gap-3">
 					<span class={ "iconify size-5", runStatusIcon(data.Status), runStatusIconColor(data.Status) }></span>
 					<div>
-						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">AIM Cycle Run</p>
-						<p class="text-sm font-medium text-base-content mt-0.5">
-							if data.CurrentStep != "" {
-								Running: { runStepLabel(data.CurrentStep) }
-							} else {
-								{ runStatusLabel(data.Status) }
-							}
-						</p>
-					</div>
+						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">{ langs.T(ctx, "page.aim_cycle_run") }</p>
+					<p class="text-sm font-medium text-base-content mt-0.5">
+						if data.CurrentStep != "" {
+							Running: { runStepLabel(data.CurrentStep) }
+						} else {
+							{ runStatusLabelI18n(ctx, data.Status) }
+						}
+					</p>
 				</div>
-				<div class="flex items-center gap-3">
-					<span class={ "badge", runStatusBadgeClass(data.Status) }>{ runStatusLabel(data.Status) }</span>
+			</div>
+			<div class="flex items-center gap-3">
+				<span class={ "badge", runStatusBadgeClass(data.Status) }>{ runStatusLabelI18n(ctx, data.Status) }</span>
 					if data.Status == "running" || data.Status == "awaiting_human" || data.Status == "pending" {
 						<form
 							method="POST"
@@ -465,6 +470,18 @@ func runStatusLabel(status string) string {
 		return "Failed"
 	default:
 		return status
+	}
+}
+
+// runStatusLabelI18n returns a translated status label.
+func runStatusLabelI18n(ctx context.Context, status string) string {
+	switch status {
+	case "pending":
+		return langs.T(ctx, "ui.status.pending")
+	case "running":
+		return langs.T(ctx, "ui.status.active")
+	default:
+		return runStatusLabel(status)
 	}
 }
 

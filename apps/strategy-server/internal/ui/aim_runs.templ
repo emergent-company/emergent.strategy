@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // ---------------------------------------------------------------------------
 // Cycle Runs listing — persistent AIM sub-nav page
@@ -44,7 +48,7 @@ templ AimCycleRunsContent(data AimCycleRunsData) {
 		// Header with Run cycle button
 		<div class="flex items-center justify-between">
 			<div>
-				<h2 class="text-xl font-bold text-base-content">Cycle Runs</h2>
+				<h2 class="text-xl font-bold text-base-content">{ langs.T(ctx, "nav.screen.cycle_runs") }</h2>
 				<p class="text-sm text-base-content/60 mt-0.5">
 					History of orchestrated AIM cycle runs for this strategy.
 				</p>
@@ -178,12 +182,12 @@ templ aimRunRow(run AimCycleRunRow) {
 					if len(run.ArtifactTypes) > 0 {
 						<span class="flex items-center gap-1">
 							<span class="iconify lucide--layers size-3"></span>
-							for i, at := range run.ArtifactTypes {
-								if i > 0 {
-									, 
-								}
-								{ artifactTypeLabel(at) }
+						for i, at := range run.ArtifactTypes {
+							if i > 0 {
+								, 
 							}
+							{ artifactTypeLabelI18n(ctx, at) }
+						}
 						</span>
 					}
 				</div>

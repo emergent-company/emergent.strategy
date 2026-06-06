@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/go-daisy/components/layout"
 )
 
@@ -53,7 +54,15 @@ type InstanceMemoryStatus struct {
 type SettingsData struct {
 	Memory     MemoryHealthStatus
 	Instances  []InstanceMemoryStatus
-	GithubSync []GithubSyncStatus // one entry per instance; nil when App not configured
+	GithubSync []GithubSyncStatus // one entry per instance; empty when App not configured
+	Github     GithubConfigStatus // server-side GitHub configuration state
+}
+
+// GithubConfigStatus describes which GitHub mechanisms are configured server-side.
+type GithubConfigStatus struct {
+	AppConfigured   bool   // GITHUB_APP_ID + private key set (powers sync card + AIM auto-push)
+	OAuthConfigured bool   // GITHUB_OAUTH_CLIENT_ID + secret set (powers /github/connect flow)
+	AppSlug         string // public app slug, if known
 }
 
 // SettingsPage renders the full settings page with shell.
@@ -76,8 +85,8 @@ templ SettingsContent(data SettingsData) {
 	<div class="px-6 py-5 space-y-6">
 		<!-- Page header -->
 		<div>
-			<h1 class="text-xl font-bold text-base-content">Settings</h1>
-			<p class="text-sm text-base-content/60 mt-0.5">System status and configuration</p>
+			<h1 class="text-xl font-bold text-base-content">{ langs.T(ctx, "page.settings.title") }</h1>
+			<p class="text-sm text-base-content/60 mt-0.5">{ langs.T(ctx, "page.settings.subtitle") }</p>
 		</div>
 
 		<!-- Memory server status card -->
@@ -89,10 +98,93 @@ templ SettingsContent(data SettingsData) {
 		}
 
 		<!-- GitHub sync status -->
-		if len(data.GithubSync) > 0 {
+		if data.Github.AppConfigured && len(data.GithubSync) > 0 {
 			@githubSyncCard(data.GithubSync)
+		} else {
+			@githubNotConfiguredCard(data.Github)
 		}
 	</div>
+}
+
+// githubNotConfiguredCard renders the GitHub section when GitHub is not (fully)
+// configured server-side. It mirrors the Memory "not configured" pattern so the
+// section is always visible with actionable setup guidance, rather than silently
+// disappearing.
+templ githubNotConfiguredCard(g GithubConfigStatus) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.github_sync.title") }</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
+			</div>
+			if g.AppConfigured {
+				<span class="badge badge-success badge-sm">{ langs.T(ctx, "settings.github.app_configured") }</span>
+			} else {
+				<span class="badge badge-ghost badge-sm">{ langs.T(ctx, "settings.github.not_configured") }</span>
+			}
+		</div>
+
+		<!-- Body -->
+		<div class="px-5 py-4 space-y-4">
+			<!-- Mechanism status chips -->
+			<div class="flex flex-wrap gap-2">
+			@githubMechanismChip(langs.T(ctx, "settings.github.app_label"), g.AppConfigured, "repo sync + AIM auto-push")
+			@githubMechanismChip(langs.T(ctx, "settings.github.oauth_label"), g.OAuthConfigured, "user connect flow")
+			</div>
+
+			if !g.AppConfigured {
+				<div class="rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2">
+					<p class="text-sm text-base-content/70">
+						The GitHub App is not configured, so repo sync and the per-instance sync
+						status are unavailable. In local dev, <code class="bg-base-300/40 px-1 rounded">dev-setup.sh</code>
+						rewrites <code class="bg-base-300/40 px-1 rounded">.env.local</code> on every run, so put
+						GitHub credentials in a gitignored <code class="bg-base-300/40 px-1 rounded">.env.local.secrets</code>
+						file (appended automatically on every run) and restart:
+					</p>
+					<pre class="text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto"># .env.local.secrets
+GITHUB_APP_ID=&lt;app-id&gt;
+GITHUB_APP_PRIVATE_KEY_PATH=/absolute/path/to/app-private-key.pem
+GITHUB_APP_SLUG=&lt;app-slug&gt;
+
+# Optional — for the user connect flow:
+GITHUB_OAUTH_CLIENT_ID=&lt;client-id&gt;
+GITHUB_OAUTH_CLIENT_SECRET=&lt;client-secret&gt;
+GITHUB_OAUTH_STATE_SECRET=&lt;random-string&gt;</pre>
+				</div>
+			}
+
+			if g.OAuthConfigured {
+				<!-- OAuth connect flow IS available even without the App. -->
+				<div class="rounded-lg bg-info/10 border border-info/25 px-4 py-3 flex items-start gap-2">
+					<span class="iconify lucide--info size-4 text-info shrink-0 mt-0.5"></span>
+					<div class="text-sm text-base-content/80 space-y-1">
+					<p>{ langs.T(ctx, "settings.github.oauth_available_note") }</p>
+					<a href="/github/connect" class="inline-flex items-center gap-1 btn btn-xs btn-primary mt-1">
+						<span class="iconify lucide--plug size-3"></span>
+						{ langs.T(ctx, "settings.github.connect_btn") }
+					</a>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// githubMechanismChip renders a small on/off chip for one GitHub mechanism.
+templ githubMechanismChip(label string, on bool, note string) {
+	if on {
+		<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm" title={ note }>
+			<span class="iconify lucide--check size-3"></span>
+			{ label }
+		</span>
+	} else {
+		<span class="inline-flex items-center gap-1.5 badge badge-ghost badge-sm text-base-content/40" title={ note }>
+			<span class="iconify lucide--x size-3"></span>
+			{ label }
+		</span>
+	}
 }
 
 // memoryStatusCard renders the Memory server health section.
@@ -102,21 +194,21 @@ templ memoryStatusCard(m MemoryHealthStatus) {
 		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
 			<span class="iconify lucide--brain-circuit size-5 text-base-content/60"></span>
 			<div class="grow">
-				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Semantic Memory</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">emergent.memory — semantic graph for strategy search and contradiction detection</p>
+			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.memory.title") }</h2>
+			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.memory.subtitle") }</p>
 			</div>
 			<!-- Status badge -->
 			if !m.Configured {
-				<span class="badge badge-ghost badge-sm">Not configured</span>
+				<span class="badge badge-ghost badge-sm">{ langs.T(ctx, "settings.memory.not_configured") }</span>
 			} else if m.Healthy {
 				<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
 					<span class="size-1.5 rounded-full bg-success-content inline-block"></span>
-					Connected
+					{ langs.T(ctx, "settings.memory.connected") }
 				</span>
 			} else {
 				<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
 					<span class="size-1.5 rounded-full bg-error-content inline-block"></span>
-					Unreachable
+					{ langs.T(ctx, "settings.memory.unreachable") }
 				</span>
 			}
 		</div>
@@ -141,17 +233,17 @@ EPF_MEMORY_AUTH_MODE=api-key</pre>
 			} else {
 			<!-- Configured state: show connection details -->
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-				@settingsKV("URL", m.URL)
-				@settingsKV("Project ID", m.ProjectID)
-				if m.Version != "" {
-					@settingsKV("Server version", m.Version)
-				}
-				if m.TotalGraphObjects > 0 {
-					@settingsKV("Graph objects (artifacts)", fmt.Sprintf("%d", m.TotalGraphObjects))
-				}
-				if m.Error != "" {
-					<div class="sm:col-span-2">
-						<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">Last error</dt>
+			@settingsKV(langs.T(ctx, "settings.memory.kv.url"), m.URL)
+			@settingsKV(langs.T(ctx, "settings.memory.kv.project_id"), m.ProjectID)
+			if m.Version != "" {
+				@settingsKV(langs.T(ctx, "settings.memory.kv.server_version"), m.Version)
+			}
+			if m.TotalGraphObjects > 0 {
+				@settingsKV(langs.T(ctx, "settings.memory.kv.graph_objects"), fmt.Sprintf("%d", m.TotalGraphObjects))
+			}
+			if m.Error != "" {
+				<div class="sm:col-span-2">
+					<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">{ langs.T(ctx, "settings.memory.kv.last_error") }</dt>
 						<dd class="text-xs text-error font-mono break-all">{ m.Error }</dd>
 					</div>
 				}
@@ -177,8 +269,8 @@ templ instanceIngestTable(instances []InstanceMemoryStatus) {
 		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
 			<span class="iconify lucide--layers size-5 text-base-content/60"></span>
 			<div class="grow">
-				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Strategy Instances</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">Memory graph sync status per instance</p>
+			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.instances.title") }</h2>
+			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.instances.subtitle") }</p>
 			</div>
 			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
 		</div>
@@ -199,20 +291,20 @@ templ instanceIngestRow(inst InstanceMemoryStatus) {
 			if inst.OrgName != "" {
 				<p class="text-xs text-base-content/50">{ inst.OrgName }</p>
 			}
-			if inst.LastSyncedAt != nil {
-				<p class="text-xs text-base-content/40 mt-0.5">synced { inst.LastSyncedAt.Format("2 Jan 15:04") }</p>
-			}
+		if inst.LastSyncedAt != nil {
+			<p class="text-xs text-base-content/40 mt-0.5">{ langs.T(ctx, "settings.instance.synced_at") } { inst.LastSyncedAt.Format("2 Jan 15:04") }</p>
+		}
 		</div>
 
 		<!-- Graph counts -->
 		<div class="text-right shrink-0 hidden sm:block">
-			<p class="text-xs text-base-content/50">{ fmt.Sprintf("%d artifacts", inst.ArtifactCount) }</p>
-			if inst.GraphObjectCount > 0 {
-				<p class="text-xs text-base-content/40">{ fmt.Sprintf("%d obj · %d edges", inst.GraphObjectCount, inst.GraphEdgeCount) }</p>
-			}
-			if inst.DecomposedObjectCount > 0 {
-				<p class="text-xs text-base-content/30">{ fmt.Sprintf("+%d obj · %d edges decomposed", inst.DecomposedObjectCount, inst.DecomposedEdgeCount) }</p>
-			}
+		<p class="text-xs text-base-content/50">{ fmt.Sprintf(langs.T(ctx, "settings.instance.artifact_count"), inst.ArtifactCount) }</p>
+		if inst.GraphObjectCount > 0 {
+			<p class="text-xs text-base-content/40">{ fmt.Sprintf(langs.T(ctx, "settings.instance.graph_counts"), inst.GraphObjectCount, inst.GraphEdgeCount) }</p>
+		}
+		if inst.DecomposedObjectCount > 0 {
+			<p class="text-xs text-base-content/30">{ fmt.Sprintf(langs.T(ctx, "settings.instance.decomposed_counts"), inst.DecomposedObjectCount, inst.DecomposedEdgeCount) }</p>
+		}
 		</div>
 
 		<!-- Sync status badge -->
@@ -228,20 +320,20 @@ templ ingestStatusBadge(status string) {
 		case "synced":
 			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
 				<span class="iconify lucide--check size-3"></span>
-				Synced
+				{ langs.T(ctx, "ui.status.synced") }
 			</span>
 		case "pending":
 			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm">
 				<span class="iconify lucide--clock size-3"></span>
-				Pending
+				{ langs.T(ctx, "ui.status.pending") }
 			</span>
 		case "failed":
 			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
 				<span class="iconify lucide--x size-3"></span>
-				Failed
+				{ langs.T(ctx, "ui.status.failed") }
 			</span>
 		default:
-			<span class="badge badge-ghost badge-sm text-base-content/40">Not synced</span>
+			<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.status.not_synced") }</span>
 	}
 }
 
@@ -260,13 +352,13 @@ templ githubSyncCard(instances []GithubSyncStatus) {
 		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
 			<span class="iconify lucide--github size-5 text-base-content/60"></span>
 			<div class="grow">
-				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">GitHub Sync</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">Strategy artifact write-back to GitHub repositories</p>
+			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.github_sync.title") }</h2>
+			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
 			</div>
 			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
 			<a href="/github/connect" class="btn btn-xs btn-ghost border border-base-content/20 gap-1">
 				<span class="iconify lucide--plug size-3"></span>
-				Connect repo
+				{ langs.T(ctx, "settings.github.connect_repo_btn") }
 			</a>
 		</div>
 		<div class="divide-y divide-base-content/5">
@@ -299,7 +391,7 @@ templ githubSyncRow(inst GithubSyncStatus) {
 						}
 					</div>
 				} else {
-					<p class="text-xs text-base-content/40 mt-0.5">No GitHub repo configured</p>
+					<p class="text-xs text-base-content/40 mt-0.5">{ langs.T(ctx, "settings.github.no_repo_configured") }</p>
 				}
 
 				<!-- SHA comparison row -->
@@ -320,15 +412,15 @@ templ githubSyncRow(inst GithubSyncStatus) {
 				<!-- Last sync info -->
 				if inst.LastSyncAt != nil {
 					<p class="text-xs text-base-content/40 mt-0.5">
-						if inst.LastDirection == "import" {
-							imported { inst.LastSyncAt.Format("2 Jan 15:04") }
-						} else {
-							synced { inst.LastSyncAt.Format("2 Jan 15:04") }
-						}
-						if inst.LastSyncPR != "" {
-							· <a href={ templ.SafeURL(inst.LastSyncPR) } target="_blank" rel="noopener"
-								class="text-primary hover:underline">View PR</a>
-						}
+					if inst.LastDirection == "import" {
+						imported { inst.LastSyncAt.Format("2 Jan 15:04") }
+					} else {
+						{ langs.T(ctx, "settings.instance.synced_at") } { inst.LastSyncAt.Format("2 Jan 15:04") }
+					}
+					if inst.LastSyncPR != "" {
+						· <a href={ templ.SafeURL(inst.LastSyncPR) } target="_blank" rel="noopener"
+							class="text-primary hover:underline">{ langs.T(ctx, "settings.github.view_pr") }</a>
+					}
 					</p>
 				}
 			</div>
@@ -340,22 +432,22 @@ templ githubSyncRow(inst GithubSyncStatus) {
 					<!-- Push to GitHub button -->
 					<form method="POST" action="/settings/sync" class="inline">
 						<input type="hidden" name="instance_id" value={ inst.InstanceID }/>
-						<button type="submit"
-							class="btn btn-xs btn-ghost border border-base-content/20 gap-1"
-							title="Push strategy artifacts to GitHub">
-							<span class="iconify lucide--upload size-3"></span>
-							Push
-						</button>
+					<button type="submit"
+						class="btn btn-xs btn-ghost border border-base-content/20 gap-1"
+						title="Push strategy artifacts to GitHub">
+						<span class="iconify lucide--upload size-3"></span>
+						{ langs.T(ctx, "settings.github.push_btn") }
+					</button>
 					</form>
 					<!-- Import from GitHub button -->
 					<form method="POST" action="/settings/import" class="inline">
 						<input type="hidden" name="instance_id" value={ inst.InstanceID }/>
-						<button type="submit"
-							class={ "btn btn-xs gap-1 " + importButtonClass(inst.SyncState) }
-							title="Import EPF artifacts from GitHub">
-							<span class="iconify lucide--download size-3"></span>
-							Import
-						</button>
+					<button type="submit"
+						class={ "btn btn-xs gap-1 " + importButtonClass(inst.SyncState) }
+						title="Import EPF artifacts from GitHub">
+						<span class="iconify lucide--download size-3"></span>
+						{ langs.T(ctx, "settings.github.import_btn") }
+					</button>
 					</form>
 				}
 			</div>
@@ -383,28 +475,28 @@ templ githubSyncStateBadge(state string, repoLinked bool) {
 		case "in_sync":
 			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
 				<span class="iconify lucide--check size-3"></span>
-				In sync
+				{ langs.T(ctx, "ui.sync_state.in_sync") }
 			</span>
 		case "server_ahead":
-			<span class="inline-flex items-center gap-1.5 badge badge-info badge-sm" title="Server has unpushed enrichments">
+			<span class="inline-flex items-center gap-1.5 badge badge-info badge-sm" title={ langs.T(ctx, "ui.sync_state.server_ahead_tip") }>
 				<span class="iconify lucide--upload size-3"></span>
-				Server ahead
+				{ langs.T(ctx, "ui.sync_state.server_ahead") }
 			</span>
 		case "github_ahead":
-			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm" title="GitHub has commits not yet imported">
+			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm" title={ langs.T(ctx, "ui.sync_state.github_ahead_tip") }>
 				<span class="iconify lucide--download size-3"></span>
-				GitHub ahead
+				{ langs.T(ctx, "ui.sync_state.github_ahead") }
 			</span>
 		case "diverged":
-			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm" title="Both sides changed — import will create a safety PR">
+			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm" title={ langs.T(ctx, "ui.sync_state.diverged_tip") }>
 				<span class="iconify lucide--git-merge size-3"></span>
-				Diverged
+				{ langs.T(ctx, "ui.sync_state.diverged") }
 			</span>
 		default:
 			if !repoLinked {
-				<span class="badge badge-ghost badge-sm text-base-content/40">Not linked</span>
+				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
 			} else {
-				<span class="badge badge-ghost badge-sm text-base-content/40">Never synced</span>
+				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
 			}
 	}
 }
@@ -416,23 +508,23 @@ templ githubSyncStatusBadge(status string, repoLinked bool) {
 		case "pr_created", "merged":
 			<span class="inline-flex items-center gap-1.5 badge badge-success badge-sm">
 				<span class="iconify lucide--git-pull-request size-3"></span>
-				PR Created
+				{ langs.T(ctx, "ui.sync_status.pr_created") }
 			</span>
 		case "pending":
 			<span class="inline-flex items-center gap-1.5 badge badge-warning badge-sm">
 				<span class="iconify lucide--clock size-3"></span>
-				Pending
+				{ langs.T(ctx, "ui.status.pending") }
 			</span>
 		case "failed":
 			<span class="inline-flex items-center gap-1.5 badge badge-error badge-sm">
 				<span class="iconify lucide--x size-3"></span>
-				Failed
+				{ langs.T(ctx, "ui.status.failed") }
 			</span>
 		default:
 			if !repoLinked {
-				<span class="badge badge-ghost badge-sm text-base-content/40">Not linked</span>
+				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
 			} else {
-				<span class="badge badge-ghost badge-sm text-base-content/40">Never synced</span>
+				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
 			}
 	}
 }

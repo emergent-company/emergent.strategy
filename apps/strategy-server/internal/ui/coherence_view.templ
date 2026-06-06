@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+)
 
 // CoherenceViewData holds data for the coherence/signals screen.
 type CoherenceViewData struct {
@@ -41,7 +45,7 @@ templ CoherenceContent(data CoherenceViewData) {
 		// ── Header ──
 		<div class="flex items-start justify-between gap-4">
 			<div>
-				<h2 class="text-xl font-bold text-base-content">Coherence & Signals</h2>
+				<h2 class="text-xl font-bold text-base-content">{ langs.T(ctx, "nav.screen.coherence") }</h2>
 				<p class="text-sm text-base-content/60 mt-0.5">
 					Active misalignments detected by the ripple coherence engine
 				</p>
@@ -113,11 +117,11 @@ templ coherenceSeveritySummary(data CoherenceViewData) {
 	<div class="grid grid-cols-3 gap-3">
 		<div class="rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center">
 			<p class="text-2xl font-bold text-error">{ strconv.Itoa(data.CriticalCount) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Critical</p>
+			<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.tooltip.critical_signals") }</p>
 		</div>
 		<div class="rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center">
 			<p class="text-2xl font-bold text-warning">{ strconv.Itoa(data.WarningCount) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Warning</p>
+			<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.tooltip.warning_signals") }</p>
 		</div>
 		<div class="rounded-xl bg-info/5 border border-info/15 px-4 py-3 text-center">
 			<p class="text-2xl font-bold text-info">{ strconv.Itoa(data.InfoCount) }</p>

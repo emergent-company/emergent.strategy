@@ -1,8 +1,11 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // FirePhaseData holds all data for the FIRE phase dashboard.
@@ -116,22 +119,22 @@ templ FirePhaseContent(data FirePhaseData) {
 		<!-- Header -->
 		<div class="flex items-center justify-between">
 			<div>
-				<h2 class="text-base font-semibold text-base-content">FIRE Phase</h2>
-				<p class="text-xs text-base-content/60 mt-0.5">Execution — KRs from READY hand off to four tracks, each traced through a value model to definitions</p>
+				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "ui.fire.phase_title") }</h2>
+				<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.fire.phase_subtitle") }</p>
 			</div>
 		<!-- Feature stat pills -->
 		<div class="hidden md:flex items-center gap-3 text-xs">
 			<span class="flex items-center gap-1 text-success">
 				<span class="iconify lucide--check-circle-2 size-3.5"></span>
-				{ strconv.Itoa(data.DeliveredCount) } delivered
+				{ fmt.Sprintf(langs.T(ctx, "ui.fire.stat.delivered"), data.DeliveredCount) }
 			</span>
 			<span class="flex items-center gap-1 text-primary">
 				<span class="iconify lucide--loader-circle size-3.5"></span>
-				{ strconv.Itoa(data.InProgressCount) } in progress
+				{ fmt.Sprintf(langs.T(ctx, "ui.fire.stat.in_progress"), data.InProgressCount) }
 			</span>
 			<span class="flex items-center gap-1 text-base-content/50">
 				<span class="iconify lucide--circle-dashed size-3.5"></span>
-				{ strconv.Itoa(data.DraftCount) } draft
+				{ fmt.Sprintf(langs.T(ctx, "ui.fire.stat.draft"), data.DraftCount) }
 			</span>
 		</div>
 		</div>
@@ -158,7 +161,7 @@ templ FirePhaseContent(data FirePhaseData) {
 				<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
 				<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
 			</svg>
-			<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">real-world data feeds</span>
+			<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.fire.connector.data_feeds") }</span>
 		</div>
 		<!-- AIM handoff banner -->
 		<a
@@ -176,25 +179,25 @@ templ FirePhaseContent(data FirePhaseData) {
 					</div>
 					<div class="min-w-0 flex-1">
 						<div class="flex items-center gap-2">
-							<h3 class="text-sm font-semibold text-base-content">AIM Phase</h3>
+							<h3 class="text-sm font-semibold text-base-content">{ langs.T(ctx, "ui.aim.phase_title") }</h3>
 							<span class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono font-semibold bg-error/15 text-error">
-								Measure <span class="font-sans font-normal opacity-70">→ learn</span>
+								{ langs.T(ctx, "ui.aim.phase_badge") }
 							</span>
 						</div>
-						<p class="text-xs text-base-content/50 mt-0.5">Delivery generates evidence — signals, metrics, and reality checks that feed back to calibrate READY</p>
+						<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "ui.aim.phase_subtitle") }</p>
 					</div>
 					<div class="hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4 shrink-0">
 						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
 							<span class="iconify lucide--zap size-3.5"></span>
-							Signals
+							{ langs.T(ctx, "ui.aim.stat.signals") }
 						</div>
 						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
 							<span class="iconify lucide--bar-chart-2 size-3.5"></span>
-							Metrics
+							{ langs.T(ctx, "ui.aim.stat.metrics") }
 						</div>
 						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
 							<span class="iconify lucide--refresh-ccw size-3.5"></span>
-							Calibration
+							{ langs.T(ctx, "ui.aim.stat.calibration") }
 						</div>
 					</div>
 					<span class="iconify lucide--chevron-right size-4 text-base-content/30 shrink-0"></span>
@@ -241,10 +244,10 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 		<div class="bg-base-100 px-4 py-3 border-b border-base-content/8">
 			<div class="flex items-center gap-1.5 mb-2">
 				<span class="iconify lucide--target size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Roadmap KRs</span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.roadmap_krs") }</span>
 			</div>
 			if len(t.Objectives) == 0 {
-				<p class="text-xs text-base-content/35 italic">No OKRs defined</p>
+				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.fire.track.no_okrs") }</p>
 			} else {
 				<div class="space-y-2">
 					for _, obj := range t.Objectives {
@@ -288,13 +291,13 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 		>
 			<div class="flex items-center gap-1.5 mb-2">
 				<span class="iconify lucide--layers size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Value Model</span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.value_model") }</span>
 				if t.ValueModelCount > 1 {
 					<span class="text-xs text-base-content/35">({ strconv.Itoa(t.ValueModelCount) })</span>
 				}
 			</div>
 			if !t.ValueModelExists {
-				<p class="text-xs text-base-content/35 italic">Not yet defined</p>
+				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.fire.value_model.not_defined") }</p>
 			} else if len(t.ProductLines) > 0 {
 				<!-- Product track: show each product line with its layers -->
 				<div class="space-y-2">
@@ -312,7 +315,7 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 					}
 				</div>
 			} else if len(t.ValueModelLayers) == 0 {
-				<p class="text-xs text-base-content/55">Value model exists</p>
+				<p class="text-xs text-base-content/55">{ langs.T(ctx, "ui.fire.value_model.exists") }</p>
 			} else {
 				<div class="flex flex-wrap gap-1">
 					for _, layer := range t.ValueModelLayers {
@@ -336,14 +339,14 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 		>
 			<div class="flex items-center gap-1.5 mb-1.5">
 				<span class="iconify lucide--file-text size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">Definitions</span>
+				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.definitions") }</span>
 			</div>
 			<div class="flex items-center justify-between">
 				<p class="text-sm font-semibold text-base-content">{ strconv.Itoa(t.DefinitionCount) }</p>
-				<span class="text-xs text-base-content/40">requirements for delivery →</span>
+				<span class="text-xs text-base-content/40">{ langs.T(ctx, "ui.fire.track.definitions_hint") }</span>
 			</div>
 			<!-- Circular trace back label -->
-			<p class="text-xs text-base-content/35 italic mt-1.5">Each traces back to a KR ↑</p>
+			<p class="text-xs text-base-content/35 italic mt-1.5">{ langs.T(ctx, "ui.fire.track.traces_back") }</p>
 		</a>
 	</div>
 }
@@ -366,7 +369,7 @@ templ trackCard(instanceID string, t TrackSummary) {
 				</div>
 				<div>
 					<h3 class="text-sm font-semibold text-base-content">{ t.Name }</h3>
-					<p class="text-xs text-base-content/50">{ strconv.Itoa(t.Count) } definitions</p>
+					<p class="text-xs text-base-content/50">{ fmt.Sprintf(langs.T(ctx, "ui.fire.track.definition_count"), t.Count) }</p>
 				</div>
 			</div>
 		</div>
@@ -389,9 +392,9 @@ templ featureList(data FirePhaseData) {
 				<table class="table table-sm">
 					<thead>
 						<tr>
-							<th>Key</th>
-							<th>Name</th>
-							<th>Status</th>
+							<th>{ langs.T(ctx, "ui.table.key") }</th>
+							<th>{ langs.T(ctx, "ui.table.name") }</th>
+							<th>{ langs.T(ctx, "ui.table.status") }</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -418,17 +421,17 @@ templ featureList(data FirePhaseData) {
 templ featureStatusBadge(status string) {
 	switch status {
 		case "delivered":
-			<span class="badge badge-sm badge-success">Delivered</span>
+			<span class="badge badge-sm badge-success">{ langs.T(ctx, "ui.feature_status.delivered") }</span>
 		case "in-progress":
-			<span class="badge badge-sm badge-primary">In Progress</span>
+			<span class="badge badge-sm badge-primary">{ langs.T(ctx, "ui.feature_status.in_progress") }</span>
 		case "draft":
-			<span class="badge badge-sm badge-warning">Draft</span>
+			<span class="badge badge-sm badge-warning">{ langs.T(ctx, "ui.feature_status.draft") }</span>
 		case "ready":
-			<span class="badge badge-sm badge-info">Ready</span>
+			<span class="badge badge-sm badge-info">{ langs.T(ctx, "ui.feature_status.ready") }</span>
 		case "active":
-			<span class="badge badge-sm badge-success">Active</span>
+			<span class="badge badge-sm badge-success">{ langs.T(ctx, "ui.feature_status.active") }</span>
 		case "placeholder":
-			<span class="badge badge-sm badge-ghost">Placeholder</span>
+			<span class="badge badge-sm badge-ghost">{ langs.T(ctx, "ui.feature_status.placeholder") }</span>
 	default:
 		<span class="badge badge-sm badge-ghost">{ status }</span>
 	}
@@ -443,7 +446,7 @@ templ fireDefinitionsBanner(data FirePhaseData) {
 					<span class="iconify lucide--puzzle size-5 text-base-content/50 mt-0.5 shrink-0"></span>
 					<div class="space-y-1.5">
 						<p class="text-sm font-semibold">
-							Canonical definitions not installed
+							{ langs.T(ctx, "ui.fire.defs_banner.title") }
 						</p>
 						<p class="text-xs text-base-content/70 leading-relaxed max-w-lg">
 							The EPF framework includes { strconv.Itoa(data.CanonicalDefCount) } canonical definitions
@@ -459,12 +462,12 @@ templ fireDefinitionsBanner(data FirePhaseData) {
 						</p>
 					</div>
 				</div>
-				<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/fire/install-definitions") } class="shrink-0 self-center" onsubmit="let b=this.querySelector('button');b.disabled=true;b.innerHTML='<span class=\'loading loading-spinner loading-xs\'></span> Installing\u2026'">
-					<button type="submit" class="btn btn-sm btn-outline">
-						<span class="iconify lucide--download size-4"></span>
-						Install definitions
-					</button>
-				</form>
+		<form method="POST" action={ templ.URL("/strategies/" + data.InstanceID + "/fire/install-definitions") } class="shrink-0 self-center" onsubmit="let b=this.querySelector('button');b.disabled=true;b.innerHTML='<span class=\'loading loading-spinner loading-xs\'></span> Installing\u2026'">
+				<button type="submit" class="btn btn-sm btn-outline">
+					<span class="iconify lucide--download size-4"></span>
+					{ langs.T(ctx, "ui.fire.defs_banner.install_btn") }
+				</button>
+			</form>
 			</div>
 		</div>
 	</div>
@@ -481,9 +484,9 @@ templ fireAlignStatusBanner(data FirePhaseData) {
 				<div>
 					<p class="text-sm font-medium text-base-content/70">
 						if data.MissingValueModels == len(data.FireTracks) {
-							Value models not yet defined
+							{ langs.T(ctx, "ui.fire.align_banner.no_value_models") }
 						} else {
-							{ strconv.Itoa(data.MissingValueModels) } tracks missing value models
+							{ fmt.Sprintf(langs.T(ctx, "ui.fire.align_banner.tracks_missing"), data.MissingValueModels) }
 						}
 					</p>
 					<p class="text-xs text-base-content/50 mt-0.5">
@@ -495,3 +498,5 @@ templ fireAlignStatusBanner(data FirePhaseData) {
 		</div>
 	</div>
 }
+
+

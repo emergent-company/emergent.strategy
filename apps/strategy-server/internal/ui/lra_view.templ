@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // LRAViewData holds all data for the bespoke Living Reality Assessment view.
@@ -110,7 +112,7 @@ templ lraHero(data LRAViewData) {
 				<div class="space-y-2">
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--activity size-5 text-info"></span>
-						<span class="text-xs font-semibold uppercase tracking-widest text-info">Living Reality Assessment</span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-info">{ langs.T(ctx, "artifact.label.living_reality_assessment") }</span>
 						if data.LifecycleStage != "" {
 							<span class="tooltip" data-tip={ lifecycleStageHint(data.LifecycleStage) }><span class={ "badge badge-sm", lifecycleStageBadge(data.LifecycleStage) }>{ data.LifecycleStage }</span></span>
 						}

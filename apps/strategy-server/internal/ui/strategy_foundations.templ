@@ -2,6 +2,8 @@ package ui
 
 import (
 	"strconv"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
 
 // StrategyFoundationsData holds all data for the bespoke Strategy Foundations view.
@@ -111,7 +113,7 @@ templ foundationsHero(data StrategyFoundationsData) {
 				<div class="space-y-2">
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--compass size-5 text-accent"></span>
-						<span class="text-xs font-semibold uppercase tracking-widest text-accent">Strategy Foundations</span>
+						<span class="text-xs font-semibold uppercase tracking-widest text-accent">{ langs.T(ctx, "artifact.label.strategy_foundations") }</span>
 						if data.Status != "" {
 							@artifactStatusBadge(data.Status)
 						}
