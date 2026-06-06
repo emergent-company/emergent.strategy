@@ -457,7 +457,19 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 			<input type="hidden" name="branch" value={ repo.DefaultBranch }/>
 
 			if len(workspaces) == 0 {
-				<p class="text-xs text-base-content/50">No workspaces available. Create a workspace first.</p>
+				<!-- No workspaces yet — let the user name one inline -->
+				<span class="text-xs text-base-content/50">New workspace name:</span>
+				<input
+					type="text"
+					name="new_workspace_name"
+					placeholder="e.g. My Company"
+					required
+					class="input input-xs input-bordered w-44"
+				/>
+				<button type="submit" name="action" value="import" class="btn btn-xs btn-primary gap-1">
+					<span class="iconify lucide--download size-3"></span>
+					Import
+				</button>
 			} else {
 				<select name="workspace_id" class="select select-xs select-bordered">
 					for _, ws := range workspaces {

@@ -9,7 +9,10 @@ import (
 	"github.com/labstack/echo/v4"
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
+	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
@@ -25,30 +28,70 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	}
 
 	// Read form values.
-	githubRepo := c.FormValue("github_repo")    // "owner/repo"
-	basePath := c.FormValue("github_base_path") // may be empty
-	workspaceIDStr := c.FormValue("workspace_id")
+	githubRepo := c.FormValue("github_repo")      // "owner/repo"
+	basePath := c.FormValue("github_base_path")   // may be empty
+	workspaceIDStr := c.FormValue("workspace_id") // empty when creating a new workspace inline
+	newWorkspaceName := strings.TrimSpace(c.FormValue("new_workspace_name"))
 	action := c.FormValue("action") // "import" or "link"
 	branch := c.FormValue("branch")
 
 	if githubRepo == "" {
 		return c.String(http.StatusBadRequest, langs.T(ctx, "error.github_repo_required"))
 	}
-	if workspaceIDStr == "" {
-		return c.String(http.StatusBadRequest, langs.T(ctx, "error.workspace_id_required"))
-	}
-	workspaceID, err := uuid.Parse(workspaceIDStr)
-	if err != nil {
-		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
-	}
 
-	// Derive a sensible instance name from the repo name.
+	// Derive repo owner and name.
 	parts := strings.SplitN(githubRepo, "/", 2)
-	repoName := githubRepo
+	repoOwner, repoName := "", githubRepo
 	if len(parts) == 2 {
-		repoName = parts[1]
+		repoOwner, repoName = parts[0], parts[1]
 	}
 	instanceName := repoNameToTitle(repoName)
+
+	// Resolve workspace ID — either from the picker or by creating one inline.
+	var workspaceID uuid.UUID
+	if workspaceIDStr != "" {
+		var err error
+		workspaceID, err = uuid.Parse(workspaceIDStr)
+		if err != nil {
+			return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
+		}
+	} else {
+		// No existing workspaces — create an org + workspace on the fly.
+		if newWorkspaceName == "" {
+			newWorkspaceName = repoNameToTitle(repoOwner)
+			if newWorkspaceName == "" {
+				newWorkspaceName = instanceName
+			}
+		}
+		user := web.UserFromContext(ctx)
+		actorID := audit.ActorFromContext(ctx)
+
+		orgSvc := orgdom.NewService(s.db)
+		callerID := uuid.Nil
+		if actorID != nil {
+			callerID = *actorID
+		}
+		newOrg, orgErr := orgSvc.GetOrCreate(ctx, newWorkspaceName, callerID)
+		if orgErr != nil {
+			s.log.Error("create org for github import", "name", newWorkspaceName, "err", orgErr)
+			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+		}
+		// Ensure the user is a member of the new org.
+		_, _ = orgSvc.AddMember(ctx, newOrg.ID, user.ID, "owner")
+
+		wsSvc := workspacedom.NewService(s.db)
+		wsName := newWorkspaceName
+		ws, wsErr := wsSvc.CreateWorkspace(ctx, repoOwner, &wsName, newOrg.ID)
+		if wsErr != nil {
+			// Workspace may already exist for this github_owner — look it up.
+			ws, wsErr = wsSvc.GetWorkspaceByOwner(ctx, repoOwner)
+			if wsErr != nil {
+				s.log.Error("create workspace for github import", "owner", repoOwner, "err", wsErr)
+				return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+			}
+		}
+		workspaceID = ws.ID
+	}
 
 	// Create the instance in the chosen workspace.
 	instSvc := instancedom.NewService(s.db)
