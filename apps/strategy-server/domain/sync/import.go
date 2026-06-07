@@ -375,6 +375,43 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 	}
 }
 
+// ImportFromGithubWithUserToken imports artifacts using a user OAuth token instead of a
+// GitHub App installation token. Used by the connect flow where the App may not be
+// installed on the target org. Skips sync-state checks — always does a full import.
+// branch must be non-empty (use the repo's default branch from the scan result).
+func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID uuid.UUID, branch, userToken string) (*ImportResult, error) {
+	if s.reader == nil {
+		return nil, apperror.ErrBadRequest.WithDetail("GitHub reader is not configured")
+	}
+	if branch == "" {
+		branch = "main"
+	}
+	actorID := audit.ActorFromContext(ctx)
+
+	inst, err := s.loadInstance(ctx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	if inst.GithubRepo == nil || *inst.GithubRepo == "" {
+		return nil, apperror.ErrBadRequest.WithDetail("instance has no github_repo configured")
+	}
+
+	owner, repo, err := parseRepoSlug(*inst.GithubRepo)
+	if err != nil {
+		return nil, apperror.ErrBadRequest.WithDetail(err.Error())
+	}
+
+	count, importErr := s.doImport(ctx, inst, userToken, owner, repo, branch, branch, actorID)
+	if importErr != nil {
+		return nil, importErr
+	}
+	return &ImportResult{
+		Status:        "imported",
+		TargetBranch:  branch,
+		ArtifactCount: count,
+	}, nil
+}
+
 // doImport fetches YAML files from GitHub and reimports them into the instance.
 // Updates github_commit_sha and github_branch after successful import.
 func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, token, owner, repo, targetBranch, requestedBranch string, actorID *uuid.UUID) (int, error) {

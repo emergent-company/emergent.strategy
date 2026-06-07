@@ -10,7 +10,6 @@ import (
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
-	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	domain "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
@@ -26,6 +25,13 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 
 	if s.syncSvc == nil {
 		return c.String(http.StatusServiceUnavailable, langs.T(ctx, "error.github_sync_not_configured"))
+	}
+
+	// Get the user's GitHub OAuth token — required for user-initiated imports.
+	user := web.UserFromContext(ctx)
+	githubToken := s.loadUserGithubToken(ctx, user.ID)
+	if githubToken == "" {
+		return c.String(http.StatusUnauthorized, langs.T(ctx, "error.github_not_connected"))
 	}
 
 	// Read form values.
@@ -149,11 +155,9 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/strategies/%s", inst.ID))
 	}
 
-	// Import artifacts from GitHub.
-	_, importErr := s.syncSvc.ImportFromGithub(ctx, syncdom.ImportParams{
-		InstanceID: inst.ID,
-		Branch:     branch,
-	})
+	// Import artifacts from GitHub using the user's OAuth token.
+	// This works without the GitHub App being installed on the target org.
+	_, importErr := s.syncSvc.ImportFromGithubWithUserToken(ctx, inst.ID, branch, githubToken)
 	if importErr != nil {
 		s.log.Error("import from github", "instance_id", inst.ID, "repo", githubRepo, "err", importErr)
 		// Still redirect to the instance — it exists, just empty.
