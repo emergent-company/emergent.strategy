@@ -48,6 +48,11 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	instanceName := repoNameToTitle(repoName)
 
 	// Resolve workspace ID — either from the picker or by creating one inline.
+	// "__new__" is the sentinel value emitted by the dropdown's "New workspace..." option.
+	if workspaceIDStr == "__new__" {
+		workspaceIDStr = ""
+	}
+
 	var workspaceID uuid.UUID
 	if workspaceIDStr != "" {
 		var err error

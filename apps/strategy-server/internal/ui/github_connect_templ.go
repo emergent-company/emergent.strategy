@@ -1268,7 +1268,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<select name=\"workspace_id\" class=\"select select-xs select-bordered\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<select name=\"workspace_id\" class=\"select select-xs select-bordered\" onchange=\"const inp=this.form.querySelector('.new-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1280,7 +1280,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue(ws.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 513, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 517, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 				if templ_7745c5c3_Err != nil {
@@ -1293,7 +1293,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				var templ_7745c5c3_Var45 string
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(ws.OrgName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 514, Col: 19}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 518, Col: 19}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
@@ -1306,18 +1306,18 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(ws.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 514, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 518, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</option>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "</option> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</select> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button> <button type=\"submit\" name=\"action\" value=\"link\" class=\"btn btn-xs btn-ghost border border-base-content/20 gap-1\"><span class=\"iconify lucide--link size-3\"></span> Link only</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<option value=\"__new__\">+ New workspace...</option></select> <input type=\"text\" name=\"new_workspace_name\" placeholder=\"New workspace name\" class=\"new-ws-input input input-xs input-bordered w-44\" style=\"display:none\"> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button> <button type=\"submit\" name=\"action\" value=\"link\" class=\"btn btn-xs btn-ghost border border-base-content/20 gap-1\"><span class=\"iconify lucide--link size-3\"></span> Link only</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1364,7 +1364,7 @@ func githubConnectAppInstallInfo(appInstallURL string) templ.Component {
 			var templ_7745c5c3_Var48 templ.SafeURL
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(appInstallURL))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 578, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 590, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -1419,7 +1419,7 @@ func githubRateLimitedState(retryAfter time.Duration) templ.Component {
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("load delay:%ds", retrySeconds))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 601, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 613, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 			if templ_7745c5c3_Err != nil {
@@ -1442,7 +1442,7 @@ func githubRateLimitedState(retryAfter time.Duration) templ.Component {
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d min %d sec", int(retryAfter.Minutes()), int(retryAfter.Seconds())%60))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 611, Col: 102}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 623, Col: 102}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
@@ -1524,7 +1524,7 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			var templ_7745c5c3_Var53 templ.SafeURL
 			templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("https://github.com/" + fullName))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 662, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 674, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 			if templ_7745c5c3_Err != nil {
@@ -1537,7 +1537,7 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(fullName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 665, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 677, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 			if templ_7745c5c3_Err != nil {
@@ -1550,7 +1550,7 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(repoName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 668, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/github_connect.templ`, Line: 680, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {

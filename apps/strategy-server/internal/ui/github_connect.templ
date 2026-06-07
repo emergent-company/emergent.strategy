@@ -508,13 +508,25 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 					Import
 				</button>
 			} else {
-				<select name="workspace_id" class="select select-xs select-bordered">
+				<select
+					name="workspace_id"
+					class="select select-xs select-bordered"
+					onchange="const inp=this.form.querySelector('.new-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}"
+				>
 					for _, ws := range workspaces {
 						<option value={ ws.ID }>
 							{ ws.OrgName } / { ws.Name }
 						</option>
 					}
+					<option value="__new__">+ New workspace...</option>
 				</select>
+				<input
+					type="text"
+					name="new_workspace_name"
+					placeholder="New workspace name"
+					class="new-ws-input input input-xs input-bordered w-44"
+					style="display:none"
+				/>
 				<button type="submit" name="action" value="import" class="btn btn-xs btn-primary gap-1">
 					<span class="iconify lucide--download size-3"></span>
 					Import
