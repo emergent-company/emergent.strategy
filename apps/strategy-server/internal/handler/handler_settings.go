@@ -98,13 +98,21 @@ func (s *Server) handleSettingsImport(c echo.Context) error {
 		s.log.Error("manual github import failed", "instance_id", instanceIDStr, "err", err)
 		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.internal"))
 	}
-	// Surface guard results — server_ahead means local changes would be overwritten.
-	if result != nil && (result.Status == "server_ahead") {
-		msg := "Import blocked: " + result.Recommendation
-		if msg == "Import blocked: " {
-			msg = "Import blocked: your instance has local changes not yet pushed to GitHub. Push first."
+	if result != nil {
+		switch result.Status {
+		case "server_ahead":
+			// The only remaining server_ahead case: local staged mutations with no remote change.
+			msg := result.Recommendation
+			if msg == "" {
+				msg = "Your instance has staged changes not yet pushed to GitHub. Push first."
+			}
+			return c.String(http.StatusConflict, "Import blocked: "+msg)
+		case "imported":
+			if result.SnapshotVersionID != "" {
+				s.log.Info("pre-import snapshot published before overwrite",
+					"instance_id", instanceIDStr, "snapshot_version_id", result.SnapshotVersionID)
+			}
 		}
-		return c.String(http.StatusConflict, msg)
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/settings")

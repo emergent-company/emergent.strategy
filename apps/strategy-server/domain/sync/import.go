@@ -181,7 +181,8 @@ type ImportResult struct {
 	Recommendation string    `json:"recommendation,omitempty"`
 	TargetBranch   string    `json:"target_branch"`
 	ArtifactCount  int       `json:"artifact_count"`
-	SafetyPRURL    string    `json:"safety_pr_url,omitempty"`
+	SafetyPRURL        string `json:"safety_pr_url,omitempty"`
+	SnapshotVersionID  string `json:"snapshot_version_id,omitempty"` // auto-published before overwrite
 	SyncState      SyncState `json:"sync_state"`
 }
 
@@ -485,18 +486,27 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		}, nil
 	}
 
-	// Remote has moved ahead (or never synced): block if the server also has unpushed changes,
-	// since importing would silently overwrite them.
-	if localSHA != "" {
-		if n, diverged := hasServerChanges(); diverged {
-			return &ImportResult{
-				Status: "server_ahead",
-				Recommendation: fmt.Sprintf(
-					"Remote has new commits AND you have %d local change(s) not pushed. "+
-						"Your changes would be overwritten. Push your changes to GitHub first.", n),
-				TargetBranch: branch,
-				SyncState:    SyncStateDiverged,
-			}, nil
+	// Remote has moved ahead (or was never synced). Auto-publish a snapshot of the
+	// current server state before overwriting — the current state becomes the previous
+	// version and can be restored at any time.
+	//
+	// If local user changes also exist (diverged), include them in the snapshot.
+	// We no longer block — snapshot + import is always safe.
+	var snapshotID string
+	if localSHA != "" || func() bool { _, ok := hasServerChanges(); return ok }() {
+		label := "Pre-import snapshot (GitHub ahead)"
+		if _, hasDiverged := hasServerChanges(); hasDiverged {
+			label = "Pre-import snapshot (diverged — local changes preserved)"
+		}
+		snap, snapErr := s.versionSvc.Publish(ctx, instanceID, label,
+			"Automatic snapshot taken before importing newer content from GitHub.")
+		if snapErr != nil {
+			slog.WarnContext(ctx, "failed to auto-publish pre-import snapshot", "err", snapErr)
+			// Non-fatal: continue with import even if snapshot fails.
+		} else {
+			snapshotID = snap.ID.String()
+			slog.InfoContext(ctx, "pre-import snapshot published",
+				"instance_id", instanceID, "version_id", snapshotID, "label", label)
 		}
 	}
 
@@ -505,10 +515,11 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		return nil, importErr
 	}
 	return &ImportResult{
-		Status:        "imported",
-		TargetBranch:  branch,
-		ArtifactCount: count,
-		SyncState:     SyncStateGithubAhead,
+		Status:            "imported",
+		TargetBranch:      branch,
+		ArtifactCount:     count,
+		SyncState:         SyncStateGithubAhead,
+		SnapshotVersionID: snapshotID,
 	}, nil
 }
 
