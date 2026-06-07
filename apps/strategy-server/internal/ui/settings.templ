@@ -12,17 +12,18 @@ import (
 type GithubSyncStatus struct {
 	InstanceID    string
 	InstanceName  string
-	Repo          string     // "owner/repo" or "" if not configured
-	ActiveBranch  string     // non-empty when tracking a non-default branch (e.g. "dev")
-	SyncState     string     // "in_sync" | "server_ahead" | "github_ahead" | "diverged" | "unlinked" | ""
-	LocalSHA      string     // first 7 chars of the server's tracked commit SHA
-	RemoteSHA     string     // first 7 chars of the remote HEAD SHA
-	Configured    bool       // GitHub App is configured server-side
-	RepoLinked    bool       // this instance has a github_repo set
+	Repo          string              // "owner/repo" or "" if not configured
+	ActiveBranch  string              // non-empty when tracking a non-default branch (e.g. "dev")
+	SyncState     string              // "in_sync" | "server_ahead" | "github_ahead" | "diverged" | "unlinked" | ""
+	LocalSHA      string              // first 7 chars of the server's tracked commit SHA
+	RemoteSHA     string              // first 7 chars of the remote HEAD SHA
+	Configured    bool                // GitHub App is configured server-side
+	RepoLinked    bool                // this instance has a github_repo set
 	LastSyncAt    *time.Time
-	LastSyncPR    string     // PR URL of last sync (may be empty)
-	LastStatus    string     // "pr_created" | "failed" | "pending" | ""
-	LastDirection string     // "export" | "import" | ""
+	LastSyncPR    string              // PR URL of last sync (may be empty)
+	LastStatus    string              // "pr_created" | "failed" | "pending" | ""
+	LastDirection string              // "export" | "import" | ""
+	Workspaces    []WorkspaceScanItem // all workspaces for the move dropdown
 }
 
 // MemoryHealthStatus represents the current connectivity to the Memory server.
@@ -452,6 +453,35 @@ templ githubSyncRow(inst GithubSyncStatus) {
 				}
 			</div>
 		</div>
+		<!-- Move to workspace -->
+		if len(inst.Workspaces) > 0 {
+			<form method="POST" action={ templ.SafeURL("/strategies/" + inst.InstanceID + "/move") }
+				class="flex items-center gap-2 flex-wrap">
+				<span class="iconify lucide--folder-symlink size-3.5 text-base-content/30 shrink-0"></span>
+				<span class="text-xs text-base-content/40">Move to:</span>
+				<select
+					name="workspace_id"
+					class="select select-xs select-bordered"
+					onchange="const inp=this.form.querySelector('.move-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}"
+				>
+					for _, ws := range inst.Workspaces {
+						<option value={ ws.ID }>{ ws.OrgName } / { ws.Name }</option>
+					}
+					<option value="__new__">+ New workspace...</option>
+				</select>
+				<input
+					type="text"
+					name="new_workspace_name"
+					placeholder="New workspace name"
+					class="move-ws-input input input-xs input-bordered w-40"
+					style="display:none"
+				/>
+				<button type="submit" class="btn btn-xs btn-ghost border border-base-content/20 gap-1">
+					<span class="iconify lucide--check size-3"></span>
+					Move
+				</button>
+			</form>
+		}
 	</div>
 }
 

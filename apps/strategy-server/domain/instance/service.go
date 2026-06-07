@@ -444,6 +444,36 @@ func (s *Service) UpdateInstanceSettings(ctx context.Context, id uuid.UUID, p Up
 	return nil
 }
 
+// MoveInstance reassigns an existing instance to a different workspace.
+// The target workspace must exist and not be soft-deleted.
+func (s *Service) MoveInstance(ctx context.Context, instanceID, targetWorkspaceID uuid.UUID) error {
+	actorID := audit.ActorFromContext(ctx)
+
+	res, err := s.db.NewUpdate().
+		Model((*domain.StrategyInstance)(nil)).
+		Set("workspace_id = ?", targetWorkspaceID).
+		Set("updated_at = NOW()").
+		Where("id = ? AND deleted_at IS NULL", instanceID).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("move instance: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return apperror.ErrInstanceNotFound
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_instance",
+		EntityID:   instanceID,
+		Action:     "move_workspace",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    actorID,
+		Details:    map[string]any{"target_workspace_id": targetWorkspaceID},
+	})
+	return nil
+}
+
 // inferArtifactType maps well-known artifact keys to their type strings.
 func inferArtifactType(key string) string {
 	switch key {

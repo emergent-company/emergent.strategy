@@ -9,9 +9,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
+	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
+	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
+	"strings"
 )
 
 // handleSettings renders the settings/status page.
@@ -154,15 +160,19 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 		ID              string  `bun:"id"`
 		Name            string  `bun:"name"`
 		OrgName         string  `bun:"org_name"`
+		WorkspaceID     string  `bun:"workspace_id"`
 		GithubRepo      *string `bun:"github_repo"`
 		GithubBranch    *string `bun:"github_branch"`
 		GithubCommitSHA *string `bun:"github_commit_sha"`
 	}
 
+	// Load all workspaces once for the move dropdown.
+	allWorkspaces := s.loadWorkspacesForAssignment(ctx)
+
 	var instances []instanceRow
 	err := s.db.NewSelect().
 		TableExpr("strategy_instances AS si").
-		ColumnExpr("si.id, si.name, si.github_repo, si.github_branch, si.github_commit_sha").
+		ColumnExpr("si.id, si.name, si.workspace_id, si.github_repo, si.github_branch, si.github_commit_sha").
 		ColumnExpr("o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
@@ -180,10 +190,18 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 
 	result := make([]ui.GithubSyncStatus, 0, len(instances))
 	for _, inst := range instances {
+		// Build workspace list excluding the one the instance already belongs to.
+		otherWorkspaces := make([]ui.WorkspaceScanItem, 0, len(allWorkspaces))
+		for _, ws := range allWorkspaces {
+			if ws.ID != inst.WorkspaceID {
+				otherWorkspaces = append(otherWorkspaces, ws)
+			}
+		}
 		status := ui.GithubSyncStatus{
 			InstanceID:   inst.ID,
 			InstanceName: inst.Name,
 			Configured:   s.syncSvc.IsConfigured(),
+			Workspaces:   otherWorkspaces,
 		}
 		if inst.GithubRepo != nil && *inst.GithubRepo != "" {
 			status.RepoLinked = true
@@ -308,4 +326,68 @@ func (s *Server) loadInstanceMemoryStatuses(ctx context.Context) []ui.InstanceMe
 		}
 	}
 	return statuses
+}
+
+// handleMoveInstance handles POST /strategies/:id/move.
+// Moves an instance to an existing workspace or creates a new one on the fly.
+// Redirects to /settings on success.
+func (s *Server) handleMoveInstance(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	instanceID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
+	}
+
+	workspaceIDStr := strings.TrimSpace(c.FormValue("workspace_id"))
+	newWorkspaceName := strings.TrimSpace(c.FormValue("new_workspace_name"))
+
+	// Sentinel from the "New workspace..." dropdown option.
+	if workspaceIDStr == "__new__" {
+		workspaceIDStr = ""
+	}
+
+	var targetWorkspaceID uuid.UUID
+
+	if workspaceIDStr != "" {
+		targetWorkspaceID, err = uuid.Parse(workspaceIDStr)
+		if err != nil {
+			return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
+		}
+	} else {
+		// Create a new org + workspace on the fly.
+		if newWorkspaceName == "" {
+			return c.String(http.StatusBadRequest, langs.T(ctx, "error.workspace_name_required"))
+		}
+		user := web.UserFromContext(ctx)
+		actorID := audit.ActorFromContext(ctx)
+		callerID := uuid.Nil
+		if actorID != nil {
+			callerID = *actorID
+		}
+
+		orgSvc := orgdom.NewService(s.db)
+		newOrg, orgErr := orgSvc.GetOrCreate(ctx, newWorkspaceName, callerID)
+		if orgErr != nil {
+			s.log.Error("create org for instance move", "name", newWorkspaceName, "err", orgErr)
+			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+		}
+		_, _ = orgSvc.AddMember(ctx, newOrg.ID, user.ID, "owner")
+
+		wsSvc := workspacedom.NewService(s.db)
+		ws, wsErr := wsSvc.CreateWorkspace(ctx, newWorkspaceName, &newWorkspaceName, newOrg.ID)
+		if wsErr != nil {
+			s.log.Error("create workspace for instance move", "name", newWorkspaceName, "err", wsErr)
+			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+		}
+		targetWorkspaceID = ws.ID
+	}
+
+	instSvc := instancedom.NewService(s.db)
+	if moveErr := instSvc.MoveInstance(ctx, instanceID, targetWorkspaceID); moveErr != nil {
+		s.log.Error("move instance", "instance_id", instanceID, "workspace_id", targetWorkspaceID, "err", moveErr)
+		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+	}
+
+	return c.Redirect(http.StatusSeeOther, "/settings")
 }
