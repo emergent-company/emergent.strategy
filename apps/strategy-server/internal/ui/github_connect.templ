@@ -72,6 +72,13 @@ type GithubDetectedInstance struct {
 	HasMetaFile   bool
 	IsSubmodule   bool   // true when EPF lives in a git submodule checkout
 	SubmoduleSlug string // "owner/repo" of the EPF source repo
+
+	// Connected instance (non-empty when already imported into strategy-server)
+	ConnectedInstanceID        string // UUID of the live strategy instance
+	ConnectedInstanceName      string // display name
+	ConnectedWorkspaceName     string // "OrgName / WorkspaceName"
+	ConnectedCommitSHA         string // first 7 chars of last synced SHA, or ""
+	ConnectedMemorySyncStatus  string // "synced" | "pending" | "failed" | ""
 }
 
 // WorkspaceScanItem is a workspace the user can assign an import into.
@@ -487,7 +494,52 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 			</div>
 		}
 
-		<!-- Assign to workspace + import -->
+		<!-- Connected instance banner -->
+		if inst.ConnectedInstanceID != "" {
+			<div class="flex items-center justify-between gap-3 flex-wrap">
+				<div class="flex items-center gap-2 flex-wrap">
+					<span class="inline-flex items-center gap-1 badge badge-success badge-sm">
+						<span class="iconify lucide--check-circle size-3"></span>
+						Connected
+					</span>
+					<a href={ templ.SafeURL("/strategies/" + inst.ConnectedInstanceID) }
+						class="text-sm font-semibold text-base-content hover:text-primary transition-colors">
+						{ inst.ConnectedInstanceName }
+					</a>
+					<span class="text-xs text-base-content/55">{ inst.ConnectedWorkspaceName }</span>
+					if inst.ConnectedCommitSHA != "" {
+						<span class="text-xs font-mono text-base-content/55 bg-base-content/8 border border-base-content/10 px-1.5 py-0.5 rounded">{ inst.ConnectedCommitSHA }</span>
+					}
+					if inst.ConnectedMemorySyncStatus == "synced" {
+						<span class="inline-flex items-center gap-1 badge badge-xs badge-success badge-outline" title="Synced to Memory graph">
+							<span class="iconify lucide--brain-circuit size-2.5"></span>
+							Memory
+						</span>
+					} else if inst.ConnectedMemorySyncStatus != "" {
+						<span class="inline-flex items-center gap-1 badge badge-xs badge-ghost" title={ "Memory: " + inst.ConnectedMemorySyncStatus }>
+							<span class="iconify lucide--brain-circuit size-2.5"></span>
+							{ inst.ConnectedMemorySyncStatus }
+						</span>
+					}
+				</div>
+				<!-- Re-import action -->
+				<form method="POST" action="/github/connect/import" class="shrink-0">
+					<input type="hidden" name="github_repo" value={ repo.FullName }/>
+					<input type="hidden" name="github_base_path" value={ inst.BasePath }/>
+					<input type="hidden" name="branch" value={ repo.DefaultBranch }/>
+					<input type="hidden" name="workspace_id" value="__existing__"/>
+					<button type="submit" name="action" value="import"
+						class="btn btn-xs btn-ghost border border-base-content/15 gap-1"
+						title="Re-import artifacts from GitHub into this instance">
+						<span class="iconify lucide--refresh-cw size-3"></span>
+						Re-import
+					</button>
+				</form>
+			</div>
+		}
+
+		<!-- Assign to workspace + import (hidden when already connected — use Re-import above) -->
+		if inst.ConnectedInstanceID == "" {
 		<form method="POST" action="/github/connect/import" class="flex items-center gap-3 flex-wrap">
 			<input type="hidden" name="github_repo" value={ repo.FullName }/>
 			<input type="hidden" name="github_base_path" value={ inst.BasePath }/>
@@ -537,6 +589,7 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 				</button>
 			}
 		</form>
+		} // end if inst.ConnectedInstanceID == ""
 	</div>
 }
 

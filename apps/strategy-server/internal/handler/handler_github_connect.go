@@ -80,7 +80,9 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 				data.ScanError = langs.T(ctx, "error.github_scan_failed")
 			}
 		} else {
-			data.Repos = toUIRepoItems(state.Results)
+			repos := toUIRepoItems(state.Results)
+			s.annotateConnectedInstances(ctx, repos)
+			data.Repos = repos
 		}
 		render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
 		return nil
@@ -307,6 +309,75 @@ func (s *Server) loadGithubUserLogin(ctx context.Context, userID uuid.UUID) stri
 	_ = ctx
 	_ = userID
 	return ""
+}
+
+// annotateConnectedInstances queries the DB for existing strategy instances linked
+// to any of the scanned repos and annotates matching GithubDetectedInstance entries.
+// A single query loads all instances; matching is done in-memory by repo+basePath key.
+func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.GithubRepoScanItem) {
+	type row struct {
+		ID               string  `bun:"id"`
+		Name             string  `bun:"name"`
+		GithubRepo       string  `bun:"github_repo"`
+		GithubBasePath   *string `bun:"github_base_path"`
+		GithubCommitSHA  *string `bun:"github_commit_sha"`
+		MemorySyncStatus *string `bun:"memory_sync_status"`
+		WorkspaceName    string  `bun:"workspace_name"`
+		OrgName          string  `bun:"org_name"`
+	}
+	var rows []row
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id, si.name, si.github_repo, si.github_base_path, si.github_commit_sha, si.memory_sync_status").
+		ColumnExpr("w.display_name AS workspace_name, o.name AS org_name").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
+		Where("si.github_repo IS NOT NULL").
+		Scan(ctx, &rows)
+	if err != nil {
+		s.log.Warn("annotateConnectedInstances: query failed", "err", err)
+		return
+	}
+
+	// Build lookup: "github_repo|github_base_path" → row
+	type connInfo struct {
+		ID            string
+		Name          string
+		WorkspaceName string
+		CommitSHA     string
+		MemoryStatus  string
+	}
+	lookup := make(map[string]connInfo, len(rows))
+	for _, r := range rows {
+		basePath := ""
+		if r.GithubBasePath != nil {
+			basePath = *r.GithubBasePath
+		}
+		key := r.GithubRepo + "|" + basePath
+		info := connInfo{ID: r.ID, Name: r.Name, WorkspaceName: r.OrgName + " / " + r.WorkspaceName}
+		if r.GithubCommitSHA != nil && len(*r.GithubCommitSHA) >= 7 {
+			info.CommitSHA = (*r.GithubCommitSHA)[:7]
+		}
+		if r.MemorySyncStatus != nil {
+			info.MemoryStatus = *r.MemorySyncStatus
+		}
+		lookup[key] = info
+	}
+
+	// Annotate each detected instance.
+	for i := range repos {
+		for j := range repos[i].DetectedInstances {
+			key := repos[i].FullName + "|" + repos[i].DetectedInstances[j].BasePath
+			if info, ok := lookup[key]; ok {
+				repos[i].DetectedInstances[j].ConnectedInstanceID = info.ID
+				repos[i].DetectedInstances[j].ConnectedInstanceName = info.Name
+				repos[i].DetectedInstances[j].ConnectedWorkspaceName = info.WorkspaceName
+				repos[i].DetectedInstances[j].ConnectedCommitSHA = info.CommitSHA
+				repos[i].DetectedInstances[j].ConnectedMemorySyncStatus = info.MemoryStatus
+			}
+		}
+	}
 }
 
 // loadWorkspacesForAssignment loads all active workspaces for the assignment dropdown.
