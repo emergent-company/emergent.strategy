@@ -85,16 +85,26 @@ func (s *Server) handleSettingsImport(c echo.Context) error {
 	// Fall back to App-based import only if no user token is present.
 	user := web.UserFromContext(ctx)
 	githubToken := s.loadUserGithubToken(ctx, user.ID)
+	var result *sync.ImportResult
 	if githubToken != "" {
-		_, err = s.syncSvc.ImportFromGithubWithUserToken(ctx, instanceID, branch, githubToken)
+		result, err = s.syncSvc.ImportFromGithubWithUserToken(ctx, instanceID, branch, githubToken)
 	} else {
-		_, err = s.syncSvc.ImportFromGithub(ctx, sync.ImportParams{
+		result, err = s.syncSvc.ImportFromGithub(ctx, sync.ImportParams{
 			InstanceID: instanceID,
 			Branch:     branch,
 		})
 	}
 	if err != nil {
 		s.log.Error("manual github import failed", "instance_id", instanceIDStr, "err", err)
+		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.internal"))
+	}
+	// Surface guard results — server_ahead means local changes would be overwritten.
+	if result != nil && (result.Status == "server_ahead") {
+		msg := "Import blocked: " + result.Recommendation
+		if msg == "Import blocked: " {
+			msg = "Import blocked: your instance has local changes not yet pushed to GitHub. Push first."
+		}
+		return c.String(http.StatusConflict, msg)
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/settings")

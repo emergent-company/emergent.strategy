@@ -381,9 +381,15 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 }
 
 // ImportFromGithubWithUserToken imports artifacts using a user OAuth token instead of a
-// GitHub App installation token. Used by the connect flow where the App may not be
-// installed on the target org. Skips sync-state checks — always does a full import.
-// branch must be non-empty (use the repo's default branch from the scan result).
+// GitHub App installation token. Used when the GitHub App is not installed on the target org.
+//
+// Guard: compares the remote HEAD SHA against the instance's last-synced SHA.
+//   - Never synced (no local SHA) → import freely
+//   - Remote SHA == local SHA → already in sync, no-op
+//   - Remote SHA != local SHA AND instance has pending mutations → refuse (server_ahead)
+//   - Remote SHA != local SHA → import (github_ahead)
+//
+// The pending-mutations check is a lightweight proxy for DetermineSyncState.HasLocalChanges.
 func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID uuid.UUID, branch, userToken string) (*ImportResult, error) {
 	if s.reader == nil {
 		return nil, apperror.ErrBadRequest.WithDetail("GitHub reader is not configured")
@@ -406,6 +412,58 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		return nil, apperror.ErrBadRequest.WithDetail(err.Error())
 	}
 
+	// Fetch remote HEAD SHA to determine sync state.
+	remoteSHA, _, shaErr := s.reader.GetHeadCommitInfo(ctx, userToken, owner, repo, branch)
+	if shaErr != nil {
+		return nil, fmt.Errorf("get remote HEAD: %w", shaErr)
+	}
+
+	localSHA := ""
+	if inst.GithubCommitSHA != nil {
+		localSHA = *inst.GithubCommitSHA
+	}
+
+	// Already in sync — no-op.
+	if localSHA != "" && remoteSHA == localSHA {
+		// Check for pending (uncommitted) mutations — if any exist the server is ahead.
+		pendingCount, _ := s.db.NewSelect().
+			TableExpr("strategy_mutations").
+			Where("instance_id = ?", instanceID).
+			Where("status = ?", "pending").
+			Count(ctx)
+		if pendingCount > 0 {
+			return &ImportResult{
+				Status:         "server_ahead",
+				Recommendation: "You have " + fmt.Sprintf("%d", pendingCount) + " staged change(s) not yet pushed to GitHub. Push first, or discard them before importing.",
+				TargetBranch:   branch,
+				SyncState:      SyncStateServerAhead,
+			}, nil
+		}
+		return &ImportResult{
+			Status:        "already_in_sync",
+			TargetBranch:  branch,
+			SyncState:     SyncStateInSync,
+			ArtifactCount: 0,
+		}, nil
+	}
+
+	// Local SHA set but differs from remote: check for pending mutations before overwriting.
+	if localSHA != "" && remoteSHA != localSHA {
+		pendingCount, _ := s.db.NewSelect().
+			TableExpr("strategy_mutations").
+			Where("instance_id = ?", instanceID).
+			Where("status = ?", "pending").
+			Count(ctx)
+		if pendingCount > 0 {
+			return &ImportResult{
+				Status:         "server_ahead",
+				Recommendation: fmt.Sprintf("Remote has changed but you also have %d staged change(s) not pushed. Push your changes first, or discard them before importing.", pendingCount),
+				TargetBranch:   branch,
+				SyncState:      SyncStateDiverged,
+			}, nil
+		}
+	}
+
 	count, importErr := s.doImport(ctx, inst, userToken, owner, repo, branch, branch, actorID)
 	if importErr != nil {
 		return nil, importErr
@@ -414,6 +472,7 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		Status:        "imported",
 		TargetBranch:  branch,
 		ArtifactCount: count,
+		SyncState:     SyncStateGithubAhead,
 	}, nil
 }
 
