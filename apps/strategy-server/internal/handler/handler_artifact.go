@@ -63,7 +63,7 @@ func (s *Server) handleArtifactView(c echo.Context) error {
 		name = row.ArtifactKey
 	}
 
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(ctx, instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 
 	tabGroup := artifactTabGroup(row.ArtifactType)
@@ -132,7 +132,7 @@ func (s *Server) handleArtifactViewByType(artifactType string) echo.HandlerFunc 
 		navCtx := ui.NavContext{InstanceID: instanceID, CurrentPath: currentPath, ScreenID: screenID, TabGroup: tabGroup}
 		content := s.bespokeContent(ctx, instanceID, row.Track, navCtx, artifactType, row.ArtifactKey, name, row.Status, payload)
 
-		tabs := s.strategyTabs(instanceID, currentPath)
+		tabs := s.strategyTabs(ctx, instanceID, currentPath)
 		sidebarGroups := s.sidebarGroups(c)
 
 		render.RenderTriple(c.Response().Writer, c.Request(),
@@ -462,7 +462,7 @@ func isValueBelief(key string) bool {
 
 // renderArtifactPlaceholder renders an empty-state placeholder when an artifact doesn't exist.
 func (s *Server) renderArtifactPlaceholder(c echo.Context, instance *domain.StrategyInstance, instanceID, artifactType, currentPath string) error {
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(c.Request().Context(), instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 	tabGroup := artifactTabGroup(artifactType)
 	screenID := artifactScreenID(artifactType)

@@ -354,13 +354,8 @@ func (s *Server) sidebarGroups(c echo.Context) []layout.SidebarGroup {
 	return ui.BuildSidebarGroups(ctx, currentPath, instances)
 }
 
-// strategyTabs builds the strategy tabs, setting the active tab based on
-// the navigation graph's tab resolution.
-func (s *Server) strategyTabs(instanceID, currentPath string) []ui.TabProps {
-	return s.strategyTabsCtx(context.Background(), instanceID, currentPath)
-}
-
-func (s *Server) strategyTabsCtx(ctx context.Context, instanceID, currentPath string) []ui.TabProps {
+// strategyTabs builds the strategy tabs with translated labels using the request context.
+func (s *Server) strategyTabs(ctx context.Context, instanceID, currentPath string) []ui.TabProps {
 	activeTab := navGraph.ResolveTabForPath(instanceID, currentPath)
 	tabs := navGraph.InstanceTabGroups()
 
@@ -400,7 +395,7 @@ func (s *Server) renderInstancePage(c echo.Context, pageTitle string, content ui
 	ctx = ui.WithInstanceStats(ctx, stats)
 	c.SetRequest(c.Request().WithContext(ctx))
 
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(ctx, instanceID, currentPath)
 
 	render.RenderTriple(c.Response().Writer, c.Request(),
 		ui.InstancePhaseFullPage(pageTitle+" — "+instance.Name, currentPath, s.sidebarGroups(c), instance.Name, tabs, content.Content),
@@ -464,8 +459,6 @@ func (s *Server) handlePlaceholderFromGraph(screen navigation.ScreenDef) echo.Ha
 	return func(c echo.Context) error {
 		instanceID := c.Param("id")
 		currentPath := c.Request().URL.Path
-		tabs := s.strategyTabs(instanceID, currentPath)
-
 		ctx := c.Request().Context()
 		instance, err := s.loadInstance(ctx, instanceID)
 		if err != nil {
@@ -475,6 +468,8 @@ func (s *Server) handlePlaceholderFromGraph(screen navigation.ScreenDef) echo.Ha
 		stats := s.loadInstanceStats(ctx, instance)
 		ctx = ui.WithInstanceStats(ctx, stats)
 		c.SetRequest(c.Request().WithContext(ctx))
+
+		tabs := s.strategyTabs(ctx, instanceID, currentPath)
 
 		icon := screen.Icon
 		if icon == "" {

@@ -242,7 +242,7 @@ func (s *Server) renderFireTrackPage(c echo.Context, title string, data ui.FireT
 	ctx = ui.WithInstanceStats(ctx, stats)
 	c.SetRequest(c.Request().WithContext(ctx))
 
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(ctx, instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 	content := ui.FireTrackDashboardContent(data)
 

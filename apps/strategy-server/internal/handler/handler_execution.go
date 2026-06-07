@@ -34,7 +34,7 @@ func (s *Server) handleExecutionDashboard(c echo.Context) error {
 	c.SetRequest(c.Request().WithContext(ctx))
 
 	data := s.loadExecutionData(ctx, instanceID, instance.Name)
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(ctx, instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 
 	content := ui.ExecutionDashboardContent(data)

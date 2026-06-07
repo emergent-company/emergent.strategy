@@ -57,7 +57,7 @@ func (s *Server) renderPhaseContent(c echo.Context, loadFn func(string, echo.Con
 	c.SetRequest(c.Request().WithContext(ctx))
 
 	phaseData := loadFn(instanceID, c)
-	tabs := s.strategyTabs(instanceID, currentPath)
+	tabs := s.strategyTabs(ctx, instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 
 	render.RenderTriple(c.Response().Writer, c.Request(),
