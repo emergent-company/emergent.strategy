@@ -378,7 +378,7 @@ templ instanceSettingsMenu(instanceID string) {
 					</div>
 					<!-- Last sync: date + local SHA on one line, remote on next -->
 					<div class="space-y-1">
-						<!-- Local: sync date + commit SHA -->
+						<!-- Local: sync date + commit SHA + commit date -->
 						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
 							<span class="iconify lucide--arrow-down-to-line size-3 shrink-0"></span>
 							if stats.LastSyncAt != "" {
@@ -404,6 +404,13 @@ templ instanceSettingsMenu(instanceID string) {
 									title="View PR"></a>
 							}
 						</div>
+						<!-- Commit date (when the commit itself was authored) -->
+						if stats.CommitDate != "" {
+							<div class="flex items-center gap-1.5 text-xs text-base-content/55">
+								<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
+								<span>Commit: { stats.CommitDate }</span>
+							</div>
+						}
 						<!-- Remote HEAD -->
 						if stats.RemoteSHA != "" {
 							{{ remoteDiffers := stats.CommitSHA != "" && stats.RemoteSHA != stats.CommitSHA }}

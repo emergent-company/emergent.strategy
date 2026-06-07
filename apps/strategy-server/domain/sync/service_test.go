@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -233,6 +234,10 @@ func (m *mockRepoReader) GetDefaultBranch(_ context.Context, _, _, _ string) (st
 
 func (m *mockRepoReader) GetHeadCommitSHA(_ context.Context, _, _, _, _ string) (string, error) {
 	return m.headCommitSHA, nil
+}
+
+func (m *mockRepoReader) GetHeadCommitInfo(_ context.Context, _, _, _, _ string) (string, time.Time, error) {
+	return m.headCommitSHA, time.Time{}, nil
 }
 
 func (m *mockRepoReader) ListFiles(_ context.Context, _, _, _, _, _ string) ([]string, error) {

@@ -43,6 +43,7 @@ type InstanceStats struct {
 	GithubRepo      string // "owner/repo" or ""
 	GithubBranch    string // "" = default branch
 	CommitSHA       string // first 7 chars or ""
+	CommitDate      string // formatted date of the synced commit, or ""
 	Status          string // "draft" / "active" / "archived"
 	CreatedAt       string // formatted date
 

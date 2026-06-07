@@ -43,6 +43,10 @@ func (a *RepoReaderAdapter) GetHeadCommitSHA(ctx context.Context, token, owner, 
 	return a.client.GetHeadCommitSHA(ctx, token, owner, repo, branch)
 }
 
+func (a *RepoReaderAdapter) GetHeadCommitInfo(ctx context.Context, token, owner, repo, branch string) (string, time.Time, error) {
+	return a.client.GetHeadCommitInfo(ctx, token, owner, repo, branch)
+}
+
 // ListFiles returns paths of all YAML/YML files in the tree under basePath on the given branch.
 func (a *RepoReaderAdapter) ListFiles(ctx context.Context, token, owner, repo, branch, basePath string) ([]string, error) {
 	entries, err := a.client.GetTree(ctx, token, owner, repo, branch)

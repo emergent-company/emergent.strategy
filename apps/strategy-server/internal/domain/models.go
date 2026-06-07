@@ -39,8 +39,9 @@ type StrategyInstance struct {
 	Description                 *string    `bun:"description"                        json:"description,omitempty"`
 	GithubRepo                  *string    `bun:"github_repo"                        json:"github_repo,omitempty"`
 	GithubBasePath              *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
-	GithubCommitSHA             *string    `bun:"github_commit_sha"                  json:"github_commit_sha,omitempty"`
-	GithubBranch                *string    `bun:"github_branch"                      json:"github_branch,omitempty"`
+	GithubCommitSHA                 *string    `bun:"github_commit_sha"                        json:"github_commit_sha,omitempty"`
+	GithubCommitDate                *time.Time `bun:"github_commit_date"                       json:"github_commit_date,omitempty"`
+	GithubBranch                    *string    `bun:"github_branch"                            json:"github_branch,omitempty"`
 	Status                      string     `bun:"status,notnull,default:'draft'"     json:"status"`
 	StandardPackVersion         *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
 	SchemaVersion               *string    `bun:"schema_version"                     json:"schema_version,omitempty"`

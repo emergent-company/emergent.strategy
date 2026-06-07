@@ -31,6 +31,8 @@ type RepoReader interface {
 	GetDefaultBranch(ctx context.Context, token, owner, repo string) (string, error)
 	// GetHeadCommitSHA returns the HEAD commit SHA for a branch.
 	GetHeadCommitSHA(ctx context.Context, token, owner, repo, branch string) (string, error)
+	// GetHeadCommitInfo returns the HEAD commit SHA and authored timestamp for a branch.
+	GetHeadCommitInfo(ctx context.Context, token, owner, repo, branch string) (sha string, date time.Time, err error)
 	// ListFiles returns all YAML file paths under basePath on the given branch.
 	ListFiles(ctx context.Context, token, owner, repo, branch, basePath string) ([]string, error)
 	// GetFileContent fetches the raw bytes of a file at the given path on the given branch.
@@ -443,10 +445,10 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		return 0, apperror.ErrBadRequest.WithDetail("no recognizable EPF artifacts found in the repository")
 	}
 
-	// Get HEAD SHA for recording after import.
-	remoteSHA, shaErr := s.reader.GetHeadCommitSHA(ctx, token, owner, repo, targetBranch)
+	// Get HEAD SHA + commit date for recording after import.
+	remoteSHA, commitDate, shaErr := s.reader.GetHeadCommitInfo(ctx, token, owner, repo, targetBranch)
 	if shaErr != nil {
-		return 0, fmt.Errorf("get HEAD SHA post-fetch: %w", shaErr)
+		return 0, fmt.Errorf("get HEAD commit info post-fetch: %w", shaErr)
 	}
 
 	// Reimport artifacts into the instance.
@@ -481,6 +483,9 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		Set("github_commit_sha = ?", remoteSHA).
 		Set("updated_at = NOW()").
 		Where("id = ?", inst.ID)
+	if !commitDate.IsZero() {
+		q = q.Set("github_commit_date = ?", commitDate)
+	}
 
 	if newBranch != nil {
 		if *newBranch == "" {
@@ -656,13 +661,16 @@ func (s *Service) CheckAndUpdateSyncStatus(ctx context.Context, instanceID uuid.
 			// We can't easily get the merge commit SHA from the PR object here without
 			// another API call, so we just fetch the current HEAD SHA of the base branch.
 			if inst.GithubBranch != nil {
-				if sha, shaErr := s.reader.GetHeadCommitSHA(ctx, token, owner, repo, *inst.GithubBranch); shaErr == nil {
-					_, _ = s.db.NewUpdate().
+				if sha, cd, shaErr := s.reader.GetHeadCommitInfo(ctx, token, owner, repo, *inst.GithubBranch); shaErr == nil {
+					q := s.db.NewUpdate().
 						TableExpr("strategy_instances").
 						Set("github_commit_sha = ?", sha).
 						Set("updated_at = NOW()").
-						Where("id = ?", instanceID).
-						Exec(ctx)
+						Where("id = ?", instanceID)
+					if !cd.IsZero() {
+						q = q.Set("github_commit_date = ?", cd)
+					}
+					_, _ = q.Exec(ctx)
 				}
 			}
 		case "closed":

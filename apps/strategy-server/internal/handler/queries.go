@@ -127,6 +127,9 @@ func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyIns
 	if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
 		stats.CommitSHA = (*inst.GithubCommitSHA)[:7]
 	}
+	if inst.GithubCommitDate != nil && !inst.GithubCommitDate.IsZero() {
+		stats.CommitDate = inst.GithubCommitDate.Format("2 Jan 2006 15:04")
+	}
 	if inst.MemorySyncStatus != nil {
 		stats.MemorySyncStatus = *inst.MemorySyncStatus
 	}

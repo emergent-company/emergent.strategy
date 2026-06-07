@@ -342,13 +342,26 @@ func (c *Client) GetBlob(ctx context.Context, token, owner, repo, sha string) ([
 
 // GetHeadCommitSHA returns the HEAD commit SHA for a branch.
 func (c *Client) GetHeadCommitSHA(ctx context.Context, token, owner, repo, branch string) (string, error) {
+	sha, _, err := c.GetHeadCommitInfo(ctx, token, owner, repo, branch)
+	return sha, err
+}
+
+// GetHeadCommitInfo returns the HEAD commit SHA and authored timestamp for a branch.
+func (c *Client) GetHeadCommitInfo(ctx context.Context, token, owner, repo, branch string) (string, time.Time, error) {
 	client := c.ghClient(token)
 
 	ref, _, err := client.Git.GetRef(ctx, owner, repo, "refs/heads/"+branch)
 	if err != nil {
-		return "", fmt.Errorf("get ref for branch %q: %w", branch, err)
+		return "", time.Time{}, fmt.Errorf("get ref for branch %q: %w", branch, err)
 	}
-	return ref.Object.GetSHA(), nil
+	sha := ref.Object.GetSHA()
+
+	commit, _, err := client.Git.GetCommit(ctx, owner, repo, sha)
+	if err != nil {
+		// Return SHA without date rather than failing the whole import.
+		return sha, time.Time{}, nil //nolint:nilerr
+	}
+	return sha, commit.GetAuthor().GetDate().Time, nil
 }
 
 // GetPullRequestState returns the state of a pull request: "open", "closed", or "merged".
