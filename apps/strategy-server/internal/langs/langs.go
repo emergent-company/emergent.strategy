@@ -211,6 +211,9 @@ var messages = map[Locale]map[string]string{
 		// Navigation — breadcrumbs
 		"nav.breadcrumb.strategies":        "Strategies",
 		"nav.breadcrumb.strategy_fallback": "Strategy",
+		"instance.settings_menu.title":     "Instance settings",
+		"instance.settings_menu.move":      "Move to workspace...",
+		"instance.settings_menu.delete":    "Delete instance",
 
 		// ---------------------------------------------------------------------------
 		// App
@@ -676,6 +679,9 @@ var messages = map[Locale]map[string]string{
 		// Navigation — breadcrumbs
 		"nav.breadcrumb.strategies":        "Strategier",
 		"nav.breadcrumb.strategy_fallback": "Strategi",
+		"instance.settings_menu.title":     "Instansinnstillinger",
+		"instance.settings_menu.move":      "Flytt til arbeidsområde...",
+		"instance.settings_menu.delete":    "Slett instans",
 
 		// ---------------------------------------------------------------------------
 		// App

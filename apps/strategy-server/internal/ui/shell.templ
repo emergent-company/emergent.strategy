@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 
 	"github.com/emergent-company/go-daisy/components/layout"
 	"github.com/emergent-company/go-daisy/components/nav"
@@ -9,6 +10,16 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	strategynav "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 )
+
+// instanceIDFromPath extracts the UUID segment from a /strategies/:id/... path.
+func instanceIDFromPath(path string) string {
+	// path looks like /strategies/864950e9-60a9-4432-abf1-981c776e6e71/execution
+	parts := strings.SplitN(strings.TrimPrefix(path, "/strategies/"), "/", 2)
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return ""
+}
 
 // StrategyShellPage renders the full page shell with sidebar and navbar.
 // Used for root-level pages (dashboard, settings).
@@ -266,13 +277,70 @@ templ activityStreamSSE() {
 // returned for HTMX tab/sub-nav swaps (swapped into #tab-content).
 templ instanceTabContent(tabs []TabProps, currentPath string) {
 	<div id="tab-content" class="flex flex-col flex-1 min-h-0">
-		<div class="sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0">
-			@StrategyTabs(tabs, currentPath)
+		<div class="sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0 flex items-end">
+			<div class="flex-1">
+				@StrategyTabs(tabs, currentPath)
+			</div>
+			@instanceSettingsMenu(instanceIDFromPath(currentPath))
 		</div>
 		<div class="overflow-x-auto overflow-y-auto flex-1 px-3 py-4 sm:px-6">
 			{ children... }
 		</div>
 	</div>
+}
+
+// instanceSettingsMenu renders a right-aligned gear icon dropdown for instance-level
+// admin actions (move to workspace, delete). Shown to the right of the tab bar.
+templ instanceSettingsMenu(instanceID string) {
+	if instanceID == "" {
+		return
+	}
+	<div class="relative flex items-center pb-1 shrink-0 ml-4">
+		<button
+			type="button"
+			class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-base-content/70"
+			title={ langs.T(ctx, "instance.settings_menu.title") }
+			onclick="event.stopPropagation();var p=this.nextElementSibling;var wasHidden=p.classList.contains('hidden');document.querySelectorAll('.inst-settings-panel').forEach(function(el){el.classList.add('hidden')});if(wasHidden){p.classList.remove('hidden')}"
+		>
+			<span class="iconify lucide--settings-2 size-3.5"></span>
+		</button>
+		<!-- Dropdown panel — close on any outside click via document listener in script below -->
+		<div
+			class="inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 min-w-44 rounded-lg border border-base-content/10 bg-base-100 shadow-lg py-1"
+		>
+			<!-- Move to workspace — links to settings where the move UI lives -->
+			<a
+				href="/settings"
+				class="flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors"
+			>
+				<span class="iconify lucide--folder-symlink size-3.5 shrink-0"></span>
+				{ langs.T(ctx, "instance.settings_menu.move") }
+			</a>
+			<div class="border-t border-base-content/10 my-1"></div>
+			<!-- Delete instance -->
+			<form
+				method="POST"
+				action={ templ.SafeURL("/strategies/" + instanceID + "/delete") }
+				onclick="event.stopPropagation()"
+			>
+				<button
+					type="submit"
+					class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-error/70 hover:bg-error/5 hover:text-error transition-colors"
+					onclick="return confirm('Delete this instance? This cannot be undone.')"
+				>
+					<span class="iconify lucide--trash-2 size-3.5 shrink-0"></span>
+					{ langs.T(ctx, "instance.settings_menu.delete") }
+				</button>
+			</form>
+		</div>
+	</div>
+	<script>
+		document.addEventListener('click', function() {
+			document.querySelectorAll('.inst-settings-panel').forEach(function(el) {
+				el.classList.add('hidden');
+			});
+		}, { once: false, capture: false });
+	</script>
 }
 
 // InstanceTabContent renders the tab bar + content for HTMX swaps.
