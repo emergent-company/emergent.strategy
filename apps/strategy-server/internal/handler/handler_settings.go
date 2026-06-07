@@ -212,6 +212,7 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 		ColumnExpr("o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
 		Where("si.status != ?", "archived").
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
@@ -307,6 +308,7 @@ func (s *Server) loadInstanceMemoryStatuses(ctx context.Context) []ui.InstanceMe
 		ColumnExpr("o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
 		Where("si.status != ?", "archived").
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
