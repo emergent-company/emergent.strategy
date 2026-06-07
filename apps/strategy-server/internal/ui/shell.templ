@@ -446,21 +446,32 @@ templ instanceSettingsMenu(instanceID string) {
 					@memoryStatusBadge(stats.MemorySyncStatus)
 				</div>
 				if stats.MemorySyncStatus == "synced" && stats.MemoryObjectCount > 0 {
-					<div class="flex items-center gap-3 text-xs text-base-content/55 font-mono">
-						<span title="Artifact-layer objects">{ strconv.Itoa(stats.MemoryObjectCount) } obj</span>
-						<span class="text-base-content/30">·</span>
-						<span title="Artifact-layer edges">{ strconv.Itoa(stats.MemoryEdgeCount) } edges</span>
-						if stats.MemoryDecomposed > 0 {
+					<div class="space-y-0.5">
+						<!-- Artifact-layer row -->
+						<div class="flex items-center gap-1.5 text-xs text-base-content/65 font-mono">
+							<span title="Artifact-layer objects">{ strconv.Itoa(stats.MemoryObjectCount) } obj</span>
 							<span class="text-base-content/30">·</span>
-							<span title="Decomposed field-level objects" class="text-base-content/40">+{ strconv.Itoa(stats.MemoryDecomposed) } decomposed</span>
+							<span title="Artifact-layer edges">{ strconv.Itoa(stats.MemoryEdgeCount) } edges</span>
+						</div>
+						<!-- Decomposed layer row -->
+						if stats.MemoryDecomposed > 0 {
+							<div class="flex items-center gap-1.5 text-xs text-base-content/40 font-mono">
+								<span>+{ strconv.Itoa(stats.MemoryDecomposed) } obj</span>
+								if stats.MemoryDecomposedEdges > 0 {
+									<span class="text-base-content/25">·</span>
+									<span>{ strconv.Itoa(stats.MemoryDecomposedEdges) } edges</span>
+								}
+								<span class="font-sans text-base-content/30">decomposed</span>
+							</div>
+						}
+						<!-- Last synced -->
+						if stats.MemoryLastSyncAt != "" {
+							<div class="flex items-center gap-1.5 text-xs text-base-content/40">
+								<span class="iconify lucide--clock size-3 shrink-0"></span>
+								<span>{ stats.MemoryLastSyncAt }</span>
+							</div>
 						}
 					</div>
-					if stats.MemoryLastSyncAt != "" {
-						<div class="flex items-center gap-1.5 text-xs text-base-content/40">
-							<span class="iconify lucide--clock size-3 shrink-0"></span>
-							<span>{ stats.MemoryLastSyncAt }</span>
-						</div>
-					}
 				}
 			</div>
 			<!-- Divider + actions -->

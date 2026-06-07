@@ -145,6 +145,9 @@ func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyIns
 	if inst.MemoryDecomposedObjectCount != nil {
 		stats.MemoryDecomposed = *inst.MemoryDecomposedObjectCount
 	}
+	if inst.MemoryDecomposedEdgeCount != nil {
+		stats.MemoryDecomposedEdges = *inst.MemoryDecomposedEdgeCount
+	}
 
 	id := inst.ID.String()
 	var wg gosync.WaitGroup

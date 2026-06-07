@@ -58,11 +58,12 @@ type InstanceStats struct {
 	LastSyncPRURL     string // PR URL if last sync created a PR
 
 	// Memory graph (populated from denormalized columns on the instance row — zero extra queries)
-	MemorySyncStatus  string // "synced" | "pending" | "failed" | "" (not synced)
-	MemoryLastSyncAt  string // formatted date, empty if never synced
-	MemoryObjectCount int    // artifact-layer objects in Memory graph
-	MemoryEdgeCount   int    // artifact-layer edges
-	MemoryDecomposed  int    // decomposed (field-level) objects
+	MemorySyncStatus      string // "synced" | "pending" | "failed" | "" (not synced)
+	MemoryLastSyncAt      string // formatted date, empty if never synced
+	MemoryObjectCount     int    // artifact-layer objects in Memory graph
+	MemoryEdgeCount       int    // artifact-layer edges
+	MemoryDecomposed      int    // decomposed (field-level) objects
+	MemoryDecomposedEdges int    // decomposed (field-level) edges
 }
 
 type instanceStatsKey struct{}
