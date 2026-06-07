@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	gosync "sync"
 	"strings"
 	"time"
 
@@ -24,10 +25,23 @@ import (
 func (s *Server) handleSettings(c echo.Context) error {
 	ctx := c.Request().Context()
 
+	// Run all three independent data-loading operations concurrently.
+	var (
+		memoryStatus ui.MemoryHealthStatus
+		instances    []ui.InstanceMemoryStatus
+		githubSync   []ui.GithubSyncStatus
+		wg           gosync.WaitGroup
+	)
+	wg.Add(3)
+	go func() { defer wg.Done(); memoryStatus = s.probeMemoryHealth(ctx) }()
+	go func() { defer wg.Done(); instances = s.loadInstanceMemoryStatuses(ctx) }()
+	go func() { defer wg.Done(); githubSync = s.loadGithubSyncStatuses(ctx) }()
+	wg.Wait()
+
 	data := ui.SettingsData{
-		Memory:     s.probeMemoryHealth(ctx),
-		Instances:  s.loadInstanceMemoryStatuses(ctx),
-		GithubSync: s.loadGithubSyncStatuses(ctx),
+		Memory:     memoryStatus,
+		Instances:  instances,
+		GithubSync: githubSync,
 		Github: ui.GithubConfigStatus{
 			// syncSvc is only constructed when the GitHub App is configured;
 			// githubOAuth is only set when OAuth App credentials are present.
@@ -233,66 +247,78 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 		return nil
 	}
 
-	result := make([]ui.GithubSyncStatus, 0, len(instances))
-	for _, inst := range instances {
-		// Build workspace list excluding the one the instance already belongs to.
-		otherWorkspaces := make([]ui.WorkspaceScanItem, 0, len(allWorkspaces))
-		for _, ws := range allWorkspaces {
-			if ws.ID != inst.WorkspaceID {
-				otherWorkspaces = append(otherWorkspaces, ws)
-			}
-		}
-		status := ui.GithubSyncStatus{
-			InstanceID:   inst.ID,
-			InstanceName: inst.Name,
-			Configured:   s.syncSvc.IsConfigured(),
-			Workspaces:   otherWorkspaces,
-		}
-		if inst.GithubRepo != nil && *inst.GithubRepo != "" {
-			status.RepoLinked = true
-			status.Repo = *inst.GithubRepo
-		}
-		if inst.GithubBranch != nil && *inst.GithubBranch != "" {
-			status.ActiveBranch = *inst.GithubBranch
-		}
-		if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
-			status.LocalSHA = (*inst.GithubCommitSHA)[:7]
-		}
+	// Process each instance concurrently — GitHub API calls (CheckAndUpdate,
+	// DetermineSyncState) are the bottleneck; running them in parallel cuts
+	// page load time from O(n * API_latency) to O(max single API_latency).
+	result := make([]ui.GithubSyncStatus, len(instances))
+	var wg gosync.WaitGroup
+	for i, inst := range instances {
+		i, inst := i, inst
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		instID, parseErr := uuid.Parse(inst.ID)
-		if parseErr == nil {
-			// Check and update PR statuses lazily.
-			s.syncSvc.CheckAndUpdateSyncStatus(ctx, instID)
-
-			// Load last sync log entry.
-			logs, histErr := s.syncSvc.GetSyncHistory(ctx, instID)
-			if histErr == nil && len(logs) > 0 {
-				last := logs[0]
-				status.LastStatus = last.Status
-				status.LastSyncAt = &last.CreatedAt
-				status.LastDirection = last.Direction
-				if last.PRUrl != nil {
-					status.LastSyncPR = *last.PRUrl
+			// Build workspace list excluding the current workspace.
+			otherWorkspaces := make([]ui.WorkspaceScanItem, 0, len(allWorkspaces))
+			for _, ws := range allWorkspaces {
+				if ws.ID != inst.WorkspaceID {
+					otherWorkspaces = append(otherWorkspaces, ws)
 				}
 			}
+			status := ui.GithubSyncStatus{
+				InstanceID:   inst.ID,
+				InstanceName: inst.Name,
+				Configured:   s.syncSvc.IsConfigured(),
+				Workspaces:   otherWorkspaces,
+			}
+			if inst.GithubRepo != nil && *inst.GithubRepo != "" {
+				status.RepoLinked = true
+				status.Repo = *inst.GithubRepo
+			}
+			if inst.GithubBranch != nil && *inst.GithubBranch != "" {
+				status.ActiveBranch = *inst.GithubBranch
+			}
+			if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
+				status.LocalSHA = (*inst.GithubCommitSHA)[:7]
+			}
 
-			// Determine live sync state if GitHub App is configured and repo is linked.
-			// Use a short timeout so a slow GitHub API call doesn't hang the settings page.
-			if s.syncSvc.IsConfigured() && status.RepoLinked {
-				stateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-				stateResult, stateErr := s.syncSvc.DetermineSyncState(stateCtx, instID, "")
-				cancel()
-				if stateErr == nil {
-					status.SyncState = string(stateResult.State)
-					if len(stateResult.RemoteSHA) >= 7 {
-						status.RemoteSHA = stateResult.RemoteSHA[:7]
+			instID, parseErr := uuid.Parse(inst.ID)
+			if parseErr == nil {
+				// Fire-and-forget: update PR status in the background — don't
+				// block page render waiting for the GitHub API response.
+				go s.syncSvc.CheckAndUpdateSyncStatus(context.Background(), instID)
+
+				// Load last sync log entry (DB-only, fast).
+				logs, histErr := s.syncSvc.GetSyncHistory(ctx, instID)
+				if histErr == nil && len(logs) > 0 {
+					last := logs[0]
+					status.LastStatus = last.Status
+					status.LastSyncAt = &last.CreatedAt
+					status.LastDirection = last.Direction
+					if last.PRUrl != nil {
+						status.LastSyncPR = *last.PRUrl
+					}
+				}
+
+				// Live sync state — only when App is configured and repo linked.
+				// Tightened to 3s timeout; App not installed returns quickly with error.
+				if s.syncSvc.IsConfigured() && status.RepoLinked {
+					stateCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+					stateResult, stateErr := s.syncSvc.DetermineSyncState(stateCtx, instID, "")
+					cancel()
+					if stateErr == nil {
+						status.SyncState = string(stateResult.State)
+						if len(stateResult.RemoteSHA) >= 7 {
+							status.RemoteSHA = stateResult.RemoteSHA[:7]
+						}
 					}
 				}
 			}
-		}
 
-		result = append(result, status)
+			result[i] = status
+		}()
 	}
+	wg.Wait()
 	return result
 }
 
