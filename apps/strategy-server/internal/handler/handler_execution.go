@@ -29,6 +29,10 @@ func (s *Server) handleExecutionDashboard(c echo.Context) error {
 		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
+	stats := s.loadInstanceStats(ctx, instance)
+	ctx = ui.WithInstanceStats(ctx, stats)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	data := s.loadExecutionData(ctx, instanceID, instance.Name)
 	tabs := s.strategyTabs(instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)

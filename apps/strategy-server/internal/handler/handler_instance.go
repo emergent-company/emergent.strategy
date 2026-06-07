@@ -52,6 +52,10 @@ func (s *Server) renderPhaseContent(c echo.Context, loadFn func(string, echo.Con
 		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
+	stats := s.loadInstanceStats(ctx, instance)
+	ctx = ui.WithInstanceStats(ctx, stats)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	phaseData := loadFn(instanceID, c)
 	tabs := s.strategyTabs(instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)

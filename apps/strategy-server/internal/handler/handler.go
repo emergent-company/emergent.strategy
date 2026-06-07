@@ -395,6 +395,11 @@ func (s *Server) renderInstancePage(c echo.Context, pageTitle string, content ui
 		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
+	// Load instance stats for the settings menu and inject into context.
+	stats := s.loadInstanceStats(ctx, instance)
+	ctx = ui.WithInstanceStats(ctx, stats)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	tabs := s.strategyTabs(instanceID, currentPath)
 
 	render.RenderTriple(c.Response().Writer, c.Request(),
@@ -461,10 +466,15 @@ func (s *Server) handlePlaceholderFromGraph(screen navigation.ScreenDef) echo.Ha
 		currentPath := c.Request().URL.Path
 		tabs := s.strategyTabs(instanceID, currentPath)
 
-		instance, err := s.loadInstance(c.Request().Context(), instanceID)
+		ctx := c.Request().Context()
+		instance, err := s.loadInstance(ctx, instanceID)
 		if err != nil {
 			return err
 		}
+
+		stats := s.loadInstanceStats(ctx, instance)
+		ctx = ui.WithInstanceStats(ctx, stats)
+		c.SetRequest(c.Request().WithContext(ctx))
 
 		icon := screen.Icon
 		if icon == "" {

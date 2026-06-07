@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/emergent-company/go-daisy/components/layout"
@@ -290,11 +291,12 @@ templ instanceTabContent(tabs []TabProps, currentPath string) {
 }
 
 // instanceSettingsMenu renders a right-aligned gear icon dropdown for instance-level
-// admin actions (move to workspace, delete). Shown to the right of the tab bar.
+// stats, admin actions (move to workspace, delete). Shown to the right of the tab bar.
 templ instanceSettingsMenu(instanceID string) {
 	if instanceID == "" {
 		return
 	}
+	{{ stats := InstanceStatsFromContext(ctx) }}
 	<div class="relative flex items-center pb-1 shrink-0 ml-4">
 		<button
 			type="button"
@@ -306,32 +308,86 @@ templ instanceSettingsMenu(instanceID string) {
 		</button>
 		<!-- Dropdown panel — close on any outside click via document listener in script below -->
 		<div
-			class="inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 min-w-44 rounded-lg border border-base-content/10 bg-base-100 shadow-lg py-1"
+			class="inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-base-content/10 bg-base-100 shadow-lg"
 		>
-			<!-- Move to workspace — links to settings where the move UI lives -->
-			<a
-				href="/settings"
-				class="flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors"
-			>
-				<span class="iconify lucide--folder-symlink size-3.5 shrink-0"></span>
-				{ langs.T(ctx, "instance.settings_menu.move") }
-			</a>
-			<div class="border-t border-base-content/10 my-1"></div>
-			<!-- Delete instance -->
-			<form
-				method="POST"
-				action={ templ.SafeURL("/strategies/" + instanceID + "/delete") }
-				onclick="event.stopPropagation()"
-			>
-				<button
-					type="submit"
-					class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-error/70 hover:bg-error/5 hover:text-error transition-colors"
-					onclick="return confirm('Delete this instance? This cannot be undone.')"
+			<!-- Stats section -->
+			<div class="px-3 pt-3 pb-2 space-y-2">
+				<!-- Stat grid: artifacts / features / versions / AIM cycles -->
+				<div class="grid grid-cols-4 gap-1">
+					@instanceStatCell(strconv.Itoa(stats.ArtifactCount), "Artifacts", "")
+					@instanceStatCell(strconv.Itoa(stats.FeatureCount), "Features", "")
+					@instanceStatCell(strconv.Itoa(stats.VersionCount), "Versions", "")
+					@instanceStatCell(strconv.Itoa(stats.AIMCycles), "AIM cycles", "")
+				</div>
+				<!-- Coherence + signals row -->
+				if stats.CoherenceScore != "" || stats.CriticalSignals > 0 || stats.WarningSignals > 0 {
+					<div class="flex items-center gap-3 pt-1">
+						if stats.CoherenceScore != "" {
+							<div class="flex items-center gap-1">
+								<span class="iconify lucide--activity size-3 text-base-content/40"></span>
+								<span class={ "text-xs font-mono font-medium " + instanceCoherenceColor(stats.CoherenceScore) }>{ stats.CoherenceScore }</span>
+								<span class="text-xs text-base-content/40">coherence</span>
+							</div>
+						}
+						if stats.CriticalSignals > 0 {
+							<div class="flex items-center gap-1">
+								<span class="iconify lucide--alert-circle size-3 text-error"></span>
+								<span class="text-xs text-error font-medium">{ strconv.FormatInt(stats.CriticalSignals, 10) }</span>
+							</div>
+						}
+						if stats.WarningSignals > 0 {
+							<div class="flex items-center gap-1">
+								<span class="iconify lucide--alert-triangle size-3 text-warning"></span>
+								<span class="text-xs text-warning font-medium">{ strconv.FormatInt(stats.WarningSignals, 10) }</span>
+							</div>
+						}
+					</div>
+				}
+				<!-- GitHub info -->
+				if stats.GithubRepo != "" {
+					<div class="flex items-center gap-1.5 pt-0.5">
+						<span class="iconify lucide--github size-3 text-base-content/40 shrink-0"></span>
+						<span class="text-xs text-base-content/50 font-mono truncate">{ stats.GithubRepo }</span>
+						if stats.CommitSHA != "" {
+							<span class="text-xs text-base-content/30 font-mono shrink-0">{ stats.CommitSHA }</span>
+						}
+					</div>
+				}
+				<!-- Last version + status -->
+				<div class="flex items-center justify-between pt-0.5">
+					if stats.LastVersionAt != "" {
+						<span class="text-xs text-base-content/40">v{ strconv.Itoa(stats.VersionCount) } · { stats.LastVersionAt }</span>
+					}
+					<span class={ "badge badge-xs " + instanceStatusBadge(stats.Status) }>{ stats.Status }</span>
+				</div>
+			</div>
+			<!-- Divider + actions -->
+			<div class="border-t border-base-content/10"></div>
+			<div class="py-1">
+				<!-- Move to workspace — links to settings where the move UI lives -->
+				<a
+					href="/settings"
+					class="flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors"
 				>
-					<span class="iconify lucide--trash-2 size-3.5 shrink-0"></span>
-					{ langs.T(ctx, "instance.settings_menu.delete") }
-				</button>
-			</form>
+					<span class="iconify lucide--folder-symlink size-3.5 shrink-0"></span>
+					{ langs.T(ctx, "instance.settings_menu.move") }
+				</a>
+				<!-- Delete instance -->
+				<form
+					method="POST"
+					action={ templ.SafeURL("/strategies/" + instanceID + "/delete") }
+					onclick="event.stopPropagation()"
+				>
+					<button
+						type="submit"
+						class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-error/70 hover:bg-error/5 hover:text-error transition-colors"
+						onclick="return confirm('Delete this instance? This cannot be undone.')"
+					>
+						<span class="iconify lucide--trash-2 size-3.5 shrink-0"></span>
+						{ langs.T(ctx, "instance.settings_menu.delete") }
+					</button>
+				</form>
+			</div>
 		</div>
 	</div>
 	<script>
@@ -341,6 +397,32 @@ templ instanceSettingsMenu(instanceID string) {
 			});
 		}, { once: false, capture: false });
 	</script>
+}
+
+// instanceStatCell renders a single stat number + label in the stats grid.
+templ instanceStatCell(value, label, colorClass string) {
+	<div class="flex flex-col items-center gap-0.5 bg-base-200/50 rounded px-1 py-1.5">
+		if colorClass != "" {
+			<span class={ "text-sm font-bold tabular-nums", colorClass }>{ value }</span>
+		} else {
+			<span class="text-sm font-bold tabular-nums text-base-content">{ value }</span>
+		}
+		<span class="text-xs text-base-content/40 leading-tight text-center">{ label }</span>
+	</div>
+}
+
+// instanceStatusBadge returns the badge class for an instance status.
+func instanceStatusBadge(status string) string {
+	switch status {
+	case "active":
+		return "badge-success"
+	case "draft":
+		return "badge-ghost"
+	case "archived":
+		return "badge-neutral"
+	default:
+		return "badge-ghost"
+	}
 }
 
 // InstanceTabContent renders the tab bar + content for HTMX swaps.

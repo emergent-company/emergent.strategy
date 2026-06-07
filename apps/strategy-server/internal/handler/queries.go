@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	gosync "sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -107,6 +108,96 @@ func (s *Server) loadAllInstances(ctx context.Context) ([]ui.InstanceInfo, error
 		infos[i] = s.loadInstanceInfo(ctx, r.ID, r.Name, r.Status, r.WorkspaceID, r.OrgName)
 	}
 	return infos, nil
+}
+
+// loadInstanceStats loads the stats shown in the per-instance settings menu.
+// All queries run concurrently. Fields from the instance row itself (repo, branch,
+// SHA, status, created_at) are passed in directly to avoid an extra DB round-trip.
+func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyInstance) ui.InstanceStats {
+	stats := ui.InstanceStats{
+		Status:    string(inst.Status),
+		CreatedAt: inst.CreatedAt.Format("2 Jan 2006"),
+	}
+	if inst.GithubRepo != nil {
+		stats.GithubRepo = *inst.GithubRepo
+	}
+	if inst.GithubBranch != nil {
+		stats.GithubBranch = *inst.GithubBranch
+	}
+	if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
+		stats.CommitSHA = (*inst.GithubCommitSHA)[:7]
+	}
+
+	id := inst.ID.String()
+	var wg gosync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("strategy_artifacts").
+			Where("instance_id = ?", id).Count(ctx)
+		stats.ArtifactCount = int(n)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("strategy_artifacts").
+			Where("instance_id = ?", id).
+			Where("artifact_type = ?", domain.ArtifactTypeFeature).Count(ctx)
+		stats.FeatureCount = int(n)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("strategy_artifacts").
+			Where("instance_id = ?", id).
+			Where("artifact_type = ?", domain.ArtifactTypeEvidence).Count(ctx)
+		stats.EvidenceCount = int(n)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		stats.VersionCount, stats.LastVersionAt = s.loadVersionSummary(ctx, id)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("strategy_versions").
+			Where("instance_id = ?", id).
+			Where("source = ?", "aim_cycle").Count(ctx)
+		stats.AIMCycles = int(n)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		stats.CoherenceScore = s.loadCoherenceScore(ctx, id)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("ripple_signals").
+			Where("instance_id = ?", id).Where("status = ?", "active").
+			Where("severity = ?", "critical").Count(ctx)
+		stats.CriticalSignals = int64(n)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n, _ := s.db.NewSelect().TableExpr("ripple_signals").
+			Where("instance_id = ?", id).Where("status = ?", "active").
+			Where("severity = ?", "warning").Count(ctx)
+		stats.WarningSignals = int64(n)
+	}()
+
+	wg.Wait()
+	return stats
 }
 
 // loadInstanceInfo loads the enriched data for a single instance card.

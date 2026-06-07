@@ -29,6 +29,38 @@ func SetSystemConfig(cfg SystemConfig) { sysConfig = cfg }
 // GetSystemConfig returns the current system config.
 func GetSystemConfig() SystemConfig { return sysConfig }
 
+// InstanceStats holds the per-instance stats shown in the settings menu.
+type InstanceStats struct {
+	ArtifactCount   int
+	FeatureCount    int
+	EvidenceCount   int
+	VersionCount    int
+	LastVersionAt   string // formatted date, empty if none
+	AIMCycles       int
+	CoherenceScore  string // "0.82" or ""
+	CriticalSignals int64
+	WarningSignals  int64
+	GithubRepo      string // "owner/repo" or ""
+	GithubBranch    string // "" = default branch
+	CommitSHA       string // first 7 chars or ""
+	Status          string // "draft" / "active" / "archived"
+	CreatedAt       string // formatted date
+}
+
+type instanceStatsKey struct{}
+
+// WithInstanceStats stores per-instance stats in a context for use by templates.
+func WithInstanceStats(ctx context.Context, stats InstanceStats) context.Context {
+	return context.WithValue(ctx, instanceStatsKey{}, stats)
+}
+
+// InstanceStatsFromContext retrieves instance stats from the context.
+// Returns a zero-value InstanceStats if none is set.
+func InstanceStatsFromContext(ctx context.Context) InstanceStats {
+	s, _ := ctx.Value(instanceStatsKey{}).(InstanceStats)
+	return s
+}
+
 // InstanceSummary is the minimal data needed to render instance nav items.
 type InstanceSummary struct {
 	ID      string

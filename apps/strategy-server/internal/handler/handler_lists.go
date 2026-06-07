@@ -238,6 +238,10 @@ func (s *Server) renderFireTrackPage(c echo.Context, title string, data ui.FireT
 		return echo.NewHTTPError(404, langs.T(ctx, "error.instance_not_found"))
 	}
 
+	stats := s.loadInstanceStats(ctx, instance)
+	ctx = ui.WithInstanceStats(ctx, stats)
+	c.SetRequest(c.Request().WithContext(ctx))
+
 	tabs := s.strategyTabs(instanceID, currentPath)
 	sidebarGroups := s.sidebarGroups(c)
 	content := ui.FireTrackDashboardContent(data)
