@@ -69,7 +69,7 @@ templ GlobalDashboardContent(data GlobalDashboardData) {
 	<div class="p-6 pb-12">
 		<div class="mb-6">
 			<h1 class="text-2xl font-bold text-base-content">{ langs.T(ctx, "ui.dashboard.title") }</h1>
-			<p class="text-sm text-base-content/60 mt-1">{ langs.T(ctx, "ui.dashboard.subtitle") }</p>
+			<p class="text-sm text-base-content/75 mt-1">{ langs.T(ctx, "ui.dashboard.subtitle") }</p>
 		</div>
 
 		@ui.StatCards([]ui.StatCardProps{
@@ -101,7 +101,7 @@ templ instanceCard(inst InstanceInfo) {
 		hx-target="#main-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+		class="card bg-base-100 border border-base-content/15 shadow-sm hover:shadow-md transition-all cursor-pointer group"
 	>
 		<div class="card-body p-5 space-y-3">
 			// ── Header: name, org, status ──
@@ -115,24 +115,24 @@ templ instanceCard(inst InstanceInfo) {
 						@statusBadge(inst.Status)
 					</div>
 					if inst.OrgName != "" {
-						<p class="text-xs text-base-content/50 truncate">{ inst.OrgName }</p>
+						<p class="text-xs text-base-content/65 truncate">{ inst.OrgName }</p>
 					}
 				</div>
 			</div>
 
 			// ── Vision snippet ──
 			if inst.NorthStarVision != "" {
-				<p class="text-xs text-base-content/60 leading-relaxed line-clamp-2 italic">
+				<p class="text-xs text-base-content/75 leading-relaxed line-clamp-2 italic">
 					{ inst.NorthStarVision }
 				</p>
 			}
 
 			// ── Current focus (timeframe + cycle) ──
 			if inst.Timeframe != "" || inst.Cycle != "" {
-				<div class="flex items-center gap-2 text-xs text-base-content/50">
+				<div class="flex items-center gap-2 text-xs text-base-content/65">
 					<span class="iconify lucide--calendar size-3 shrink-0"></span>
 					if inst.Timeframe != "" {
-						<span class="font-medium text-base-content/70">{ inst.Timeframe }</span>
+						<span class="font-medium text-base-content/80">{ inst.Timeframe }</span>
 					}
 					if inst.Cycle != "" {
 						<span class="badge badge-xs badge-ghost font-mono">{ inst.Cycle }</span>
@@ -194,9 +194,9 @@ templ instanceCard(inst InstanceInfo) {
 }
 
 templ instanceStatChip(icon string, value string, label string) {
-	<span class="inline-flex items-center gap-1 rounded-md bg-base-200/50 px-1.5 py-0.5 text-xs text-base-content/50">
+	<span class="inline-flex items-center gap-1 rounded-md bg-base-content/8 border border-base-content/10 px-1.5 py-0.5 text-xs text-base-content/75">
 		<span class={ "iconify size-3 shrink-0", icon }></span>
-		<span class="font-semibold text-base-content/70">{ value }</span>
+		<span class="font-semibold text-base-content/80">{ value }</span>
 		<span>{ label }</span>
 	</span>
 }
@@ -220,7 +220,7 @@ templ emptyDashboard() {
 			<span class="iconify lucide--layers size-12 text-base-content/30"></span>
 		</div>
 		<h3 class="text-lg font-semibold text-base-content mb-2">{ langs.T(ctx, "ui.dashboard.empty_title") }</h3>
-		<p class="text-sm text-base-content/60 max-w-md">
+		<p class="text-sm text-base-content/75 max-w-md">
 			{ langs.T(ctx, "ui.dashboard.empty_body") }
 		</p>
 	</div>

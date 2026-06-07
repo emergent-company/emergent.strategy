@@ -110,12 +110,12 @@ func VersionsContent(data VersionsViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/60 mt-0.5\">Published snapshots of this strategy instance</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/75 mt-0.5\">Published snapshots of this strategy instance</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Versions) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"text-center py-12\"><span class=\"iconify lucide--history size-12 text-base-content/20 mx-auto block mb-4\"></span><p class=\"text-base font-medium text-base-content/60\">No versions yet</p><p class=\"text-sm text-base-content/40 mt-1 mb-6 max-w-md mx-auto\">Versions are point-in-time snapshots of your strategy. A version is automatically published when an AIM cycle completes, or you can publish one manually.</p><div class=\"flex items-center justify-center gap-3\"><form method=\"POST\" action=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"text-center py-12\"><span class=\"iconify lucide--history size-12 text-base-content/20 mx-auto block mb-4\"></span><p class=\"text-base font-medium text-base-content/75\">No versions yet</p><p class=\"text-sm text-base-content/55 mt-1 mb-6 max-w-md mx-auto\">Versions are point-in-time snapshots of your strategy. A version is automatically published when an AIM cycle completes, or you can publish one manually.</p><div class=\"flex items-center justify-center gap-3\"><form method=\"POST\" action=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -133,7 +133,7 @@ func VersionsContent(data VersionsViewData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"divide-y divide-base-content/5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"divide-y divide-base-content/5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -190,7 +190,7 @@ func versionListRow(v VersionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" class=\"flex items-center gap-4 px-5 py-3.5 hover:bg-base-200/40 transition-colors group\"><div class=\"grow min-w-0\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-sm font-bold text-base-content tabular-nums\">v")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" class=\"flex items-center gap-4 px-5 py-3.5 hover:bg-base-100 transition-colors group\"><div class=\"grow min-w-0\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-sm font-bold text-base-content tabular-nums\">v")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -208,7 +208,7 @@ func versionListRow(v VersionRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if v.Label != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"text-sm text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"text-sm text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -283,7 +283,7 @@ func versionListRow(v VersionRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if v.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"text-xs text-base-content/50 mt-0.5 truncate\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"text-xs text-base-content/65 mt-0.5 truncate\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -301,7 +301,7 @@ func versionListRow(v VersionRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<p class=\"text-xs text-base-content/40 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<p class=\"text-xs text-base-content/55 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -314,7 +314,7 @@ func versionListRow(v VersionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p></div><div class=\"text-right shrink-0 hidden sm:block\"><p class=\"text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p></div><div class=\"text-right shrink-0 hidden sm:block\"><p class=\"text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -332,7 +332,7 @@ func versionListRow(v VersionRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if v.EquilibScore != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"tooltip tooltip-left\" data-tip=\"Equilibrium — how aligned the strategy artifacts are\"><p class=\"text-xs text-base-content/40\">eq ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"tooltip tooltip-left\" data-tip=\"Equilibrium — how aligned the strategy artifacts are\"><p class=\"text-xs text-base-content/55\">eq ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -350,7 +350,7 @@ func versionListRow(v VersionRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><span class=\"iconify lucide--chevron-right size-4 text-base-content/30 group-hover:text-base-content/60 shrink-0\"></span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><span class=\"iconify lucide--chevron-right size-4 text-base-content/30 group-hover:text-base-content/75 shrink-0\"></span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -402,7 +402,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Ver.Label != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span class=\"text-xl text-base-content/60\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span class=\"text-xl text-base-content/75\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -434,7 +434,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</div><p class=\"text-sm text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</div><p class=\"text-sm text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -452,7 +452,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Ver.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-sm text-base-content/60 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-sm text-base-content/75 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -518,7 +518,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.CalibrationDecision != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 border-b border-base-content/5 flex items-center gap-3\"><span class=\"iconify lucide--compass size-4 text-base-content/40\"></span><h3 class=\"text-sm font-semibold text-base-content\">Calibration Decision</h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 border-b border-base-content/5 flex items-center gap-3\"><span class=\"iconify lucide--compass size-4 text-base-content/55\"></span><h3 class=\"text-sm font-semibold text-base-content\">Calibration Decision</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -558,7 +558,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.OKRHitRatePct != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<span class=\"text-xs text-base-content/50\">OKR hit rate: ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<span class=\"text-xs text-base-content/65\">OKR hit rate: ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -581,7 +581,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.CalibrationReasoning != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"px-5 py-3\"><p class=\"text-sm text-base-content/70 leading-relaxed\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"px-5 py-3\"><p class=\"text-sm text-base-content/80 leading-relaxed\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -605,12 +605,12 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			}
 		}
 		if len(data.StrategicInsights) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 border-b border-base-content/5 flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-4 text-base-content/40\"></span><h3 class=\"text-sm font-semibold text-base-content\">Strategic Insights</h3></div><div class=\"px-5 py-3 space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 border-b border-base-content/5 flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-4 text-base-content/55\"></span><h3 class=\"text-sm font-semibold text-base-content\">Strategic Insights</h3></div><div class=\"px-5 py-3 space-y-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, insight := range data.StrategicInsights {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"flex items-start gap-2.5\"><span class=\"iconify lucide--arrow-right size-3 text-primary shrink-0 mt-1\"></span><p class=\"text-sm text-base-content/70 leading-relaxed\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"flex items-start gap-2.5\"><span class=\"iconify lucide--arrow-right size-3 text-primary shrink-0 mt-1\"></span><p class=\"text-sm text-base-content/80 leading-relaxed\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -634,7 +634,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			}
 		}
 		if data.CycleRunID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--play-circle size-3.5 text-base-content/40\"></span> <a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--play-circle size-3.5 text-base-content/55\"></span> <a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -666,12 +666,12 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 			}
 		}
 		if data.HasParent {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"space-y-4\"><h3 class=\"text-sm font-bold text-base-content/60 uppercase tracking-widest\">Changes from previous version</h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"space-y-4\"><h3 class=\"text-sm font-bold text-base-content/75 uppercase tracking-widest\">Changes from previous version</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.DiffSummary != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<p class=\"text-sm text-base-content/60\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<p class=\"text-sm text-base-content/75\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -708,7 +708,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 				}
 			}
 			if len(data.Added) == 0 && len(data.Changed) == 0 && len(data.Removed) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<p class=\"text-sm text-base-content/40\">No artifact changes detected from parent version.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<p class=\"text-sm text-base-content/55\">No artifact changes detected from parent version.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -718,7 +718,7 @@ func VersionDetailContent(data VersionDetailData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"rounded-lg bg-base-200/50 border border-base-content/5 px-4 py-3 flex items-start gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/30 mt-0.5 shrink-0\"></span><p class=\"text-xs text-base-content/40\">This is the first version — no parent to diff against.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"rounded-lg bg-base-100 border border-base-content/10 px-4 py-3 flex items-start gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/30 mt-0.5 shrink-0\"></span><p class=\"text-xs text-base-content/55\">This is the first version — no parent to diff against.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -827,7 +827,7 @@ func diffSection(title string, entries []VersionDiffEntry, colorClass, iconClass
 			return templ_7745c5c3_Err
 		}
 		for _, e := range entries {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div class=\"rounded-lg bg-base-200/40 overflow-hidden\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div class=\"rounded-lg bg-base-100 overflow-hidden\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -858,7 +858,7 @@ func diffSection(title string, entries []VersionDiffEntry, colorClass, iconClass
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"flex items-center gap-2 px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group\"><span class=\"iconify lucide--file size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/70 group-hover:text-primary font-medium grow\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"flex items-center gap-2 px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group\"><span class=\"iconify lucide--file size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/80 group-hover:text-primary font-medium grow\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -899,7 +899,7 @@ func diffSection(title string, entries []VersionDiffEntry, colorClass, iconClass
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"flex items-center gap-2 px-3 py-2\"><span class=\"iconify lucide--file size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/70 grow\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"flex items-center gap-2 px-3 py-2\"><span class=\"iconify lucide--file size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/80 grow\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -966,7 +966,7 @@ func diffSection(title string, entries []VersionDiffEntry, colorClass, iconClass
 					return templ_7745c5c3_Err
 				}
 				for _, detail := range e.ChangeDetails {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<p class=\"text-[11px] text-base-content/50 leading-snug pl-5\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<p class=\"text-[11px] text-base-content/65 leading-snug pl-5\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1023,7 +1023,7 @@ func versionStatCard(label, value, icon string) templ.Component {
 			templ_7745c5c3_Var44 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 px-4 py-3 text-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 px-4 py-3 text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1058,7 +1058,7 @@ func versionStatCard(label, value, icon string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</p><p class=\"text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</p><p class=\"text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1235,7 +1235,7 @@ func versionStatusBadge(status string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		case "superseded":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<div class=\"tooltip\" data-tip=\"This version has been replaced by a newer one\"><span class=\"badge badge-xs badge-ghost text-base-content/40\">Superseded</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<div class=\"tooltip\" data-tip=\"This version has been replaced by a newer one\"><span class=\"badge badge-xs badge-ghost text-base-content/55\">Superseded</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

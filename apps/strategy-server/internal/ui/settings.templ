@@ -89,7 +89,7 @@ templ SettingsContent(data SettingsData) {
 		<!-- Page header -->
 		<div>
 			<h1 class="text-xl font-bold text-base-content">{ langs.T(ctx, "page.settings.title") }</h1>
-			<p class="text-sm text-base-content/60 mt-0.5">{ langs.T(ctx, "page.settings.subtitle") }</p>
+			<p class="text-sm text-base-content/75 mt-0.5">{ langs.T(ctx, "page.settings.subtitle") }</p>
 		</div>
 
 		<!-- Memory server status card -->
@@ -117,13 +117,13 @@ templ SettingsContent(data SettingsData) {
 // section is always visible with actionable setup guidance, rather than silently
 // disappearing.
 templ githubNotConfiguredCard(g GithubConfigStatus) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
 		<!-- Header -->
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--github size-5 text-base-content/75"></span>
 			<div class="grow">
 				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.github_sync.title") }</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
+				<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
 			</div>
 			if g.AppConfigured {
 				<span class="badge badge-success badge-sm">{ langs.T(ctx, "settings.github.app_configured") }</span>
@@ -141,8 +141,8 @@ templ githubNotConfiguredCard(g GithubConfigStatus) {
 			</div>
 
 			if !g.AppConfigured {
-				<div class="rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2">
-					<p class="text-sm text-base-content/70">
+				<div class="rounded-lg bg-base-200/60 border border-base-content/15 px-4 py-3 space-y-2">
+					<p class="text-sm text-base-content/80">
 						The GitHub App is not configured, so repo sync and the per-instance sync
 						status are unavailable. In local dev, <code class="bg-base-300/40 px-1 rounded">dev-setup.sh</code>
 						rewrites <code class="bg-base-300/40 px-1 rounded">.env.local</code> on every run, so put
@@ -186,7 +186,7 @@ templ githubMechanismChip(label string, on bool, note string) {
 			{ label }
 		</span>
 	} else {
-		<span class="inline-flex items-center gap-1.5 badge badge-ghost badge-sm text-base-content/40" title={ note }>
+		<span class="inline-flex items-center gap-1.5 badge badge-ghost badge-sm text-base-content/55" title={ note }>
 			<span class="iconify lucide--x size-3"></span>
 			{ label }
 		</span>
@@ -195,13 +195,13 @@ templ githubMechanismChip(label string, on bool, note string) {
 
 // memoryStatusCard renders the Memory server health section.
 templ memoryStatusCard(m MemoryHealthStatus) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
 		<!-- Header -->
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--brain-circuit size-5 text-base-content/60"></span>
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--brain-circuit size-5 text-base-content/75"></span>
 			<div class="grow">
 			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.memory.title") }</h2>
-			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.memory.subtitle") }</p>
+			<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.memory.subtitle") }</p>
 			</div>
 			<!-- Status badge -->
 			if !m.Configured {
@@ -223,15 +223,15 @@ templ memoryStatusCard(m MemoryHealthStatus) {
 		<div class="px-5 py-4 space-y-4">
 			if !m.Configured {
 				<!-- Not configured state -->
-				<div class="rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2">
-					<p class="text-sm text-base-content/70">
+				<div class="rounded-lg bg-base-200/60 border border-base-content/15 px-4 py-3 space-y-2">
+					<p class="text-sm text-base-content/80">
 						Memory is not configured. Set the following environment variables and restart the server:
 					</p>
 					<pre class="text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto">EPF_MEMORY_URL=http://localhost:3002
 EPF_MEMORY_PROJECT=&lt;project-id&gt;
 EPF_MEMORY_TOKEN=&lt;standalone-api-key&gt;
 EPF_MEMORY_AUTH_MODE=api-key</pre>
-					<p class="text-xs text-base-content/50">
+					<p class="text-xs text-base-content/65">
 						Start the Memory server with <code class="bg-base-300/40 px-1 rounded">memory server ctl start</code>,
 						then re-run <code class="bg-base-300/40 px-1 rounded">task dev-up</code> to auto-detect it.
 					</p>
@@ -249,7 +249,7 @@ EPF_MEMORY_AUTH_MODE=api-key</pre>
 			}
 			if m.Error != "" {
 				<div class="sm:col-span-2">
-					<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">{ langs.T(ctx, "settings.memory.kv.last_error") }</dt>
+					<dt class="text-xs font-medium text-base-content/65 uppercase tracking-wide mb-0.5">{ langs.T(ctx, "settings.memory.kv.last_error") }</dt>
 						<dd class="text-xs text-error font-mono break-all">{ m.Error }</dd>
 					</div>
 				}
@@ -271,12 +271,12 @@ EPF_MEMORY_AUTH_MODE=api-key</pre>
 
 // instanceIngestTable renders per-instance Memory sync status.
 templ instanceIngestTable(instances []InstanceMemoryStatus) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--layers size-5 text-base-content/60"></span>
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--layers size-5 text-base-content/75"></span>
 			<div class="grow">
 			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.instances.title") }</h2>
-			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.instances.subtitle") }</p>
+			<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.instances.subtitle") }</p>
 			</div>
 			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
 		</div>
@@ -295,18 +295,18 @@ templ instanceIngestRow(inst InstanceMemoryStatus) {
 		<div class="grow min-w-0">
 			<p class="text-sm font-medium text-base-content truncate">{ inst.Name }</p>
 			if inst.OrgName != "" {
-				<p class="text-xs text-base-content/50">{ inst.OrgName }</p>
+				<p class="text-xs text-base-content/65">{ inst.OrgName }</p>
 			}
 		if inst.LastSyncedAt != nil {
-			<p class="text-xs text-base-content/40 mt-0.5">{ langs.T(ctx, "settings.instance.synced_at") } { inst.LastSyncedAt.Format("2 Jan 15:04") }</p>
+			<p class="text-xs text-base-content/55 mt-0.5">{ langs.T(ctx, "settings.instance.synced_at") } { inst.LastSyncedAt.Format("2 Jan 15:04") }</p>
 		}
 		</div>
 
 		<!-- Graph counts -->
 		<div class="text-right shrink-0 hidden sm:block">
-		<p class="text-xs text-base-content/50">{ fmt.Sprintf(langs.T(ctx, "settings.instance.artifact_count"), inst.ArtifactCount) }</p>
+		<p class="text-xs text-base-content/65">{ fmt.Sprintf(langs.T(ctx, "settings.instance.artifact_count"), inst.ArtifactCount) }</p>
 		if inst.GraphObjectCount > 0 {
-			<p class="text-xs text-base-content/40">{ fmt.Sprintf(langs.T(ctx, "settings.instance.graph_counts"), inst.GraphObjectCount, inst.GraphEdgeCount) }</p>
+			<p class="text-xs text-base-content/55">{ fmt.Sprintf(langs.T(ctx, "settings.instance.graph_counts"), inst.GraphObjectCount, inst.GraphEdgeCount) }</p>
 		}
 		if inst.DecomposedObjectCount > 0 {
 			<p class="text-xs text-base-content/30">{ fmt.Sprintf(langs.T(ctx, "settings.instance.decomposed_counts"), inst.DecomposedObjectCount, inst.DecomposedEdgeCount) }</p>
@@ -339,27 +339,27 @@ templ ingestStatusBadge(status string) {
 				{ langs.T(ctx, "ui.status.failed") }
 			</span>
 		default:
-			<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.status.not_synced") }</span>
+			<span class="badge badge-ghost badge-sm text-base-content/55">{ langs.T(ctx, "ui.status.not_synced") }</span>
 	}
 }
 
 // settingsKV renders a key-value definition pair.
 templ settingsKV(label, value string) {
 	<div>
-		<dt class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5">{ label }</dt>
+		<dt class="text-xs font-medium text-base-content/65 uppercase tracking-wide mb-0.5">{ label }</dt>
 		<dd class="text-sm text-base-content font-mono break-all">{ value }</dd>
 	</div>
 }
 
 // githubSyncCard renders the GitHub sync status section.
 templ githubSyncCard(instances []GithubSyncStatus) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
 		<!-- Header -->
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--github size-5 text-base-content/75"></span>
 			<div class="grow">
 			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.github_sync.title") }</h2>
-			<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
+			<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.github_sync.subtitle") }</p>
 			</div>
 			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d instances", len(instances)) }</span>
 			<a href="/github/connect" class="btn btn-xs btn-ghost border border-base-content/20 gap-1">
@@ -386,7 +386,7 @@ templ githubSyncRow(inst GithubSyncStatus) {
 				if inst.RepoLinked {
 					<div class="flex items-center gap-1.5 flex-wrap mt-0.5">
 						<a href={ templ.SafeURL("https://github.com/" + inst.Repo) } target="_blank" rel="noopener"
-							class="text-xs text-base-content/60 hover:text-primary font-mono">
+							class="text-xs text-base-content/75 hover:text-primary font-mono">
 							{ inst.Repo }
 						</a>
 						if inst.ActiveBranch != "" {
@@ -397,12 +397,12 @@ templ githubSyncRow(inst GithubSyncStatus) {
 						}
 					</div>
 				} else {
-					<p class="text-xs text-base-content/40 mt-0.5">{ langs.T(ctx, "settings.github.no_repo_configured") }</p>
+					<p class="text-xs text-base-content/55 mt-0.5">{ langs.T(ctx, "settings.github.no_repo_configured") }</p>
 				}
 
 				<!-- SHA comparison row -->
 				if inst.LocalSHA != "" || inst.RemoteSHA != "" {
-					<div class="flex items-center gap-2 mt-1 text-xs text-base-content/40 font-mono">
+					<div class="flex items-center gap-2 mt-1 text-xs text-base-content/55 font-mono">
 						if inst.LocalSHA != "" {
 							<span title="Server's last synced commit">server: { inst.LocalSHA }</span>
 						}
@@ -417,7 +417,7 @@ templ githubSyncRow(inst GithubSyncStatus) {
 
 				<!-- Last sync info -->
 				if inst.LastSyncAt != nil {
-					<p class="text-xs text-base-content/40 mt-0.5">
+					<p class="text-xs text-base-content/55 mt-0.5">
 					if inst.LastDirection == "import" {
 						imported { inst.LastSyncAt.Format("2 Jan 15:04") }
 					} else {
@@ -472,7 +472,7 @@ templ githubSyncRow(inst GithubSyncStatus) {
 			<form method="POST" action={ templ.SafeURL("/strategies/" + inst.InstanceID + "/move") }
 				class="flex items-center gap-2 flex-wrap">
 				<span class="iconify lucide--folder-symlink size-3.5 text-base-content/30 shrink-0"></span>
-				<span class="text-xs text-base-content/40">Move to:</span>
+				<span class="text-xs text-base-content/55">Move to:</span>
 				<select
 					name="workspace_id"
 					class="select select-xs select-bordered"
@@ -538,9 +538,9 @@ templ githubSyncStateBadge(state string, repoLinked bool) {
 			</span>
 		default:
 			if !repoLinked {
-				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
+				<span class="badge badge-ghost badge-sm text-base-content/55">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
 			} else {
-				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
+				<span class="badge badge-ghost badge-sm text-base-content/55">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
 			}
 	}
 }
@@ -566,21 +566,21 @@ templ githubSyncStatusBadge(status string, repoLinked bool) {
 			</span>
 		default:
 			if !repoLinked {
-				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
+				<span class="badge badge-ghost badge-sm text-base-content/55">{ langs.T(ctx, "ui.sync_state.not_linked") }</span>
 			} else {
-				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
+				<span class="badge badge-ghost badge-sm text-base-content/55">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
 			}
 	}
 }
 
 // langPickerCard renders the language preference section of the settings page.
 templ langPickerCard(activeLang string) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--languages size-5 text-base-content/60"></span>
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--languages size-5 text-base-content/75"></span>
 			<div class="grow">
 				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.lang.title") }</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.lang.subtitle") }</p>
+				<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.lang.subtitle") }</p>
 			</div>
 		</div>
 		<div class="px-5 py-4">

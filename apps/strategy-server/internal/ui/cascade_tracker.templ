@@ -83,7 +83,7 @@ templ CascadeTrackerPanel(data CascadeData) {
 		}
 		if len(data.RecentRuns) > 0 && len(data.ActiveSkillRuns) == 0 && data.ActiveAIMRun == nil {
 			<details class="group">
-				<summary class="flex items-center gap-2 text-xs font-semibold text-base-content/50 uppercase tracking-widest cursor-pointer select-none">
+				<summary class="flex items-center gap-2 text-xs font-semibold text-base-content/65 uppercase tracking-widest cursor-pointer select-none">
 					<span class="iconify lucide--history size-3.5"></span>
 					Recent runs
 					<span class="iconify lucide--chevron-right size-3 group-open:rotate-90 transition-transform ml-auto"></span>
@@ -108,10 +108,10 @@ templ cascadeAIMRunCard(run CascadeAIMRun, instanceID string) {
 		<div class="min-w-0 grow">
 			<p class="text-xs font-semibold text-base-content">AIM Cycle Running</p>
 			if run.CurrentStep != "" {
-				<p class="text-xs text-base-content/60 truncate">{ cascadeStepLabel(run.CurrentStep) }</p>
+				<p class="text-xs text-base-content/75 truncate">{ cascadeStepLabel(run.CurrentStep) }</p>
 			}
 		</div>
-		<span class="iconify lucide--arrow-right size-3.5 text-base-content/40 group-hover:text-warning transition-colors shrink-0"></span>
+		<span class="iconify lucide--arrow-right size-3.5 text-base-content/55 group-hover:text-warning transition-colors shrink-0"></span>
 	</a>
 }
 
@@ -132,7 +132,7 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 
 				// Affected artifacts (when available)
 				if len(run.ArtifactTypes) > 0 {
-					<div class="flex items-center gap-1 text-xs text-base-content/50">
+					<div class="flex items-center gap-1 text-xs text-base-content/65">
 						<span class="iconify lucide--layers size-3 shrink-0"></span>
 						for i, at := range run.ArtifactTypes {
 							if i > 0 {
@@ -153,7 +153,7 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 							></div>
 						</div>
 						<span class="tooltip" data-tip="LLM processing segments completed">
-							<span class="text-xs text-base-content/50 shrink-0">
+							<span class="text-xs text-base-content/65 shrink-0">
 								{ itoa(run.ChunksCompleted) }/{ itoa(run.ChunkCount) } chunks
 							</span>
 						</span>
@@ -162,7 +162,7 @@ templ cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool)
 
 				// Completed run summary: tokens + duration
 				if !isActive && run.Status == "completed" {
-					<div class="flex items-center gap-3 text-xs text-base-content/50">
+					<div class="flex items-center gap-3 text-xs text-base-content/65">
 						if run.TotalInputTokens+run.TotalOutputTokens > 0 {
 							<span class="tooltip" data-tip="Total language model tokens used">
 								<span class="flex items-center gap-1">
@@ -212,12 +212,12 @@ templ cascadeBatchCard(batch CascadeBatch, instanceID string) {
 			<div class="min-w-0 grow space-y-1">
 				<p class="text-xs font-semibold text-base-content">AI draft pending review</p>
 				if batch.Description != "" {
-					<p class="text-xs text-base-content/60 line-clamp-1">{ batch.Description }</p>
+					<p class="text-xs text-base-content/75 line-clamp-1">{ batch.Description }</p>
 				} else if batch.AgentID != "" {
-					<p class="text-xs text-base-content/60">From { batch.AgentID }</p>
+					<p class="text-xs text-base-content/75">From { batch.AgentID }</p>
 				}
 				if batch.MutationCount > 0 {
-					<p class="text-xs text-base-content/40">{ itoa(batch.MutationCount) } changes staged</p>
+					<p class="text-xs text-base-content/55">{ itoa(batch.MutationCount) } changes staged</p>
 				}
 				if batch.DownstreamHint != "" {
 					<div class="flex items-start gap-1 text-xs text-info/70 mt-1">
@@ -248,7 +248,7 @@ func cascadeRunBorderClass(status string, isActive bool) string {
 	case "failed":
 		return "border-error/15 bg-error/5"
 	default:
-		return "border-base-content/10"
+		return "border-base-content/15"
 	}
 }
 
@@ -274,7 +274,7 @@ func cascadeRunIconColor(status string) string {
 	case "failed":
 		return "text-error"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -337,14 +337,14 @@ templ cascadeTriggerBadge(trigger string) {
 	switch trigger {
 	case "ripple":
 		<span class="tooltip" data-tip="Triggered by a coherence propagation from related artifacts">
-			<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+			<span class="badge badge-xs badge-ghost gap-1 text-base-content/65">
 				<span class="iconify lucide--waves size-2.5"></span>
 				ripple
 			</span>
 		</span>
 	case "aim_cycle":
 		<span class="tooltip" data-tip="Triggered by an AIM cycle run">
-			<span class="badge badge-xs badge-ghost gap-1 text-base-content/50">
+			<span class="badge badge-xs badge-ghost gap-1 text-base-content/65">
 				<span class="iconify lucide--rotate-ccw size-2.5"></span>
 				AIM
 			</span>

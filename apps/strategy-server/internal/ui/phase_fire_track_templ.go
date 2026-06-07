@@ -213,7 +213,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " Track</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " Track</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -252,7 +252,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " definitions</p></div></div></div><!-- Section 1: Roadmap KRs --><div class=\"card border border-base-content/10 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--target size-4 text-base-content/40\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " definitions</p></div></div></div><!-- Section 1: Roadmap KRs --><div class=\"card border border-base-content/15 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--target size-4 text-base-content/55\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -265,12 +265,12 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</h3><span class=\"text-xs text-base-content/40\">from READY handoff</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</h3><span class=\"text-xs text-base-content/55\">from READY handoff</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Objectives) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"text-sm text-base-content/40 italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"text-sm text-base-content/55 italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -351,7 +351,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for _, kr := range obj.KeyResults {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<li class=\"flex items-start gap-2 text-xs text-base-content/60 leading-snug\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<li class=\"flex items-start gap-2 text-xs text-base-content/75 leading-snug\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -391,7 +391,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if kr.TRLProgression != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"ml-1.5 inline-flex items-center gap-1 rounded bg-base-200 px-1.5 py-0.5 font-mono text-xs text-base-content/50\" title=\"Technology Readiness Level progression\"><span class=\"iconify lucide--flask-conical size-3\"></span> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"ml-1.5 inline-flex items-center gap-1 rounded bg-base-200 px-1.5 py-0.5 font-mono text-xs text-base-content/65\" title=\"Technology Readiness Level progression\"><span class=\"iconify lucide--flask-conical size-3\"></span> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -429,7 +429,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div></div><!-- Section 2: Value Model --><div class=\"card border border-base-content/10 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--layers size-4 text-base-content/40\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</div></div><!-- Section 2: Value Model --><div class=\"card border border-base-content/15 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--layers size-4 text-base-content/55\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -442,12 +442,12 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</h3><span class=\"text-xs text-base-content/40\">names the value generators that deliver outcomes</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</h3><span class=\"text-xs text-base-content/55\">names the value generators that deliver outcomes</span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.ValueModels) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<p class=\"text-sm text-base-content/40 italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<p class=\"text-sm text-base-content/55 italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -496,7 +496,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"block rounded-lg border border-base-content/10 bg-base-200/30 px-4 py-3 hover:bg-base-200/60 transition-colors cursor-pointer\"><div class=\"flex items-center justify-between mb-2\"><p class=\"text-xs font-semibold text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"block rounded-lg border border-base-content/15 bg-base-100 px-4 py-3 hover:bg-base-200/60 transition-colors cursor-pointer\"><div class=\"flex items-center justify-between mb-2\"><p class=\"text-xs font-semibold text-base-content/80\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -519,7 +519,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for _, layer := range vm.Layers {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<span class=\"inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-100 border border-base-content/10 text-base-content/55 leading-tight\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<span class=\"inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-100 border border-base-content/15 text-base-content/55 leading-tight\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -552,7 +552,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</div></div><!-- Section 3: Definitions --><div class=\"card border border-base-content/10 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--file-text size-4 text-base-content/40\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</div></div><!-- Section 3: Definitions --><div class=\"card border border-base-content/15 bg-base-100 shadow-sm\"><div class=\"card-body p-5 gap-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--file-text size-4 text-base-content/55\"></span><h3 class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -565,7 +565,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</h3><span class=\"text-xs text-base-content/40\">requirements for delivering outcomes — each traces to a KR</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</h3><span class=\"text-xs text-base-content/55\">requirements for delivering outcomes — each traces to a KR</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -628,7 +628,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.ProductLines) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<!-- Product track: single table, product line → layer → component as divider rows --> <div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/40\"><th class=\"font-medium\">Feature</th><th class=\"w-28 font-medium\">Status</th><th class=\"w-28 font-medium\">Maturity</th><th class=\"w-24 font-medium\">Capabilities</th><th class=\"font-medium\">Implementation</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<!-- Product track: single table, product line → layer → component as divider rows --> <div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/55\"><th class=\"font-medium\">Feature</th><th class=\"w-28 font-medium\">Status</th><th class=\"w-28 font-medium\">Maturity</th><th class=\"w-24 font-medium\">Capabilities</th><th class=\"font-medium\">Implementation</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -659,7 +659,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-2 group pointer-events-auto\"><span class=\"text-xs font-bold uppercase tracking-wider text-base-content/60 group-hover:text-base-content transition-colors\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-2 group pointer-events-auto\"><span class=\"text-xs font-bold uppercase tracking-wider text-base-content/75 group-hover:text-base-content transition-colors\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -672,13 +672,13 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</span> <span class=\"iconify lucide--arrow-up-right size-3 text-base-content/30 group-hover:text-base-content/60\"></span></a></td></tr>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</span> <span class=\"iconify lucide--arrow-up-right size-3 text-base-content/30 group-hover:text-base-content/75\"></span></a></td></tr>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(pl.Layers) > 0 {
 					for _, layer := range pl.Layers {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<!-- Layer divider row --> <tr class=\"pointer-events-none select-none bg-base-200/40\"><td colspan=\"5\" class=\"py-1 px-3 pl-5\"><span class=\"text-xs font-semibold text-base-content/40 uppercase tracking-wider\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<!-- Layer divider row --> <tr class=\"pointer-events-none select-none bg-base-100\"><td colspan=\"5\" class=\"py-1 px-3 pl-5\"><span class=\"text-xs font-semibold text-base-content/55 uppercase tracking-wider\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -696,7 +696,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						for _, comp := range layer.Components {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<!-- Component divider row --> <tr class=\"pointer-events-none select-none\"><td colspan=\"5\" class=\"py-1 px-3 pl-8 border-b border-base-content/5\"><span class=\"text-xs font-medium text-base-content/50\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<!-- Component divider row --> <tr class=\"pointer-events-none select-none\"><td colspan=\"5\" class=\"py-1 px-3 pl-8 border-b border-base-content/5\"><span class=\"text-xs font-medium text-base-content/65\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -742,12 +742,12 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if len(data.Layers) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<!-- Canonical track: single table, layer → component as divider rows, 5 unified columns --> <!-- Tier legend --> <div class=\"flex items-center gap-3 mb-2\"><span class=\"text-xs text-base-content/35\">Maturity tier:</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 1\"><span class=\"badge badge-ghost badge-sm font-mono\">T1</span></span> Basic — minimum viable, founder-led</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 2\"><span class=\"badge badge-ghost badge-sm font-mono\">T2</span></span> Structured — repeatable, documented</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 3\"><span class=\"badge badge-ghost badge-sm font-mono\">T3</span></span> Advanced — measured, optimised</span></div><div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/40\"><th class=\"font-medium\">Definition</th><th class=\"w-24 font-medium\">Status</th><th class=\"font-medium\">Maturity</th><th class=\"font-medium\">Effort</th><th class=\"font-medium\">Owner</th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<!-- Canonical track: single table, layer → component as divider rows, 5 unified columns --> <!-- Tier legend --> <div class=\"flex items-center gap-3 mb-2\"><span class=\"text-xs text-base-content/35\">Maturity tier:</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 1\"><span class=\"badge badge-ghost badge-sm font-mono\">T1</span></span> Basic — minimum viable, founder-led</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 2\"><span class=\"badge badge-ghost badge-sm font-mono\">T2</span></span> Structured — repeatable, documented</span> <span class=\"inline-flex items-center gap-1 text-xs text-base-content/45\"><span class=\"tooltip\" data-tip=\"Maturity Tier 3\"><span class=\"badge badge-ghost badge-sm font-mono\">T3</span></span> Advanced — measured, optimised</span></div><div class=\"overflow-x-auto rounded-lg border border-base-content/8\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/55\"><th class=\"font-medium\">Definition</th><th class=\"w-24 font-medium\">Status</th><th class=\"font-medium\">Maturity</th><th class=\"font-medium\">Effort</th><th class=\"font-medium\">Owner</th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, layer := range data.Layers {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<!-- Layer divider row --> <tr class=\"pointer-events-none select-none bg-base-200/40\"><td colspan=\"5\" class=\"py-1.5 px-3\"><span class=\"text-xs font-semibold text-base-content/40 uppercase tracking-wider\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<!-- Layer divider row --> <tr class=\"pointer-events-none select-none bg-base-100\"><td colspan=\"5\" class=\"py-1.5 px-3\"><span class=\"text-xs font-semibold text-base-content/55 uppercase tracking-wider\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -765,7 +765,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, comp := range layer.Components {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<!-- Component divider row --> <tr class=\"pointer-events-none select-none\"><td colspan=\"5\" class=\"py-1 px-3 pl-5 border-b border-base-content/5\"><span class=\"text-xs font-medium text-base-content/50\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<!-- Component divider row --> <tr class=\"pointer-events-none select-none\"><td colspan=\"5\" class=\"py-1 px-3 pl-5 border-b border-base-content/5\"><span class=\"text-xs font-medium text-base-content/65\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -846,7 +846,7 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 									return templ_7745c5c3_Err
 								}
 								if d.MaturityDescription != "" {
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<span class=\"text-xs text-base-content/40 leading-tight\">")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<span class=\"text-xs text-base-content/55 leading-tight\">")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -908,12 +908,12 @@ func FireTrackDashboardContent(data FireTrackDashboardData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if len(data.Definitions) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<p class=\"text-sm text-base-content/40 italic\">No definitions yet.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<p class=\"text-sm text-base-content/55 italic\">No definitions yet.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<!-- Flat fallback (no value model grouping available) --> <div class=\"overflow-x-auto\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/50\"><th class=\"font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<!-- Flat fallback (no value model grouping available) --> <div class=\"overflow-x-auto\"><table class=\"table table-sm w-full\"><thead><tr class=\"text-xs text-base-content/65\"><th class=\"font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1146,7 +1146,7 @@ func featureDefinitionRow(d FireTrackDefinition) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 hover:bg-base-300 text-base-content/60 hover:text-base-content transition-colors leading-tight\" onclick=\"event.stopPropagation()\"><span class=\"iconify lucide--external-link size-3\"></span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 hover:bg-base-300 text-base-content/75 hover:text-base-content transition-colors leading-tight\" onclick=\"event.stopPropagation()\"><span class=\"iconify lucide--external-link size-3\"></span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1164,7 +1164,7 @@ func featureDefinitionRow(d FireTrackDefinition) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<span class=\"inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/40 leading-tight\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<span class=\"inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/55 leading-tight\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

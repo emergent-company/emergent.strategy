@@ -197,12 +197,12 @@ func GithubConnectContent(data GithubConnectData) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"px-6 py-5 space-y-6 max-w-4xl\"><!-- Page header --><div class=\"flex items-start justify-between\"><div><h1 class=\"text-xl font-bold text-base-content\">Connect GitHub</h1><p class=\"text-sm text-base-content/60 mt-0.5\">Discover repositories and link them to strategy instances for bidirectional sync.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"px-6 py-5 space-y-6 max-w-4xl\"><!-- Page header --><div class=\"flex items-start justify-between\"><div><h1 class=\"text-xl font-bold text-base-content\">Connect GitHub</h1><p class=\"text-sm text-base-content/75 mt-0.5\">Discover repositories and link them to strategy instances for bidirectional sync.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if data.GithubUserLogin != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"flex items-center gap-2 text-sm text-base-content/60\"><span class=\"iconify lucide--github size-4\"></span> <span>Connected as <strong class=\"text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"flex items-center gap-2 text-sm text-base-content/75\"><span class=\"iconify lucide--github size-4\"></span> <span>Connected as <strong class=\"text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -293,17 +293,17 @@ func githubConnectNeedsAuth(oauthConfigured bool) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--github size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Step 1 — Connect your GitHub account</h2><p class=\"text-xs text-base-content/50 mt-0.5\">Authorize this platform to see which GitHub orgs you have access to</p></div></div><div class=\"px-5 py-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--github size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Step 1 — Connect your GitHub account</h2><p class=\"text-xs text-base-content/65 mt-0.5\">Authorize this platform to see which GitHub orgs you have access to</p></div></div><div class=\"px-5 py-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if oauthConfigured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"space-y-3\"><p class=\"text-sm text-base-content/70\">To discover repositories, authorize your GitHub account. This requests <strong>repo</strong> and <strong>read:org</strong> scope.</p><p class=\"text-sm text-base-content/50\">Public repos across all your orgs appear immediately. Private repos require an org admin to approve this app — see the info card below.</p><a href=\"/github/connect/authorize\" class=\"btn btn-primary btn-sm gap-2 inline-flex\"><span class=\"iconify lucide--github size-4\"></span> Connect GitHub account</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"space-y-3\"><p class=\"text-sm text-base-content/80\">To discover repositories, authorize your GitHub account. This requests <strong>repo</strong> and <strong>read:org</strong> scope.</p><p class=\"text-sm text-base-content/65\">Public repos across all your orgs appear immediately. Private repos require an org admin to approve this app — see the info card below.</p><a href=\"/github/connect/authorize\" class=\"btn btn-primary btn-sm gap-2 inline-flex\"><span class=\"iconify lucide--github size-4\"></span> Connect GitHub account</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"text-sm text-base-content/50\">GitHub OAuth is not configured on this server. Set <code class=\"bg-base-200 px-1 rounded\">GITHUB_OAUTH_CLIENT_ID</code> and <code class=\"bg-base-200 px-1 rounded\">GITHUB_OAUTH_CLIENT_SECRET</code> and restart.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"text-sm text-base-content/65\">GitHub OAuth is not configured on this server. Set <code class=\"bg-base-200 px-1 rounded\">GITHUB_OAUTH_CLIENT_ID</code> and <code class=\"bg-base-200 px-1 rounded\">GITHUB_OAUTH_CLIENT_SECRET</code> and restart.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -338,7 +338,7 @@ func githubConnectNotConfigured() templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"rounded-xl border border-warning/30 bg-warning/5 p-6 space-y-3\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--triangle-alert size-5 text-warning\"></span><h2 class=\"text-sm font-bold text-base-content\">GitHub App not configured</h2></div><p class=\"text-sm text-base-content/70\">The GitHub App integration requires <code class=\"bg-base-200 px-1 rounded\">GITHUB_APP_ID</code> and <code class=\"bg-base-200 px-1 rounded\">GITHUB_APP_PRIVATE_KEY_PATH</code> to be set. Contact your server administrator.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"rounded-xl border border-warning/30 bg-warning/5 p-6 space-y-3\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--triangle-alert size-5 text-warning\"></span><h2 class=\"text-sm font-bold text-base-content\">GitHub App not configured</h2></div><p class=\"text-sm text-base-content/80\">The GitHub App integration requires <code class=\"bg-base-200 px-1 rounded\">GITHUB_APP_ID</code> and <code class=\"bg-base-200 px-1 rounded\">GITHUB_APP_PRIVATE_KEY_PATH</code> to be set. Contact your server administrator.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -368,7 +368,7 @@ func githubRepoListLoadingInner() templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--folder-git-2 size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Your repositories</h2><p class=\"text-xs text-base-content/50 mt-0.5\">Scanning your GitHub repositories…</p></div></div><div class=\"px-5 py-8 flex flex-col items-center gap-3 text-base-content/50\"><span class=\"iconify lucide--loader-circle size-7 animate-spin text-primary\"></span><p class=\"text-sm\">Checking all your repos for EPF instances — this can take a moment for large orgs.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--folder-git-2 size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Your repositories</h2><p class=\"text-xs text-base-content/65 mt-0.5\">Scanning your GitHub repositories…</p></div></div><div class=\"px-5 py-8 flex flex-col items-center gap-3 text-base-content/65\"><span class=\"iconify lucide--loader-circle size-7 animate-spin text-primary\"></span><p class=\"text-sm\">Checking all your repos for EPF instances — this can take a moment for large orgs.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -430,7 +430,7 @@ func GithubConnectReposLoadingFragment() templ.Component {
 			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\" hx-get=\"/github/connect/repos\" hx-trigger=\"load\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\" hx-get=\"/github/connect/repos\" hx-trigger=\"load\" hx-swap=\"outerHTML\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -469,7 +469,7 @@ func GithubConnectRepoPollingSkeleton() templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\" hx-get=\"/github/connect/repos\" hx-trigger=\"every 3s\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\" hx-get=\"/github/connect/repos\" hx-trigger=\"every 3s\" hx-swap=\"outerHTML\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -508,7 +508,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--folder-git-2 size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Your repositories</h2><p class=\"text-xs text-base-content/50 mt-0.5\">All repos you have access to across your GitHub organizations</p></div><!-- Summary + refresh -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div id=\"github-repo-list\" class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--folder-git-2 size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">Your repositories</h2><p class=\"text-xs text-base-content/65 mt-0.5\">All repos you have access to across your GitHub organizations</p></div><!-- Summary + refresh -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -546,7 +546,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if len(data.Repos) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"px-5 py-4 text-sm text-base-content/50\">No repositories found. Make sure your GitHub account is connected and you have repo access.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"px-5 py-4 text-sm text-base-content/65\">No repositories found. Make sure your GitHub account is connected and you have repo access.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -570,7 +570,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if !hasEPF {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"px-5 py-4 text-sm text-base-content/50\">No EPF instances detected in your repositories. All ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"px-5 py-4 text-sm text-base-content/65\">No EPF instances detected in your repositories. All ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -603,7 +603,7 @@ func GithubConnectRepoListFragment(data GithubConnectData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if nonEPFCount > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<details class=\"border-t border-base-content/5\"><summary class=\"px-5 py-3 text-xs text-base-content/40 cursor-pointer hover:text-base-content/60 list-none flex items-center gap-2\"><span class=\"iconify lucide--chevron-right size-3.5 transition-transform details-open:rotate-90\"></span> Show ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<details class=\"border-t border-base-content/5\"><summary class=\"px-5 py-3 text-xs text-base-content/55 cursor-pointer hover:text-base-content/75 list-none flex items-center gap-2\"><span class=\"iconify lucide--chevron-right size-3.5 transition-transform details-open:rotate-90\"></span> Show ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -757,7 +757,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</div><!-- Full name + last pushed --><div class=\"flex items-center gap-3 mt-0.5 flex-wrap\"><p class=\"text-xs text-base-content/40 font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</div><!-- Full name + last pushed --><div class=\"flex items-center gap-3 mt-0.5 flex-wrap\"><p class=\"text-xs text-base-content/55 font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -775,7 +775,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			return templ_7745c5c3_Err
 		}
 		if !repo.PushedAt.IsZero() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<span class=\"text-xs text-base-content/40 flex items-center gap-1\"><span class=\"iconify lucide--git-commit-horizontal size-3\"></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<span class=\"text-xs text-base-content/55 flex items-center gap-1\"><span class=\"iconify lucide--git-commit-horizontal size-3\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -817,7 +817,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 			}
 		}
 		if repo.HeadCommit.SHA != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"flex items-center gap-1.5 mt-1.5 text-xs text-base-content/40 font-mono\"><span class=\"iconify lucide--git-commit-horizontal size-3 shrink-0\"></span> <a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"flex items-center gap-1.5 mt-1.5 text-xs text-base-content/55 font-mono\"><span class=\"iconify lucide--git-commit-horizontal size-3 shrink-0\"></span> <a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -887,7 +887,7 @@ func githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) temp
 				return templ_7745c5c3_Err
 			}
 			if repo.HeadCommit.AuthorName != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<span class=\"text-base-content/25 shrink-0\">by</span> <span class=\"shrink-0 text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<span class=\"text-base-content/25 shrink-0\">by</span> <span class=\"shrink-0 text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -990,7 +990,7 @@ func githubWritebackBadge(hasAppInstall bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<span class=\"badge badge-ghost badge-xs gap-1 text-base-content/40\" title=\"GitHub App not installed — AIM auto-push disabled. Manual import and push still work.\"><span class=\"iconify lucide--zap-off size-3\"></span> No auto-push</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<span class=\"badge badge-ghost badge-xs gap-1 text-base-content/55\" title=\"GitHub App not installed — AIM auto-push disabled. Manual import and push still work.\"><span class=\"iconify lucide--zap-off size-3\"></span> No auto-push</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1106,7 +1106,7 @@ func githubEPFBadge(repo GithubRepoScanItem) templ.Component {
 				}
 			}
 		} else if len(repo.EPFViaSubmoduleOf) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<span class=\"badge badge-ghost badge-xs gap-1 text-base-content/50\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<span class=\"badge badge-ghost badge-xs gap-1 text-base-content/65\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1155,7 +1155,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 			templ_7745c5c3_Var37 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<div class=\"rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3\"><!-- Path + submodule notice -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<div class=\"rounded-lg border border-base-content/15 bg-base-100 px-4 py-3 space-y-3\"><!-- Path + submodule notice -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1165,7 +1165,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				return templ_7745c5c3_Err
 			}
 			if inst.BasePath != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"iconify lucide--folder size-3.5 text-base-content/40\"></span> <code class=\"text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span class=\"iconify lucide--folder size-3.5 text-base-content/55\"></span> <code class=\"text-xs text-base-content/80 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1183,7 +1183,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<span class=\"badge badge-info badge-xs gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> submodule</span> <span class=\"text-xs text-base-content/40\">from <code class=\"font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<span class=\"badge badge-info badge-xs gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> submodule</span> <span class=\"text-xs text-base-content/55\">from <code class=\"font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1201,7 +1201,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 				return templ_7745c5c3_Err
 			}
 		} else if inst.BasePath != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--folder size-3.5 text-base-content/40\"></span> <code class=\"text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<div class=\"flex items-center gap-2\"><span class=\"iconify lucide--folder size-3.5 text-base-content/55\"></span> <code class=\"text-xs text-base-content/80 font-mono bg-base-300/50 px-1.5 py-0.5 rounded\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1263,7 +1263,7 @@ func githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, work
 			return templ_7745c5c3_Err
 		}
 		if len(workspaces) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<!-- No workspaces yet — let the user name one inline --> <span class=\"text-xs text-base-content/50\">New workspace name:</span> <input type=\"text\" name=\"new_workspace_name\" placeholder=\"e.g. My Company\" required class=\"input input-xs input-bordered w-44\"> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<!-- No workspaces yet — let the user name one inline --> <span class=\"text-xs text-base-content/65\">New workspace name:</span> <input type=\"text\" name=\"new_workspace_name\" placeholder=\"e.g. My Company\" required class=\"input input-xs input-bordered w-44\"> <button type=\"submit\" name=\"action\" value=\"import\" class=\"btn btn-xs btn-primary gap-1\"><span class=\"iconify lucide--download size-3\"></span> Import</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1352,7 +1352,7 @@ func githubConnectAppInstallInfo(appInstallURL string) templ.Component {
 			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 space-y-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/50 shrink-0\"></span><p class=\"text-sm font-semibold text-base-content\">How GitHub access works</p></div><div class=\"grid grid-cols-1 sm:grid-cols-3 gap-3\"><!-- Public repos --><div class=\"rounded-lg bg-success/5 border border-success/20 px-4 py-3 space-y-1\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--check-circle size-3.5 text-success\"></span><p class=\"text-xs font-semibold text-base-content\">Public repos</p></div><p class=\"text-xs text-base-content/60\">Work immediately. No admin setup required.</p></div><!-- Private repos — OAuth App approval --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--shield size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">Private repos — import & push</p></div><p class=\"text-xs text-base-content/60\">Requires an org admin to approve this app in the org's third-party access settings. One-time action per org.</p><a href=\"https://github.com/settings/connections/applications/Ov23li4YmALzCozRwWgk\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Request org access <span class=\"iconify lucide--external-link size-3\"></span></a></div><!-- AIM auto-push --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--zap size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">AIM auto-push</p></div><p class=\"text-xs text-base-content/60\">Background PRs after AIM cycles. Requires an org admin to install the GitHub App on the org. One-time action per org.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"px-5 py-4 space-y-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--info size-4 text-base-content/65 shrink-0\"></span><p class=\"text-sm font-semibold text-base-content\">How GitHub access works</p></div><div class=\"grid grid-cols-1 sm:grid-cols-3 gap-3\"><!-- Public repos --><div class=\"rounded-lg bg-success/5 border border-success/20 px-4 py-3 space-y-1\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--check-circle size-3.5 text-success\"></span><p class=\"text-xs font-semibold text-base-content\">Public repos</p></div><p class=\"text-xs text-base-content/75\">Work immediately. No admin setup required.</p></div><!-- Private repos — OAuth App approval --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--shield size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">Private repos — import & push</p></div><p class=\"text-xs text-base-content/75\">Requires an org admin to approve this app in the org's third-party access settings. One-time action per org.</p><a href=\"https://github.com/settings/connections/applications/Ov23li4YmALzCozRwWgk\" target=\"_blank\" rel=\"noopener\" class=\"inline-flex items-center gap-1 text-xs text-primary hover:underline\">Request org access <span class=\"iconify lucide--external-link size-3\"></span></a></div><!-- AIM auto-push --><div class=\"rounded-lg bg-warning/5 border border-warning/20 px-4 py-3 space-y-1.5\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--zap size-3.5 text-warning\"></span><p class=\"text-xs font-semibold text-base-content\">AIM auto-push</p></div><p class=\"text-xs text-base-content/75\">Background PRs after AIM cycles. Requires an org admin to install the GitHub App on the org. One-time action per org.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1375,7 +1375,7 @@ func githubConnectAppInstallInfo(appInstallURL string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</div></div><p class=\"text-xs text-base-content/40\">Both actions are one-time per org. Once done, all users in the org can import and push without further setup.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "</div></div><p class=\"text-xs text-base-content/55\">Both actions are one-time per org. Once done, all users in the org can import and push without further setup.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1435,7 +1435,7 @@ func githubRateLimitedState(retryAfter time.Duration) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if retryAfter > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<p class=\"text-xs text-base-content/60\">Resets in ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<p class=\"text-xs text-base-content/75\">Resets in ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1453,7 +1453,7 @@ func githubRateLimitedState(retryAfter time.Duration) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<p class=\"text-xs text-base-content/60\">The limit has likely reset — try refreshing.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<p class=\"text-xs text-base-content/75\">The limit has likely reset — try refreshing.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1508,7 +1508,7 @@ func githubUsedByBadges(usedBy []string) templ.Component {
 			templ_7745c5c3_Var52 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<div class=\"flex items-center gap-1.5 mt-1 flex-wrap\"><span class=\"text-xs text-base-content/40 flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> Used by</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<div class=\"flex items-center gap-1.5 mt-1 flex-wrap\"><span class=\"text-xs text-base-content/55 flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> Used by</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -120,7 +120,7 @@ templ FirePhaseContent(data FirePhaseData) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "ui.fire.phase_title") }</h2>
-				<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.fire.phase_subtitle") }</p>
+				<p class="text-xs text-base-content/75 mt-0.5">{ langs.T(ctx, "ui.fire.phase_subtitle") }</p>
 			</div>
 		<!-- Feature stat pills -->
 		<div class="hidden md:flex items-center gap-3 text-xs">
@@ -132,7 +132,7 @@ templ FirePhaseContent(data FirePhaseData) {
 				<span class="iconify lucide--loader-circle size-3.5"></span>
 				{ fmt.Sprintf(langs.T(ctx, "ui.fire.stat.in_progress"), data.InProgressCount) }
 			</span>
-			<span class="flex items-center gap-1 text-base-content/50">
+			<span class="flex items-center gap-1 text-base-content/65">
 				<span class="iconify lucide--circle-dashed size-3.5"></span>
 				{ fmt.Sprintf(langs.T(ctx, "ui.fire.stat.draft"), data.DraftCount) }
 			</span>
@@ -161,7 +161,7 @@ templ FirePhaseContent(data FirePhaseData) {
 				<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
 				<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
 			</svg>
-			<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.fire.connector.data_feeds") }</span>
+			<span class="text-xs text-base-content/55 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.fire.connector.data_feeds") }</span>
 		</div>
 		<!-- AIM handoff banner -->
 		<a
@@ -184,18 +184,18 @@ templ FirePhaseContent(data FirePhaseData) {
 								{ langs.T(ctx, "ui.aim.phase_badge") }
 							</span>
 						</div>
-						<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "ui.aim.phase_subtitle") }</p>
+						<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "ui.aim.phase_subtitle") }</p>
 					</div>
-					<div class="hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4 shrink-0">
-						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+					<div class="hidden md:flex items-center gap-4 border-l border-base-content/15 pl-4 shrink-0">
+						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
 							<span class="iconify lucide--zap size-3.5"></span>
 							{ langs.T(ctx, "ui.aim.stat.signals") }
 						</div>
-						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
 							<span class="iconify lucide--bar-chart-2 size-3.5"></span>
 							{ langs.T(ctx, "ui.aim.stat.metrics") }
 						</div>
-						<div class="flex items-center gap-1.5 text-xs text-base-content/50">
+						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
 							<span class="iconify lucide--refresh-ccw size-3.5"></span>
 							{ langs.T(ctx, "ui.aim.stat.calibration") }
 						</div>
@@ -221,7 +221,7 @@ templ FirePhaseContent(data FirePhaseData) {
 //	│        ↑ traces back to KRs
 //	└─────────────────┘
 templ fireTrackColumn(instanceID string, t FireTrackData) {
-	<div class="flex flex-col gap-0 rounded-xl border border-base-content/10 overflow-hidden shadow-sm">
+	<div class="flex flex-col gap-0 rounded-xl border border-base-content/15 overflow-hidden shadow-sm">
 		<!-- Track header -->
 		<a
 			href={ templ.URL(t.DefinitionURL) }
@@ -243,8 +243,8 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 		<!-- Section 1: KRs from Roadmap -->
 		<div class="bg-base-100 px-4 py-3 border-b border-base-content/8">
 			<div class="flex items-center gap-1.5 mb-2">
-				<span class="iconify lucide--target size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.roadmap_krs") }</span>
+				<span class="iconify lucide--target size-3.5 text-base-content/55"></span>
+				<span class="text-xs font-medium text-base-content/75 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.roadmap_krs") }</span>
 			</div>
 			if len(t.Objectives) == 0 {
 				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.fire.track.no_okrs") }</p>
@@ -261,7 +261,7 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 										<span class="flex-1">
 											{ kr.Description }
 											if kr.TRLProgression != "" {
-												<span class="ml-1 inline-flex items-center gap-0.5 rounded bg-base-200 px-1 py-0.5 font-mono text-xs text-base-content/40">
+												<span class="ml-1 inline-flex items-center gap-0.5 rounded bg-base-content/10 px-1 py-0.5 font-mono text-xs text-base-content/80">
 													<span class="iconify lucide--flask-conical size-2.5"></span>
 													{ kr.TRLProgression }
 												</span>
@@ -287,11 +287,11 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 			hx-target="#tab-content"
 			hx-swap="innerHTML"
 			hx-push-url="true"
-			class="bg-base-100 px-4 py-3 border-b border-base-content/8 hover:bg-base-200/40 transition-colors cursor-pointer block"
+			class="bg-base-100 px-4 py-3 border-b border-base-content/8 hover:bg-base-100 transition-colors cursor-pointer block"
 		>
 			<div class="flex items-center gap-1.5 mb-2">
-				<span class="iconify lucide--layers size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.value_model") }</span>
+				<span class="iconify lucide--layers size-3.5 text-base-content/55"></span>
+				<span class="text-xs font-medium text-base-content/75 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.value_model") }</span>
 				if t.ValueModelCount > 1 {
 					<span class="text-xs text-base-content/35">({ strconv.Itoa(t.ValueModelCount) })</span>
 				}
@@ -307,7 +307,7 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 							if len(pl.Layers) > 0 {
 								<div class="flex flex-wrap gap-1">
 									for _, layer := range pl.Layers {
-										<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/55 leading-tight">{ layer }</span>
+										<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-content/10 text-base-content/80 leading-tight">{ layer }</span>
 									}
 								</div>
 							}
@@ -319,7 +319,7 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 			} else {
 				<div class="flex flex-wrap gap-1">
 					for _, layer := range t.ValueModelLayers {
-						<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-200 text-base-content/60 leading-tight">{ layer }</span>
+						<span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-base-content/10 text-base-content/80 leading-tight">{ layer }</span>
 					}
 				</div>
 			}
@@ -335,15 +335,15 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 			hx-target="#tab-content"
 			hx-swap="innerHTML"
 			hx-push-url="true"
-			class="bg-base-100 px-4 py-3 hover:bg-base-200/40 transition-colors cursor-pointer block"
+			class="bg-base-100 px-4 py-3 hover:bg-base-100 transition-colors cursor-pointer block"
 		>
 			<div class="flex items-center gap-1.5 mb-1.5">
-				<span class="iconify lucide--file-text size-3.5 text-base-content/40"></span>
-				<span class="text-xs font-medium text-base-content/60 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.definitions") }</span>
+				<span class="iconify lucide--file-text size-3.5 text-base-content/55"></span>
+				<span class="text-xs font-medium text-base-content/75 uppercase tracking-wide">{ langs.T(ctx, "ui.fire.track.definitions") }</span>
 			</div>
 			<div class="flex items-center justify-between">
 				<p class="text-sm font-semibold text-base-content">{ strconv.Itoa(t.DefinitionCount) }</p>
-				<span class="text-xs text-base-content/40">{ langs.T(ctx, "ui.fire.track.definitions_hint") }</span>
+				<span class="text-xs text-base-content/55">{ langs.T(ctx, "ui.fire.track.definitions_hint") }</span>
 			</div>
 			<!-- Circular trace back label -->
 			<p class="text-xs text-base-content/35 italic mt-1.5">{ langs.T(ctx, "ui.fire.track.traces_back") }</p>
@@ -360,7 +360,7 @@ templ trackCard(instanceID string, t TrackSummary) {
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+		class="card bg-base-100 border border-base-content/15 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
 	>
 		<div class="card-body p-4">
 			<div class="flex items-center gap-3">
@@ -369,7 +369,7 @@ templ trackCard(instanceID string, t TrackSummary) {
 				</div>
 				<div>
 					<h3 class="text-sm font-semibold text-base-content">{ t.Name }</h3>
-					<p class="text-xs text-base-content/50">{ fmt.Sprintf(langs.T(ctx, "ui.fire.track.definition_count"), t.Count) }</p>
+					<p class="text-xs text-base-content/65">{ fmt.Sprintf(langs.T(ctx, "ui.fire.track.definition_count"), t.Count) }</p>
 				</div>
 			</div>
 		</div>
@@ -378,14 +378,14 @@ templ trackCard(instanceID string, t TrackSummary) {
 
 templ valueModelBadge(vm ValueModelSummary) {
 	<div class="flex items-center gap-2 rounded-lg bg-base-200/50 px-3 py-2">
-		<span class={ "iconify size-4 text-base-content/60 " + vm.Icon }></span>
+		<span class={ "iconify size-4 text-base-content/75 " + vm.Icon }></span>
 		<span class="text-sm text-base-content">{ vm.Track }</span>
 		@featureStatusBadge(vm.Status)
 	</div>
 }
 
 templ featureList(data FirePhaseData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
 			<h3 class="text-base font-semibold text-base-content mb-3">Features</h3>
 			<div class="overflow-x-auto">
@@ -406,7 +406,7 @@ templ featureList(data FirePhaseData) {
 								hx-swap="innerHTML"
 								hx-push-url="true"
 							>
-								<td class="font-mono text-xs text-base-content/60">{ f.Key }</td>
+								<td class="font-mono text-xs text-base-content/75">{ f.Key }</td>
 								<td>{ f.Name }</td>
 								<td>@featureStatusBadge(f.Status)</td>
 							</tr>
@@ -439,23 +439,23 @@ templ featureStatusBadge(status string) {
 
 // fireDefinitionsBanner renders a banner when canonical track definitions are missing.
 templ fireDefinitionsBanner(data FirePhaseData) {
-	<div class="card bg-base-content/3 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-content/3 border border-base-content/15 shadow-sm">
 		<div class="card-body p-4">
 			<div class="flex items-start justify-between gap-4">
 				<div class="flex items-start gap-3">
-					<span class="iconify lucide--puzzle size-5 text-base-content/50 mt-0.5 shrink-0"></span>
+					<span class="iconify lucide--puzzle size-5 text-base-content/65 mt-0.5 shrink-0"></span>
 					<div class="space-y-1.5">
 						<p class="text-sm font-semibold">
 							{ langs.T(ctx, "ui.fire.defs_banner.title") }
 						</p>
-						<p class="text-xs text-base-content/70 leading-relaxed max-w-lg">
+						<p class="text-xs text-base-content/80 leading-relaxed max-w-lg">
 							The EPF framework includes { strconv.Itoa(data.CanonicalDefCount) } canonical definitions
 							across Strategy, Org & Ops, and Commercial tracks. These are process templates
 							(hiring, pricing, fundraising, etc.) that structure what each track delivers.
 							Currently missing from:
 							<strong>{ strings.Join(data.MissingDefTracks, ", ") }</strong>.
 						</p>
-						<p class="text-xs text-base-content/50 leading-relaxed max-w-lg">
+						<p class="text-xs text-base-content/65 leading-relaxed max-w-lg">
 							Installing them gives the AI context about your delivery capabilities
 							when aligning value models and generating assessments. Definitions are
 							committed directly — no review step needed.
@@ -477,19 +477,19 @@ templ fireDefinitionsBanner(data FirePhaseData) {
 // Portfolio alignment is now automatic (runs via AIM cycle + periodic consistency check).
 // There is no manual align button — this banner just explains the status.
 templ fireAlignStatusBanner(data FirePhaseData) {
-	<div class="card bg-base-200/50 border border-base-content/10">
+	<div class="card bg-base-100 border border-base-content/15">
 		<div class="card-body p-4">
 			<div class="flex items-center gap-3">
-				<span class="iconify lucide--layers size-5 text-base-content/40 shrink-0"></span>
+				<span class="iconify lucide--layers size-5 text-base-content/55 shrink-0"></span>
 				<div>
-					<p class="text-sm font-medium text-base-content/70">
+					<p class="text-sm font-medium text-base-content/80">
 						if data.MissingValueModels == len(data.FireTracks) {
 							{ langs.T(ctx, "ui.fire.align_banner.no_value_models") }
 						} else {
 							{ fmt.Sprintf(langs.T(ctx, "ui.fire.align_banner.tracks_missing"), data.MissingValueModels) }
 						}
 					</p>
-					<p class="text-xs text-base-content/50 mt-0.5">
+					<p class="text-xs text-base-content/65 mt-0.5">
 						Value models are aligned automatically when the AIM cycle runs.
 						Add <code class="font-mono text-xs">value_model_target</code> fields to your roadmap KRs to drive activation.
 					</p>

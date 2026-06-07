@@ -211,7 +211,7 @@ func assessmentHero(data AssessmentViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.RoadmapID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"text-xs text-base-content/70\">Roadmap: <span class=\"font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"text-xs text-base-content/80\">Roadmap: <span class=\"font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -234,7 +234,7 @@ func assessmentHero(data AssessmentViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Updated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Updated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -331,7 +331,7 @@ func assessmentOKRAccordion(okr AssessmentOKR) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--flag size-4 text-primary/70 shrink-0\"></span> <span class=\"grow min-w-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--flag size-4 text-primary/70 shrink-0\"></span> <span class=\"grow min-w-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -349,7 +349,7 @@ func assessmentOKRAccordion(okr AssessmentOKR) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> <span class=\"block text-xs font-mono font-normal text-base-content/40 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> <span class=\"block text-xs font-mono font-normal text-base-content/55 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -400,7 +400,7 @@ func assessmentOKRAccordion(okr AssessmentOKR) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90 shrink-0\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90 shrink-0\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -468,7 +468,7 @@ func assessmentKRRow(kr AssessmentKR) templ.Component {
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3\"><div class=\"flex items-start justify-between gap-3\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-medium text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"rounded-lg border border-base-content/5 bg-base-100 px-4 py-3\"><div class=\"flex items-start justify-between gap-3\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-medium text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -481,12 +481,12 @@ func assessmentKRRow(kr AssessmentKR) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</p><div class=\"flex flex-wrap gap-x-6 gap-y-1 mt-1 text-xs text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</p><div class=\"flex flex-wrap gap-x-6 gap-y-1 mt-1 text-xs text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if kr.Target != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span><span class=\"font-medium text-base-content/60\">Target:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span><span class=\"font-medium text-base-content/75\">Target:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -505,7 +505,7 @@ func assessmentKRRow(kr AssessmentKR) templ.Component {
 			}
 		}
 		if kr.Actual != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span><span class=\"font-medium text-base-content/60\">Actual:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span><span class=\"font-medium text-base-content/75\">Actual:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -569,12 +569,12 @@ func assessmentKRRow(kr AssessmentKR) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(kr.Learnings) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"mt-2 pt-2 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Learnings</p><ul class=\"space-y-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"mt-2 pt-2 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Learnings</p><ul class=\"space-y-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, l := range kr.Learnings {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/70\"><span class=\"iconify lucide--message-circle size-3 text-base-content/50 mt-0.5 shrink-0\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/80\"><span class=\"iconify lucide--message-circle size-3 text-base-content/65 mt-0.5 shrink-0\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -676,7 +676,7 @@ func assessmentAssumptionRow(a AssessmentAssumption) templ.Component {
 			templ_7745c5c3_Var24 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3 space-y-2\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-mono text-base-content/40\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<div class=\"rounded-lg border border-base-content/15 bg-base-100 shadow-sm px-4 py-3 space-y-2\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-mono text-base-content/55\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -817,7 +817,7 @@ func assessmentAssumptionRow(a AssessmentAssumption) templ.Component {
 			}
 		}
 		if a.Evidence != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<p class=\"text-xs text-base-content/60 leading-relaxed whitespace-pre-line\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<p class=\"text-xs text-base-content/75 leading-relaxed whitespace-pre-line\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

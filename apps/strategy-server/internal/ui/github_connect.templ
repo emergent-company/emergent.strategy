@@ -102,12 +102,12 @@ templ GithubConnectContent(data GithubConnectData) {
 		<div class="flex items-start justify-between">
 			<div>
 				<h1 class="text-xl font-bold text-base-content">Connect GitHub</h1>
-				<p class="text-sm text-base-content/60 mt-0.5">
+				<p class="text-sm text-base-content/75 mt-0.5">
 					Discover repositories and link them to strategy instances for bidirectional sync.
 				</p>
 			</div>
 			if data.GithubUserLogin != "" {
-				<div class="flex items-center gap-2 text-sm text-base-content/60">
+				<div class="flex items-center gap-2 text-sm text-base-content/75">
 					<span class="iconify lucide--github size-4"></span>
 					<span>Connected as <strong class="text-base-content">{ data.GithubUserLogin }</strong></span>
 					<a href="/github/connect/authorize" class="text-xs text-primary hover:underline ml-1">Reconnect</a>
@@ -140,22 +140,22 @@ templ GithubConnectContent(data GithubConnectData) {
 
 // githubConnectNeedsAuth renders the "connect your GitHub account" state.
 templ githubConnectNeedsAuth(oauthConfigured bool) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--github size-5 text-base-content/60"></span>
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--github size-5 text-base-content/75"></span>
 			<div class="grow">
 				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Step 1 — Connect your GitHub account</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">Authorize this platform to see which GitHub orgs you have access to</p>
+				<p class="text-xs text-base-content/65 mt-0.5">Authorize this platform to see which GitHub orgs you have access to</p>
 			</div>
 		</div>
 		<div class="px-5 py-6">
 			if oauthConfigured {
 				<div class="space-y-3">
-					<p class="text-sm text-base-content/70">
+					<p class="text-sm text-base-content/80">
 						To discover repositories, authorize your GitHub account. This requests
 						<strong>repo</strong> and <strong>read:org</strong> scope.
 					</p>
-					<p class="text-sm text-base-content/50">
+					<p class="text-sm text-base-content/65">
 						Public repos across all your orgs appear immediately. Private repos
 						require an org admin to approve this app — see the info card below.
 					</p>
@@ -166,7 +166,7 @@ templ githubConnectNeedsAuth(oauthConfigured bool) {
 					</a>
 				</div>
 			} else {
-				<p class="text-sm text-base-content/50">
+				<p class="text-sm text-base-content/65">
 					GitHub OAuth is not configured on this server. Set
 					<code class="bg-base-200 px-1 rounded">GITHUB_OAUTH_CLIENT_ID</code> and
 					<code class="bg-base-200 px-1 rounded">GITHUB_OAUTH_CLIENT_SECRET</code>
@@ -184,7 +184,7 @@ templ githubConnectNotConfigured() {
 			<span class="iconify lucide--triangle-alert size-5 text-warning"></span>
 			<h2 class="text-sm font-bold text-base-content">GitHub App not configured</h2>
 		</div>
-		<p class="text-sm text-base-content/70">
+		<p class="text-sm text-base-content/80">
 			The GitHub App integration requires <code class="bg-base-200 px-1 rounded">GITHUB_APP_ID</code>
 			and <code class="bg-base-200 px-1 rounded">GITHUB_APP_PRIVATE_KEY_PATH</code> to be set.
 			Contact your server administrator.
@@ -194,14 +194,14 @@ templ githubConnectNotConfigured() {
 
 // githubRepoListLoadingInner is the shared inner HTML for the loading skeleton.
 templ githubRepoListLoadingInner() {
-	<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-		<span class="iconify lucide--folder-git-2 size-5 text-base-content/60"></span>
+	<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+		<span class="iconify lucide--folder-git-2 size-5 text-base-content/75"></span>
 		<div class="grow">
 			<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
-			<p class="text-xs text-base-content/50 mt-0.5">Scanning your GitHub repositories…</p>
+			<p class="text-xs text-base-content/65 mt-0.5">Scanning your GitHub repositories…</p>
 		</div>
 	</div>
-	<div class="px-5 py-8 flex flex-col items-center gap-3 text-base-content/50">
+	<div class="px-5 py-8 flex flex-col items-center gap-3 text-base-content/65">
 		<span class="iconify lucide--loader-circle size-7 animate-spin text-primary"></span>
 		<p class="text-sm">Checking all your repos for EPF instances — this can take a moment for large orgs.</p>
 	</div>
@@ -218,7 +218,7 @@ templ githubConnectRepoListLoading() {
 templ GithubConnectReposLoadingFragment() {
 	<div
 		id="github-repo-list"
-		class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden"
+		class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden"
 		hx-get="/github/connect/repos"
 		hx-trigger="load"
 		hx-swap="outerHTML"
@@ -232,7 +232,7 @@ templ GithubConnectReposLoadingFragment() {
 templ GithubConnectRepoPollingSkeleton() {
 	<div
 		id="github-repo-list"
-		class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden"
+		class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden"
 		hx-get="/github/connect/repos"
 		hx-trigger="every 3s"
 		hx-swap="outerHTML"
@@ -244,13 +244,13 @@ templ GithubConnectRepoPollingSkeleton() {
 // GithubConnectRepoListFragment renders the repository list (result of async scan).
 // Returned by GET /github/connect/repos and swapped into #github-repo-list.
 templ GithubConnectRepoListFragment(data GithubConnectData) {
-	<div id="github-repo-list" class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+	<div id="github-repo-list" class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
 		<!-- Header -->
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
-			<span class="iconify lucide--folder-git-2 size-5 text-base-content/60"></span>
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--folder-git-2 size-5 text-base-content/75"></span>
 			<div class="grow">
 				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
-				<p class="text-xs text-base-content/50 mt-0.5">All repos you have access to across your GitHub organizations</p>
+				<p class="text-xs text-base-content/65 mt-0.5">All repos you have access to across your GitHub organizations</p>
 			</div>
 			<!-- Summary + refresh -->
 			if data.ScanError == "" {
@@ -287,7 +287,7 @@ templ GithubConnectRepoListFragment(data GithubConnectData) {
 				</button>
 			</div>
 		} else if len(data.Repos) == 0 {
-			<div class="px-5 py-4 text-sm text-base-content/50">
+			<div class="px-5 py-4 text-sm text-base-content/65">
 				No repositories found. Make sure your GitHub account is connected and you have repo access.
 			</div>
 		} else {
@@ -300,7 +300,7 @@ templ GithubConnectRepoListFragment(data GithubConnectData) {
 				}
 			}
 			if !hasEPF {
-				<div class="px-5 py-4 text-sm text-base-content/50">
+				<div class="px-5 py-4 text-sm text-base-content/65">
 					No EPF instances detected in your repositories. All { fmt.Sprintf("%d", len(data.Repos)) } repos scanned.
 				</div>
 			}
@@ -313,7 +313,7 @@ templ GithubConnectRepoListFragment(data GithubConnectData) {
 			}
 			if nonEPFCount > 0 {
 				<details class="border-t border-base-content/5">
-					<summary class="px-5 py-3 text-xs text-base-content/40 cursor-pointer hover:text-base-content/60 list-none flex items-center gap-2">
+					<summary class="px-5 py-3 text-xs text-base-content/55 cursor-pointer hover:text-base-content/75 list-none flex items-center gap-2">
 						<span class="iconify lucide--chevron-right size-3.5 transition-transform details-open:rotate-90"></span>
 						Show { fmt.Sprintf("%d", nonEPFCount) } repos without EPF
 					</summary>
@@ -362,9 +362,9 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 				</div>
 				<!-- Full name + last pushed -->
 				<div class="flex items-center gap-3 mt-0.5 flex-wrap">
-					<p class="text-xs text-base-content/40 font-mono">{ repo.FullName }</p>
+					<p class="text-xs text-base-content/55 font-mono">{ repo.FullName }</p>
 					if !repo.PushedAt.IsZero() {
-						<span class="text-xs text-base-content/40 flex items-center gap-1">
+						<span class="text-xs text-base-content/55 flex items-center gap-1">
 							<span class="iconify lucide--git-commit-horizontal size-3"></span>
 							{ githubRelativeTime(repo.PushedAt) }
 						</span>
@@ -374,7 +374,7 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 					<p class="text-xs text-base-content/55 mt-1 leading-relaxed">{ repo.Description }</p>
 				}
 				if repo.HeadCommit.SHA != "" {
-					<div class="flex items-center gap-1.5 mt-1.5 text-xs text-base-content/40 font-mono">
+					<div class="flex items-center gap-1.5 mt-1.5 text-xs text-base-content/55 font-mono">
 						<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
 						<a
 							href={ templ.SafeURL(repo.HTMLURL + "/commit/" + repo.HeadCommit.SHA) }
@@ -387,7 +387,7 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 						<span class="truncate max-w-xs not-italic font-sans text-base-content/55" title={ repo.HeadCommit.Message }>{ repo.HeadCommit.Message }</span>
 						if repo.HeadCommit.AuthorName != "" {
 							<span class="text-base-content/25 shrink-0">by</span>
-							<span class="shrink-0 text-base-content/40">{ repo.HeadCommit.AuthorName }</span>
+							<span class="shrink-0 text-base-content/55">{ repo.HeadCommit.AuthorName }</span>
 						}
 					</div>
 				}
@@ -418,7 +418,7 @@ templ githubWritebackBadge(hasAppInstall bool) {
 			Auto-push on
 		</span>
 	} else {
-		<span class="badge badge-ghost badge-xs gap-1 text-base-content/40" title="GitHub App not installed — AIM auto-push disabled. Manual import and push still work.">
+		<span class="badge badge-ghost badge-xs gap-1 text-base-content/55" title="GitHub App not installed — AIM auto-push disabled. Manual import and push still work.">
 			<span class="iconify lucide--zap-off size-3"></span>
 			No auto-push
 		</span>
@@ -455,7 +455,7 @@ templ githubEPFBadge(repo GithubRepoScanItem) {
 			<span class="badge badge-warning badge-xs" title="Large repo — scan results may be incomplete">Partial scan</span>
 		}
 	} else if len(repo.EPFViaSubmoduleOf) > 0 {
-		<span class="badge badge-ghost badge-xs gap-1 text-base-content/50" title={ "Uses EPF from: " + strings.Join(repo.EPFViaSubmoduleOf, ", ") }>
+		<span class="badge badge-ghost badge-xs gap-1 text-base-content/65" title={ "Uses EPF from: " + strings.Join(repo.EPFViaSubmoduleOf, ", ") }>
 			<span class="iconify lucide--git-branch size-3"></span>
 			EPF subscriber
 		</span>
@@ -466,24 +466,24 @@ templ githubEPFBadge(repo GithubRepoScanItem) {
 
 // githubImportForm renders the per-instance assignment + import form.
 templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, workspaces []WorkspaceScanItem) {
-	<div class="rounded-lg border border-base-content/10 bg-base-200/40 px-4 py-3 space-y-3">
+	<div class="rounded-lg border border-base-content/15 bg-base-100 px-4 py-3 space-y-3">
 		<!-- Path + submodule notice -->
 		if inst.IsSubmodule {
 			<div class="flex items-center gap-2 flex-wrap">
 				if inst.BasePath != "" {
-					<span class="iconify lucide--folder size-3.5 text-base-content/40"></span>
-					<code class="text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
+					<span class="iconify lucide--folder size-3.5 text-base-content/55"></span>
+					<code class="text-xs text-base-content/80 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
 				}
 				<span class="badge badge-info badge-xs gap-1">
 					<span class="iconify lucide--git-branch size-3"></span>
 					submodule
 				</span>
-				<span class="text-xs text-base-content/40">from <code class="font-mono">{ inst.SubmoduleSlug }</code></span>
+				<span class="text-xs text-base-content/55">from <code class="font-mono">{ inst.SubmoduleSlug }</code></span>
 			</div>
 		} else if inst.BasePath != "" {
 			<div class="flex items-center gap-2">
-				<span class="iconify lucide--folder size-3.5 text-base-content/40"></span>
-				<code class="text-xs text-base-content/70 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
+				<span class="iconify lucide--folder size-3.5 text-base-content/55"></span>
+				<code class="text-xs text-base-content/80 font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{ inst.BasePath }</code>
 			</div>
 		}
 
@@ -495,7 +495,7 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 
 			if len(workspaces) == 0 {
 				<!-- No workspaces yet — let the user name one inline -->
-				<span class="text-xs text-base-content/50">New workspace name:</span>
+				<span class="text-xs text-base-content/65">New workspace name:</span>
 				<input
 					type="text"
 					name="new_workspace_name"
@@ -542,10 +542,10 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 
 // githubConnectAppInstallInfo renders the GitHub access model explanation.
 templ githubConnectAppInstallInfo(appInstallURL string) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
 		<div class="px-5 py-4 space-y-4">
 			<div class="flex items-center gap-2">
-				<span class="iconify lucide--info size-4 text-base-content/50 shrink-0"></span>
+				<span class="iconify lucide--info size-4 text-base-content/65 shrink-0"></span>
 				<p class="text-sm font-semibold text-base-content">How GitHub access works</p>
 			</div>
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -555,7 +555,7 @@ templ githubConnectAppInstallInfo(appInstallURL string) {
 						<span class="iconify lucide--check-circle size-3.5 text-success"></span>
 						<p class="text-xs font-semibold text-base-content">Public repos</p>
 					</div>
-					<p class="text-xs text-base-content/60">
+					<p class="text-xs text-base-content/75">
 						Work immediately. No admin setup required.
 					</p>
 				</div>
@@ -565,7 +565,7 @@ templ githubConnectAppInstallInfo(appInstallURL string) {
 						<span class="iconify lucide--shield size-3.5 text-warning"></span>
 						<p class="text-xs font-semibold text-base-content">Private repos — import & push</p>
 					</div>
-					<p class="text-xs text-base-content/60">
+					<p class="text-xs text-base-content/75">
 						Requires an org admin to approve this app in the org's
 						third-party access settings. One-time action per org.
 					</p>
@@ -582,7 +582,7 @@ templ githubConnectAppInstallInfo(appInstallURL string) {
 						<span class="iconify lucide--zap size-3.5 text-warning"></span>
 						<p class="text-xs font-semibold text-base-content">AIM auto-push</p>
 					</div>
-					<p class="text-xs text-base-content/60">
+					<p class="text-xs text-base-content/75">
 						Background PRs after AIM cycles. Requires an org admin to
 						install the GitHub App on the org. One-time action per org.
 					</p>
@@ -595,7 +595,7 @@ templ githubConnectAppInstallInfo(appInstallURL string) {
 					}
 				</div>
 			</div>
-			<p class="text-xs text-base-content/40">
+			<p class="text-xs text-base-content/55">
 				Both actions are one-time per org. Once done, all users in the org can import and push without further setup.
 			</p>
 		</div>
@@ -619,11 +619,11 @@ templ githubRateLimitedState(retryAfter time.Duration) {
 		<div class="space-y-1">
 			<p class="text-sm font-semibold text-base-content">GitHub API rate limit reached</p>
 			if retryAfter > 0 {
-				<p class="text-xs text-base-content/60">
+				<p class="text-xs text-base-content/75">
 					Resets in { fmt.Sprintf("%d min %d sec", int(retryAfter.Minutes()), int(retryAfter.Seconds())%60) } — this page will retry automatically.
 				</p>
 			} else {
-				<p class="text-xs text-base-content/60">The limit has likely reset — try refreshing.</p>
+				<p class="text-xs text-base-content/75">The limit has likely reset — try refreshing.</p>
 			}
 		</div>
 		<button
@@ -661,7 +661,7 @@ func githubRelativeTime(t time.Time) string {
 // Shows which other repos in the scan reference this repo as a git submodule.
 templ githubUsedByBadges(usedBy []string) {
 	<div class="flex items-center gap-1.5 mt-1 flex-wrap">
-		<span class="text-xs text-base-content/40 flex items-center gap-1">
+		<span class="text-xs text-base-content/55 flex items-center gap-1">
 			<span class="iconify lucide--git-branch size-3"></span>
 			Used by
 		</span>

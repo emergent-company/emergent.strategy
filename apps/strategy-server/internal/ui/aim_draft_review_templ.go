@@ -102,7 +102,7 @@ func AimDraftReviewContent(data AimDraftReviewData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</p></div></div><div class=\"flex items-center justify-between gap-4 mt-4 pt-4 border-t border-primary/15\"><p class=\"text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</p></div></div><div class=\"flex items-center justify-between gap-4 mt-4 pt-4 border-t border-primary/15\"><p class=\"text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -187,7 +187,7 @@ func AimDraftReviewContent(data AimDraftReviewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Items) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"text-center py-8\"><span class=\"iconify lucide--file-question size-10 text-base-content/30 mx-auto mb-3 block\"></span><p class=\"text-sm text-base-content/60\">No staged mutations found in this batch.</p></div></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"text-center py-8\"><span class=\"iconify lucide--file-question size-10 text-base-content/30 mx-auto mb-3 block\"></span><p class=\"text-sm text-base-content/75\">No staged mutations found in this batch.</p></div></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -208,7 +208,7 @@ func AimDraftReviewContent(data AimDraftReviewData) templ.Component {
 			}
 		}
 		if len(data.Previews) == 0 && data.PreviewContent != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 overflow-hidden\"><div class=\"px-6 py-3 border-b border-base-content/10 bg-base-200/50\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Draft Preview</p></div><div class=\"p-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 overflow-hidden\"><div class=\"px-6 py-3 border-b border-base-content/15 bg-base-100\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Draft Preview</p></div><div class=\"p-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -252,7 +252,7 @@ func aimDraftReviewItem(item AimDraftReviewItem) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -340,7 +340,7 @@ func aimDraftReviewItem(item AimDraftReviewItem) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if item.ChangeSummary != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"px-5 pb-3\"><div class=\"pl-7 border-l-2 border-primary/20\"><p class=\"text-xs text-base-content/70 whitespace-pre-line leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"px-5 pb-3\"><div class=\"pl-7 border-l-2 border-primary/20\"><p class=\"text-xs text-base-content/80 whitespace-pre-line leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -359,7 +359,7 @@ func aimDraftReviewItem(item AimDraftReviewItem) templ.Component {
 			}
 		}
 		if item.Preview != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<details class=\"group\"><summary class=\"flex items-center justify-between gap-3 px-5 py-2.5 border-t border-base-content/5 bg-base-200/30 cursor-pointer select-none list-none text-xs text-base-content/50 hover:text-base-content/70\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--eye size-3.5\"></span> <span>View full draft</span></div><span class=\"iconify lucide--chevron-down size-3.5 group-open:rotate-180 transition-transform\"></span></summary><div class=\"border-t border-base-content/5 p-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<details class=\"group\"><summary class=\"flex items-center justify-between gap-3 px-5 py-2.5 border-t border-base-content/5 bg-base-100 cursor-pointer select-none list-none text-xs text-base-content/65 hover:text-base-content/80\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--eye size-3.5\"></span> <span>View full draft</span></div><span class=\"iconify lucide--chevron-down size-3.5 group-open:rotate-180 transition-transform\"></span></summary><div class=\"border-t border-base-content/5 p-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -402,7 +402,7 @@ func draftActionColor(action string) string {
 	case "archive":
 		return "text-warning"
 	default:
-		return "text-base-content/50"
+		return "text-base-content/65"
 	}
 }
 

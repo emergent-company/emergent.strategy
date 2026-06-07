@@ -100,7 +100,7 @@ func EvidencePageContent(data EvidencePageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-xs text-base-content/60 mt-0.5\">Load source material to ground AI-generated strategy drafts in real context.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-xs text-base-content/75 mt-0.5\">Load source material to ground AI-generated strategy drafts in real context.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -172,7 +172,7 @@ func evidenceIngestCard(instanceID string) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-4\">Add Evidence</h3><form method=\"POST\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest mb-4\">Add Evidence</h3><form method=\"POST\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -221,7 +221,7 @@ func evidenceIngestCard(instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</select></div></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">Content</span> <span class=\"label-text-alt text-base-content/40\">Paste, summarise, or type notes</span></label> <textarea name=\"content\" rows=\"6\" placeholder=\"Paste document content, interview notes, or any strategic context here...\" required class=\"textarea textarea-bordered w-full text-sm font-mono leading-relaxed\"></textarea></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">One-line summary</span> <span class=\"label-text-alt text-base-content/40\">Optional — AI-readable headline</span></label> <input type=\"text\" name=\"summary\" placeholder=\"e.g. Board confirms $2M seed with focus on SMB market\" class=\"input input-sm input-bordered w-full\"></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">Tags</span> <span class=\"label-text-alt text-base-content/40\">Comma-separated — affects which bootstrap skills use this item</span></label> <input type=\"text\" name=\"tags\" placeholder=\"vision, market, competitive, strategy, user_research, pitch\" class=\"input input-sm input-bordered w-full font-mono\"><div class=\"mt-1 flex flex-wrap gap-1\"><span class=\"text-xs text-base-content/40\">Common tags:</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</select></div></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">Content</span> <span class=\"label-text-alt text-base-content/55\">Paste, summarise, or type notes</span></label> <textarea name=\"content\" rows=\"6\" placeholder=\"Paste document content, interview notes, or any strategic context here...\" required class=\"textarea textarea-bordered w-full text-sm font-mono leading-relaxed\"></textarea></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">One-line summary</span> <span class=\"label-text-alt text-base-content/55\">Optional — AI-readable headline</span></label> <input type=\"text\" name=\"summary\" placeholder=\"e.g. Board confirms $2M seed with focus on SMB market\" class=\"input input-sm input-bordered w-full\"></div><div><label class=\"label pb-1\"><span class=\"label-text text-xs font-medium\">Tags</span> <span class=\"label-text-alt text-base-content/55\">Comma-separated — affects which bootstrap skills use this item</span></label> <input type=\"text\" name=\"tags\" placeholder=\"vision, market, competitive, strategy, user_research, pitch\" class=\"input input-sm input-bordered w-full font-mono\"><div class=\"mt-1 flex flex-wrap gap-1\"><span class=\"text-xs text-base-content/55\">Common tags:</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -274,7 +274,7 @@ func evidenceList(data EvidencePageData) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest\">Loaded Evidence (")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest\">Loaded Evidence (")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -386,7 +386,7 @@ func evidenceItemRow(item EvidenceItem, instanceID string) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"flex items-start gap-3 py-2 border-b border-base-content/5 last:border-0\"><span class=\"iconify lucide--file-text size-4 text-base-content/40 shrink-0 mt-0.5\"></span><div class=\"min-w-0 grow space-y-0.5\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-medium text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"flex items-start gap-3 py-2 border-b border-base-content/5 last:border-0\"><span class=\"iconify lucide--file-text size-4 text-base-content/55 shrink-0 mt-0.5\"></span><div class=\"min-w-0 grow space-y-0.5\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-medium text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -432,7 +432,7 @@ func evidenceItemRow(item EvidenceItem, instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if item.Summary != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-xs text-base-content/60 line-clamp-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-xs text-base-content/75 line-clamp-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -516,7 +516,7 @@ func evidenceEmptyState() templ.Component {
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body items-center py-12 text-center\"><span class=\"iconify lucide--database size-12 text-base-content/20 mb-3 block\"></span><h3 class=\"text-sm font-semibold text-base-content/60 mb-1\">No evidence loaded yet</h3><p class=\"text-xs text-base-content/40 max-w-sm\">Add source material above — pitch decks, market research, interview notes, or any strategic context. Evidence is used to ground AI-generated strategy drafts.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body items-center py-12 text-center\"><span class=\"iconify lucide--database size-12 text-base-content/20 mb-3 block\"></span><h3 class=\"text-sm font-semibold text-base-content/75 mb-1\">No evidence loaded yet</h3><p class=\"text-xs text-base-content/55 max-w-sm\">Add source material above — pitch decks, market research, interview notes, or any strategic context. Evidence is used to ground AI-generated strategy drafts.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -586,7 +586,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" class=\"text-xs text-base-content/50 hover:text-base-content flex items-center gap-1 mb-2\"><span class=\"iconify lucide--arrow-left size-3\"></span> Back to evidence</a><h2 class=\"text-base font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\" class=\"text-xs text-base-content/65 hover:text-base-content flex items-center gap-1 mb-2\"><span class=\"iconify lucide--arrow-left size-3\"></span> Back to evidence</a><h2 class=\"text-base font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -599,7 +599,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</h2><p class=\"text-xs text-base-content/60 mt-0.5\">Answer these questions to load structured context for AI-generated strategy drafts. Each answer becomes a tagged evidence item. Skip questions you cannot answer yet.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</h2><p class=\"text-xs text-base-content/75 mt-0.5\">Answer these questions to load structured context for AI-generated strategy drafts. Each answer becomes a tagged evidence item. Skip questions you cannot answer yet.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -675,7 +675,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var27 = []any{"card border shadow-sm", templ.KV("border-success/20 bg-success/5", q.AlreadyCovered), templ.KV("border-base-content/10 bg-base-100", !q.AlreadyCovered)}
+		var templ_7745c5c3_Var27 = []any{"card border shadow-sm", templ.KV("border-success/20 bg-success/5", q.AlreadyCovered), templ.KV("border-base-content/15 bg-base-100", !q.AlreadyCovered)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -726,7 +726,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if q.Hint != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<p class=\"text-xs text-base-content/50 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<p class=\"text-xs text-base-content/65 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

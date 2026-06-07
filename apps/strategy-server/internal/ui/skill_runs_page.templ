@@ -46,35 +46,35 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 			<span class="iconify lucide--cpu size-5 text-primary"></span>
 			<div>
 				<h2 class="text-lg font-bold text-base-content">{ langs.T(ctx, "nav.screen.skill_runs") }</h2>
-				<p class="text-xs text-base-content/50">Autonomous skill execution history and LLM token usage</p>
+				<p class="text-xs text-base-content/65">Autonomous skill execution history and LLM token usage</p>
 			</div>
 		</div>
 
 		// Usage summary cards
 		if len(data.UsageSummary) > 0 {
 			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-				<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Total Runs</p>
+				<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Total Runs</p>
 					<p class="text-2xl font-bold text-base-content mt-1">{ itoa(data.TotalRuns) }</p>
 				</div>
-				<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Total Tokens</p>
+				<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Total Tokens</p>
 					<p class="text-2xl font-bold text-base-content mt-1">{ formatTokens(data.TotalTokens) }</p>
 				</div>
-				<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Skills Used</p>
+				<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Skills Used</p>
 					<p class="text-2xl font-bold text-base-content mt-1">{ itoa(len(data.UsageSummary)) }</p>
 				</div>
 			</div>
 
 			// Per-skill token breakdown
-			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+			<div class="rounded-xl border border-base-content/15 bg-base-100 overflow-hidden">
 				<div class="px-5 py-3 border-b border-base-content/5">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Token Usage by Skill</p>
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Token Usage by Skill</p>
 				</div>
 				<table class="table table-xs w-full">
 					<thead>
-						<tr class="text-base-content/50">
+						<tr class="text-base-content/65">
 							<th>Skill</th>
 							<th class="text-right">Runs</th>
 							<th class="text-right">Input</th>
@@ -86,9 +86,9 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 						for _, u := range data.UsageSummary {
 							<tr>
 								<td class="font-medium">{ cascadeSkillLabel(u.SkillName) }</td>
-								<td class="text-right font-mono text-base-content/60">{ itoa(u.RunCount) }</td>
-								<td class="text-right font-mono text-base-content/60">{ formatTokens(u.InputTokens) }</td>
-								<td class="text-right font-mono text-base-content/60">{ formatTokens(u.OutputTokens) }</td>
+								<td class="text-right font-mono text-base-content/75">{ itoa(u.RunCount) }</td>
+								<td class="text-right font-mono text-base-content/75">{ formatTokens(u.InputTokens) }</td>
+								<td class="text-right font-mono text-base-content/75">{ formatTokens(u.OutputTokens) }</td>
 								<td class="text-right font-mono font-semibold">{ formatTokens(u.InputTokens + u.OutputTokens) }</td>
 							</tr>
 						}
@@ -99,13 +99,13 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 
 		// Run history table
 		if len(data.Runs) > 0 {
-			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+			<div class="rounded-xl border border-base-content/15 bg-base-100 overflow-hidden">
 				<div class="px-5 py-3 border-b border-base-content/5">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Run History</p>
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Run History</p>
 				</div>
 				<table class="table table-xs w-full">
 					<thead>
-						<tr class="text-base-content/50">
+						<tr class="text-base-content/65">
 							<th>Skill</th>
 							<th>Status</th>
 							<th>Trigger</th>
@@ -128,22 +128,22 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 								</td>
 								<td>
 									if r.ChunkCount > 0 {
-										<span class="tooltip" data-tip="LLM processing segments completed"><span class="font-mono text-base-content/60">{ itoa(r.ChunksCompleted) }/{ itoa(r.ChunkCount) }</span></span>
+										<span class="tooltip" data-tip="LLM processing segments completed"><span class="font-mono text-base-content/75">{ itoa(r.ChunksCompleted) }/{ itoa(r.ChunkCount) }</span></span>
 									}
 								</td>
 								<td class="text-right">
-								<span class="tooltip" data-tip="Total language model tokens used"><span class="font-mono text-base-content/60">
+								<span class="tooltip" data-tip="Total language model tokens used"><span class="font-mono text-base-content/75">
 								if r.TotalInputTokens + r.TotalOutputTokens > 0 {
 									{ formatTokens(r.TotalInputTokens + r.TotalOutputTokens) }
 								}
 								</span></span>
 								</td>
-								<td class="text-right text-base-content/60">
+								<td class="text-right text-base-content/75">
 									if r.DurationSec > 0 {
 										{ formatDuration(r.DurationSec) }
 									}
 								</td>
-								<td class="text-base-content/50">{ r.StartedAt }</td>
+								<td class="text-base-content/65">{ r.StartedAt }</td>
 								<td>
 									<a
 										href={ templ.URL("/strategies/" + data.Nav.InstanceID + "/skill-runs/" + r.RunID) }
@@ -162,7 +162,7 @@ templ SkillRunsPageContent(data SkillRunsPageData) {
 		} else {
 			<div class="flex flex-col items-center justify-center py-16 text-center">
 				<span class="iconify lucide--cpu size-10 text-base-content/20 mb-4"></span>
-				<p class="text-sm font-medium text-base-content/50">No skill runs yet</p>
+				<p class="text-sm font-medium text-base-content/65">No skill runs yet</p>
 				<p class="text-xs text-base-content/30 mt-1 max-w-xs">
 					Autonomous skill runs are created when adapt-strategy or adapt-foundations
 					executes via MCP or the continuous strategy loop.

@@ -149,7 +149,7 @@ func calibrationPendingBanner(instanceID string) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"rounded-xl border border-warning/30 bg-warning/5 px-5 py-4\"><div class=\"flex items-start gap-4\"><span class=\"iconify lucide--clock size-5 text-warning shrink-0 mt-0.5\"></span><div class=\"grow min-w-0\"><p class=\"text-sm font-semibold text-base-content\">Decision not yet made</p><p class=\"text-xs text-base-content/60 mt-1 leading-relaxed\">This memo is a scaffold — the assessment report needs to be reviewed before a persevere / pivot / pull-the-plug decision can be recorded. Use AI draft to generate a decision based on the assessment.</p></div><form method=\"POST\" action=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"rounded-xl border border-warning/30 bg-warning/5 px-5 py-4\"><div class=\"flex items-start gap-4\"><span class=\"iconify lucide--clock size-5 text-warning shrink-0 mt-0.5\"></span><div class=\"grow min-w-0\"><p class=\"text-sm font-semibold text-base-content\">Decision not yet made</p><p class=\"text-xs text-base-content/75 mt-1 leading-relaxed\">This memo is a scaffold — the assessment report needs to be reviewed before a persevere / pivot / pull-the-plug decision can be recorded. Use AI draft to generate a decision based on the assessment.</p></div><form method=\"POST\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -212,7 +212,7 @@ func calibrationHero(data CalibrationViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between gap-6\"><div class=\"space-y-3\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"iconify lucide--sliders-horizontal size-5 text-base-content/60\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between gap-6\"><div class=\"space-y-3\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"iconify lucide--sliders-horizontal size-5 text-base-content/75\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -276,7 +276,7 @@ func calibrationHero(data CalibrationViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"></span><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/60 mb-0.5\">Decision</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"></span><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/75 mb-0.5\">Decision</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -316,7 +316,7 @@ func calibrationHero(data CalibrationViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Confidence != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-2\"><span class=\"text-xs text-base-content/60\">Confidence:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-2\"><span class=\"text-xs text-base-content/75\">Confidence:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -361,7 +361,7 @@ func calibrationHero(data CalibrationViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.RoadmapID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"hidden sm:block text-right text-xs text-base-content/60 shrink-0\"><p class=\"font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"hidden sm:block text-right text-xs text-base-content/75 shrink-0\"><p class=\"font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -817,7 +817,7 @@ func calibrationReadyFeedbackSection(data CalibrationViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"mt-4 space-y-4\"><div class=\"rounded-lg bg-primary/5 border border-primary/15 px-4 py-3 flex items-start gap-3\"><span class=\"iconify lucide--info size-4 text-primary mt-0.5 shrink-0\"></span><p class=\"text-xs text-base-content/70 leading-relaxed\">These inputs from the AIM cycle should be reviewed and applied to the relevant READY and FIRE artifacts. They represent the real-world feedback loop closing back into strategy.</p></div><div class=\"grid gap-4 md:grid-cols-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"mt-4 space-y-4\"><div class=\"rounded-lg bg-primary/5 border border-primary/15 px-4 py-3 flex items-start gap-3\"><span class=\"iconify lucide--info size-4 text-primary mt-0.5 shrink-0\"></span><p class=\"text-xs text-base-content/80 leading-relaxed\">These inputs from the AIM cycle should be reviewed and applied to the relevant READY and FIRE artifacts. They represent the real-world feedback loop closing back into strategy.</p></div><div class=\"grid gap-4 md:grid-cols-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -838,12 +838,12 @@ func calibrationReadyFeedbackSection(data CalibrationViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.NewAssumptions) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 p-4\"><div class=\"flex items-center gap-2 mb-3\"><span class=\"iconify lucide--flask-conical size-4 text-base-content/60\"></span><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">New Assumptions for Next Cycle</h4><span class=\"badge badge-xs badge-ghost\">Add to roadmap</span></div><div class=\"space-y-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 p-4\"><div class=\"flex items-center gap-2 mb-3\"><span class=\"iconify lucide--flask-conical size-4 text-base-content/75\"></span><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80\">New Assumptions for Next Cycle</h4><span class=\"badge badge-xs badge-ghost\">Add to roadmap</span></div><div class=\"space-y-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, a := range data.NewAssumptions {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"flex items-start gap-2 text-sm text-base-content\"><span class=\"iconify lucide--plus size-3.5 text-base-content/50 mt-0.5 shrink-0\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<div class=\"flex items-start gap-2 text-sm text-base-content\"><span class=\"iconify lucide--plus size-3.5 text-base-content/65 mt-0.5 shrink-0\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -970,7 +970,7 @@ func calibrationFeedbackCard(title, icon, hint, content, color string) templ.Com
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</h4></div><p class=\"text-xs text-base-content/50 mb-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</h4></div><p class=\"text-xs text-base-content/65 mb-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1065,7 +1065,7 @@ func calibrationHeroBg(decision string) string {
 	case "pull_the_plug":
 		return "bg-gradient-to-br from-error/10 via-base-100 to-base-100 border-error/15"
 	default:
-		return "bg-gradient-to-br from-base-200 via-base-100 to-base-100 border-base-content/10"
+		return "bg-gradient-to-br from-base-200 via-base-100 to-base-100 border-base-content/15"
 	}
 }
 

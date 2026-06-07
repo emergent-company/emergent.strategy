@@ -116,7 +116,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -138,7 +138,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"></span><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"></span><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -360,7 +360,7 @@ func AimRunTimeline(data AimRunPanelData) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest\">Step Progress</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest\">Step Progress</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -370,7 +370,7 @@ func AimRunTimeline(data AimRunPanelData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"tooltip\" data-tip=\"This step created placeholder artifacts without AI content\"><span class=\"badge badge-ghost gap-1 text-xs text-base-content/40\"><span class=\"iconify lucide--pencil size-3\"></span> Skeleton mode</span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"tooltip\" data-tip=\"This step created placeholder artifacts without AI content\"><span class=\"badge badge-ghost gap-1 text-xs text-base-content/55\"><span class=\"iconify lucide--pencil size-3\"></span> Skeleton mode</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -380,7 +380,7 @@ func AimRunTimeline(data AimRunPanelData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Steps) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex items-center gap-3 py-4\"><span class=\"iconify lucide--loader size-4 text-base-content/40 animate-spin\"></span><p class=\"text-sm text-base-content/60\">Initialising workflow…</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex items-center gap-3 py-4\"><span class=\"iconify lucide--loader size-4 text-base-content/55 animate-spin\"></span><p class=\"text-sm text-base-content/75\">Initialising workflow…</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -551,7 +551,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			}
 		}
 		if step.AutoAdvanced {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"tooltip\" data-tip=\"No changes needed — auto-advanced\"><span class=\"badge badge-ghost badge-xs gap-1 text-base-content/50\"><span class=\"iconify lucide--fast-forward size-2.5\"></span> Auto</span></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"tooltip\" data-tip=\"No changes needed — auto-advanced\"><span class=\"badge badge-ghost badge-xs gap-1 text-base-content/65\"><span class=\"iconify lucide--fast-forward size-2.5\"></span> Auto</span></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -570,7 +570,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\"><span class=\"badge badge-ghost badge-xs gap-1 text-base-content/40\"><span class=\"iconify lucide--skip-forward size-2.5\"></span> Skipped</span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\"><span class=\"badge badge-ghost badge-xs gap-1 text-base-content/55\"><span class=\"iconify lucide--skip-forward size-2.5\"></span> Skipped</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -580,7 +580,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			return templ_7745c5c3_Err
 		}
 		if step.Status == "pending" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p class=\"text-xs text-base-content/40 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<p class=\"text-xs text-base-content/55 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -612,7 +612,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\"></div></div><span class=\"tooltip\" data-tip=\"LLM processing segments completed\"><span class=\"text-xs text-base-content/50\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\"></div></div><span class=\"tooltip\" data-tip=\"LLM processing segments completed\"><span class=\"text-xs text-base-content/65\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -643,7 +643,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<p class=\"text-xs text-base-content/50 mt-0.5\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<p class=\"text-xs text-base-content/65 mt-0.5\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -662,7 +662,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				}
 			}
 		} else if step.Status == "awaiting_human" && step.BatchID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<p class=\"text-xs text-base-content/60 mt-0.5\">Review the AI draft before continuing</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<p class=\"text-xs text-base-content/75 mt-0.5\">Review the AI draft before continuing</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -774,7 +774,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "  <div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/50 flex-wrap\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "  <div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/65 flex-wrap\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -877,7 +877,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 		switch step.Name {
 		case "draft_assessment":
 			if step.OKRCount > 0 || step.AssumptionCount > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"flex items-center gap-3 mt-0.5 text-xs text-base-content/75 flex-wrap\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -966,7 +966,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if step.OKRHitRatePct > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span class=\"text-base-content/60 flex items-center gap-1\"><span class=\"iconify lucide--percent size-3\"></span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span class=\"text-base-content/75 flex items-center gap-1\"><span class=\"iconify lucide--percent size-3\"></span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1010,7 +1010,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 			}
 		case "align_portfolio":
 			if !step.Skipped && step.TracksProcessed > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<div class=\"flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap\"><span class=\"flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "<div class=\"flex items-center gap-3 mt-0.5 text-xs text-base-content/75 flex-wrap\"><span class=\"flex items-center gap-1\"><span class=\"iconify lucide--git-branch size-3\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1124,7 +1124,7 @@ func runStatusIconColor(status string) string {
 	case "running":
 		return "text-primary animate-spin"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -1204,7 +1204,7 @@ func runStepBorderClass(status string) string {
 	case "failed":
 		return "border-error/20 bg-error/5"
 	default:
-		return "border-base-content/10 bg-base-100 opacity-60"
+		return "border-base-content/15 bg-base-100 opacity-60"
 	}
 }
 
@@ -1219,7 +1219,7 @@ func runStepCircleClass(status string) string {
 	case "failed":
 		return "bg-error text-error-content"
 	default:
-		return "bg-base-content/10 text-base-content/40"
+		return "bg-base-content/10 text-base-content/55"
 	}
 }
 
@@ -1234,7 +1234,7 @@ func runStepLabelClass(status string) string {
 	case "failed":
 		return "text-error"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 

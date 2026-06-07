@@ -237,7 +237,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Updated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Updated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -409,7 +409,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.DirectCompetitors) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2\">Direct Competitors</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2\">Direct Competitors</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -425,7 +425,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				}
 			}
 			if len(data.StrategyTools) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2\">Strategy Tools</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2\">Strategy Tools</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -441,12 +441,12 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				}
 			}
 			if len(data.IndirectCompetitors) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2\">Indirect Competitors</h4><div class=\"space-y-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2\">Indirect Competitors</h4><div class=\"space-y-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, c := range data.IndirectCompetitors {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3 flex items-start justify-between gap-4\"><div><p class=\"text-sm font-medium text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"rounded-lg bg-base-100 px-4 py-3 flex items-start justify-between gap-4\"><div><p class=\"text-sm font-medium text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -464,7 +464,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if c.HowTheySolve != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p class=\"text-xs text-base-content/60 mt-0.5\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p class=\"text-xs text-base-content/75 mt-0.5\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -487,7 +487,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if c.ThreatLevel != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/50\"><span>Threat</span> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/65\"><span>Threat</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -587,7 +587,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if s.StrategicValue != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<p class=\"text-xs text-base-content/60 mt-0.5\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<p class=\"text-xs text-base-content/75 mt-0.5\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -649,7 +649,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if w.Mitigation != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<p class=\"text-xs text-base-content/60 mt-0.5\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<p class=\"text-xs text-base-content/75 mt-0.5\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -711,7 +711,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if o.HowToExploit != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p class=\"text-xs text-base-content/60 mt-0.5\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p class=\"text-xs text-base-content/75 mt-0.5\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -814,7 +814,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if t.Mitigation != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<p class=\"text-xs text-base-content/60 mt-0.5\">")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<p class=\"text-xs text-base-content/75 mt-0.5\">")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -837,7 +837,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						if t.Likelihood != "" {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/50\"><span>Likelihood</span> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/65\"><span>Likelihood</span> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -908,7 +908,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, ws := range data.WhiteSpaces {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-medium text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-medium text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1120,7 +1120,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 			templ_7745c5c3_Var40 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1134,7 +1134,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var41 = []any{"iconify size-4 text-base-content/50", trendCategoryIcon(category)}
+		var templ_7745c5c3_Var41 = []any{"iconify size-4 text-base-content/65", trendCategoryIcon(category)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var41...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1178,12 +1178,12 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, t := range trends {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1224,7 +1224,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 				return templ_7745c5c3_Err
 			}
 			if t.Impact != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<p class=\"text-xs text-base-content/70 mt-1\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "<p class=\"text-xs text-base-content/80 mt-1\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1276,7 +1276,7 @@ func personaCard(p InsightPersona) templ.Component {
 			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-3 mb-3\"><div class=\"rounded-full bg-primary/10 p-2\"><span class=\"iconify lucide--user size-5 text-primary\"></span></div><div><h4 class=\"text-sm font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-3 mb-3\"><div class=\"rounded-full bg-primary/10 p-2\"><span class=\"iconify lucide--user size-5 text-primary\"></span></div><div><h4 class=\"text-sm font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1294,7 +1294,7 @@ func personaCard(p InsightPersona) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if p.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<p class=\"text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<p class=\"text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1317,7 +1317,7 @@ func personaCard(p InsightPersona) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(p.Goals) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "<div class=\"mb-3\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Goals</p><div class=\"flex flex-wrap gap-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "<div class=\"mb-3\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Goals</p><div class=\"flex flex-wrap gap-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1346,7 +1346,7 @@ func personaCard(p InsightPersona) templ.Component {
 			}
 		}
 		if len(p.Problems) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Pain Points</p><div class=\"space-y-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Pain Points</p><div class=\"space-y-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1443,7 +1443,7 @@ func keyInsightCard(ins InsightKey) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if ins.StrategicImplication != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<p class=\"text-xs text-base-content/70 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 140, "<p class=\"text-xs text-base-content/80 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1519,7 +1519,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			templ_7745c5c3_Var59 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1537,7 +1537,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if c.Positioning != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "<p class=\"text-xs text-base-content/70 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 149, "<p class=\"text-xs text-base-content/80 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1566,7 +1566,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, s := range c.Strengths {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "<li class=\"text-xs text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "<li class=\"text-xs text-base-content/80\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1595,7 +1595,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, w := range c.Weaknesses {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<li class=\"text-xs text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "<li class=\"text-xs text-base-content/80\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1755,7 +1755,7 @@ func marketStatCard(label, value string) templ.Component {
 			templ_7745c5c3_Var71 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-3 text-center\"><p class=\"text-lg font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 169, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-3 text-center\"><p class=\"text-lg font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1768,7 +1768,7 @@ func marketStatCard(label, value string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "</p><p class=\"text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 170, "</p><p class=\"text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1810,7 +1810,7 @@ func segmentRow(seg InsightSegment) templ.Component {
 			templ_7745c5c3_Var74 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm font-medium text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 172, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm font-medium text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -88,7 +88,7 @@ func AimCycleRunsContent(data AimCycleRunsData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/60 mt-0.5\">History of orchestrated AIM cycle runs for this strategy.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/75 mt-0.5\">History of orchestrated AIM cycle runs for this strategy.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -200,7 +200,7 @@ func aimRunsEmptyState(data AimCycleRunsData) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body items-center text-center py-12\"><span class=\"iconify lucide--play-circle size-10 text-base-content/20 mb-3\"></span><h3 class=\"text-base font-semibold text-base-content\">No cycle runs yet</h3><p class=\"text-sm text-base-content/60 max-w-md mt-1\">AIM cycle runs execute the full Observe-Assess-Decide-Adapt loop. Start your first cycle from the AIM overview or use the button above.</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body items-center text-center py-12\"><span class=\"iconify lucide--play-circle size-10 text-base-content/20 mb-3\"></span><h3 class=\"text-base font-semibold text-base-content\">No cycle runs yet</h3><p class=\"text-sm text-base-content/75 max-w-md mt-1\">AIM cycle runs execute the full Observe-Assess-Decide-Adapt loop. Start your first cycle from the AIM overview or use the button above.</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +231,7 @@ func aimRunRow(run AimCycleRunRow) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var7 = []any{"block rounded-xl border px-5 py-4 transition-colors hover:bg-base-200/50 cursor-pointer group",
 			templ.KV("border-primary/30 bg-primary/5", run.isActive()),
-			templ.KV("border-base-content/10 bg-base-100 shadow-sm", !run.isActive())}
+			templ.KV("border-base-content/15 bg-base-100 shadow-sm", !run.isActive())}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -372,7 +372,7 @@ func aimRunRow(run AimCycleRunRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if run.isActive() && run.CurrentStep != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"text-xs text-base-content/65\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -433,7 +433,7 @@ func aimRunRow(run AimCycleRunRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</div><div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/50 flex-wrap\"><span class=\"flex items-center gap-1\"><span class=\"iconify lucide--calendar size-3\"></span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</div><div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/65 flex-wrap\"><span class=\"flex items-center gap-1\"><span class=\"iconify lucide--calendar size-3\"></span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -597,7 +597,7 @@ func aimRunRowCircleClass(status string) string {
 	case "awaiting_human":
 		return "bg-warning/10 text-warning"
 	default:
-		return "bg-base-content/5 text-base-content/40"
+		return "bg-base-content/5 text-base-content/55"
 	}
 }
 

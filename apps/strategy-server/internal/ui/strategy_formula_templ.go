@@ -239,7 +239,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Updated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Updated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -361,12 +361,12 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.Advantages) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<h4 class=\"text-sm font-semibold text-base-content/70\">Advantages</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<h4 class=\"text-sm font-semibold text-base-content/80\">Advantages</h4><div class=\"grid gap-3 md:grid-cols-2 lg:grid-cols-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, a := range data.Advantages {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -426,7 +426,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 				}
 			}
 			if len(data.VsCompetitors) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<h4 class=\"text-sm font-semibold text-base-content/70 mt-2\">vs Competitors</h4><div class=\"space-y-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<h4 class=\"text-sm font-semibold text-base-content/80 mt-2\">vs Competitors</h4><div class=\"space-y-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -475,7 +475,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, d := range data.ValueDrivers {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h5 class=\"text-sm font-bold text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -488,7 +488,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</h5><p class=\"text-xs text-base-content/70 mt-1\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</h5><p class=\"text-xs text-base-content/80 mt-1\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -553,7 +553,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.PricingPhilosophy != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -588,7 +588,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 				}
 			}
 			if len(data.UnitEconomics) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3\">Unit Economics Targets</h4><div class=\"flex flex-wrap gap-4\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-3\">Unit Economics Targets</h4><div class=\"flex flex-wrap gap-4\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -606,7 +606,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</p><p class=\"text-xs text-base-content/70\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</p><p class=\"text-xs text-base-content/80\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -720,7 +720,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, m := range data.SupportingMetrics {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-3\"><p class=\"text-sm font-medium text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-3\"><p class=\"text-sm font-medium text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -757,7 +757,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 						}
 					}
 					if m.Why != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<p class=\"text-xs text-base-content/70 mt-1\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<p class=\"text-xs text-base-content/80 mt-1\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -819,7 +819,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, syn := range data.EcosystemSynergies {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3\"><p class=\"text-sm font-medium text-base-content\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><p class=\"text-sm font-medium text-base-content\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -832,7 +832,7 @@ func StrategyFormulaContent(data StrategyFormulaData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</p><p class=\"text-xs text-base-content/70 mt-1\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</p><p class=\"text-xs text-base-content/80 mt-1\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -890,7 +890,7 @@ func competitorRow(c FormulaCompetitor) templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<div class=\"rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3\"><div class=\"flex items-start gap-4\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-semibold text-base-content\">vs ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<div class=\"rounded-lg border border-base-content/12 bg-base-100 px-4 py-3\"><div class=\"flex items-start gap-4\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-semibold text-base-content\">vs ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -903,12 +903,12 @@ func competitorRow(c FormulaCompetitor) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</p><div class=\"grid gap-x-6 gap-y-1 md:grid-cols-2 mt-1 text-xs text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "</p><div class=\"grid gap-x-6 gap-y-1 md:grid-cols-2 mt-1 text-xs text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if c.TheirStrength != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<span><span class=\"font-medium text-base-content/60\">Their strength:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<span><span class=\"font-medium text-base-content/75\">Their strength:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1038,7 +1038,7 @@ func journeyStep(step FormulaJourneyStep, idx, total int) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if step.Action != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<p class=\"text-xs text-base-content/70 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<p class=\"text-xs text-base-content/80 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1104,7 +1104,7 @@ func tierCard(t FormulaTier) templ.Component {
 			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4 text-center\"><h5 class=\"text-sm font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4 text-center\"><h5 class=\"text-sm font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1141,7 +1141,7 @@ func tierCard(t FormulaTier) templ.Component {
 			}
 		}
 		if t.Purpose != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<p class=\"text-xs text-base-content/70 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "<p class=\"text-xs text-base-content/80 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1188,7 +1188,7 @@ func riskRow(r FormulaRisk) templ.Component {
 			templ_7745c5c3_Var40 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<details class=\"group rounded-lg border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-4 py-3 text-sm select-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<details class=\"group rounded-lg border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-4 py-3 text-sm select-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1223,7 +1223,7 @@ func riskRow(r FormulaRisk) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "</span> <span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/50\"><span>Impact</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "</span> <span class=\"flex items-center gap-1 shrink-0 text-xs text-base-content/65\"><span>Impact</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1258,12 +1258,12 @@ func riskRow(r FormulaRisk) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "</span></span> <span class=\"iconify lucide--chevron-right size-3.5 text-base-content/30 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-4 pb-3 pt-2 text-xs text-base-content/70 space-y-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "</span></span> <span class=\"iconify lucide--chevron-right size-3.5 text-base-content/30 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-4 pb-3 pt-2 text-xs text-base-content/80 space-y-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if r.Mitigation != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<p><span class=\"font-medium text-base-content/60\">Mitigation:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<p><span class=\"font-medium text-base-content/75\">Mitigation:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1282,7 +1282,7 @@ func riskRow(r FormulaRisk) templ.Component {
 			}
 		}
 		if r.Monitoring != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<p><span class=\"font-medium text-base-content/60\">Monitoring:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<p><span class=\"font-medium text-base-content/75\">Monitoring:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1329,7 +1329,7 @@ func tradeOffCard(t FormulaTradeOff) templ.Component {
 			templ_7745c5c3_Var49 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1347,7 +1347,7 @@ func tradeOffCard(t FormulaTradeOff) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if t.Rationale != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<p class=\"text-xs text-base-content/70 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "<p class=\"text-xs text-base-content/80 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1370,7 +1370,7 @@ func tradeOffCard(t FormulaTradeOff) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if t.WhatWeGain != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<div class=\"flex items-start gap-2\"><span class=\"iconify lucide--plus-circle size-3.5 text-success mt-0.5 shrink-0\"></span> <span class=\"text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<div class=\"flex items-start gap-2\"><span class=\"iconify lucide--plus-circle size-3.5 text-success mt-0.5 shrink-0\"></span> <span class=\"text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1389,7 +1389,7 @@ func tradeOffCard(t FormulaTradeOff) templ.Component {
 			}
 		}
 		if t.WhatWeGiveUp != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<div class=\"flex items-start gap-2\"><span class=\"iconify lucide--minus-circle size-3.5 text-error mt-0.5 shrink-0\"></span> <span class=\"text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 138, "<div class=\"flex items-start gap-2\"><span class=\"iconify lucide--minus-circle size-3.5 text-error mt-0.5 shrink-0\"></span> <span class=\"text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1436,7 +1436,7 @@ func ecoComponentCard(comp FormulaEcoComponent) templ.Component {
 			templ_7745c5c3_Var54 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--component size-4 text-secondary\"></span><h5 class=\"text-sm font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 141, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--component size-4 text-secondary\"></span><h5 class=\"text-sm font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1492,7 +1492,7 @@ func ecoComponentCard(comp FormulaEcoComponent) templ.Component {
 			}
 		}
 		if comp.EcosystemValue != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<div class=\"mt-2 pt-2 border-t border-base-content/5\"><p class=\"text-xs text-base-content/70\"><span class=\"font-medium\">Ecosystem value:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 147, "<div class=\"mt-2 pt-2 border-t border-base-content/5\"><p class=\"text-xs text-base-content/80\"><span class=\"font-medium\">Ecosystem value:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -56,7 +56,7 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 			</div>
 			// Commit / Discard actions — always visible in the header
 			<div class="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-primary/15">
-				<p class="text-xs text-base-content/50">
+				<p class="text-xs text-base-content/65">
 					if len(data.Items) > 1 {
 						All { itemCountLabel(len(data.Items)) } will be committed or discarded together.
 					} else {
@@ -83,11 +83,11 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 		// Unified list — each item shows its summary, change description, and
 		// an expandable preview. No separate sections.
 		if len(data.Items) == 0 {
-			<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+			<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 				<div class="card-body p-5">
 					<div class="text-center py-8">
 						<span class="iconify lucide--file-question size-10 text-base-content/30 mx-auto mb-3 block"></span>
-						<p class="text-sm text-base-content/60">No staged mutations found in this batch.</p>
+						<p class="text-sm text-base-content/75">No staged mutations found in this batch.</p>
 					</div>
 				</div>
 			</div>
@@ -101,9 +101,9 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 
 		// Legacy single-preview fallback (when items don't carry inline previews).
 		if len(data.Previews) == 0 && data.PreviewContent != nil {
-			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
-				<div class="px-6 py-3 border-b border-base-content/10 bg-base-200/50">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Draft Preview</p>
+			<div class="rounded-xl border border-base-content/15 bg-base-100 overflow-hidden">
+				<div class="px-6 py-3 border-b border-base-content/15 bg-base-100">
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Draft Preview</p>
 				</div>
 				<div class="p-4">
 					@data.PreviewContent
@@ -116,7 +116,7 @@ templ AimDraftReviewContent(data AimDraftReviewData) {
 // aimDraftReviewItem renders a single staged mutation with change summary and
 // an inline expandable preview.
 templ aimDraftReviewItem(item AimDraftReviewItem) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 overflow-hidden">
 		// Header row — artifact name, action badge
 		<div class="flex items-center gap-3 px-5 py-3">
 			<span class={ "iconify size-4 shrink-0", draftActionIcon(item.Action), draftActionColor(item.Action) }></span>
@@ -129,14 +129,14 @@ templ aimDraftReviewItem(item AimDraftReviewItem) {
 		if item.ChangeSummary != "" {
 			<div class="px-5 pb-3">
 				<div class="pl-7 border-l-2 border-primary/20">
-					<p class="text-xs text-base-content/70 whitespace-pre-line leading-relaxed">{ item.ChangeSummary }</p>
+					<p class="text-xs text-base-content/80 whitespace-pre-line leading-relaxed">{ item.ChangeSummary }</p>
 				</div>
 			</div>
 		}
 		// Expandable full preview
 		if item.Preview != nil {
 			<details class="group">
-				<summary class="flex items-center justify-between gap-3 px-5 py-2.5 border-t border-base-content/5 bg-base-200/30 cursor-pointer select-none list-none text-xs text-base-content/50 hover:text-base-content/70">
+				<summary class="flex items-center justify-between gap-3 px-5 py-2.5 border-t border-base-content/5 bg-base-100 cursor-pointer select-none list-none text-xs text-base-content/65 hover:text-base-content/80">
 					<div class="flex items-center gap-2">
 						<span class="iconify lucide--eye size-3.5"></span>
 						<span>View full draft</span>
@@ -173,7 +173,7 @@ func draftActionColor(action string) string {
 	case "archive":
 		return "text-warning"
 	default:
-		return "text-base-content/50"
+		return "text-base-content/65"
 	}
 }
 

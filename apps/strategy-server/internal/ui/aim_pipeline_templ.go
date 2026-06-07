@@ -490,7 +490,7 @@ func aimPipelineReviewInbox(data AimPipelineData) templ.Component {
 			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><span class=\"iconify lucide--inbox size-4 text-info\"></span><h3 class=\"text-base font-semibold text-base-content\">Pending Reviews</h3><span class=\"badge badge-sm badge-info\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-4\"><span class=\"iconify lucide--inbox size-4 text-info\"></span><h3 class=\"text-base font-semibold text-base-content\">Pending Reviews</h3><span class=\"badge badge-sm badge-info\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -589,7 +589,7 @@ func pipelineReviewItem(item PipelineReviewItem, instanceID string) templ.Compon
 			return templ_7745c5c3_Err
 		}
 		if item.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<p class=\"text-xs text-base-content/60 line-clamp-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<p class=\"text-xs text-base-content/75 line-clamp-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -607,7 +607,7 @@ func pipelineReviewItem(item PipelineReviewItem, instanceID string) templ.Compon
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"flex items-center gap-3 text-xs text-base-content/40\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"flex items-center gap-3 text-xs text-base-content/55\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -749,7 +749,7 @@ func aimPipelineTimeline(data AimPipelineData) templ.Component {
 			templ_7745c5c3_Var29 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><details class=\"group\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><details class=\"group\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -759,7 +759,7 @@ func aimPipelineTimeline(data AimPipelineData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "><summary class=\"flex items-center gap-2 cursor-pointer select-none mb-4\"><span class=\"iconify lucide--git-commit-horizontal size-4 text-base-content/60\"></span><h3 class=\"text-base font-semibold text-base-content\">Cascade Timeline</h3><span class=\"text-xs text-base-content/40\">(")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "><summary class=\"flex items-center gap-2 cursor-pointer select-none mb-4\"><span class=\"iconify lucide--git-commit-horizontal size-4 text-base-content/75\"></span><h3 class=\"text-base font-semibold text-base-content\">Cascade Timeline</h3><span class=\"text-xs text-base-content/55\">(")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -772,7 +772,7 @@ func aimPipelineTimeline(data AimPipelineData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, " events)</span> <span class=\"iconify lucide--chevron-right size-3.5 group-open:rotate-90 transition-transform ml-auto text-base-content/40\"></span></summary><div class=\"relative pl-6\"><div class=\"absolute left-[11px] top-0 bottom-0 w-px bg-base-content/10\"></div><div class=\"space-y-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, " events)</span> <span class=\"iconify lucide--chevron-right size-3.5 group-open:rotate-90 transition-transform ml-auto text-base-content/55\"></span></summary><div class=\"relative pl-6\"><div class=\"absolute left-[11px] top-0 bottom-0 w-px bg-base-content/10\"></div><div class=\"space-y-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -863,7 +863,7 @@ func pipelineTimelineEvent(ev PipelineTimelineEvent) templ.Component {
 		}
 		var templ_7745c5c3_Var36 = []any{"text-xs font-semibold",
 			templ.KV("text-base-content", ev.IsActive),
-			templ.KV("text-base-content/70", !ev.IsActive)}
+			templ.KV("text-base-content/80", !ev.IsActive)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var36...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -922,7 +922,7 @@ func pipelineTimelineEvent(ev PipelineTimelineEvent) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if ev.Detail != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p class=\"text-xs text-base-content/50 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p class=\"text-xs text-base-content/65 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1017,7 +1017,7 @@ func aimPipelineSignalSummary(data AimPipelineData) templ.Component {
 			templ_7745c5c3_Var44 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-3\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--radio size-4 text-base-content/60\"></span><h3 class=\"text-sm font-semibold text-base-content\">Signal Feed</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-3\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--radio size-4 text-base-content/75\"></span><h3 class=\"text-sm font-semibold text-base-content\">Signal Feed</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1079,7 +1079,7 @@ func aimPipelineSignalSummary(data AimPipelineData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</p><p class=\"text-xs text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</p><p class=\"text-xs text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1105,7 +1105,7 @@ func aimPipelineSignalSummary(data AimPipelineData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "</p><p class=\"text-xs text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "</p><p class=\"text-xs text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1131,12 +1131,12 @@ func aimPipelineSignalSummary(data AimPipelineData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</p><p class=\"text-xs text-base-content/60\">Info</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</p><p class=\"text-xs text-base-content/75\">Info</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.RecentSignals) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"text-center py-6\"><span class=\"iconify lucide--shield-check size-8 text-success/40 mx-auto mb-2 block\"></span><p class=\"text-xs font-medium text-base-content/70\">No active signals</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"text-center py-6\"><span class=\"iconify lucide--shield-check size-8 text-success/40 mx-auto mb-2 block\"></span><p class=\"text-xs font-medium text-base-content/80\">No active signals</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1188,7 +1188,7 @@ func aimPipelineStatus(data AimPipelineData) templ.Component {
 			templ_7745c5c3_Var53 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3\">Status</h3><div class=\"space-y-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest mb-3\">Status</h3><div class=\"space-y-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1281,7 +1281,7 @@ func pipelineStatRow(icon, label, value string, highlight bool, href string) tem
 			}
 			var templ_7745c5c3_Var57 = []any{"iconify size-4 group-hover:text-primary", icon,
 				templ.KV("text-primary", highlight),
-				templ.KV("text-base-content/40", !highlight)}
+				templ.KV("text-base-content/55", !highlight)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var57...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1318,7 +1318,7 @@ func pipelineStatRow(icon, label, value string, highlight bool, href string) tem
 			}
 			var templ_7745c5c3_Var60 = []any{"text-xs",
 				templ.KV("text-primary font-semibold", highlight),
-				templ.KV("text-base-content/50", !highlight)}
+				templ.KV("text-base-content/65", !highlight)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var60...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1360,7 +1360,7 @@ func pipelineStatRow(icon, label, value string, highlight bool, href string) tem
 			}
 			var templ_7745c5c3_Var63 = []any{"iconify size-4", icon,
 				templ.KV("text-primary", highlight),
-				templ.KV("text-base-content/40", !highlight)}
+				templ.KV("text-base-content/55", !highlight)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var63...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1397,7 +1397,7 @@ func pipelineStatRow(icon, label, value string, highlight bool, href string) tem
 			}
 			var templ_7745c5c3_Var66 = []any{"text-xs",
 				templ.KV("text-primary font-semibold", highlight),
-				templ.KV("text-base-content/50", !highlight)}
+				templ.KV("text-base-content/65", !highlight)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var66...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

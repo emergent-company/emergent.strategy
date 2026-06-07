@@ -78,12 +78,12 @@ templ AimRunPanelContent(data AimRunPanelData) {
 		data-stream-url={ data.StreamURL }
 	>
 		// ── Run header ──
-		<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+		<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<span class={ "iconify size-5", runStatusIcon(data.Status), runStatusIconColor(data.Status) }></span>
 					<div>
-						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">{ langs.T(ctx, "page.aim_cycle_run") }</p>
+						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">{ langs.T(ctx, "page.aim_cycle_run") }</p>
 					<p class="text-sm font-medium text-base-content mt-0.5">
 						if data.CurrentStep != "" {
 							Running: { runStepLabel(data.CurrentStep) }
@@ -187,10 +187,10 @@ templ aimRunSSEScript() {
 // AimRunTimeline renders the step-by-step timeline — the target for SSE updates.
 // Exported so the SSE handler can render it server-side for live HTML push.
 templ AimRunTimeline(data AimRunPanelData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest">Step Progress</h3>
+				<h3 class="text-sm font-semibold text-base-content/80 uppercase tracking-widest">Step Progress</h3>
 				if data.LLMMode {
 				<span class="tooltip" data-tip="This step used AI to generate draft artifacts">
 					<span class="badge badge-outline gap-1 text-xs border-secondary/40 text-secondary">
@@ -200,7 +200,7 @@ templ AimRunTimeline(data AimRunPanelData) {
 				</span>
 				} else {
 				<span class="tooltip" data-tip="This step created placeholder artifacts without AI content">
-					<span class="badge badge-ghost gap-1 text-xs text-base-content/40">
+					<span class="badge badge-ghost gap-1 text-xs text-base-content/55">
 						<span class="iconify lucide--pencil size-3"></span>
 						Skeleton mode
 					</span>
@@ -209,8 +209,8 @@ templ AimRunTimeline(data AimRunPanelData) {
 			</div>
 			if len(data.Steps) == 0 {
 				<div class="flex items-center gap-3 py-4">
-					<span class="iconify lucide--loader size-4 text-base-content/40 animate-spin"></span>
-					<p class="text-sm text-base-content/60">Initialising workflow…</p>
+					<span class="iconify lucide--loader size-4 text-base-content/55 animate-spin"></span>
+					<p class="text-sm text-base-content/75">Initialising workflow…</p>
 				</div>
 			} else {
 				<div class="space-y-3">
@@ -255,7 +255,7 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 				}
 				if step.AutoAdvanced {
 					<span class="tooltip" data-tip="No changes needed — auto-advanced">
-						<span class="badge badge-ghost badge-xs gap-1 text-base-content/50">
+						<span class="badge badge-ghost badge-xs gap-1 text-base-content/65">
 							<span class="iconify lucide--fast-forward size-2.5"></span>
 							Auto
 						</span>
@@ -263,7 +263,7 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 				}
 				if step.Skipped {
 					<span class="tooltip" data-tip={ "Skipped: " + step.SkippedReason }>
-						<span class="badge badge-ghost badge-xs gap-1 text-base-content/40">
+						<span class="badge badge-ghost badge-xs gap-1 text-base-content/55">
 							<span class="iconify lucide--skip-forward size-2.5"></span>
 							Skipped
 						</span>
@@ -273,7 +273,7 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 
 			// Description line — always shown, content varies by status
 			if step.Status == "pending" {
-				<p class="text-xs text-base-content/40 mt-0.5">{ runStepDescription(step.Name) }</p>
+				<p class="text-xs text-base-content/55 mt-0.5">{ runStepDescription(step.Name) }</p>
 			} else if step.Status == "running" {
 				if step.ChunkCount > 0 {
 					<div class="flex items-center gap-2 mt-1.5">
@@ -284,16 +284,16 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 							></div>
 						</div>
 						<span class="tooltip" data-tip="LLM processing segments completed">
-							<span class="text-xs text-base-content/50">
+							<span class="text-xs text-base-content/65">
 								{ itoa(step.ChunksCompleted) }/{ itoa(step.ChunkCount) } chunks
 							</span>
 						</span>
 					</div>
 				} else {
-					<p class="text-xs text-base-content/50 mt-0.5">{ runStepDescription(step.Name) }</p>
+					<p class="text-xs text-base-content/65 mt-0.5">{ runStepDescription(step.Name) }</p>
 				}
 			} else if step.Status == "awaiting_human" && step.BatchID != "" {
-				<p class="text-xs text-base-content/60 mt-0.5">Review the AI draft before continuing</p>
+				<p class="text-xs text-base-content/75 mt-0.5">Review the AI draft before continuing</p>
 			} else if step.Status == "failed" && step.Error != "" {
 				<p class="text-xs text-error/70 mt-0.5">{ step.Error }</p>
 			} else if step.Status == "done" {
@@ -318,7 +318,7 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 					</div>
 				}
 				// Common metrics row: tokens, duration
-				<div class="flex items-center gap-3 mt-1 text-xs text-base-content/50 flex-wrap">
+				<div class="flex items-center gap-3 mt-1 text-xs text-base-content/65 flex-wrap">
 					if step.TotalTokens > 0 {
 						<span class="tooltip" data-tip="Total language model tokens used">
 							<span class="flex items-center gap-1">
@@ -355,7 +355,7 @@ templ aimRunStepMeta(step AimRunStepRow) {
 	switch step.Name {
 		case "draft_assessment":
 			if step.OKRCount > 0 || step.AssumptionCount > 0 {
-				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap">
+				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/75 flex-wrap">
 					if step.OKRCount > 0 {
 						<span class="flex items-center gap-1">
 							<span class="iconify lucide--target size-3"></span>
@@ -377,7 +377,7 @@ templ aimRunStepMeta(step AimRunStepRow) {
 						{ calibrationDecisionLabel(step.SuggestedDecision) }
 					</span>
 					if step.OKRHitRatePct > 0 {
-						<span class="text-base-content/60 flex items-center gap-1">
+						<span class="text-base-content/75 flex items-center gap-1">
 							<span class="iconify lucide--percent size-3"></span>
 							{ fmt.Sprintf("%.0f%%", step.OKRHitRatePct) } OKR hit rate
 						</span>
@@ -392,7 +392,7 @@ templ aimRunStepMeta(step AimRunStepRow) {
 			}
 		case "align_portfolio":
 			if !step.Skipped && step.TracksProcessed > 0 {
-				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/60 flex-wrap">
+				<div class="flex items-center gap-3 mt-0.5 text-xs text-base-content/75 flex-wrap">
 					<span class="flex items-center gap-1">
 						<span class="iconify lucide--git-branch size-3"></span>
 						{ itoa(step.TracksProcessed) } tracks processed
@@ -450,7 +450,7 @@ func runStatusIconColor(status string) string {
 	case "running":
 		return "text-primary animate-spin"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -530,7 +530,7 @@ func runStepBorderClass(status string) string {
 	case "failed":
 		return "border-error/20 bg-error/5"
 	default:
-		return "border-base-content/10 bg-base-100 opacity-60"
+		return "border-base-content/15 bg-base-100 opacity-60"
 	}
 }
 
@@ -545,7 +545,7 @@ func runStepCircleClass(status string) string {
 	case "failed":
 		return "bg-error text-error-content"
 	default:
-		return "bg-base-content/10 text-base-content/40"
+		return "bg-base-content/10 text-base-content/55"
 	}
 }
 
@@ -560,7 +560,7 @@ func runStepLabelClass(status string) string {
 	case "failed":
 		return "text-error"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 

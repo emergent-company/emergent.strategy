@@ -124,7 +124,7 @@ func ArtifactListContent(data ArtifactListData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Subtitle != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-xs text-base-content/65\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -235,7 +235,7 @@ func artifactListRow(item ArtifactListItem) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer\"><div class=\"card-body p-4 flex-row items-center gap-4\"><div class=\"min-w-0 grow\"><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"card bg-base-100 border border-base-content/15 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer\"><div class=\"card-body p-4 flex-row items-center gap-4\"><div class=\"min-w-0 grow\"><div class=\"flex items-center gap-2\"><span class=\"text-sm font-semibold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -258,7 +258,7 @@ func artifactListRow(item ArtifactListItem) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><div class=\"flex items-center gap-2 mt-0.5\"><span class=\"font-mono text-xs text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><div class=\"flex items-center gap-2 mt-0.5\"><span class=\"font-mono text-xs text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -276,7 +276,7 @@ func artifactListRow(item ArtifactListItem) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if item.Track != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<span class=\"text-xs text-base-content/40\">&middot;</span> <span class=\"text-xs text-base-content/60\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<span class=\"text-xs text-base-content/55\">&middot;</span> <span class=\"text-xs text-base-content/75\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -299,7 +299,7 @@ func artifactListRow(item ArtifactListItem) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if item.Subtitle != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<p class=\"text-xs text-base-content/70 mt-1 line-clamp-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<p class=\"text-xs text-base-content/80 mt-1 line-clamp-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -317,7 +317,7 @@ func artifactListRow(item ArtifactListItem) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><span class=\"iconify lucide--chevron-right size-4 text-base-content/50 shrink-0\"></span></div></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div><span class=\"iconify lucide--chevron-right size-4 text-base-content/65 shrink-0\"></span></div></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

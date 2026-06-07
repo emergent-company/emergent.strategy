@@ -147,7 +147,7 @@ func valueModelHero(data ValueModelViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.TrackName != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -160,12 +160,12 @@ func valueModelHero(data ValueModelViewData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> <span class=\"text-xs text-base-content/40\">·</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span> <span class=\"text-xs text-base-content/55\">·</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/70\">Value Model</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/80\">Value Model</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -212,7 +212,7 @@ func valueModelHero(data ValueModelViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p class=\"text-sm text-base-content/60 max-w-2xl\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<p class=\"text-sm text-base-content/75 max-w-2xl\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -235,7 +235,7 @@ func valueModelHero(data ValueModelViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Updated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Updated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -430,7 +430,7 @@ func valueModelLayerAccordion(layer ValueModelLayer) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--layers size-4 text-base-content/60\"></span> <span class=\"grow\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--layers size-4 text-base-content/75\"></span> <span class=\"grow\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -456,12 +456,12 @@ func valueModelLayerAccordion(layer ValueModelLayer) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " components</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " components</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if layer.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -524,7 +524,7 @@ func valueModelComponentCard(comp ValueModelComponent) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var17 = []any{"card bg-base-100 border shadow-sm", templ.KV("border-success/20", comp.Active), templ.KV("border-base-content/10", !comp.Active)}
+		var templ_7745c5c3_Var17 = []any{"card bg-base-100 border shadow-sm", templ.KV("border-success/20", comp.Active), templ.KV("border-base-content/15", !comp.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -546,7 +546,7 @@ func valueModelComponentCard(comp ValueModelComponent) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var19 = []any{"iconify lucide--component size-4", templ.KV("text-success", comp.Active), templ.KV("text-base-content/40", !comp.Active)}
+		var templ_7745c5c3_Var19 = []any{"iconify lucide--component size-4", templ.KV("text-success", comp.Active), templ.KV("text-base-content/55", !comp.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -616,7 +616,7 @@ func valueModelComponentCard(comp ValueModelComponent) templ.Component {
 			}
 		}
 		if len(comp.SubComponents) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"mt-3 pt-3 border-t border-base-content/5 space-y-1.5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Sub-Components</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"mt-3 pt-3 border-t border-base-content/5 space-y-1.5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Sub-Components</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -636,7 +636,7 @@ func valueModelComponentCard(comp ValueModelComponent) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(comp.Definitions) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/40 mb-2\">Definitions</p><div class=\"flex flex-wrap gap-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/55 mb-2\">Definitions</p><div class=\"flex flex-wrap gap-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -712,12 +712,12 @@ func vmDefinitionChip(d VMComponentDefinition) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-1 rounded-md border border-base-content/10 bg-base-200/50 px-2 py-0.5 text-xs text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-1 rounded-md border border-base-content/15 bg-base-200/50 px-2 py-0.5 text-xs text-base-content/80 hover:bg-base-200 hover:text-base-content transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if d.Tier > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<span class=\"font-mono text-base-content/40\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<span class=\"font-mono text-base-content/55\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -826,7 +826,7 @@ func valueModelSubRow(sub ValueModelSub) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var33 = []any{"text-xs grow", templ.KV("text-base-content/80", sub.Active), templ.KV("text-base-content/50", !sub.Active)}
+		var templ_7745c5c3_Var33 = []any{"text-xs grow", templ.KV("text-base-content/80", sub.Active), templ.KV("text-base-content/65", !sub.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var33...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

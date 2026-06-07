@@ -198,7 +198,7 @@ func SettingsContent(data SettingsData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h1><p class=\"text-sm text-base-content/60 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h1><p class=\"text-sm text-base-content/75 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -285,7 +285,7 @@ func githubNotConfiguredCard(g GithubConfigStatus) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--github size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--github size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -298,7 +298,7 @@ func githubNotConfiguredCard(g GithubConfigStatus) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -369,7 +369,7 @@ func githubNotConfiguredCard(g GithubConfigStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !g.AppConfigured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2\"><p class=\"text-sm text-base-content/70\">The GitHub App is not configured, so repo sync and the per-instance sync status are unavailable. In local dev, <code class=\"bg-base-300/40 px-1 rounded\">dev-setup.sh</code> rewrites <code class=\"bg-base-300/40 px-1 rounded\">.env.local</code> on every run, so put GitHub credentials in a gitignored <code class=\"bg-base-300/40 px-1 rounded\">.env.local.secrets</code> file (appended automatically on every run) and restart:</p><pre class=\"text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto\"># .env.local.secrets GITHUB_APP_ID=&lt;app-id&gt; GITHUB_APP_PRIVATE_KEY_PATH=/absolute/path/to/app-private-key.pem GITHUB_APP_SLUG=&lt;app-slug&gt; # Optional — for the user connect flow: GITHUB_OAUTH_CLIENT_ID=&lt;client-id&gt; GITHUB_OAUTH_CLIENT_SECRET=&lt;client-secret&gt; GITHUB_OAUTH_STATE_SECRET=&lt;random-string&gt;</pre></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"rounded-lg bg-base-200/60 border border-base-content/15 px-4 py-3 space-y-2\"><p class=\"text-sm text-base-content/80\">The GitHub App is not configured, so repo sync and the per-instance sync status are unavailable. In local dev, <code class=\"bg-base-300/40 px-1 rounded\">dev-setup.sh</code> rewrites <code class=\"bg-base-300/40 px-1 rounded\">.env.local</code> on every run, so put GitHub credentials in a gitignored <code class=\"bg-base-300/40 px-1 rounded\">.env.local.secrets</code> file (appended automatically on every run) and restart:</p><pre class=\"text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto\"># .env.local.secrets GITHUB_APP_ID=&lt;app-id&gt; GITHUB_APP_PRIVATE_KEY_PATH=/absolute/path/to/app-private-key.pem GITHUB_APP_SLUG=&lt;app-slug&gt; # Optional — for the user connect flow: GITHUB_OAUTH_CLIENT_ID=&lt;client-id&gt; GITHUB_OAUTH_CLIENT_SECRET=&lt;client-secret&gt; GITHUB_OAUTH_STATE_SECRET=&lt;random-string&gt;</pre></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -468,7 +468,7 @@ func githubMechanismChip(label string, on bool, note string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"inline-flex items-center gap-1.5 badge badge-ghost badge-sm text-base-content/40\" title=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span class=\"inline-flex items-center gap-1.5 badge badge-ghost badge-sm text-base-content/55\" title=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -525,7 +525,7 @@ func memoryStatusCard(m MemoryHealthStatus) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--brain-circuit size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--brain-circuit size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -538,7 +538,7 @@ func memoryStatusCard(m MemoryHealthStatus) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -615,7 +615,7 @@ func memoryStatusCard(m MemoryHealthStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !m.Configured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<!-- Not configured state --> <div class=\"rounded-lg bg-base-200/60 border border-base-content/10 px-4 py-3 space-y-2\"><p class=\"text-sm text-base-content/70\">Memory is not configured. Set the following environment variables and restart the server:</p><pre class=\"text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto\">EPF_MEMORY_URL=http://localhost:3002 EPF_MEMORY_PROJECT=&lt;project-id&gt; EPF_MEMORY_TOKEN=&lt;standalone-api-key&gt; EPF_MEMORY_AUTH_MODE=api-key</pre><p class=\"text-xs text-base-content/50\">Start the Memory server with <code class=\"bg-base-300/40 px-1 rounded\">memory server ctl start</code>, then re-run <code class=\"bg-base-300/40 px-1 rounded\">task dev-up</code> to auto-detect it.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<!-- Not configured state --> <div class=\"rounded-lg bg-base-200/60 border border-base-content/15 px-4 py-3 space-y-2\"><p class=\"text-sm text-base-content/80\">Memory is not configured. Set the following environment variables and restart the server:</p><pre class=\"text-xs text-base-content/80 bg-base-300/40 rounded p-3 overflow-x-auto\">EPF_MEMORY_URL=http://localhost:3002 EPF_MEMORY_PROJECT=&lt;project-id&gt; EPF_MEMORY_TOKEN=&lt;standalone-api-key&gt; EPF_MEMORY_AUTH_MODE=api-key</pre><p class=\"text-xs text-base-content/65\">Start the Memory server with <code class=\"bg-base-300/40 px-1 rounded\">memory server ctl start</code>, then re-run <code class=\"bg-base-300/40 px-1 rounded\">task dev-up</code> to auto-detect it.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -645,7 +645,7 @@ func memoryStatusCard(m MemoryHealthStatus) templ.Component {
 				}
 			}
 			if m.Error != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"sm:col-span-2\"><dt class=\"text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"sm:col-span-2\"><dt class=\"text-xs font-medium text-base-content/65 uppercase tracking-wide mb-0.5\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -730,7 +730,7 @@ func instanceIngestTable(instances []InstanceMemoryStatus) templ.Component {
 			templ_7745c5c3_Var28 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--layers size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--layers size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -743,7 +743,7 @@ func instanceIngestTable(instances []InstanceMemoryStatus) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -827,7 +827,7 @@ func instanceIngestRow(inst InstanceMemoryStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.OrgName != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<p class=\"text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<p class=\"text-xs text-base-content/65\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -846,7 +846,7 @@ func instanceIngestRow(inst InstanceMemoryStatus) templ.Component {
 			}
 		}
 		if inst.LastSyncedAt != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p class=\"text-xs text-base-content/40 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p class=\"text-xs text-base-content/55 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -877,7 +877,7 @@ func instanceIngestRow(inst InstanceMemoryStatus) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><!-- Graph counts --><div class=\"text-right shrink-0 hidden sm:block\"><p class=\"text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><!-- Graph counts --><div class=\"text-right shrink-0 hidden sm:block\"><p class=\"text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -895,7 +895,7 @@ func instanceIngestRow(inst InstanceMemoryStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.GraphObjectCount > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<p class=\"text-xs text-base-content/40\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<p class=\"text-xs text-base-content/55\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1026,7 +1026,7 @@ func ingestStatusBadge(status string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		default:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<span class=\"badge badge-ghost badge-sm text-base-content/40\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<span class=\"badge badge-ghost badge-sm text-base-content/55\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1070,7 +1070,7 @@ func settingsKV(label, value string) templ.Component {
 			templ_7745c5c3_Var45 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<div><dt class=\"text-xs font-medium text-base-content/50 uppercase tracking-wide mb-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<div><dt class=\"text-xs font-medium text-base-content/65 uppercase tracking-wide mb-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1126,7 +1126,7 @@ func githubSyncCard(instances []GithubSyncStatus) templ.Component {
 			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--github size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><!-- Header --><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--github size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1139,7 +1139,7 @@ func githubSyncCard(instances []GithubSyncStatus) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1249,7 +1249,7 @@ func githubSyncRow(inst GithubSyncStatus) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\" target=\"_blank\" rel=\"noopener\" class=\"text-xs text-base-content/60 hover:text-primary font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "\" target=\"_blank\" rel=\"noopener\" class=\"text-xs text-base-content/75 hover:text-primary font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1290,7 +1290,7 @@ func githubSyncRow(inst GithubSyncStatus) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<p class=\"text-xs text-base-content/40 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<p class=\"text-xs text-base-content/55 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1313,7 +1313,7 @@ func githubSyncRow(inst GithubSyncStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.LocalSHA != "" || inst.RemoteSHA != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<div class=\"flex items-center gap-2 mt-1 text-xs text-base-content/40 font-mono\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<div class=\"flex items-center gap-2 mt-1 text-xs text-base-content/55 font-mono\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1371,7 +1371,7 @@ func githubSyncRow(inst GithubSyncStatus) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.LastSyncAt != nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<p class=\"text-xs text-base-content/40 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<p class=\"text-xs text-base-content/55 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1590,7 +1590,7 @@ func githubSyncRow(inst GithubSyncStatus) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" class=\"flex items-center gap-2 flex-wrap\"><span class=\"iconify lucide--folder-symlink size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/40\">Move to:</span> <select name=\"workspace_id\" class=\"select select-xs select-bordered\" onchange=\"const inp=this.form.querySelector('.move-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\" class=\"flex items-center gap-2 flex-wrap\"><span class=\"iconify lucide--folder-symlink size-3.5 text-base-content/30 shrink-0\"></span> <span class=\"text-xs text-base-content/55\">Move to:</span> <select name=\"workspace_id\" class=\"select select-xs select-bordered\" onchange=\"const inp=this.form.querySelector('.move-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1812,7 +1812,7 @@ func githubSyncStateBadge(state string, repoLinked bool) templ.Component {
 			}
 		default:
 			if !repoLinked {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "<span class=\"badge badge-ghost badge-sm text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 146, "<span class=\"badge badge-ghost badge-sm text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1830,7 +1830,7 @@ func githubSyncStateBadge(state string, repoLinked bool) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<span class=\"badge badge-ghost badge-sm text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 148, "<span class=\"badge badge-ghost badge-sm text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1933,7 +1933,7 @@ func githubSyncStatusBadge(status string, repoLinked bool) templ.Component {
 			}
 		default:
 			if !repoLinked {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "<span class=\"badge badge-ghost badge-sm text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "<span class=\"badge badge-ghost badge-sm text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1951,7 +1951,7 @@ func githubSyncStatusBadge(status string, repoLinked bool) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<span class=\"badge badge-ghost badge-sm text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<span class=\"badge badge-ghost badge-sm text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1996,7 +1996,7 @@ func langPickerCard(activeLang string) templ.Component {
 			templ_7745c5c3_Var94 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/10\"><span class=\"iconify lucide--languages size-5 text-base-content/60\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden\"><div class=\"flex items-center gap-3 px-5 py-4 border-b border-base-content/15\"><span class=\"iconify lucide--languages size-5 text-base-content/75\"></span><div class=\"grow\"><h2 class=\"text-sm font-bold text-base-content uppercase tracking-widest\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2009,7 +2009,7 @@ func langPickerCard(activeLang string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "</h2><p class=\"text-xs text-base-content/50 mt-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 161, "</h2><p class=\"text-xs text-base-content/65 mt-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

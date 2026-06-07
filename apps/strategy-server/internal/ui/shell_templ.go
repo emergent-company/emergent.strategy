@@ -307,7 +307,7 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"bg-base-100 border-b border-base-200 px-6 py-3\"><nav class=\"flex items-center gap-2 text-sm\" aria-label=\"Breadcrumb\"><a href=\"/strategies\" class=\"text-base-content/70 hover:text-base-content transition-colors\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"bg-base-100 border-b border-base-200 px-6 py-3\"><nav class=\"flex items-center gap-2 text-sm\" aria-label=\"Breadcrumb\"><a href=\"/strategies\" class=\"text-base-content/80 hover:text-base-content transition-colors\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -320,7 +320,7 @@ func InstanceChrome(instanceName string, tabs []TabProps, currentPath string) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a> <svg class=\"w-3 h-3 text-base-content/50\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 5l7 7-7 7\"></path></svg> <span class=\"font-bold text-base-content text-lg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a> <svg class=\"w-3 h-3 text-base-content/65\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" stroke-width=\"2.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 5l7 7-7 7\"></path></svg> <span class=\"font-bold text-base-content text-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -442,7 +442,7 @@ func instanceTabContent(tabs []TabProps, currentPath string) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"tab-content\" class=\"flex flex-col flex-1 min-h-0\"><div class=\"sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0 flex items-end\"><div class=\"flex-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"tab-content\" class=\"flex flex-col flex-1 min-h-0\"><div class=\"sticky top-0 z-10 border-b border-base-content/15 bg-base-100 px-6 shrink-0 flex items-end\"><div class=\"flex-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -504,7 +504,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 			}
 		}
 		stats := InstanceStatsFromContext(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"relative flex items-center pb-1 shrink-0 ml-4\"><button type=\"button\" class=\"btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-base-content/70\" title=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"relative flex items-center pb-1 shrink-0 ml-4\"><button type=\"button\" class=\"btn btn-ghost btn-xs gap-1.5 text-base-content/55 hover:text-base-content/80\" title=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -517,7 +517,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" onclick=\"event.stopPropagation();var p=this.nextElementSibling;var wasHidden=p.classList.contains('hidden');document.querySelectorAll('.inst-settings-panel').forEach(function(el){el.classList.add('hidden')});if(wasHidden){p.classList.remove('hidden')}\"><span class=\"iconify lucide--settings-2 size-3.5\"></span></button><!-- Dropdown panel — close on any outside click via document listener in script below --><div class=\"inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-base-content/10 bg-base-100 shadow-lg\"><!-- Stats section --><div class=\"px-3 pt-3 pb-2 space-y-2\"><!-- Stat grid: artifacts / features / versions / AIM cycles --><div class=\"grid grid-cols-4 gap-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" onclick=\"event.stopPropagation();var p=this.nextElementSibling;var wasHidden=p.classList.contains('hidden');document.querySelectorAll('.inst-settings-panel').forEach(function(el){el.classList.add('hidden')});if(wasHidden){p.classList.remove('hidden')}\"><span class=\"iconify lucide--settings-2 size-3.5\"></span></button><!-- Dropdown panel — close on any outside click via document listener in script below --><div class=\"inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-base-content/15 bg-base-100 shadow-lg\"><!-- Stats section --><div class=\"px-3 pt-3 pb-2 space-y-2\"><!-- Stat grid: artifacts / features / versions / AIM cycles --><div class=\"grid grid-cols-4 gap-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -547,7 +547,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if stats.CoherenceScore != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"flex items-center gap-1\"><span class=\"iconify lucide--activity size-3 text-base-content/40\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"flex items-center gap-1\"><span class=\"iconify lucide--activity size-3 text-base-content/55\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -582,7 +582,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span> <span class=\"text-xs text-base-content/40\">coherence</span></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</span> <span class=\"text-xs text-base-content/55\">coherence</span></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -635,7 +635,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if stats.GithubRepo != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div class=\"flex items-center gap-1.5 pt-0.5\"><span class=\"iconify lucide--github size-3 text-base-content/40 shrink-0\"></span> <span class=\"text-xs text-base-content/50 font-mono truncate\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div class=\"flex items-center gap-1.5 pt-0.5\"><span class=\"iconify lucide--github size-3 text-base-content/55 shrink-0\"></span> <span class=\"text-xs text-base-content/65 font-mono truncate\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -681,7 +681,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if stats.LastVersionAt != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<span class=\"text-xs text-base-content/40\">v")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<span class=\"text-xs text-base-content/55\">v")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -748,7 +748,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if stats.GithubRepo != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"border-t border-base-content/10 mx-3 my-2\"></div><div class=\"px-3 pb-2 space-y-1.5\"><!-- Sync state badge + SHA comparison --><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--git-branch size-3 text-base-content/40\"></span> <span class=\"text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<div class=\"border-t border-base-content/15 mx-3 my-2\"></div><div class=\"px-3 pb-2 space-y-1.5\"><!-- Sync state badge + SHA comparison --><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--git-branch size-3 text-base-content/55\"></span> <span class=\"text-xs text-base-content/65\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -781,7 +781,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if stats.CommitSHA != "" || stats.RemoteSHA != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"flex items-center gap-1.5 font-mono text-xs text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"flex items-center gap-1.5 font-mono text-xs text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -874,7 +874,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if stats.LastSyncAt != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--clock size-3 text-base-content/30\"></span> <span class=\"text-xs text-base-content/40\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"flex items-center gap-1.5\"><span class=\"iconify lucide--clock size-3 text-base-content/30\"></span> <span class=\"text-xs text-base-content/55\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -980,7 +980,7 @@ func instanceSettingsMenu(instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<!-- Divider + actions --><div class=\"border-t border-base-content/10\"></div><div class=\"py-1\"><!-- Move to workspace — links to settings where the move UI lives --><a href=\"/settings\" class=\"flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors\"><span class=\"iconify lucide--folder-symlink size-3.5 shrink-0\"></span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<!-- Divider + actions --><div class=\"border-t border-base-content/15\"></div><div class=\"py-1\"><!-- Move to workspace — links to settings where the move UI lives --><a href=\"/settings\" class=\"flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/80 hover:bg-base-200 hover:text-base-content transition-colors\"><span class=\"iconify lucide--folder-symlink size-3.5 shrink-0\"></span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1103,7 +1103,7 @@ func instanceStatCell(value, label, colorClass string) templ.Component {
 			templ_7745c5c3_Var46 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"flex flex-col items-center gap-0.5 bg-base-200/50 rounded px-1 py-1.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div class=\"flex flex-col items-center gap-0.5 bg-base-content/8 border border-base-content/10 rounded px-1 py-1.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1162,7 +1162,7 @@ func instanceStatCell(value, label, colorClass string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span class=\"text-xs text-base-content/40 leading-tight text-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span class=\"text-xs text-base-content/55 leading-tight text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1448,7 +1448,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			landingHref := "/strategies/" + instanceID + meta.LandingURL
 			var templ_7745c5c3_Var63 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 				templ.KV("bg-primary/10 text-primary font-medium", currentPath == landingHref),
-				templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", currentPath != landingHref)}
+				templ.KV("text-base-content/75 hover:text-base-content hover:bg-base-200", currentPath != landingHref)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var63...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1534,7 +1534,7 @@ func TabRelatedPages(tabGroup string, instanceID string, currentPath string) tem
 			for _, item := range items {
 				var templ_7745c5c3_Var70 = []any{"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 					templ.KV("bg-primary/10 text-primary font-medium", item.Active),
-					templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", !item.Active)}
+					templ.KV("text-base-content/75 hover:text-base-content hover:bg-base-200", !item.Active)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var70...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

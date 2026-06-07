@@ -100,7 +100,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-1.5 text-xs text-base-content/50 hover:text-base-content transition-colors\"><span class=\"iconify lucide--arrow-left size-3\"></span> Back to Skill Runs</a><div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-1.5 text-xs text-base-content/65 hover:text-base-content transition-colors\"><span class=\"iconify lucide--arrow-left size-3\"></span> Back to Skill Runs</a><div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between\"><div class=\"flex items-center gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -135,7 +135,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><div class=\"flex items-center gap-3 mt-1 text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +231,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><div class=\"grid grid-cols-2 sm:grid-cols-4 gap-4\"><div class=\"rounded-xl border border-base-content/10 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Chunks</p><p class=\"text-xl font-bold text-base-content mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><div class=\"grid grid-cols-2 sm:grid-cols-4 gap-4\"><div class=\"rounded-xl border border-base-content/15 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Chunks</p><p class=\"text-xl font-bold text-base-content mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -257,7 +257,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</p></div><div class=\"rounded-xl border border-base-content/10 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Input Tokens</p><p class=\"text-xl font-bold text-base-content mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</p></div><div class=\"rounded-xl border border-base-content/15 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Input Tokens</p><p class=\"text-xl font-bold text-base-content mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -270,7 +270,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</p></div><div class=\"rounded-xl border border-base-content/10 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Output Tokens</p><p class=\"text-xl font-bold text-base-content mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</p></div><div class=\"rounded-xl border border-base-content/15 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Output Tokens</p><p class=\"text-xl font-bold text-base-content mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -283,7 +283,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p></div><div class=\"rounded-xl border border-base-content/10 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Duration</p><p class=\"text-xl font-bold text-base-content mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p></div><div class=\"rounded-xl border border-base-content/15 bg-base-100 px-5 py-4\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Duration</p><p class=\"text-xl font-bold text-base-content mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -308,7 +308,7 @@ func SkillRunDetailContent(data SkillRunDetailData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Chunks) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 overflow-hidden\"><div class=\"px-5 py-3 border-b border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">Chunk Log</p></div><div class=\"divide-y divide-base-content/5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 overflow-hidden\"><div class=\"px-5 py-3 border-b border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">Chunk Log</p></div><div class=\"divide-y divide-base-content/5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -510,7 +510,7 @@ func skillRunChunkRow(chunk SkillRunChunkRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</div><div class=\"flex items-center gap-4 text-xs text-base-content/50 shrink-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</div><div class=\"flex items-center gap-4 text-xs text-base-content/65 shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -78,8 +78,8 @@ templ InstanceChrome(instanceName string, tabs []TabProps, currentPath string) {
 	// Breadcrumb bar — "Strategies > Instance Name"
 	<div class="bg-base-100 border-b border-base-200 px-6 py-3">
 		<nav class="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
-			<a href="/strategies" class="text-base-content/70 hover:text-base-content transition-colors">{ langs.T(ctx, "nav.breadcrumb.strategies") }</a>
-			<svg class="w-3 h-3 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+			<a href="/strategies" class="text-base-content/80 hover:text-base-content transition-colors">{ langs.T(ctx, "nav.breadcrumb.strategies") }</a>
+			<svg class="w-3 h-3 text-base-content/65" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
 			<span class="font-bold text-base-content text-lg">
 				if instanceName != "" {
 					{ instanceName }
@@ -278,7 +278,7 @@ templ activityStreamSSE() {
 // returned for HTMX tab/sub-nav swaps (swapped into #tab-content).
 templ instanceTabContent(tabs []TabProps, currentPath string) {
 	<div id="tab-content" class="flex flex-col flex-1 min-h-0">
-		<div class="sticky top-0 z-10 border-b border-base-content/10 bg-base-100 px-6 shrink-0 flex items-end">
+		<div class="sticky top-0 z-10 border-b border-base-content/15 bg-base-100 px-6 shrink-0 flex items-end">
 			<div class="flex-1">
 				@StrategyTabs(tabs, currentPath)
 			</div>
@@ -300,7 +300,7 @@ templ instanceSettingsMenu(instanceID string) {
 	<div class="relative flex items-center pb-1 shrink-0 ml-4">
 		<button
 			type="button"
-			class="btn btn-ghost btn-xs gap-1.5 text-base-content/40 hover:text-base-content/70"
+			class="btn btn-ghost btn-xs gap-1.5 text-base-content/55 hover:text-base-content/80"
 			title={ langs.T(ctx, "instance.settings_menu.title") }
 			onclick="event.stopPropagation();var p=this.nextElementSibling;var wasHidden=p.classList.contains('hidden');document.querySelectorAll('.inst-settings-panel').forEach(function(el){el.classList.add('hidden')});if(wasHidden){p.classList.remove('hidden')}"
 		>
@@ -308,7 +308,7 @@ templ instanceSettingsMenu(instanceID string) {
 		</button>
 		<!-- Dropdown panel — close on any outside click via document listener in script below -->
 		<div
-			class="inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-base-content/10 bg-base-100 shadow-lg"
+			class="inst-settings-panel hidden absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-base-content/15 bg-base-100 shadow-lg"
 		>
 			<!-- Stats section -->
 			<div class="px-3 pt-3 pb-2 space-y-2">
@@ -324,9 +324,9 @@ templ instanceSettingsMenu(instanceID string) {
 					<div class="flex items-center gap-3 pt-1">
 						if stats.CoherenceScore != "" {
 							<div class="flex items-center gap-1">
-								<span class="iconify lucide--activity size-3 text-base-content/40"></span>
+								<span class="iconify lucide--activity size-3 text-base-content/55"></span>
 								<span class={ "text-xs font-mono font-medium " + instanceCoherenceColor(stats.CoherenceScore) }>{ stats.CoherenceScore }</span>
-								<span class="text-xs text-base-content/40">coherence</span>
+								<span class="text-xs text-base-content/55">coherence</span>
 							</div>
 						}
 						if stats.CriticalSignals > 0 {
@@ -346,8 +346,8 @@ templ instanceSettingsMenu(instanceID string) {
 				<!-- GitHub info -->
 				if stats.GithubRepo != "" {
 					<div class="flex items-center gap-1.5 pt-0.5">
-						<span class="iconify lucide--github size-3 text-base-content/40 shrink-0"></span>
-						<span class="text-xs text-base-content/50 font-mono truncate">{ stats.GithubRepo }</span>
+						<span class="iconify lucide--github size-3 text-base-content/55 shrink-0"></span>
+						<span class="text-xs text-base-content/65 font-mono truncate">{ stats.GithubRepo }</span>
 						if stats.CommitSHA != "" {
 							<span class="text-xs text-base-content/30 font-mono shrink-0">{ stats.CommitSHA }</span>
 						}
@@ -356,20 +356,20 @@ templ instanceSettingsMenu(instanceID string) {
 				<!-- Last version + status -->
 				<div class="flex items-center justify-between pt-0.5">
 					if stats.LastVersionAt != "" {
-						<span class="text-xs text-base-content/40">v{ strconv.Itoa(stats.VersionCount) } · { stats.LastVersionAt }</span>
+						<span class="text-xs text-base-content/55">v{ strconv.Itoa(stats.VersionCount) } · { stats.LastVersionAt }</span>
 					}
 					<span class={ "badge badge-xs " + instanceStatusBadge(stats.Status) }>{ stats.Status }</span>
 				</div>
 			</div>
 			<!-- Sync status section -->
 			if stats.GithubRepo != "" {
-				<div class="border-t border-base-content/10 mx-3 my-2"></div>
+				<div class="border-t border-base-content/15 mx-3 my-2"></div>
 				<div class="px-3 pb-2 space-y-1.5">
 					<!-- Sync state badge + SHA comparison -->
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-1.5">
-							<span class="iconify lucide--git-branch size-3 text-base-content/40"></span>
-							<span class="text-xs text-base-content/50">
+							<span class="iconify lucide--git-branch size-3 text-base-content/55"></span>
+							<span class="text-xs text-base-content/65">
 								if stats.GithubBranch != "" {
 									{ stats.GithubBranch }
 								} else {
@@ -381,7 +381,7 @@ templ instanceSettingsMenu(instanceID string) {
 					</div>
 					<!-- SHA comparison: local → remote -->
 					if stats.CommitSHA != "" || stats.RemoteSHA != "" {
-						<div class="flex items-center gap-1.5 font-mono text-xs text-base-content/40">
+						<div class="flex items-center gap-1.5 font-mono text-xs text-base-content/55">
 							if stats.CommitSHA != "" {
 								<span title="Local (last synced)">{ stats.CommitSHA }</span>
 							}
@@ -404,7 +404,7 @@ templ instanceSettingsMenu(instanceID string) {
 					if stats.LastSyncAt != "" {
 						<div class="flex items-center gap-1.5">
 							<span class="iconify lucide--clock size-3 text-base-content/30"></span>
-							<span class="text-xs text-base-content/40">
+							<span class="text-xs text-base-content/55">
 								if stats.LastSyncDirection == "import" {
 									Imported { strconv.Itoa(stats.LastSyncArtifacts) } artifacts · { stats.LastSyncAt }
 								} else if stats.LastSyncDirection == "export" {
@@ -424,12 +424,12 @@ templ instanceSettingsMenu(instanceID string) {
 				</div>
 			}
 			<!-- Divider + actions -->
-			<div class="border-t border-base-content/10"></div>
+			<div class="border-t border-base-content/15"></div>
 			<div class="py-1">
 				<!-- Move to workspace — links to settings where the move UI lives -->
 				<a
 					href="/settings"
-					class="flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/70 hover:bg-base-200 hover:text-base-content transition-colors"
+					class="flex items-center gap-2.5 px-3 py-2 text-sm text-base-content/80 hover:bg-base-200 hover:text-base-content transition-colors"
 				>
 					<span class="iconify lucide--folder-symlink size-3.5 shrink-0"></span>
 					{ langs.T(ctx, "instance.settings_menu.move") }
@@ -493,13 +493,13 @@ templ syncStateBadge(state string) {
 
 // instanceStatCell renders a single stat number + label in the stats grid.
 templ instanceStatCell(value, label, colorClass string) {
-	<div class="flex flex-col items-center gap-0.5 bg-base-200/50 rounded px-1 py-1.5">
+	<div class="flex flex-col items-center gap-0.5 bg-base-content/8 border border-base-content/10 rounded px-1 py-1.5">
 		if colorClass != "" {
 			<span class={ "text-sm font-bold tabular-nums", colorClass }>{ value }</span>
 		} else {
 			<span class="text-sm font-bold tabular-nums text-base-content">{ value }</span>
 		}
-		<span class="text-xs text-base-content/40 leading-tight text-center">{ label }</span>
+		<span class="text-xs text-base-content/55 leading-tight text-center">{ label }</span>
 	</div>
 }
 
@@ -611,7 +611,7 @@ templ TabRelatedPages(tabGroup string, instanceID string, currentPath string) {
 				hx-push-url="true"
 				class={ "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 					templ.KV("bg-primary/10 text-primary font-medium", currentPath == landingHref),
-					templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", currentPath != landingHref) }
+					templ.KV("text-base-content/75 hover:text-base-content hover:bg-base-200", currentPath != landingHref) }
 			>
 				<span class={ "iconify size-3.5 " + meta.Icon }></span>
 				{ meta.Label }
@@ -626,7 +626,7 @@ templ TabRelatedPages(tabGroup string, instanceID string, currentPath string) {
 					hx-push-url="true"
 					class={ "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors",
 						templ.KV("bg-primary/10 text-primary font-medium", item.Active),
-						templ.KV("text-base-content/60 hover:text-base-content hover:bg-base-200", !item.Active) }
+						templ.KV("text-base-content/75 hover:text-base-content hover:bg-base-200", !item.Active) }
 				>
 					<span class={ "iconify size-3.5 " + item.Icon }></span>
 					{ item.Label }

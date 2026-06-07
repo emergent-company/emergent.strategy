@@ -277,7 +277,7 @@ func roadmapHero(data RoadmapRecipeData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.StartDate != "" || data.TargetCompletion != "" || data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/60 space-y-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"hidden sm:block text-right text-xs text-base-content/75 space-y-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -422,7 +422,7 @@ func roadmapTrackAccordion(track RoadmapTrack) templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -483,7 +483,7 @@ func roadmapTrackAccordion(track RoadmapTrack) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -559,7 +559,7 @@ func roadmapOKRCard(okr RoadmapOKR, trackName string) templ.Component {
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -644,7 +644,7 @@ func roadmapKRRow(kr RoadmapKR, trackName string) templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -656,7 +656,7 @@ func roadmapKRRow(kr RoadmapKR, trackName string) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(kr.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/roadmap_recipe.templ`, Line: 231, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/roadmap_recipe.templ`, Line: 231, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 			if templ_7745c5c3_Err != nil {
@@ -708,7 +708,7 @@ func roadmapKRRow(kr RoadmapKR, trackName string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if kr.Baseline != "" || kr.Target != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"flex items-center gap-1.5 text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<div class=\"flex items-center gap-1.5 text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -732,7 +732,7 @@ func roadmapKRRow(kr RoadmapKR, trackName string) templ.Component {
 				}
 			}
 			if kr.Baseline != "" && kr.Target != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<span class=\"iconify lucide--arrow-right size-3 text-base-content/50\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<span class=\"iconify lucide--arrow-right size-3 text-base-content/65\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -804,7 +804,7 @@ func roadmapKRRow(kr RoadmapKR, trackName string) templ.Component {
 				}
 			}
 			if kr.TRLStart != "" && kr.TRLTarget != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<span class=\"iconify lucide--arrow-right size-3 text-base-content/50\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<span class=\"iconify lucide--arrow-right size-3 text-base-content/65\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -936,7 +936,7 @@ func roadmapTrackAssumptions(track RoadmapTrack) templ.Component {
 			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2 flex items-center gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1023,7 +1023,7 @@ func roadmapAssumptionRow(a RoadmapAssumption) templ.Component {
 			templ_7745c5c3_Var41 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3\"><div class=\"flex items-start gap-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"rounded-lg border border-base-content/5 bg-base-100 px-4 py-3\"><div class=\"flex items-start gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1081,7 +1081,7 @@ func roadmapAssumptionRow(a RoadmapAssumption) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</div><div class=\"flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</div><div class=\"flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-base-content/65\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1207,7 +1207,7 @@ func roadmapMilestonesSection(milestones []RoadmapMilestone) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/10 ml-3 space-y-6 pl-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/15 ml-3 space-y-6 pl-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1272,7 +1272,7 @@ func roadmapMilestoneEntry(m RoadmapMilestone, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var56 = []any{"rounded-lg px-4 py-3", templ.KV("bg-primary/5 border border-primary/10", latest), templ.KV("bg-base-200/40", !latest)}
+		var templ_7745c5c3_Var56 = []any{"rounded-lg px-4 py-3", templ.KV("bg-primary/5 border border-primary/10", latest), templ.KV("bg-base-100", !latest)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var56...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1290,7 +1290,7 @@ func roadmapMilestoneEntry(m RoadmapMilestone, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1331,7 +1331,7 @@ func roadmapMilestoneEntry(m RoadmapMilestone, latest bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if m.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<p class=\"text-xs text-base-content/70 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "<p class=\"text-xs text-base-content/80 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1634,7 +1634,7 @@ func roadmapDependencyRow(d RoadmapDependency) templ.Component {
 			templ_7745c5c3_Var72 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"rounded-lg border border-base-content/5 bg-base-200/30 px-4 py-3\"><div class=\"flex items-center gap-3\"><span class=\"badge badge-xs badge-ghost font-mono shrink-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"rounded-lg border border-base-content/5 bg-base-100 px-4 py-3\"><div class=\"flex items-center gap-3\"><span class=\"badge badge-xs badge-ghost font-mono shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1647,7 +1647,7 @@ func roadmapDependencyRow(d RoadmapDependency) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "</span> <span class=\"iconify lucide--arrow-right size-3.5 text-base-content/50\"></span> <span class=\"badge badge-xs badge-ghost font-mono shrink-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "</span> <span class=\"iconify lucide--arrow-right size-3.5 text-base-content/65\"></span> <span class=\"badge badge-xs badge-ghost font-mono shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1688,7 +1688,7 @@ func roadmapDependencyRow(d RoadmapDependency) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if d.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<p class=\"text-xs text-base-content/70 mt-1.5 ml-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "<p class=\"text-xs text-base-content/80 mt-1.5 ml-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

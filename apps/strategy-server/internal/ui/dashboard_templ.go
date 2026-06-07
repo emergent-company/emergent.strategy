@@ -179,7 +179,7 @@ func GlobalDashboardContent(data GlobalDashboardData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h1><p class=\"text-sm text-base-content/60 mt-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</h1><p class=\"text-sm text-base-content/75 mt-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -294,7 +294,7 @@ func instanceCard(inst InstanceInfo) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-target=\"#main-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md transition-all cursor-pointer group\"><div class=\"card-body p-5 space-y-3\"><div class=\"flex items-start gap-3\"><div class=\"rounded-xl bg-primary/10 p-2 shrink-0\"><span class=\"iconify lucide--layers size-5 text-primary\"></span></div><div class=\"min-w-0 grow\"><div class=\"flex items-center justify-between gap-2\"><h3 class=\"font-semibold text-base-content truncate\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-target=\"#main-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"card bg-base-100 border border-base-content/15 shadow-sm hover:shadow-md transition-all cursor-pointer group\"><div class=\"card-body p-5 space-y-3\"><div class=\"flex items-start gap-3\"><div class=\"rounded-xl bg-primary/10 p-2 shrink-0\"><span class=\"iconify lucide--layers size-5 text-primary\"></span></div><div class=\"min-w-0 grow\"><div class=\"flex items-center justify-between gap-2\"><h3 class=\"font-semibold text-base-content truncate\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -320,7 +320,7 @@ func instanceCard(inst InstanceInfo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.OrgName != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"text-xs text-base-content/50 truncate\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"text-xs text-base-content/65 truncate\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -343,7 +343,7 @@ func instanceCard(inst InstanceInfo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if inst.NorthStarVision != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"text-xs text-base-content/60 leading-relaxed line-clamp-2 italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"text-xs text-base-content/75 leading-relaxed line-clamp-2 italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -362,12 +362,12 @@ func instanceCard(inst InstanceInfo) templ.Component {
 			}
 		}
 		if inst.Timeframe != "" || inst.Cycle != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"flex items-center gap-2 text-xs text-base-content/50\"><span class=\"iconify lucide--calendar size-3 shrink-0\"></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"flex items-center gap-2 text-xs text-base-content/65\"><span class=\"iconify lucide--calendar size-3 shrink-0\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if inst.Timeframe != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"font-medium text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"font-medium text-base-content/80\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -605,7 +605,7 @@ func instanceStatChip(icon string, value string, label string) templ.Component {
 			templ_7745c5c3_Var25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<span class=\"inline-flex items-center gap-1 rounded-md bg-base-200/50 px-1.5 py-0.5 text-xs text-base-content/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<span class=\"inline-flex items-center gap-1 rounded-md bg-base-content/8 border border-base-content/10 px-1.5 py-0.5 text-xs text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -627,7 +627,7 @@ func instanceStatChip(icon string, value string, label string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"></span> <span class=\"font-semibold text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"></span> <span class=\"font-semibold text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -794,7 +794,7 @@ func emptyDashboard() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</h3><p class=\"text-sm text-base-content/60 max-w-md\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</h3><p class=\"text-sm text-base-content/75 max-w-md\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

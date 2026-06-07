@@ -56,7 +56,7 @@ func ActivityPageContent(data ActivityPageData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-xs text-base-content/50\">Active skill runs, pending drafts, and AIM cycles</p></div></div></div><div id=\"activity-cascade\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-xs text-base-content/65\">Active skill runs, pending drafts, and AIM cycles</p></div></div></div><div id=\"activity-cascade\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -82,7 +82,7 @@ func ActivityPageContent(data ActivityPageData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if !data.Cascade.HasActivity() {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"flex flex-col items-center justify-center py-16 text-center\"><span class=\"iconify lucide--coffee size-10 text-base-content/20 mb-4\"></span><p class=\"text-sm font-medium text-base-content/50\">No active operations</p><p class=\"text-xs text-base-content/30 mt-1 max-w-xs\">When a skill run starts, an AIM cycle kicks off, or a draft is staged for review, it will appear here in real time.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"flex flex-col items-center justify-center py-16 text-center\"><span class=\"iconify lucide--coffee size-10 text-base-content/20 mb-4\"></span><p class=\"text-sm font-medium text-base-content/65\">No active operations</p><p class=\"text-xs text-base-content/30 mt-1 max-w-xs\">When a skill run starts, an AIM cycle kicks off, or a draft is staged for review, it will appear here in real time.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

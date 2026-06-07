@@ -274,7 +274,7 @@ func lraHero(data LRAViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</h1></div><div class=\"hidden sm:block text-right text-xs text-base-content/60 space-y-0.5\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</h1></div><div class=\"hidden sm:block text-right text-xs text-base-content/75 space-y-0.5\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -419,11 +419,11 @@ func lraStatCard(label, value, icon string) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-3 text-center\"><div class=\"flex items-center justify-center gap-1.5 mb-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-3 text-center\"><div class=\"flex items-center justify-center gap-1.5 mb-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var14 = []any{"iconify size-3.5 text-base-content/60", icon}
+		var templ_7745c5c3_Var14 = []any{"iconify size-3.5 text-base-content/75", icon}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -441,7 +441,7 @@ func lraStatCard(label, value, icon string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"></span><p class=\"text-xs text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"></span><p class=\"text-xs text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -512,7 +512,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.PrimaryTrack != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"flex items-center gap-2\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Primary</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"flex items-center gap-2\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75\">Primary</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -553,7 +553,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			}
 		}
 		if data.SecondaryTrack != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"flex items-center gap-2\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">Secondary</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<div class=\"flex items-center gap-2\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75\">Secondary</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -617,7 +617,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 			}
 		}
 		if len(data.AttentionAllocation) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3\">Attention Allocation</h4><div class=\"flex flex-wrap gap-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-3\">Attention Allocation</h4><div class=\"flex flex-wrap gap-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -657,7 +657,7 @@ func lraCurrentFocusSection(data LRAViewData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "%</p><p class=\"text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "%</p><p class=\"text-xs text-base-content/80\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -788,7 +788,7 @@ func lraTrackBaselineAccordion(b LRATrackBaseline) templ.Component {
 			templ_7745c5c3_Var32 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -870,12 +870,12 @@ func lraTrackBaselineAccordion(b LRATrackBaseline) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if b.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -903,7 +903,7 @@ func lraTrackBaselineAccordion(b LRATrackBaseline) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, s := range b.Strengths {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/70\"><span class=\"iconify lucide--check size-3 text-success mt-0.5 shrink-0\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/80\"><span class=\"iconify lucide--check size-3 text-success mt-0.5 shrink-0\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -932,7 +932,7 @@ func lraTrackBaselineAccordion(b LRATrackBaseline) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, p := range b.PainPoints {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/70\"><span class=\"iconify lucide--circle size-3 text-error mt-0.5 shrink-0\"></span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/80\"><span class=\"iconify lucide--circle size-3 text-error mt-0.5 shrink-0\"></span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1034,7 +1034,7 @@ func lraConstraintRow(c LRAConstraint) templ.Component {
 			templ_7745c5c3_Var43 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"rounded-lg border border-base-content/10 bg-base-100 shadow-sm px-4 py-3\"><div class=\"flex items-start justify-between gap-3\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-medium text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"rounded-lg border border-base-content/15 bg-base-100 shadow-sm px-4 py-3\"><div class=\"flex items-start justify-between gap-3\"><div class=\"min-w-0 grow\"><p class=\"text-sm font-medium text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1052,7 +1052,7 @@ func lraConstraintRow(c LRAConstraint) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if c.Impact != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<p class=\"text-xs text-base-content/70 mt-1\"><span class=\"font-medium text-base-content/60\">Impact:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<p class=\"text-xs text-base-content/80 mt-1\"><span class=\"font-medium text-base-content/75\">Impact:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1151,7 +1151,7 @@ func lraEvolutionSection(entries []LRAEvolution) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/10 ml-3 space-y-6 pl-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/15 ml-3 space-y-6 pl-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1216,7 +1216,7 @@ func lraEvolutionEntry(e LRAEvolution, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var53 = []any{"rounded-lg px-4 py-3", templ.KV("bg-info/5 border border-info/10", latest), templ.KV("bg-base-200/40", !latest)}
+		var templ_7745c5c3_Var53 = []any{"rounded-lg px-4 py-3", templ.KV("bg-info/5 border border-info/10", latest), templ.KV("bg-base-100", !latest)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var53...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1234,7 +1234,7 @@ func lraEvolutionEntry(e LRAEvolution, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -152,7 +152,7 @@ func opportunityHero(data InsightOpportunityData) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"relative overflow-hidden rounded-xl bg-gradient-to-br from-warning/10 via-base-100 to-accent/10 border border-warning/10\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between\"><div class=\"space-y-2\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-5 text-warning\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"relative overflow-hidden rounded-xl bg-gradient-to-br from-warning/10 via-base-100 to-accent/10 border border-warning/10\"><div class=\"px-6 py-8 sm:px-8\"><div class=\"flex items-start justify-between\"><div class=\"space-y-2\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--lightbulb size-5 text-warning\"></span> <span class=\"text-xs font-semibold uppercase tracking-widest text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -247,7 +247,7 @@ func opportunityHero(data InsightOpportunityData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.OpportunityID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"text-xs font-mono text-base-content/40\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"text-xs font-mono text-base-content/55\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -270,7 +270,7 @@ func opportunityHero(data InsightOpportunityData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.ValidationDate != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Validated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Validated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -469,7 +469,7 @@ func opportunityEvidenceSection(data InsightOpportunityData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if len(data.QualitativeEvidence) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2\">Qualitative Evidence</h4><div class=\"space-y-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2\">Qualitative Evidence</h4><div class=\"space-y-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -485,7 +485,7 @@ func opportunityEvidenceSection(data InsightOpportunityData) templ.Component {
 				}
 			}
 			if len(data.QuantitativeEvidence) > 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2\">Quantitative Evidence</h4><div class=\"space-y-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2\">Quantitative Evidence</h4><div class=\"space-y-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -540,7 +540,7 @@ func evidenceCard(ev OpportunityEvidence, icon, color string) templ.Component {
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -567,7 +567,7 @@ func evidenceCard(ev OpportunityEvidence, icon, color string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if ev.Source != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -705,7 +705,7 @@ func opportunitySuccessSection(indicators []FoundationIndicator) templ.Component
 			return templ_7745c5c3_Err
 		}
 		for _, ind := range indicators {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-3 text-center\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-3 text-center\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -728,7 +728,7 @@ func opportunitySuccessSection(indicators []FoundationIndicator) templ.Component
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<p class=\"text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<p class=\"text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

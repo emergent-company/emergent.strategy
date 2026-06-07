@@ -124,7 +124,7 @@ templ foundationsHero(data StrategyFoundationsData) {
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
 				</div>
 				if data.LastUpdated != "" {
-			<div class="hidden sm:block text-right text-xs text-base-content/60">
+			<div class="hidden sm:block text-right text-xs text-base-content/75">
 					<p>Updated { data.LastUpdated }</p>
 				</div>
 				}
@@ -156,12 +156,12 @@ templ foundationsVisionSection(data StrategyFoundationsData) {
 			if len(data.SuccessIndicators) > 0 {
 				<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 					for _, ind := range data.SuccessIndicators {
-						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+						<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 							<div class="card-body p-3 text-center">
 								if ind.Target != "" {
 									<p class="text-lg font-bold text-base-content">{ ind.Target }</p>
 								}
-								<p class="text-xs text-base-content/70">{ ind.Indicator }</p>
+								<p class="text-xs text-base-content/80">{ ind.Indicator }</p>
 							</div>
 						</div>
 					}
@@ -190,12 +190,12 @@ templ foundationsValuePropSection(data StrategyFoundationsData) {
 			if len(data.ProofPoints) > 0 {
 				<div class="grid gap-3 md:grid-cols-2">
 					for _, pp := range data.ProofPoints {
-						<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+						<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 							<div class="card-body p-4">
 								<p class="text-sm font-medium text-base-content">{ pp.Claim }</p>
 					if pp.Proof != "" {
-								<p class="text-xs text-base-content/70 mt-1">
-									<span class="font-medium text-base-content/60">Proof:</span> { pp.Proof }
+								<p class="text-xs text-base-content/80 mt-1">
+									<span class="font-medium text-base-content/75">Proof:</span> { pp.Proof }
 									</p>
 								}
 							</div>
@@ -227,29 +227,29 @@ templ foundationsValuePropSection(data StrategyFoundationsData) {
 			}
 			// Economic Value
 			if data.EconomicValue.CostSavings != "" || data.EconomicValue.RevenueGains != "" || data.EconomicValue.RiskReduction != "" {
-				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+				<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 					<div class="card-body p-4">
-						<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3">Economic Value</h4>
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-3">Economic Value</h4>
 						<div class="grid gap-4 md:grid-cols-3">
 							if data.EconomicValue.CostSavings != "" {
 								<div class="text-center">
 									<span class="iconify lucide--piggy-bank size-5 text-success mx-auto mb-1"></span>
 									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.CostSavings }</p>
-									<p class="text-xs text-base-content/70">Cost Savings</p>
+									<p class="text-xs text-base-content/80">Cost Savings</p>
 								</div>
 							}
 							if data.EconomicValue.RevenueGains != "" {
 								<div class="text-center">
 									<span class="iconify lucide--trending-up size-5 text-accent mx-auto mb-1"></span>
 									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.RevenueGains }</p>
-									<p class="text-xs text-base-content/70">Revenue Gains</p>
+									<p class="text-xs text-base-content/80">Revenue Gains</p>
 								</div>
 							}
 							if data.EconomicValue.RiskReduction != "" {
 								<div class="text-center">
 									<span class="iconify lucide--shield-check size-5 text-info mx-auto mb-1"></span>
 									<p class="text-lg font-bold text-base-content">{ data.EconomicValue.RiskReduction }</p>
-									<p class="text-xs text-base-content/70">Risk Reduction</p>
+									<p class="text-xs text-base-content/80">Risk Reduction</p>
 								</div>
 							}
 						</div>
@@ -305,11 +305,11 @@ templ foundationsPhaseStep(phase FoundationPhase, idx, total int) {
 				}
 			</div>
 		if phase.Focus != "" {
-			<p class="text-xs text-base-content/70 mt-0.5">{ phase.Focus }</p>
+			<p class="text-xs text-base-content/80 mt-0.5">{ phase.Focus }</p>
 		}
 		if phase.TargetSegment != "" {
-			<p class="text-xs text-base-content/70 mt-0.5">
-				<span class="font-medium text-base-content/60">Segment:</span> { phase.TargetSegment }
+			<p class="text-xs text-base-content/80 mt-0.5">
+				<span class="font-medium text-base-content/75">Segment:</span> { phase.TargetSegment }
 				</p>
 			}
 			if len(phase.ValueDelivered) > 0 {
@@ -335,14 +335,14 @@ templ foundationsDesignPrinciplesSection(principles []FoundationPrinciple) {
 		@sectionHeading("Design Principles", "lucide--ruler", "warning", "Standards that shape our product")
 		<div class="mt-4 grid gap-3 md:grid-cols-2">
 			for _, p := range principles {
-				<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+				<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 					<div class="card-body p-4">
 						<div class="flex items-center gap-2 mb-2">
 							<span class="iconify lucide--compass size-4 text-warning"></span>
 							<h4 class="text-sm font-bold text-base-content">{ p.Principle }</h4>
 						</div>
 						if p.Manifestation != "" {
-							<p class="text-sm text-base-content/70 leading-relaxed">{ p.Manifestation }</p>
+							<p class="text-sm text-base-content/80 leading-relaxed">{ p.Manifestation }</p>
 						}
 					</div>
 				</div>

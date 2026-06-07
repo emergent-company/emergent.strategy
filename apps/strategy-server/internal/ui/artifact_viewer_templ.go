@@ -67,7 +67,7 @@ func ArtifactViewContent(data ArtifactViewData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><p class=\"text-sm text-base-content/70 mt-1\"><span class=\"font-mono\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><p class=\"text-sm text-base-content/80 mt-1\"><span class=\"font-mono\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -300,7 +300,7 @@ func renderSection(key string, value any, depth int) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if m, ok := asMap(value); ok {
-			var templ_7745c5c3_Var14 = []any{"card bg-base-100 border border-base-content/10 shadow-sm", templ.KV("ml-0", depth == 0), templ.KV("border-l-2 border-l-primary/20 ml-4", depth > 0)}
+			var templ_7745c5c3_Var14 = []any{"card bg-base-100 border border-base-content/15 shadow-sm", templ.KV("ml-0", depth == 0), templ.KV("border-l-2 border-l-primary/20 ml-4", depth > 0)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -368,7 +368,7 @@ func renderSection(key string, value any, depth int) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if arr, ok := asSlice(value); ok {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -403,7 +403,7 @@ func renderSection(key string, value any, depth int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " <span class=\"text-base-content/40 font-normal text-sm\">(")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " <span class=\"text-base-content/55 font-normal text-sm\">(")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -429,7 +429,7 @@ func renderSection(key string, value any, depth int) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-2\"><span class=\"text-sm font-medium text-base-content/80 min-w-[140px] shrink-0\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-2\"><span class=\"text-sm font-medium text-base-content/80 min-w-[140px] shrink-0\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -487,7 +487,7 @@ func renderField(key string, value any, depth int) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if m, ok := asMap(value); ok {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<details class=\"collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30\"><summary class=\"collapse-title text-sm font-medium py-2 min-h-0\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<details class=\"collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-100\"><summary class=\"collapse-title text-sm font-medium py-2 min-h-0\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -517,7 +517,7 @@ func renderField(key string, value any, depth int) templ.Component {
 		} else if arr, ok := asSlice(value); ok {
 			if len(arr) > 0 {
 				if isSimpleArray(arr) {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"flex items-start gap-2\"><span class=\"text-sm font-medium text-base-content/70 min-w-[140px] shrink-0\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"flex items-start gap-2\"><span class=\"text-sm font-medium text-base-content/80 min-w-[140px] shrink-0\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -558,7 +558,7 @@ func renderField(key string, value any, depth int) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<details class=\"collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30\"><summary class=\"collapse-title text-sm font-medium py-2 min-h-0\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<details class=\"collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-100\"><summary class=\"collapse-title text-sm font-medium py-2 min-h-0\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -571,7 +571,7 @@ func renderField(key string, value any, depth int) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " <span class=\"text-base-content/40 font-normal\">(")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " <span class=\"text-base-content/55 font-normal\">(")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

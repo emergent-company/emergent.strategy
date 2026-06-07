@@ -38,7 +38,7 @@ templ AssumptionsContent(data AssumptionsViewData) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h2 class="text-xl font-bold text-base-content">{ langs.T(ctx, "nav.screen.assumptions") }</h2>
-				<p class="text-sm text-base-content/60 mt-0.5">
+				<p class="text-sm text-base-content/75 mt-0.5">
 					Which strategic bets are being tested, and what has the real world told us?
 				</p>
 			</div>
@@ -51,8 +51,8 @@ templ AssumptionsContent(data AssumptionsViewData) {
 		if len(data.Assumptions) == 0 {
 			<div class="text-center py-16">
 				<span class="iconify lucide--flask-conical size-12 text-base-content/20 mx-auto block mb-4"></span>
-				<p class="text-base font-medium text-base-content/60">No assumptions found</p>
-				<p class="text-sm text-base-content/40 mt-1">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p>
+				<p class="text-base font-medium text-base-content/75">No assumptions found</p>
+				<p class="text-sm text-base-content/55 mt-1">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p>
 			</div>
 		} else {
 			<div id="assumption-list" class="space-y-2">
@@ -69,10 +69,10 @@ templ assumptionsSummaryBar(assumptions []AssumptionRow) {
 		// "All" — clears filter
 		<button
 			onclick="(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var active=l.getAttribute('data-filter')==='';l.removeAttribute('data-filter');document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(!active)btn.classList.add('ring-2','ring-offset-1')})(this)"
-			class="asm-filter-btn rounded-xl bg-base-100 border border-base-content/10 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-base-content/30 transition-colors"
+			class="asm-filter-btn rounded-xl bg-base-100 border border-base-content/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-base-content/30 transition-colors"
 		>
 			<p class="text-2xl font-bold text-base-content">{ strconv.Itoa(len(assumptions)) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Total</p>
+			<p class="text-xs text-base-content/75 mt-0.5">Total</p>
 		</button>
 		// "Well tested" filter
 		<button
@@ -80,7 +80,7 @@ templ assumptionsSummaryBar(assumptions []AssumptionRow) {
 			class="asm-filter-btn rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-success/40 transition-colors"
 		>
 			<p class="text-2xl font-bold text-success">{ strconv.Itoa(countByRisk(assumptions, "well_tested")) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Well tested</p>
+			<p class="text-xs text-base-content/75 mt-0.5">Well tested</p>
 		</button>
 		// "Partial" filter
 		<button
@@ -88,7 +88,7 @@ templ assumptionsSummaryBar(assumptions []AssumptionRow) {
 			class="asm-filter-btn rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-warning/40 transition-colors"
 		>
 			<p class="text-2xl font-bold text-warning">{ strconv.Itoa(countByRisk(assumptions, "partially_tested")) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Partially tested</p>
+			<p class="text-xs text-base-content/75 mt-0.5">Partially tested</p>
 		</button>
 		// "Untested" filter
 		<button
@@ -96,7 +96,7 @@ templ assumptionsSummaryBar(assumptions []AssumptionRow) {
 			class="asm-filter-btn rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-error/40 transition-colors"
 		>
 			<p class="text-2xl font-bold text-error">{ strconv.Itoa(countByRisk(assumptions, "untested")) }</p>
-			<p class="text-xs text-base-content/60 mt-0.5">Untested</p>
+			<p class="text-xs text-base-content/75 mt-0.5">Untested</p>
 		</button>
 	</div>
 }
@@ -110,7 +110,7 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 			<div class="grow min-w-0 space-y-3">
 				// ID + risk badge + validation status (small header row)
 				<div class="flex items-center gap-2 flex-wrap">
-					<span class="text-xs font-mono text-base-content/40">{ a.Key }</span>
+					<span class="text-xs font-mono text-base-content/55">{ a.Key }</span>
 					<span class="tooltip" data-tip={ assumptionRiskHint(a.RiskLevel) }><span class={ "badge badge-xs", assumptionRiskBadge(a.RiskLevel) }>{ assumptionRiskLabel(a.RiskLevel) }</span></span>
 					if a.ValidationStatus != "" {
 						<span class="tooltip" data-tip={ assumptionStatusHint(a.ValidationStatus) }><span class={ "badge badge-xs", assumptionStatusBadge(a.ValidationStatus) }>{ a.ValidationStatus }</span></span>
@@ -124,7 +124,7 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 				// Features testing this assumption
 				if len(a.TestedBy) > 0 {
 					<div>
-						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1.5">Tested by</p>
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/65 mb-1.5">Tested by</p>
 						<div class="flex flex-wrap gap-1.5">
 							for _, featureKey := range a.TestedBy {
 						<a
@@ -141,14 +141,14 @@ templ assumptionCard(a AssumptionRow, instanceID string) {
 						</div>
 					</div>
 				} else {
-					<p class="text-xs text-base-content/40 italic">No features testing this assumption yet</p>
+					<p class="text-xs text-base-content/55 italic">No features testing this assumption yet</p>
 				}
 
 				// Evidence from assessment reports
 				if a.Evidence != "" {
-					<div class="rounded-lg bg-base-200/50 px-3 py-2">
-						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Evidence</p>
-						<p class="text-xs text-base-content/70 leading-relaxed">{ a.Evidence }</p>
+					<div class="rounded-lg bg-base-100 border border-base-content/10 px-3 py-2">
+						<p class="text-xs font-semibold uppercase tracking-wide text-base-content/65 mb-1">Evidence</p>
+						<p class="text-xs text-base-content/80 leading-relaxed">{ a.Evidence }</p>
 					</div>
 				}
 			</div>
@@ -173,7 +173,7 @@ func assumptionCardBorder(risk string) string {
 	case "untested":
 		return "border-error/20"
 	default:
-		return "border-base-content/10"
+		return "border-base-content/15"
 	}
 }
 

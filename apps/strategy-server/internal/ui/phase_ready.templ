@@ -145,20 +145,20 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 		<div class="flex items-center justify-between mb-4">
 			<div>
 				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "ui.ready.phase_title") }</h2>
-				<p class="text-xs text-base-content/60 mt-0.5">{ langs.T(ctx, "ui.ready.phase_subtitle") }</p>
+				<p class="text-xs text-base-content/75 mt-0.5">{ langs.T(ctx, "ui.ready.phase_subtitle") }</p>
 				if data.EvidenceCount > 0 {
 					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-primary/70 hover:text-primary mt-0.5 flex items-center gap-1">
 						<span class="iconify lucide--database size-3"></span>
 						{ strconv.Itoa(data.EvidenceCount) } evidence items loaded
 					</a>
 				} else {
-					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/40 hover:text-base-content/60 mt-0.5 flex items-center gap-1">
+					<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/55 hover:text-base-content/75 mt-0.5 flex items-center gap-1">
 						<span class="iconify lucide--database size-3"></span>
 						{ langs.T(ctx, "ui.ready.add_evidence_hint") }
 					</a>
 				}
 			</div>
-			<div class="flex items-center gap-3 text-xs text-base-content/50">
+			<div class="flex items-center gap-3 text-xs text-base-content/65">
 				<span class="text-base-content/35">{ langs.T(ctx, "ui.ready.change_cadence_label") }</span>
 				<span class="flex items-center gap-1">
 					<span class="inline-block size-2 rounded-full bg-primary/30"></span>
@@ -196,7 +196,7 @@ templ ReadyPhaseContent(data ReadyPhaseData) {
 			@readyInsightCard(data)
 			<!-- Mid connector: → with label "informs" -->
 			<div class="flex flex-col items-center justify-center px-3 min-w-[80px]">
-				<span class="text-xs text-base-content/50 mb-1 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.informs") }</span>
+				<span class="text-xs text-base-content/65 mb-1 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.informs") }</span>
 				@svgArrowRight()
 			</div>
 			<!-- Insight Opportunity -->
@@ -356,7 +356,7 @@ templ readyMapCard(p readyMapCardProps) {
 			<!-- Header row: icon + title + badge + status -->
 			<div class="flex items-center gap-2.5">
 				<div class={ "rounded-lg p-2 shrink-0", templ.KV("bg-success/10", p.Exists), templ.KV("bg-base-content/5", !p.Exists) }>
-					<span class={ "iconify size-4", p.Icon, templ.KV("text-success", p.Exists), templ.KV("text-base-content/40", !p.Exists) }></span>
+					<span class={ "iconify size-4", p.Icon, templ.KV("text-success", p.Exists), templ.KV("text-base-content/55", !p.Exists) }></span>
 				</div>
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2 flex-wrap">
@@ -369,7 +369,7 @@ templ readyMapCard(p readyMapCardProps) {
 				</span>
 			}
 				</div>
-					<p class="text-xs text-base-content/50 mt-0.5">{ p.Subtitle }</p>
+					<p class="text-xs text-base-content/65 mt-0.5">{ p.Subtitle }</p>
 				</div>
 				<!-- Status icon -->
 				if p.Exists {
@@ -380,7 +380,7 @@ templ readyMapCard(p readyMapCardProps) {
 			</div>
 		<!-- Content area — strategic snapshot when populated -->
 		if p.Exists && (p.Line1 != "" || p.Line2 != "") {
-			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
+			<div class="border-t border-base-content/15 pt-2.5 space-y-1.5">
 				if p.Line1 != "" {
 					<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ p.Line1 }</p>
 				}
@@ -389,10 +389,10 @@ templ readyMapCard(p readyMapCardProps) {
 				}
 			</div>
 		} else if !p.Exists {
-			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
+			<div class="border-t border-base-content/15 pt-2.5 space-y-1.5">
 				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				if p.SufficiencyHint != "" {
-					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", p.EvidenceReady), templ.KV("text-base-content/40", !p.EvidenceReady) }>
+					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", p.EvidenceReady), templ.KV("text-base-content/55", !p.EvidenceReady) }>
 						if p.EvidenceReady {
 							<span class="iconify lucide--database size-3"></span>
 						} else {
@@ -409,7 +409,7 @@ templ readyMapCard(p readyMapCardProps) {
 		}
 		<!-- Draft action button — shown when not yet authored and skill executor available -->
 		if !p.Exists && p.DraftURL != "" {
-			<div class="border-t border-base-content/10 pt-2" onclick="event.preventDefault(); event.stopPropagation();">
+			<div class="border-t border-base-content/15 pt-2" onclick="event.preventDefault(); event.stopPropagation();">
 				if p.CanDraft {
 					<form method="POST" action={ templ.URL(p.DraftURL) } class="w-full">
 						<button type="submit" class="btn btn-xs btn-ghost w-full text-primary hover:bg-primary/10">
@@ -429,15 +429,15 @@ templ readyMapCard(p readyMapCardProps) {
 // readyGapStrip renders a compact row of section presence/gap indicators.
 // Present sections show a small muted check; missing sections show a red pill with hint.
 templ readyGapStrip(gaps []ReadyGap) {
-	<div class="border-t border-base-content/10 pt-2 flex flex-wrap gap-1">
+	<div class="border-t border-base-content/15 pt-2 flex flex-wrap gap-1">
 		for _, g := range gaps {
 		if g.Present {
-			<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/50 bg-base-content/5">
+			<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/65 bg-base-content/5">
 				<span class="iconify lucide--check size-3 text-emerald-600"></span>
 				{ g.Label }
 			</span>
 			} else {
-				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/60 bg-amber-50/50 border border-amber-100" title={ g.Hint }>
+				<span class="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-base-content/75 bg-amber-50/50 border border-amber-100" title={ g.Hint }>
 					<span class="iconify lucide--triangle-alert size-3 text-amber-600"></span>
 					{ g.Label }
 				</span>
@@ -460,7 +460,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 			<!-- Header -->
 			<div class="flex items-center gap-2.5">
 				<div class={ "rounded-lg p-2 shrink-0", templ.KV("bg-success/10", data.InsightExists), templ.KV("bg-base-content/5", !data.InsightExists) }>
-					<span class={ "iconify lucide--search size-4", templ.KV("text-success", data.InsightExists), templ.KV("text-base-content/40", !data.InsightExists) }></span>
+					<span class={ "iconify lucide--search size-4", templ.KV("text-success", data.InsightExists), templ.KV("text-base-content/55", !data.InsightExists) }></span>
 				</div>
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2 flex-wrap">
@@ -471,7 +471,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 						</span>
 	
 					</div>
-					<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "artifact.subtitle.insight_analyses") }</p>
+					<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "artifact.subtitle.insight_analyses") }</p>
 				</div>
 				if data.InsightExists {
 					<span class="iconify lucide--check-circle-2 size-4 text-success shrink-0"></span>
@@ -481,7 +481,7 @@ templ readyInsightCard(data ReadyPhaseData) {
 			</div>
 			<!-- Content -->
 			if data.InsightExists {
-				<div class="border-t border-base-content/10 pt-2.5 space-y-2">
+				<div class="border-t border-base-content/15 pt-2.5 space-y-2">
 					if data.InsightFirstTrend != "" {
 						<p class="text-xs font-medium text-base-content/90 leading-snug line-clamp-2">{ data.InsightFirstTrend }</p>
 					}
@@ -507,11 +507,11 @@ templ readyInsightCard(data ReadyPhaseData) {
 					}
 				</div>
 		} else {
-			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5">
+			<div class="border-t border-base-content/15 pt-2.5 space-y-1.5">
 				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				{{ s := data.EvidenceSufficiency["insight_analyses"] }}
 				if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
-					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
+					<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/55", !s.Sufficient) }>
 						<span class="iconify lucide--database size-3"></span>
 						{ evidenceSufficiencyHint(ctx, s) }
 					</p>
@@ -571,7 +571,7 @@ templ detailGapBanner(gaps []ReadyGap) {
 				<p class="text-sm font-semibold text-error">
 					{ strconv.Itoa(missing) }{ " " }{ langs.T(ctx, "ui.readiness.sections_need_content") }
 				</p>
-				<p class="text-xs text-base-content/50 ml-1">{ langs.T(ctx, "ui.readiness.develop_hint") }</p>
+				<p class="text-xs text-base-content/65 ml-1">{ langs.T(ctx, "ui.readiness.develop_hint") }</p>
 			</div>
 			<div class="px-4 py-3 flex flex-wrap gap-2">
 				for _, g := range gaps {
@@ -580,13 +580,13 @@ templ detailGapBanner(gaps []ReadyGap) {
 							<span class="iconify lucide--circle-dashed size-3.5 text-error/70 shrink-0"></span>
 							<span class="text-xs font-medium text-error">{ g.Label }</span>
 							if g.Hint != "" {
-								<span class="text-xs text-base-content/50 hidden sm:inline">— { g.Hint }</span>
+								<span class="text-xs text-base-content/65 hidden sm:inline">— { g.Hint }</span>
 							}
 						</div>
 					} else {
 						<div class="flex items-center gap-1 rounded-lg bg-base-200/60 px-2.5 py-1.5">
 							<span class="iconify lucide--check size-3 text-success/60 shrink-0"></span>
-							<span class="text-xs text-base-content/40">{ g.Label }</span>
+							<span class="text-xs text-base-content/55">{ g.Label }</span>
 						</div>
 					}
 				}
@@ -596,7 +596,7 @@ templ detailGapBanner(gaps []ReadyGap) {
 }
 
 templ insightChip(count, label, icon string) {
-	<span class="inline-flex items-center gap-1 rounded-md bg-base-100 border border-base-content/10 px-2 py-0.5 text-xs text-base-content/60">
+	<span class="inline-flex items-center gap-1 rounded-md bg-base-100 border border-base-content/15 px-2 py-0.5 text-xs text-base-content/75">
 		<span class={ "iconify size-3 opacity-60", icon }></span>
 		<span class="font-semibold text-base-content/80">{ count }</span>
 		{ label }
@@ -616,7 +616,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 		<div class="card-body p-4">
 			<div class="flex items-start gap-3">
 				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-primary/15", data.NorthStarExists), templ.KV("bg-base-content/5", !data.NorthStarExists) }>
-					<span class={ "iconify lucide--star size-5", templ.KV("text-primary", data.NorthStarExists), templ.KV("text-base-content/40", !data.NorthStarExists) }></span>
+					<span class={ "iconify lucide--star size-5", templ.KV("text-primary", data.NorthStarExists), templ.KV("text-base-content/55", !data.NorthStarExists) }></span>
 				</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2 mb-1">
@@ -627,7 +627,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 					</span>
 	
 				</div>
-				<p class="text-xs text-base-content/50">{ langs.T(ctx, "artifact.subtitle.north_star") }</p>
+				<p class="text-xs text-base-content/65">{ langs.T(ctx, "artifact.subtitle.north_star") }</p>
 					if data.NorthStarExists && data.NorthStarPurpose != "" {
 						<p class="text-sm font-medium text-base-content/90 mt-2.5 leading-snug">{ data.NorthStarPurpose }</p>
 					}
@@ -644,7 +644,7 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 		<!-- Org name pill -->
 		if data.NorthStarOrg != "" {
 			<div class="shrink-0 hidden md:flex flex-col items-end gap-2">
-				<span class="badge badge-ghost badge-sm text-base-content/50">{ data.NorthStarOrg }</span>
+				<span class="badge badge-ghost badge-sm text-base-content/65">{ data.NorthStarOrg }</span>
 				<span class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.ready.calibration_feedback") }</span>
 			</div>
 		}
@@ -653,12 +653,12 @@ templ readyMapNorthStar(data ReadyPhaseData) {
 			@readyGapStrip(data.NorthStarGaps)
 		}
 		if !data.NorthStarExists {
-			<div class="border-t border-base-content/10 pt-2.5 space-y-2">
+			<div class="border-t border-base-content/15 pt-2.5 space-y-2">
 				<div class="flex items-center gap-2">
 					<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 					{{ s := data.EvidenceSufficiency["north_star"] }}
 					if s.EvidenceCount > 0 || len(s.MissingTags) > 0 {
-						<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/40", !s.Sufficient) }>
+						<p class={ "text-xs flex items-center gap-1", templ.KV("text-success/70", s.Sufficient), templ.KV("text-base-content/55", !s.Sufficient) }>
 							<span class="mx-1 text-base-content/20">·</span>
 							<span class="iconify lucide--database size-3"></span>
 							{ evidenceSufficiencyHint(ctx, s) }
@@ -694,7 +694,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 		<div class="card-body p-4">
 			<div class="flex items-start gap-3">
 				<div class={ "rounded-xl p-2.5 shrink-0", templ.KV("bg-info/15", data.RoadmapExists), templ.KV("bg-base-content/5", !data.RoadmapExists) }>
-					<span class={ "iconify lucide--map size-5", templ.KV("text-info", data.RoadmapExists), templ.KV("text-base-content/40", !data.RoadmapExists) }></span>
+					<span class={ "iconify lucide--map size-5", templ.KV("text-info", data.RoadmapExists), templ.KV("text-base-content/55", !data.RoadmapExists) }></span>
 				</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-center gap-2 mb-1">
@@ -705,7 +705,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 					</span>
 	
 				</div>
-				<p class="text-xs text-base-content/50">{ langs.T(ctx, "artifact.subtitle.roadmap_recipe") }</p>
+				<p class="text-xs text-base-content/65">{ langs.T(ctx, "artifact.subtitle.roadmap_recipe") }</p>
 				if data.RoadmapExists && data.RoadmapCycle != "" {
 					<p class="text-xs font-medium text-base-content/80 mt-2">Cycle: { data.RoadmapCycle }</p>
 				}
@@ -718,12 +718,12 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 			}
 			<!-- OKR summary inline -->
 				if len(data.TrackOKRs) > 0 {
-					<div class="shrink-0 hidden md:flex items-center gap-4 border-l border-base-content/10 pl-4">
+					<div class="shrink-0 hidden md:flex items-center gap-4 border-l border-base-content/15 pl-4">
 						for _, t := range data.TrackOKRs {
 							<div class="flex flex-col items-center text-center min-w-[36px]">
-								<span class={ "iconify size-4 text-base-content/40 " + t.Icon }></span>
+								<span class={ "iconify size-4 text-base-content/55 " + t.Icon }></span>
 								<span class="text-sm font-semibold text-base-content leading-tight mt-0.5">{ strconv.Itoa(t.KeyResults) }</span>
-								<span class="text-xs text-base-content/50 leading-none">{ langs.T(ctx, "ui.roadmap.kr_label") }</span>
+								<span class="text-xs text-base-content/65 leading-none">{ langs.T(ctx, "ui.roadmap.kr_label") }</span>
 							</div>
 						}
 					</div>
@@ -735,7 +735,7 @@ templ readyMapRoadmap(data ReadyPhaseData) {
 		}
 		if !data.RoadmapExists && data.HasSkillExecutor {
 			{{ roadmapCanDraft := data.FormulaExists && data.FoundationExists }}
-			<div class="border-t border-base-content/10 pt-2.5 space-y-1.5" onclick="event.preventDefault(); event.stopPropagation();">
+			<div class="border-t border-base-content/15 pt-2.5 space-y-1.5" onclick="event.preventDefault(); event.stopPropagation();">
 				<p class="text-xs text-base-content/35 italic">{ langs.T(ctx, "ui.artifact.not_authored") }</p>
 				<form method="POST" action={ templ.URL(readyDraftURL(data.InstanceID, "roadmap")) }>
 					<button
@@ -759,7 +759,7 @@ templ readyConnectorRow2(data ReadyPhaseData) {
 		<!-- Left: NS → Insight Analyses -->
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 				@svgArrowDown()
 			</div>
 		</div>
@@ -768,7 +768,7 @@ templ readyConnectorRow2(data ReadyPhaseData) {
 		<!-- Right: NS → Insight Opportunity -->
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 				@svgArrowDown()
 			</div>
 		</div>
@@ -784,7 +784,7 @@ templ readyConnectorRow3() {
 		<div class="flex justify-center pt-1">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.evidence_grounds") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.evidence_grounds") }</span>
 			</div>
 		</div>
 		<!-- Center: converge label -->
@@ -795,7 +795,7 @@ templ readyConnectorRow3() {
 		<div class="flex justify-center pt-1">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.synthesises_into") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.synthesises_into") }</span>
 			</div>
 		</div>
 	</div>
@@ -808,7 +808,7 @@ templ readyConnectorRow4() {
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.constrains") }</span>
 			</div>
 		</div>
 		<!-- Center: merge indicator -->
@@ -819,7 +819,7 @@ templ readyConnectorRow4() {
 		<div class="flex justify-center">
 			<div class="flex flex-col items-center gap-0.5">
 				@svgArrowDown()
-				<span class="text-xs text-base-content/40 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.sequences") }</span>
+				<span class="text-xs text-base-content/55 whitespace-nowrap">{ langs.T(ctx, "ui.ready.connector.sequences") }</span>
 			</div>
 		</div>
 	</div>
@@ -833,7 +833,7 @@ templ readyFireConnector() {
 			<line x1="8" y1="0" x2="8" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
 			<polyline points="4,4 8,9 12,4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></polyline>
 		</svg>
-		<span class="text-xs text-base-content/40 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.ready.connector.hands_off") }</span>
+		<span class="text-xs text-base-content/55 tracking-wide uppercase font-medium">{ langs.T(ctx, "ui.ready.connector.hands_off") }</span>
 	</div>
 }
 
@@ -861,34 +861,34 @@ templ readyFireHandoff(data ReadyPhaseData) {
 							Execution <span class="font-sans font-normal opacity-70">→ now</span>
 						</span>
 					</div>
-					<p class="text-xs text-base-content/50 mt-0.5">Features, value models, and track definitions — where strategy becomes delivery</p>
+					<p class="text-xs text-base-content/65 mt-0.5">Features, value models, and track definitions — where strategy becomes delivery</p>
 				</div>
 				<span class="iconify lucide--chevron-right size-4 text-base-content/30 shrink-0"></span>
 			</div>
 			<!-- 4 track mini-cards -->
 			if len(data.TrackOKRs) > 0 {
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/10">
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/15">
 					for _, t := range data.TrackOKRs {
-						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/10 px-3 py-2">
+						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/15 px-3 py-2">
 							<span class={ "iconify size-3.5 text-warning/70 shrink-0 " + t.Icon }></span>
 							<div class="min-w-0">
 								<p class="text-xs font-medium text-base-content leading-tight">{ t.Track }</p>
-								<p class="text-xs text-base-content/50 leading-tight">{ strconv.Itoa(t.Objectives) } obj · { strconv.Itoa(t.KeyResults) } KRs</p>
+								<p class="text-xs text-base-content/65 leading-tight">{ strconv.Itoa(t.Objectives) } obj · { strconv.Itoa(t.KeyResults) } KRs</p>
 							</div>
 						</div>
 					}
 				</div>
 			} else {
-				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/10">
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1 border-t border-base-content/15">
 					for _, track := range []struct{ name, icon string }{
 						{"Strategy", "lucide--navigation"},
 						{"Org & Ops", "lucide--container"},
 						{"Product", "lucide--code-2"},
 						{"Commercial", "lucide--briefcase"},
 					} {
-						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/10 px-3 py-2">
+						<div class="flex items-center gap-2 rounded-lg bg-base-100/60 border border-base-content/15 px-3 py-2">
 							<span class={ "iconify size-3.5 text-base-content/30 shrink-0 " + track.icon }></span>
-							<p class="text-xs font-medium text-base-content/50 leading-tight">{ track.name }</p>
+							<p class="text-xs font-medium text-base-content/65 leading-tight">{ track.name }</p>
 						</div>
 					}
 				</div>
@@ -914,16 +914,16 @@ templ svgArrowRight() {
 }
 
 templ roadmapOKRSummary(tracks []TrackOKRSummary) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
 			<h3 class="text-base font-semibold text-base-content mb-3">{ langs.T(ctx, "ui.roadmap.okrs_by_track") }</h3>
 			<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
 				for _, t := range tracks {
-					<div class="flex items-center gap-3 rounded-lg bg-base-200/50 px-3 py-2.5">
-						<span class={ "iconify size-4 text-base-content/70 " + t.Icon }></span>
+					<div class="flex items-center gap-3 rounded-lg bg-base-100 border border-base-content/10 px-3 py-2.5">
+						<span class={ "iconify size-4 text-base-content/80 " + t.Icon }></span>
 						<div class="min-w-0">
 							<p class="text-sm font-medium text-base-content">{ t.Track }</p>
-							<p class="text-xs text-base-content/70">{ strconv.Itoa(t.Objectives) } objectives, { strconv.Itoa(t.KeyResults) } key results</p>
+							<p class="text-xs text-base-content/80">{ strconv.Itoa(t.Objectives) } objectives, { strconv.Itoa(t.KeyResults) } key results</p>
 						</div>
 					</div>
 				}
@@ -939,8 +939,8 @@ templ readyScoreBar(data ReadyPhaseData) {
 		<div class="flex items-center gap-3">
 			<div class="flex-1">
 				<div class="flex items-center justify-between mb-1">
-					<span class="text-xs text-base-content/50">{ langs.T(ctx, "ui.ready.score.label") }</span>
-					<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/60", data.ReadinessScore < 50) }>
+					<span class="text-xs text-base-content/65">{ langs.T(ctx, "ui.ready.score.label") }</span>
+					<span class={ "text-xs font-semibold", templ.KV("text-success", data.ReadinessScore >= 80), templ.KV("text-warning", data.ReadinessScore >= 50 && data.ReadinessScore < 80), templ.KV("text-base-content/75", data.ReadinessScore < 50) }>
 						{ strconv.Itoa(data.ReadinessScore) }%
 					</span>
 				</div>
@@ -951,7 +951,7 @@ templ readyScoreBar(data ReadyPhaseData) {
 					></div>
 				</div>
 			</div>
-			<span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
+			<span class="text-xs text-base-content/55 whitespace-nowrap shrink-0">
 				{ strconv.Itoa(data.CompletedArtifacts) } / { strconv.Itoa(data.TotalArtifacts) } artifacts
 			</span>
 		</div>
@@ -970,11 +970,11 @@ templ readyScoreBreakdown(items []ReadinessItem, score int) {
 		<div class="flex flex-wrap gap-1.5 mt-2">
 			for _, item := range items {
 				if !item.Done {
-					<span class={ "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", templ.KV("bg-base-content/8 border border-base-content/15 text-base-content/80", item.MaxPts > 0), templ.KV("bg-base-content/5 border border-base-content/10 text-base-content/40", item.MaxPts == 0) }>
-						<span class={ "iconify lucide--circle-dashed size-3.5", templ.KV("text-base-content/60", item.MaxPts > 0), templ.KV("text-base-content/30", item.MaxPts == 0) }></span>
+					<span class={ "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", templ.KV("bg-base-content/8 border border-base-content/15 text-base-content/80", item.MaxPts > 0), templ.KV("bg-base-content/5 border border-base-content/15 text-base-content/55", item.MaxPts == 0) }>
+						<span class={ "iconify lucide--circle-dashed size-3.5", templ.KV("text-base-content/75", item.MaxPts > 0), templ.KV("text-base-content/30", item.MaxPts == 0) }></span>
 						{ item.Label }
 						if item.MaxPts > 0 {
-							<span class="text-base-content/50 font-normal">({ "+" + strconv.Itoa(item.MaxPts) + " pts" })</span>
+							<span class="text-base-content/65 font-normal">({ "+" + strconv.Itoa(item.MaxPts) + " pts" })</span>
 						} else {
 							<span class="text-base-content/30 font-normal">{ langs.T(ctx, "ui.readiness.optional") }</span>
 						}
@@ -985,7 +985,7 @@ templ readyScoreBreakdown(items []ReadinessItem, score int) {
 		<!-- Help text for incomplete scored items -->
 		for _, item := range items {
 			if !item.Done && item.MaxPts > 0 && item.HelpText != "" {
-				<p class="text-xs text-base-content/50 mt-1.5 ml-0.5">
+				<p class="text-xs text-base-content/65 mt-1.5 ml-0.5">
 					<span class="iconify lucide--arrow-right size-3 inline-block align-middle mr-1"></span>
 					{ item.HelpText }
 				</p>
@@ -1004,12 +1004,12 @@ templ readyPublishBanner(instanceID string) {
 					<span class="iconify lucide--rocket size-5 text-success mt-0.5 shrink-0"></span>
 					<div class="space-y-1.5">
 						<p class="text-sm font-semibold">{ langs.T(ctx, "ui.ready.publish_banner.title") }</p>
-						<p class="text-xs text-base-content/70 leading-relaxed max-w-lg">
+						<p class="text-xs text-base-content/80 leading-relaxed max-w-lg">
 							Publishing creates a frozen snapshot of all your strategy artifacts and their
 							relationships as <strong>Version 1</strong>. Nothing changes in your current
 							workspace — it simply saves a point-in-time copy you can always return to.
 						</p>
-						<p class="text-xs text-base-content/50 leading-relaxed max-w-lg">
+						<p class="text-xs text-base-content/65 leading-relaxed max-w-lg">
 							This version becomes the baseline for your first AIM cycle, where you will
 							assess progress against your OKRs, calibrate the strategy, and decide whether
 							to persevere, pivot, or pull the plug. You can compare, diff, and restore any

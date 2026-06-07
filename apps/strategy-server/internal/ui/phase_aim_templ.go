@@ -185,7 +185,7 @@ func aimCycleStepper(data AimPhaseData) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between mb-5\"><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/50\">AIM Cycle</p><p class=\"text-sm text-base-content/70 mt-0.5\">Observe reality → assess outcomes → decide direction → adapt strategy</p><p class=\"text-xs text-base-content/40 mt-1.5 flex items-center gap-1.5\"><span class=\"iconify lucide--timer size-3\"></span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5\"><div class=\"flex items-center justify-between mb-5\"><div><p class=\"text-xs font-semibold uppercase tracking-widest text-base-content/65\">AIM Cycle</p><p class=\"text-sm text-base-content/80 mt-0.5\">Observe reality → assess outcomes → decide direction → adapt strategy</p><p class=\"text-xs text-base-content/55 mt-1.5 flex items-center gap-1.5\"><span class=\"iconify lucide--timer size-3\"></span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -466,7 +466,7 @@ func aimCycleStep(s aimCycleStepData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if s.Detail != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<p class=\"text-xs text-base-content/50 mt-0.5 leading-snug\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<p class=\"text-xs text-base-content/65 mt-0.5 leading-snug\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -727,7 +727,7 @@ func aimStepBorderClass(status string) string {
 	case "active":
 		return "border-primary/30 bg-primary/5"
 	default:
-		return "border-base-content/10 bg-base-100 opacity-60"
+		return "border-base-content/15 bg-base-100 opacity-60"
 	}
 }
 
@@ -738,7 +738,7 @@ func aimStepCircleClass(status string) string {
 	case "active":
 		return "bg-primary text-primary-content"
 	default:
-		return "bg-base-content/10 text-base-content/40"
+		return "bg-base-content/10 text-base-content/55"
 	}
 }
 
@@ -760,7 +760,7 @@ func aimStepLabelClass(status string) string {
 	case "active":
 		return "text-base-content"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -1064,7 +1064,7 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 			templ_7745c5c3_Var42 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--radio size-4 text-base-content/60\"></span><h3 class=\"text-base font-semibold text-base-content\">Signal Feed</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center justify-between mb-4\"><div class=\"flex items-center gap-2\"><span class=\"iconify lucide--radio size-4 text-base-content/75\"></span><h3 class=\"text-base font-semibold text-base-content\">Signal Feed</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1126,7 +1126,7 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</p><p class=\"text-xs text-base-content/60\">Critical</p></div><div class=\"text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2\"><p class=\"text-lg font-bold text-warning\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</p><p class=\"text-xs text-base-content/75\">Critical</p></div><div class=\"text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2\"><p class=\"text-lg font-bold text-warning\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1139,7 +1139,7 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</p><p class=\"text-xs text-base-content/60\">Warning</p></div><div class=\"text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2\"><p class=\"text-lg font-bold text-info\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</p><p class=\"text-xs text-base-content/75\">Warning</p></div><div class=\"text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2\"><p class=\"text-lg font-bold text-info\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1152,12 +1152,12 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "</p><p class=\"text-xs text-base-content/60\">Info</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "</p><p class=\"text-xs text-base-content/75\">Info</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(data.RecentSignals) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div class=\"text-center py-8\"><span class=\"iconify lucide--shield-check size-10 text-success/40 mx-auto mb-3 block\"></span><p class=\"text-sm font-medium text-base-content/70\">No active signals</p><p class=\"text-xs text-base-content/40 mt-1\">The coherence engine runs after every strategy change and flags misalignments automatically</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div class=\"text-center py-8\"><span class=\"iconify lucide--shield-check size-10 text-success/40 mx-auto mb-3 block\"></span><p class=\"text-sm font-medium text-base-content/80\">No active signals</p><p class=\"text-xs text-base-content/55 mt-1\">The coherence engine runs after every strategy change and flags misalignments automatically</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1177,7 +1177,7 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if data.ActiveSignals > len(data.RecentSignals) {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<p class=\"text-xs text-base-content/40 text-center pt-2\">+")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<p class=\"text-xs text-base-content/55 text-center pt-2\">+")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1196,7 +1196,7 @@ func aimSignalFeedCard(data AimPhaseData) templ.Component {
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<div class=\"mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2\"><span class=\"iconify lucide--cpu size-3.5 text-base-content/30\"></span><p class=\"text-xs text-base-content/40\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<div class=\"mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2\"><span class=\"iconify lucide--cpu size-3.5 text-base-content/30\"></span><p class=\"text-xs text-base-content/55\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1339,7 +1339,7 @@ func aimSignalRow(sig AimSignalRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if sig.TargetKey != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<span class=\"text-xs font-mono text-base-content/50 truncate\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<span class=\"text-xs font-mono text-base-content/65 truncate\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1357,7 +1357,7 @@ func aimSignalRow(sig AimSignalRow) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</div><p class=\"text-xs text-base-content/70 mt-1 leading-relaxed\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</div><p class=\"text-xs text-base-content/80 mt-1 leading-relaxed\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1422,7 +1422,7 @@ func aimArtifactsCard(data AimPhaseData) templ.Component {
 			templ_7745c5c3_Var63 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3\">AIM Artifacts</h3><div class=\"space-y-1\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest mb-3\">AIM Artifacts</h3><div class=\"space-y-1\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1506,7 +1506,7 @@ func aimProposalArtifactRow(data AimPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group\"><span class=\"iconify lucide--inbox size-4 group-hover:text-primary text-base-content/40\"></span> <span class=\"text-sm text-base-content grow\">Cycle Proposals</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group\"><span class=\"iconify lucide--inbox size-4 group-hover:text-primary text-base-content/55\"></span> <span class=\"text-sm text-base-content grow\">Cycle Proposals</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1593,7 +1593,7 @@ func aimArtifactRow(label, icon string, exists bool, detail, href string) templ.
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var71 = []any{"iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists)}
+		var templ_7745c5c3_Var71 = []any{"iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/55", !exists)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var71...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1630,7 +1630,7 @@ func aimArtifactRow(label, icon string, exists bool, detail, href string) templ.
 		}
 		if exists {
 			if detail != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<span class=\"text-xs text-base-content/60\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<span class=\"text-xs text-base-content/75\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1687,7 +1687,7 @@ func assumptionCoverageCard(data AimPhaseData) templ.Component {
 			templ_7745c5c3_Var75 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center justify-between mb-3\"><h3 class=\"text-sm font-semibold text-base-content/70 uppercase tracking-widest\">Assumptions</h3><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center justify-between mb-3\"><h3 class=\"text-sm font-semibold text-base-content/80 uppercase tracking-widest\">Assumptions</h3><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1726,7 +1726,7 @@ func assumptionCoverageCard(data AimPhaseData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" max=\"100\"></progress> <span class=\"text-xs font-medium text-base-content/60 whitespace-nowrap\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "\" max=\"100\"></progress> <span class=\"text-xs font-medium text-base-content/75 whitespace-nowrap\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

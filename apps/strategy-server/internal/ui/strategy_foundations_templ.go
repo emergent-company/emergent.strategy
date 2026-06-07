@@ -269,7 +269,7 @@ func foundationsHero(data StrategyFoundationsData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastUpdated != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"hidden sm:block text-right text-xs text-base-content/60\"><p>Updated ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"hidden sm:block text-right text-xs text-base-content/75\"><p>Updated ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -379,7 +379,7 @@ func foundationsVisionSection(data StrategyFoundationsData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, ind := range data.SuccessIndicators {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-3 text-center\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-3 text-center\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -402,7 +402,7 @@ func foundationsVisionSection(data StrategyFoundationsData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"text-xs text-base-content/70\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"text-xs text-base-content/80\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -494,7 +494,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, pp := range data.ProofPoints {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-medium text-base-content\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><p class=\"text-sm font-medium text-base-content\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -512,7 +512,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if pp.Proof != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<p class=\"text-xs text-base-content/70 mt-1\"><span class=\"font-medium text-base-content/60\">Proof:</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<p class=\"text-xs text-base-content/80 mt-1\"><span class=\"font-medium text-base-content/75\">Proof:</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -585,7 +585,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 			}
 		}
 		if data.EconomicValue.CostSavings != "" || data.EconomicValue.RevenueGains != "" || data.EconomicValue.RiskReduction != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-3\">Economic Value</h4><div class=\"grid gap-4 md:grid-cols-3\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-3\">Economic Value</h4><div class=\"grid gap-4 md:grid-cols-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -603,7 +603,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p><p class=\"text-xs text-base-content/70\">Cost Savings</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p><p class=\"text-xs text-base-content/80\">Cost Savings</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -622,7 +622,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</p><p class=\"text-xs text-base-content/70\">Revenue Gains</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</p><p class=\"text-xs text-base-content/80\">Revenue Gains</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -641,7 +641,7 @@ func foundationsValuePropSection(data StrategyFoundationsData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</p><p class=\"text-xs text-base-content/70\">Risk Reduction</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</p><p class=\"text-xs text-base-content/80\">Risk Reduction</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -823,7 +823,7 @@ func foundationsPhaseStep(phase FoundationPhase, idx, total int) templ.Component
 			return templ_7745c5c3_Err
 		}
 		if phase.Focus != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<p class=\"text-xs text-base-content/70 mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<p class=\"text-xs text-base-content/80 mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -842,7 +842,7 @@ func foundationsPhaseStep(phase FoundationPhase, idx, total int) templ.Component
 			}
 		}
 		if phase.TargetSegment != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<p class=\"text-xs text-base-content/70 mt-0.5\"><span class=\"font-medium text-base-content/60\">Segment:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<p class=\"text-xs text-base-content/80 mt-0.5\"><span class=\"font-medium text-base-content/75\">Segment:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -953,7 +953,7 @@ func foundationsDesignPrinciplesSection(principles []FoundationPrinciple) templ.
 			return templ_7745c5c3_Err
 		}
 		for _, p := range principles {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--compass size-4 text-warning\"></span><h4 class=\"text-sm font-bold text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--compass size-4 text-warning\"></span><h4 class=\"text-sm font-bold text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -971,7 +971,7 @@ func foundationsDesignPrinciplesSection(principles []FoundationPrinciple) templ.
 				return templ_7745c5c3_Err
 			}
 			if p.Manifestation != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -61,7 +61,7 @@ templ EvidencePageContent(data EvidencePageData) {
 		<div class="flex items-center justify-between">
 			<div>
 				<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "nav.screen.evidence") }</h2>
-				<p class="text-xs text-base-content/60 mt-0.5">
+				<p class="text-xs text-base-content/75 mt-0.5">
 					Load source material to ground AI-generated strategy drafts in real context.
 				</p>
 			</div>
@@ -86,9 +86,9 @@ templ EvidencePageContent(data EvidencePageData) {
 
 // evidenceIngestCard renders the evidence submission form.
 templ evidenceIngestCard(instanceID string) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
-			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-4">
+			<h3 class="text-sm font-semibold text-base-content/80 uppercase tracking-widest mb-4">
 				Add Evidence
 			</h3>
 			<form
@@ -129,7 +129,7 @@ templ evidenceIngestCard(instanceID string) {
 				<div>
 					<label class="label pb-1">
 						<span class="label-text text-xs font-medium">Content</span>
-						<span class="label-text-alt text-base-content/40">Paste, summarise, or type notes</span>
+						<span class="label-text-alt text-base-content/55">Paste, summarise, or type notes</span>
 					</label>
 					<textarea
 						name="content"
@@ -144,7 +144,7 @@ templ evidenceIngestCard(instanceID string) {
 				<div>
 					<label class="label pb-1">
 						<span class="label-text text-xs font-medium">One-line summary</span>
-						<span class="label-text-alt text-base-content/40">Optional — AI-readable headline</span>
+						<span class="label-text-alt text-base-content/55">Optional — AI-readable headline</span>
 					</label>
 					<input
 						type="text"
@@ -158,7 +158,7 @@ templ evidenceIngestCard(instanceID string) {
 				<div>
 					<label class="label pb-1">
 						<span class="label-text text-xs font-medium">Tags</span>
-						<span class="label-text-alt text-base-content/40">Comma-separated — affects which bootstrap skills use this item</span>
+						<span class="label-text-alt text-base-content/55">Comma-separated — affects which bootstrap skills use this item</span>
 					</label>
 					<input
 						type="text"
@@ -168,7 +168,7 @@ templ evidenceIngestCard(instanceID string) {
 					/>
 					// Suggested tags per source type (shown as hint)
 					<div class="mt-1 flex flex-wrap gap-1">
-						<span class="text-xs text-base-content/40">Common tags:</span>
+						<span class="text-xs text-base-content/55">Common tags:</span>
 						for _, tag := range []string{"vision", "strategy", "market", "competitive", "user_research", "pitch", "product", "trends"} {
 							<button
 								type="button"
@@ -216,10 +216,10 @@ function appendTag(tag, fieldName) {
 
 // evidenceList renders the list of existing evidence items.
 templ evidenceList(data EvidencePageData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest">
+				<h3 class="text-sm font-semibold text-base-content/80 uppercase tracking-widest">
 					Loaded Evidence ({ strconv.Itoa(data.TotalCount) })
 				</h3>
 				// Tag summary chips
@@ -245,7 +245,7 @@ templ evidenceList(data EvidencePageData) {
 // evidenceItemRow renders a single evidence item.
 templ evidenceItemRow(item EvidenceItem, instanceID string) {
 	<div class="flex items-start gap-3 py-2 border-b border-base-content/5 last:border-0">
-		<span class="iconify lucide--file-text size-4 text-base-content/40 shrink-0 mt-0.5"></span>
+		<span class="iconify lucide--file-text size-4 text-base-content/55 shrink-0 mt-0.5"></span>
 		<div class="min-w-0 grow space-y-0.5">
 			<div class="flex items-center gap-2 flex-wrap">
 				<span class="text-xs font-medium text-base-content">{ item.SourceName }</span>
@@ -257,7 +257,7 @@ templ evidenceItemRow(item EvidenceItem, instanceID string) {
 				}
 			</div>
 			if item.Summary != "" {
-				<p class="text-xs text-base-content/60 line-clamp-1">{ item.Summary }</p>
+				<p class="text-xs text-base-content/75 line-clamp-1">{ item.Summary }</p>
 			}
 			<div class="flex items-center gap-2 flex-wrap">
 				for _, tag := range item.Tags {
@@ -271,11 +271,11 @@ templ evidenceItemRow(item EvidenceItem, instanceID string) {
 
 // evidenceEmptyState renders the empty state when no evidence exists.
 templ evidenceEmptyState() {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body items-center py-12 text-center">
 			<span class="iconify lucide--database size-12 text-base-content/20 mb-3 block"></span>
-			<h3 class="text-sm font-semibold text-base-content/60 mb-1">No evidence loaded yet</h3>
-			<p class="text-xs text-base-content/40 max-w-sm">
+			<h3 class="text-sm font-semibold text-base-content/75 mb-1">No evidence loaded yet</h3>
+			<p class="text-xs text-base-content/55 max-w-sm">
 				Add source material above — pitch decks, market research, interview notes, or any
 				strategic context. Evidence is used to ground AI-generated strategy drafts.
 			</p>
@@ -312,12 +312,12 @@ templ EvidenceInterviewContent(data EvidenceInterviewData) {
 	<div class="space-y-6">
 		// Header
 		<div>
-			<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/50 hover:text-base-content flex items-center gap-1 mb-2">
+			<a href={ templ.URL("/strategies/" + data.InstanceID + "/aim/evidence") } class="text-xs text-base-content/65 hover:text-base-content flex items-center gap-1 mb-2">
 				<span class="iconify lucide--arrow-left size-3"></span>
 				Back to evidence
 			</a>
 			<h2 class="text-base font-semibold text-base-content">{ langs.T(ctx, "page.strategy_interview") }</h2>
-			<p class="text-xs text-base-content/60 mt-0.5">
+			<p class="text-xs text-base-content/75 mt-0.5">
 				Answer these questions to load structured context for AI-generated strategy drafts.
 				Each answer becomes a tagged evidence item. Skip questions you cannot answer yet.
 			</p>
@@ -346,7 +346,7 @@ templ EvidenceInterviewContent(data EvidenceInterviewData) {
 
 // interviewQuestion renders a single interview question card.
 templ interviewQuestion(q InterviewQuestion) {
-	<div class={ "card border shadow-sm", templ.KV("border-success/20 bg-success/5", q.AlreadyCovered), templ.KV("border-base-content/10 bg-base-100", !q.AlreadyCovered) }>
+	<div class={ "card border shadow-sm", templ.KV("border-success/20 bg-success/5", q.AlreadyCovered), templ.KV("border-base-content/15 bg-base-100", !q.AlreadyCovered) }>
 		<div class="card-body p-5">
 			<div class="flex items-start gap-3">
 				if q.AlreadyCovered {
@@ -358,7 +358,7 @@ templ interviewQuestion(q InterviewQuestion) {
 					<div>
 						<p class="text-sm font-medium text-base-content">{ q.Question }</p>
 						if q.Hint != "" {
-							<p class="text-xs text-base-content/50 mt-0.5">{ q.Hint }</p>
+							<p class="text-xs text-base-content/65 mt-0.5">{ q.Hint }</p>
 						}
 						<div class="flex flex-wrap gap-1 mt-1">
 							for _, tag := range q.Tags {

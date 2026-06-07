@@ -26,7 +26,7 @@ templ ArtifactViewContent(data ArtifactViewData) {
 						@artifactStatusBadge(data.Status)
 					}
 				</div>
-				<p class="text-sm text-base-content/70 mt-1">
+				<p class="text-sm text-base-content/80 mt-1">
 					<span class="font-mono">{ data.ArtifactKey }</span>
 					if data.Track != "" {
 						<span class="mx-1">&middot;</span>
@@ -69,7 +69,7 @@ templ artifactStatusBadge(status string) {
 // renderSection renders a single top-level section of a payload.
 templ renderSection(key string, value any, depth int) {
 	if m, ok := asMap(value); ok {
-		<div class={ "card bg-base-100 border border-base-content/10 shadow-sm", templ.KV("ml-0", depth == 0), templ.KV("border-l-2 border-l-primary/20 ml-4", depth > 0) }>
+		<div class={ "card bg-base-100 border border-base-content/15 shadow-sm", templ.KV("ml-0", depth == 0), templ.KV("border-l-2 border-l-primary/20 ml-4", depth > 0) }>
 			<div class="card-body p-4">
 				<h3 class={ sectionTitleClass(depth) }>{ formatKey(key) }</h3>
 				<div class="space-y-3 mt-2">
@@ -80,14 +80,14 @@ templ renderSection(key string, value any, depth int) {
 			</div>
 		</div>
 	} else if arr, ok := asSlice(value); ok {
-		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 			<div class="card-body p-4">
-				<h3 class={ sectionTitleClass(depth) }>{ formatKey(key) } <span class="text-base-content/40 font-normal text-sm">({ lenStr(arr) })</span></h3>
+				<h3 class={ sectionTitleClass(depth) }>{ formatKey(key) } <span class="text-base-content/55 font-normal text-sm">({ lenStr(arr) })</span></h3>
 				@renderArray(arr, depth+1)
 			</div>
 		</div>
 	} else {
-		<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+		<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 			<div class="card-body p-4">
 				<div class="flex items-start gap-2">
 				<span class="text-sm font-medium text-base-content/80 min-w-[140px] shrink-0">{ formatKey(key) }</span>
@@ -101,7 +101,7 @@ templ renderSection(key string, value any, depth int) {
 // renderField renders a key-value pair within a section.
 templ renderField(key string, value any, depth int) {
 	if m, ok := asMap(value); ok {
-		<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30">
+		<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-100">
 			<summary class="collapse-title text-sm font-medium py-2 min-h-0">{ formatKey(key) }</summary>
 			<div class="collapse-content px-3 pb-3">
 				<div class="space-y-2">
@@ -115,7 +115,7 @@ templ renderField(key string, value any, depth int) {
 		if len(arr) > 0 {
 			if isSimpleArray(arr) {
 				<div class="flex items-start gap-2">
-					<span class="text-sm font-medium text-base-content/70 min-w-[140px] shrink-0">{ formatKey(key) }</span>
+					<span class="text-sm font-medium text-base-content/80 min-w-[140px] shrink-0">{ formatKey(key) }</span>
 					<div class="flex flex-wrap gap-1">
 						for _, item := range arr {
 							<span class="badge badge-sm badge-ghost">{ formatValue(item) }</span>
@@ -123,8 +123,8 @@ templ renderField(key string, value any, depth int) {
 					</div>
 				</div>
 			} else {
-				<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-200/30">
-					<summary class="collapse-title text-sm font-medium py-2 min-h-0">{ formatKey(key) } <span class="text-base-content/40 font-normal">({ lenStr(arr) })</span></summary>
+				<details class="collapse collapse-arrow border border-base-content/5 rounded-lg bg-base-100">
+					<summary class="collapse-title text-sm font-medium py-2 min-h-0">{ formatKey(key) } <span class="text-base-content/55 font-normal">({ lenStr(arr) })</span></summary>
 					<div class="collapse-content px-3 pb-3">
 						@renderArray(arr, depth+1)
 					</div>

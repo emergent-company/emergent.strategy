@@ -251,7 +251,7 @@ func northStarHero(data NorthStarData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.LastReviewed != "" || data.NextReview != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"hidden sm:block text-right text-xs text-base-content/60 space-y-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"hidden sm:block text-right text-xs text-base-content/75 space-y-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -532,7 +532,7 @@ func missionSection(data NorthStarData) templ.Component {
 			}
 		}
 		if data.WhoWeServeSpecific != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"rounded-lg bg-base-200/50 px-4 py-3\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">For</span><p class=\"text-sm text-base-content mt-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<div class=\"rounded-lg bg-base-100 border border-base-content/10 px-4 py-3\"><span class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80\">For</span><p class=\"text-sm text-base-content mt-0.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -571,12 +571,12 @@ func missionSection(data NorthStarData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if data.HowWeDeliver != "" || len(data.KeyCapabilities) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><h4 class=\"text-sm font-semibold text-base-content mb-2\">How We Deliver</h4>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><h4 class=\"text-sm font-semibold text-base-content mb-2\">How We Deliver</h4>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if data.HowWeDeliver != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p class=\"text-sm text-base-content/70 mb-3\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p class=\"text-sm text-base-content/80 mb-3\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -707,7 +707,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--gem size-4 text-warning\"></span><h4 class=\"text-sm font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-5\"><div class=\"flex items-center gap-2 mb-2\"><span class=\"iconify lucide--gem size-4 text-warning\"></span><h4 class=\"text-sm font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -725,7 +725,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if v.Definition != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -744,7 +744,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 			}
 		}
 		if v.ExampleDecision != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"mt-3 pt-3 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Decision Example</p><p class=\"text-xs text-base-content/70 italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"mt-3 pt-3 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Decision Example</p><p class=\"text-xs text-base-content/80 italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -773,7 +773,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, b := range v.BehaviorsExpected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/70\"><span class=\"iconify lucide--check size-3 text-success mt-0.5 shrink-0\"></span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/80\"><span class=\"iconify lucide--check size-3 text-success mt-0.5 shrink-0\"></span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -802,7 +802,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, b := range v.BehaviorsRejected {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/70\"><span class=\"iconify lucide--x size-3 text-error mt-0.5 shrink-0\"></span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<li class=\"flex items-start gap-1.5 text-xs text-base-content/80\"><span class=\"iconify lucide--x size-3 text-error mt-0.5 shrink-0\"></span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -887,7 +887,7 @@ func beliefsSection(beliefs map[string][]BeliefData, challenges []BeliefChalleng
 			return templ_7745c5c3_Err
 		}
 		if len(challenges) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<div class=\"mt-6\"><h4 class=\"text-sm font-semibold text-base-content/70 mb-3 flex items-center gap-2\"><span class=\"iconify lucide--shield-question size-4 text-warning\"></span> Active Challenges</h4><div class=\"space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<div class=\"mt-6\"><h4 class=\"text-sm font-semibold text-base-content/80 mb-3 flex items-center gap-2\"><span class=\"iconify lucide--shield-question size-4 text-warning\"></span> Active Challenges</h4><div class=\"space-y-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -931,11 +931,11 @@ func beliefCategoryAccordion(category string, beliefs []BeliefData) templ.Compon
 			templ_7745c5c3_Var24 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 = []any{"iconify size-4", beliefCategoryIcon(category), "text-base-content/60"}
+		var templ_7745c5c3_Var25 = []any{"iconify size-4", beliefCategoryIcon(category), "text-base-content/75"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var25...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -979,7 +979,7 @@ func beliefCategoryAccordion(category string, beliefs []BeliefData) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</span> <span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3 space-y-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1018,7 +1018,7 @@ func beliefRow(b BeliefData) templ.Component {
 			templ_7745c5c3_Var29 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"rounded-lg bg-base-200/40 px-4 py-3\"><p class=\"text-sm text-base-content leading-relaxed\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><p class=\"text-sm text-base-content leading-relaxed\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1036,12 +1036,12 @@ func beliefRow(b BeliefData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if b.Implication != "" || b.Evidence != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<div class=\"mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if b.Implication != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<span><span class=\"font-medium text-base-content/60\">Implication:</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<span><span class=\"font-medium text-base-content/75\">Implication:</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1060,7 +1060,7 @@ func beliefRow(b BeliefData) templ.Component {
 				}
 			}
 			if b.Evidence != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span><span class=\"font-medium text-base-content/60\">Evidence:</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<span><span class=\"font-medium text-base-content/75\">Evidence:</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1130,7 +1130,7 @@ func challengeCard(ch BeliefChallenge) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if ch.CounterEvidence != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<p class=\"text-xs text-base-content/70 mt-1\"><span class=\"font-medium text-base-content/60\">Counter-evidence:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<p class=\"text-xs text-base-content/80 mt-1\"><span class=\"font-medium text-base-content/75\">Counter-evidence:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1149,7 +1149,7 @@ func challengeCard(ch BeliefChallenge) templ.Component {
 			}
 		}
 		if ch.Monitoring != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<p class=\"text-xs text-base-content/70 mt-0.5\"><span class=\"font-medium text-base-content/60\">Monitoring:</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "<p class=\"text-xs text-base-content/80 mt-0.5\"><span class=\"font-medium text-base-content/75\">Monitoring:</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1212,7 +1212,7 @@ func valueConflictsSection(conflicts []ValueConflict) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, c := range conflicts {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-3\"><span class=\"iconify lucide--arrow-left-right size-4 text-warning mt-0.5 shrink-0\"></span><div><p class=\"text-sm font-medium text-base-content\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-start gap-3\"><span class=\"iconify lucide--arrow-left-right size-4 text-warning mt-0.5 shrink-0\"></span><div><p class=\"text-sm font-medium text-base-content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1230,7 +1230,7 @@ func valueConflictsSection(conflicts []ValueConflict) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if c.ResolutionPrinciple != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<p class=\"text-xs text-base-content/70 mt-1.5\"><span class=\"font-medium text-base-content/60\">Resolution:</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "<p class=\"text-xs text-base-content/80 mt-1.5\"><span class=\"font-medium text-base-content/75\">Resolution:</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1293,7 +1293,7 @@ func evolutionSection(entries []EvolutionEntry) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/10 ml-3 space-y-6 pl-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<div class=\"mt-4\"><div class=\"relative border-l-2 border-base-content/15 ml-3 space-y-6 pl-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1358,7 +1358,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var44 = []any{"rounded-lg px-4 py-3", templ.KV("bg-primary/5 border border-primary/10", latest), templ.KV("bg-base-200/40", !latest)}
+		var templ_7745c5c3_Var44 = []any{"rounded-lg px-4 py-3", templ.KV("bg-primary/5 border border-primary/10", latest), templ.KV("bg-base-100", !latest)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var44...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1376,7 +1376,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-xs font-mono text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1407,7 +1407,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if e.Why != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<p class=\"text-xs text-base-content/60 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<p class=\"text-xs text-base-content/75 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1426,7 +1426,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 			}
 		}
 		if e.Impact != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<p class=\"text-xs text-base-content/50 mt-0.5 italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<p class=\"text-xs text-base-content/65 mt-0.5 italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1540,7 +1540,7 @@ func sectionHeading(title, icon, color, subtitle string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if subtitle != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<p class=\"text-xs text-base-content/70\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<p class=\"text-xs text-base-content/80\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1588,11 +1588,11 @@ func editorialCard(title, body, icon string) templ.Component {
 			templ_7745c5c3_Var57 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var58 = []any{"iconify size-4 text-base-content/60", icon}
+		var templ_7745c5c3_Var58 = []any{"iconify size-4 text-base-content/75", icon}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var58...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1610,7 +1610,7 @@ func editorialCard(title, body, icon string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\"></span><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "\"></span><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1666,7 +1666,7 @@ func bulletListCard(title string, items []string, icon, color string) templ.Comp
 			templ_7745c5c3_Var62 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

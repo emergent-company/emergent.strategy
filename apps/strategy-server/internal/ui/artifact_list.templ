@@ -40,7 +40,7 @@ templ ArtifactListContent(data ArtifactListData) {
 			<div>
 				<h2 class="text-lg font-bold text-base-content">{ data.Title }</h2>
 				if data.Subtitle != "" {
-					<p class="text-xs text-base-content/50">{ data.Subtitle }</p>
+					<p class="text-xs text-base-content/65">{ data.Subtitle }</p>
 				}
 			</div>
 			<span class="badge badge-ghost ml-auto">{ strconv.Itoa(len(data.Items)) }</span>
@@ -65,7 +65,7 @@ templ artifactListRow(item ArtifactListItem) {
 		hx-target="#tab-content"
 		hx-swap="innerHTML"
 		hx-push-url="true"
-		class="card bg-base-100 border border-base-content/10 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
+		class="card bg-base-100 border border-base-content/15 shadow-sm hover:shadow-md hover:border-primary/20 transition-all cursor-pointer"
 	>
 		<div class="card-body p-4 flex-row items-center gap-4">
 			<div class="min-w-0 grow">
@@ -76,17 +76,17 @@ templ artifactListRow(item ArtifactListItem) {
 					}
 				</div>
 				<div class="flex items-center gap-2 mt-0.5">
-					<span class="font-mono text-xs text-base-content/60">{ item.Key }</span>
+					<span class="font-mono text-xs text-base-content/75">{ item.Key }</span>
 					if item.Track != "" {
-						<span class="text-xs text-base-content/40">&middot;</span>
-						<span class="text-xs text-base-content/60">{ item.Track }</span>
+						<span class="text-xs text-base-content/55">&middot;</span>
+						<span class="text-xs text-base-content/75">{ item.Track }</span>
 					}
 				</div>
 			if item.Subtitle != "" {
-				<p class="text-xs text-base-content/70 mt-1 line-clamp-1">{ item.Subtitle }</p>
+				<p class="text-xs text-base-content/80 mt-1 line-clamp-1">{ item.Subtitle }</p>
 			}
 			</div>
-			<span class="iconify lucide--chevron-right size-4 text-base-content/50 shrink-0"></span>
+			<span class="iconify lucide--chevron-right size-4 text-base-content/65 shrink-0"></span>
 		</div>
 	</a>
 }

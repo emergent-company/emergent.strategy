@@ -394,7 +394,7 @@ func featureStrategicContext(data FeatureViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"mt-4 space-y-4\"><div><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2\">Contributes To</h4>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"mt-4 space-y-4\"><div><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-2\">Contributes To</h4>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -437,7 +437,7 @@ func featureStrategicContext(data FeatureViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.AssumptionsTested) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/70 mb-2\">Assumptions Tested</h4><div class=\"flex flex-wrap gap-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div><h4 class=\"text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-2\">Assumptions Tested</h4><div class=\"flex flex-wrap gap-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -544,7 +544,7 @@ func featureCapabilityCard(cap FeatureCapability, num int) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"card bg-base-100 border border-base-content/10 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><div class=\"flex items-center justify-center size-6 rounded-full bg-accent/10 text-accent text-xs font-bold shrink-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"card bg-base-100 border border-base-content/15 shadow-sm\"><div class=\"card-body p-4\"><div class=\"flex items-center gap-2 mb-2\"><div class=\"flex items-center justify-center size-6 rounded-full bg-accent/10 text-accent text-xs font-bold shrink-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -598,7 +598,7 @@ func featureCapabilityCard(cap FeatureCapability, num int) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if cap.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"text-sm text-base-content/70 leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"text-sm text-base-content/80 leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -617,7 +617,7 @@ func featureCapabilityCard(cap FeatureCapability, num int) templ.Component {
 			}
 		}
 		if cap.ValueOutcome != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"mt-3 pt-3 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-1\">Value Outcome</p><p class=\"text-xs text-accent italic\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div class=\"mt-3 pt-3 border-t border-base-content/5\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1\">Value Outcome</p><p class=\"text-xs text-accent italic\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -714,7 +714,7 @@ func featureScenarioAccordion(sc FeatureScenario) templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<details class=\"group rounded-xl border border-base-content/10 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--play-circle size-4 text-info\"></span> <span class=\"grow\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<details class=\"group rounded-xl border border-base-content/15 bg-base-100 shadow-sm\"><summary class=\"flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none\"><span class=\"iconify lucide--play-circle size-4 text-info\"></span> <span class=\"grow\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -750,7 +750,7 @@ func featureScenarioAccordion(sc FeatureScenario) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/50 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3\"><div class=\"flex flex-col gap-0\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<span class=\"iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90\"></span></summary><div class=\"border-t border-base-content/5 px-5 pb-4 pt-3\"><div class=\"flex flex-col gap-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -845,7 +845,7 @@ func scenarioFlowStep(label, value, icon string, isLast bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><div class=\"pb-2 min-w-0\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/60\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</div><div class=\"pb-2 min-w-0\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/75\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -916,7 +916,7 @@ func featureDependenciesSection(requires, enables []FeatureDep) templ.Component 
 			return templ_7745c5c3_Err
 		}
 		if len(requires) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-2\"><span class=\"iconify lucide--arrow-down-circle size-4 text-warning\"></span> Requires <span class=\"badge badge-xs badge-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2 flex items-center gap-2\"><span class=\"iconify lucide--arrow-down-circle size-4 text-warning\"></span> Requires <span class=\"badge badge-xs badge-ghost\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -945,7 +945,7 @@ func featureDependenciesSection(requires, enables []FeatureDep) templ.Component 
 			}
 		}
 		if len(enables) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<div><h4 class=\"text-sm font-semibold text-base-content/70 mb-2 flex items-center gap-2\"><span class=\"iconify lucide--arrow-up-circle size-4 text-success\"></span> Enables <span class=\"badge badge-xs badge-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<div><h4 class=\"text-sm font-semibold text-base-content/80 mb-2 flex items-center gap-2\"><span class=\"iconify lucide--arrow-up-circle size-4 text-success\"></span> Enables <span class=\"badge badge-xs badge-ghost\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1061,7 +1061,7 @@ func featureDepCard(dep FeatureDep, color string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if dep.Reason != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<p class=\"text-xs text-base-content/60 mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<p class=\"text-xs text-base-content/75 mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

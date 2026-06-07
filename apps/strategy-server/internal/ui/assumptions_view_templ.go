@@ -71,7 +71,7 @@ func AssumptionsContent(data AssumptionsViewData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/60 mt-0.5\">Which strategic bets are being tested, and what has the real world told us?</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h2><p class=\"text-sm text-base-content/75 mt-0.5\">Which strategic bets are being tested, and what has the real world told us?</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -80,7 +80,7 @@ func AssumptionsContent(data AssumptionsViewData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(data.Assumptions) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"text-center py-16\"><span class=\"iconify lucide--flask-conical size-12 text-base-content/20 mx-auto block mb-4\"></span><p class=\"text-base font-medium text-base-content/60\">No assumptions found</p><p class=\"text-sm text-base-content/40 mt-1\">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"text-center py-16\"><span class=\"iconify lucide--flask-conical size-12 text-base-content/20 mx-auto block mb-4\"></span><p class=\"text-base font-medium text-base-content/75\">No assumptions found</p><p class=\"text-sm text-base-content/55 mt-1\">Add assumptions to your roadmap and link features to them via tests_assumption relationships</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -129,7 +129,7 @@ func assumptionsSummaryBar(assumptions []AssumptionRow) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"grid grid-cols-2 sm:grid-cols-4 gap-3\"><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var active=l.getAttribute('data-filter')==='';l.removeAttribute('data-filter');document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(!active)btn.classList.add('ring-2','ring-offset-1')})(this)\" class=\"asm-filter-btn rounded-xl bg-base-100 border border-base-content/10 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-base-content/30 transition-colors\"><p class=\"text-2xl font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"grid grid-cols-2 sm:grid-cols-4 gap-3\"><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var active=l.getAttribute('data-filter')==='';l.removeAttribute('data-filter');document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(!active)btn.classList.add('ring-2','ring-offset-1')})(this)\" class=\"asm-filter-btn rounded-xl bg-base-100 border border-base-content/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-base-content/30 transition-colors\"><p class=\"text-2xl font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -142,7 +142,7 @@ func assumptionsSummaryBar(assumptions []AssumptionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</p><p class=\"text-xs text-base-content/60 mt-0.5\">Total</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='well_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-success')}})(this)\" class=\"asm-filter-btn rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-success/40 transition-colors\"><p class=\"text-2xl font-bold text-success\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</p><p class=\"text-xs text-base-content/75 mt-0.5\">Total</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='well_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-success')}})(this)\" class=\"asm-filter-btn rounded-xl bg-success/5 border border-success/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-success/40 transition-colors\"><p class=\"text-2xl font-bold text-success\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -155,7 +155,7 @@ func assumptionsSummaryBar(assumptions []AssumptionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</p><p class=\"text-xs text-base-content/60 mt-0.5\">Well tested</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='partially_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-warning')}})(this)\" class=\"asm-filter-btn rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-warning/40 transition-colors\"><p class=\"text-2xl font-bold text-warning\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</p><p class=\"text-xs text-base-content/75 mt-0.5\">Well tested</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='partially_tested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-warning')}})(this)\" class=\"asm-filter-btn rounded-xl bg-warning/5 border border-warning/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-warning/40 transition-colors\"><p class=\"text-2xl font-bold text-warning\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -168,7 +168,7 @@ func assumptionsSummaryBar(assumptions []AssumptionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p><p class=\"text-xs text-base-content/60 mt-0.5\">Partially tested</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='untested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-error')}})(this)\" class=\"asm-filter-btn rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-error/40 transition-colors\"><p class=\"text-2xl font-bold text-error\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p><p class=\"text-xs text-base-content/75 mt-0.5\">Partially tested</p></button><button onclick=\"(function(btn){var l=document.getElementById('assumption-list');if(!l)return;var key='untested';var active=l.getAttribute('data-filter')===key;document.querySelectorAll('.asm-filter-btn').forEach(function(b){b.classList.remove('ring-2','ring-offset-1')});if(active){l.removeAttribute('data-filter')}else{l.setAttribute('data-filter',key);btn.classList.add('ring-2','ring-offset-1','ring-error')}})(this)\" class=\"asm-filter-btn rounded-xl bg-error/5 border border-error/15 px-4 py-3 text-center shadow-sm cursor-pointer hover:border-error/40 transition-colors\"><p class=\"text-2xl font-bold text-error\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -181,7 +181,7 @@ func assumptionsSummaryBar(assumptions []AssumptionRow) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</p><p class=\"text-xs text-base-content/60 mt-0.5\">Untested</p></button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</p><p class=\"text-xs text-base-content/75 mt-0.5\">Untested</p></button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -263,7 +263,7 @@ func assumptionCard(a AssumptionRow, instanceID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\"></div><div class=\"grow min-w-0 space-y-3\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-mono text-base-content/40\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\"></div><div class=\"grow min-w-0 space-y-3\"><div class=\"flex items-center gap-2 flex-wrap\"><span class=\"text-xs font-mono text-base-content/55\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -406,7 +406,7 @@ func assumptionCard(a AssumptionRow, instanceID string) templ.Component {
 			}
 		}
 		if len(a.TestedBy) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1.5\">Tested by</p><div class=\"flex flex-wrap gap-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/65 mb-1.5\">Tested by</p><div class=\"flex flex-wrap gap-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -460,13 +460,13 @@ func assumptionCard(a AssumptionRow, instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p class=\"text-xs text-base-content/40 italic\">No features testing this assumption yet</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<p class=\"text-xs text-base-content/55 italic\">No features testing this assumption yet</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if a.Evidence != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"rounded-lg bg-base-200/50 px-3 py-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1\">Evidence</p><p class=\"text-xs text-base-content/70 leading-relaxed\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"rounded-lg bg-base-100 border border-base-content/10 px-3 py-2\"><p class=\"text-xs font-semibold uppercase tracking-wide text-base-content/65 mb-1\">Evidence</p><p class=\"text-xs text-base-content/80 leading-relaxed\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -530,7 +530,7 @@ func assumptionCardBorder(risk string) string {
 	case "untested":
 		return "border-error/20"
 	default:
-		return "border-base-content/10"
+		return "border-base-content/15"
 	}
 }
 

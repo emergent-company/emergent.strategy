@@ -115,15 +115,15 @@ templ AimPhaseContent(data AimPhaseData) {
 // draft_assessment, draft_calibration, adapt_strategy, adapt_foundations, snapshot_cycle.
 // adapt_foundations auto-advances when no foundation changes are needed (persevere cycles).
 templ aimCycleStepper(data AimPhaseData) {
-	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5">
 		// Header
 		<div class="flex items-center justify-between mb-5">
 			<div>
-				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">AIM Cycle</p>
-				<p class="text-sm text-base-content/70 mt-0.5">
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">AIM Cycle</p>
+				<p class="text-sm text-base-content/80 mt-0.5">
 					Observe reality → assess outcomes → decide direction → adapt strategy
 				</p>
-				<p class="text-xs text-base-content/40 mt-1.5 flex items-center gap-1.5">
+				<p class="text-xs text-base-content/55 mt-1.5 flex items-center gap-1.5">
 					<span class="iconify lucide--timer size-3"></span>
 					{ aimAutomationHint(data) }
 				</p>
@@ -196,7 +196,7 @@ templ aimCycleStep(s aimCycleStepData) {
 		<div class="grow">
 			<p class={ "text-sm font-semibold leading-snug", aimStepLabelClass(s.Status) }>{ s.Label }</p>
 			if s.Detail != "" {
-				<p class="text-xs text-base-content/50 mt-0.5 leading-snug">{ s.Detail }</p>
+				<p class="text-xs text-base-content/65 mt-0.5 leading-snug">{ s.Detail }</p>
 			}
 		</div>
 
@@ -360,7 +360,7 @@ func aimStepBorderClass(status string) string {
 	case "active":
 		return "border-primary/30 bg-primary/5"
 	default:
-		return "border-base-content/10 bg-base-100 opacity-60"
+		return "border-base-content/15 bg-base-100 opacity-60"
 	}
 }
 
@@ -371,7 +371,7 @@ func aimStepCircleClass(status string) string {
 	case "active":
 		return "bg-primary text-primary-content"
 	default:
-		return "bg-base-content/10 text-base-content/40"
+		return "bg-base-content/10 text-base-content/55"
 	}
 }
 
@@ -393,7 +393,7 @@ func aimStepLabelClass(status string) string {
 	case "active":
 		return "text-base-content"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -528,11 +528,11 @@ templ calibrationDecisionBanner(data AimPhaseData) {
 
 // aimSignalFeedCard renders the live signal feed — the central AIM data stream.
 templ aimSignalFeedCard(data AimPhaseData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
-					<span class="iconify lucide--radio size-4 text-base-content/60"></span>
+					<span class="iconify lucide--radio size-4 text-base-content/75"></span>
 					<h3 class="text-base font-semibold text-base-content">Signal Feed</h3>
 					if data.ActiveSignals > 0 {
 						<span class="tooltip" data-tip="Coherence signals currently requiring attention"><span class="badge badge-sm badge-error">{ strconv.Itoa(data.ActiveSignals) } active</span></span>
@@ -555,15 +555,15 @@ templ aimSignalFeedCard(data AimPhaseData) {
 			<div class="grid grid-cols-3 gap-2 mb-4">
 				<div class="text-center rounded-lg bg-error/5 border border-error/10 px-3 py-2">
 					<p class="text-lg font-bold text-error">{ strconv.Itoa(data.CriticalSignals) }</p>
-					<p class="text-xs text-base-content/60">Critical</p>
+					<p class="text-xs text-base-content/75">Critical</p>
 				</div>
 				<div class="text-center rounded-lg bg-warning/5 border border-warning/10 px-3 py-2">
 					<p class="text-lg font-bold text-warning">{ strconv.Itoa(data.WarningSignals) }</p>
-					<p class="text-xs text-base-content/60">Warning</p>
+					<p class="text-xs text-base-content/75">Warning</p>
 				</div>
 				<div class="text-center rounded-lg bg-info/5 border border-info/10 px-3 py-2">
 					<p class="text-lg font-bold text-info">{ strconv.Itoa(data.ActiveSignals - data.CriticalSignals - data.WarningSignals) }</p>
-					<p class="text-xs text-base-content/60">Info</p>
+					<p class="text-xs text-base-content/75">Info</p>
 				</div>
 			</div>
 
@@ -571,8 +571,8 @@ templ aimSignalFeedCard(data AimPhaseData) {
 			if len(data.RecentSignals) == 0 {
 				<div class="text-center py-8">
 					<span class="iconify lucide--shield-check size-10 text-success/40 mx-auto mb-3 block"></span>
-					<p class="text-sm font-medium text-base-content/70">No active signals</p>
-					<p class="text-xs text-base-content/40 mt-1">The coherence engine runs after every strategy change and flags misalignments automatically</p>
+					<p class="text-sm font-medium text-base-content/80">No active signals</p>
+					<p class="text-xs text-base-content/55 mt-1">The coherence engine runs after every strategy change and flags misalignments automatically</p>
 				</div>
 			} else {
 				<div class="space-y-2">
@@ -581,7 +581,7 @@ templ aimSignalFeedCard(data AimPhaseData) {
 					}
 				</div>
 				if data.ActiveSignals > len(data.RecentSignals) {
-					<p class="text-xs text-base-content/40 text-center pt-2">
+					<p class="text-xs text-base-content/55 text-center pt-2">
 						+{ strconv.Itoa(data.ActiveSignals - len(data.RecentSignals)) } more signals
 					</p>
 				}
@@ -590,7 +590,7 @@ templ aimSignalFeedCard(data AimPhaseData) {
 		// Agent processing indicator
 		<div class="mt-4 pt-4 border-t border-base-content/5 flex items-center gap-2">
 				<span class="iconify lucide--cpu size-3.5 text-base-content/30"></span>
-				<p class="text-xs text-base-content/40">
+				<p class="text-xs text-base-content/55">
 					if data.TriggerSignalThreshold > 0 {
 						{ fmt.Sprintf("Coherence engine monitors continuously · %d+ critical signals will auto-trigger a new cycle", data.TriggerSignalThreshold) }
 					} else {
@@ -611,10 +611,10 @@ templ aimSignalRow(sig AimSignalRow) {
 				<div class="flex items-center gap-2 flex-wrap">
 					<span class="tooltip" data-tip={ signalTypeHint(sig.SignalType) }><span class={ "badge badge-xs", signalTypeBadgeClass(sig.SignalType) }>{ sig.SignalType }</span></span>
 					if sig.TargetKey != "" {
-						<span class="text-xs font-mono text-base-content/50 truncate">{ sig.TargetKey }</span>
+						<span class="text-xs font-mono text-base-content/65 truncate">{ sig.TargetKey }</span>
 					}
 				</div>
-				<p class="text-xs text-base-content/70 mt-1 leading-relaxed">{ sig.Description }</p>
+				<p class="text-xs text-base-content/80 mt-1 leading-relaxed">{ sig.Description }</p>
 			</div>
 			if sig.CreatedAt != "" {
 				<span class="text-xs text-base-content/30 shrink-0 whitespace-nowrap">{ sig.CreatedAt }</span>
@@ -624,9 +624,9 @@ templ aimSignalRow(sig AimSignalRow) {
 }
 
 templ aimArtifactsCard(data AimPhaseData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-5">
-			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest mb-3">AIM Artifacts</h3>
+			<h3 class="text-sm font-semibold text-base-content/80 uppercase tracking-widest mb-3">AIM Artifacts</h3>
 			<div class="space-y-1">
 			@aimArtifactRow("Reality Assessment", "lucide--activity", data.HasLRA, data.LRALifecycleStage, "/strategies/" + data.InstanceID + "/aim/lra")
 			@aimArtifactRow("Assessment Report", "lucide--bar-chart-2", data.HasAssessmentReport, "", "/strategies/" + data.InstanceID + "/aim/assessment")
@@ -649,7 +649,7 @@ templ aimProposalArtifactRow(data AimPhaseData) {
 		hx-push-url="true"
 		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
 	>
-		<span class="iconify lucide--inbox size-4 group-hover:text-primary text-base-content/40"></span>
+		<span class="iconify lucide--inbox size-4 group-hover:text-primary text-base-content/55"></span>
 		<span class="text-sm text-base-content grow">Cycle Proposals</span>
 		if data.PendingProposals > 0 {
 			<span class="badge badge-xs badge-primary">{ strconv.Itoa(data.PendingProposals) }</span>
@@ -668,11 +668,11 @@ templ aimArtifactRow(label, icon string, exists bool, detail, href string) {
 		hx-push-url="true"
 		class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-base-200 transition-colors cursor-pointer group"
 	>
-		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/40", !exists) }></span>
+		<span class={ "iconify size-4 group-hover:text-primary " + icon, templ.KV("text-success", exists), templ.KV("text-base-content/55", !exists) }></span>
 		<span class="text-sm text-base-content grow">{ label }</span>
 		if exists {
 			if detail != "" {
-				<span class="text-xs text-base-content/60">{ detail }</span>
+				<span class="text-xs text-base-content/75">{ detail }</span>
 			}
 			<span class="iconify lucide--check-circle-2 size-3.5 text-success"></span>
 		} else {
@@ -682,10 +682,10 @@ templ aimArtifactRow(label, icon string, exists bool, detail, href string) {
 }
 
 templ assumptionCoverageCard(data AimPhaseData) {
-	<div class="card bg-base-100 border border-base-content/10 shadow-sm">
+	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-4">
 			<div class="flex items-center justify-between mb-3">
-				<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-widest">Assumptions</h3>
+				<h3 class="text-sm font-semibold text-base-content/80 uppercase tracking-widest">Assumptions</h3>
 				<a
 					href={ templ.URL("/strategies/" + data.InstanceID + "/aim/assumptions") }
 					hx-get={ "/strategies/" + data.InstanceID + "/aim/assumptions" }
@@ -703,7 +703,7 @@ templ assumptionCoverageCard(data AimPhaseData) {
 					value={ strconv.Itoa(assumptionPercent(data.TestedAssumptions, data.TotalAssumptions)) }
 					max="100"
 				></progress>
-				<span class="text-xs font-medium text-base-content/60 whitespace-nowrap">
+				<span class="text-xs font-medium text-base-content/75 whitespace-nowrap">
 					{ strconv.Itoa(data.TestedAssumptions) }/{ strconv.Itoa(data.TotalAssumptions) }
 				</span>
 			</div>

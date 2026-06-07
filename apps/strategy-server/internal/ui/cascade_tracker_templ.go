@@ -121,7 +121,7 @@ func CascadeTrackerPanel(data CascadeData) templ.Component {
 			}
 		}
 		if len(data.RecentRuns) > 0 && len(data.ActiveSkillRuns) == 0 && data.ActiveAIMRun == nil {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<details class=\"group\"><summary class=\"flex items-center gap-2 text-xs font-semibold text-base-content/50 uppercase tracking-widest cursor-pointer select-none\"><span class=\"iconify lucide--history size-3.5\"></span> Recent runs <span class=\"iconify lucide--chevron-right size-3 group-open:rotate-90 transition-transform ml-auto\"></span></summary><div class=\"mt-2 space-y-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<details class=\"group\"><summary class=\"flex items-center gap-2 text-xs font-semibold text-base-content/65 uppercase tracking-widest cursor-pointer select-none\"><span class=\"iconify lucide--history size-3.5\"></span> Recent runs <span class=\"iconify lucide--chevron-right size-3 group-open:rotate-90 transition-transform ml-auto\"></span></summary><div class=\"mt-2 space-y-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -184,7 +184,7 @@ func cascadeAIMRunCard(run CascadeAIMRun, instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if run.CurrentStep != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-xs text-base-content/60 truncate\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-xs text-base-content/75 truncate\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -202,7 +202,7 @@ func cascadeAIMRunCard(run CascadeAIMRun, instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><span class=\"iconify lucide--arrow-right size-3.5 text-base-content/40 group-hover:text-warning transition-colors shrink-0\"></span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><span class=\"iconify lucide--arrow-right size-3.5 text-base-content/55 group-hover:text-warning transition-colors shrink-0\"></span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -298,7 +298,7 @@ func cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool) 
 			return templ_7745c5c3_Err
 		}
 		if len(run.ArtifactTypes) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-1 text-xs text-base-content/50\"><span class=\"iconify lucide--layers size-3 shrink-0\"></span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"flex items-center gap-1 text-xs text-base-content/65\"><span class=\"iconify lucide--layers size-3 shrink-0\"></span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -342,7 +342,7 @@ func cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool) 
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"></div></div><span class=\"tooltip\" data-tip=\"LLM processing segments completed\"><span class=\"text-xs text-base-content/50 shrink-0\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"></div></div><span class=\"tooltip\" data-tip=\"LLM processing segments completed\"><span class=\"text-xs text-base-content/65 shrink-0\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -374,7 +374,7 @@ func cascadeSkillRunCard(run CascadeSkillRun, instanceID string, isActive bool) 
 			}
 		}
 		if !isActive && run.Status == "completed" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex items-center gap-3 text-xs text-base-content/50\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex items-center gap-3 text-xs text-base-content/65\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -517,7 +517,7 @@ func cascadeBatchCard(batch CascadeBatch, instanceID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if batch.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p class=\"text-xs text-base-content/60 line-clamp-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<p class=\"text-xs text-base-content/75 line-clamp-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -535,7 +535,7 @@ func cascadeBatchCard(batch CascadeBatch, instanceID string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else if batch.AgentID != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<p class=\"text-xs text-base-content/60\">From ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<p class=\"text-xs text-base-content/75\">From ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -554,7 +554,7 @@ func cascadeBatchCard(batch CascadeBatch, instanceID string) templ.Component {
 			}
 		}
 		if batch.MutationCount > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"text-xs text-base-content/40\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<p class=\"text-xs text-base-content/55\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -626,7 +626,7 @@ func cascadeRunBorderClass(status string, isActive bool) string {
 	case "failed":
 		return "border-error/15 bg-error/5"
 	default:
-		return "border-base-content/10"
+		return "border-base-content/15"
 	}
 }
 
@@ -652,7 +652,7 @@ func cascadeRunIconColor(status string) string {
 	case "failed":
 		return "text-error"
 	default:
-		return "text-base-content/40"
+		return "text-base-content/55"
 	}
 }
 
@@ -734,12 +734,12 @@ func cascadeTriggerBadge(trigger string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		switch trigger {
 		case "ripple":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<span class=\"tooltip\" data-tip=\"Triggered by a coherence propagation from related artifacts\"><span class=\"badge badge-xs badge-ghost gap-1 text-base-content/50\"><span class=\"iconify lucide--waves size-2.5\"></span> ripple</span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<span class=\"tooltip\" data-tip=\"Triggered by a coherence propagation from related artifacts\"><span class=\"badge badge-xs badge-ghost gap-1 text-base-content/65\"><span class=\"iconify lucide--waves size-2.5\"></span> ripple</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "aim_cycle":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<span class=\"tooltip\" data-tip=\"Triggered by an AIM cycle run\"><span class=\"badge badge-xs badge-ghost gap-1 text-base-content/50\"><span class=\"iconify lucide--rotate-ccw size-2.5\"></span> AIM</span></span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "<span class=\"tooltip\" data-tip=\"Triggered by an AIM cycle run\"><span class=\"badge badge-xs badge-ghost gap-1 text-base-content/65\"><span class=\"iconify lucide--rotate-ccw size-2.5\"></span> AIM</span></span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

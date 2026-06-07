@@ -51,20 +51,20 @@ templ SkillRunDetailContent(data SkillRunDetailData) {
 			hx-target="#tab-content"
 			hx-swap="innerHTML"
 			hx-push-url="true"
-			class="inline-flex items-center gap-1.5 text-xs text-base-content/50 hover:text-base-content transition-colors"
+			class="inline-flex items-center gap-1.5 text-xs text-base-content/65 hover:text-base-content transition-colors"
 		>
 			<span class="iconify lucide--arrow-left size-3"></span>
 			Back to Skill Runs
 		</a>
 
 		// Header
-		<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm px-6 py-5">
+		<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm px-6 py-5">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<span class={ "iconify size-5", cascadeRunIcon(data.Status), cascadeRunIconColor(data.Status) }></span>
 					<div>
 						<p class="text-lg font-bold text-base-content">{ cascadeSkillLabel(data.SkillName) }</p>
-						<div class="flex items-center gap-3 mt-1 text-xs text-base-content/50">
+						<div class="flex items-center gap-3 mt-1 text-xs text-base-content/65">
 							@cascadeTriggerBadge(data.Trigger)
 							if data.Model != "" {
 								<span class="flex items-center gap-1">
@@ -99,20 +99,20 @@ templ SkillRunDetailContent(data SkillRunDetailData) {
 
 		// Stats row
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-			<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Chunks</p>
+			<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Chunks</p>
 				<p class="text-xl font-bold text-base-content mt-1">{ itoa(data.ChunksCompleted) } / { itoa(data.ChunkCount) }</p>
 			</div>
-			<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Input Tokens</p>
+			<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Input Tokens</p>
 				<p class="text-xl font-bold text-base-content mt-1">{ formatTokens(data.TotalInputTokens) }</p>
 			</div>
-			<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Output Tokens</p>
+			<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Output Tokens</p>
 				<p class="text-xl font-bold text-base-content mt-1">{ formatTokens(data.TotalOutputTokens) }</p>
 			</div>
-			<div class="rounded-xl border border-base-content/10 bg-base-100 px-5 py-4">
-				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Duration</p>
+			<div class="rounded-xl border border-base-content/15 bg-base-100 px-5 py-4">
+				<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Duration</p>
 				<p class="text-xl font-bold text-base-content mt-1">
 					if data.DurationSec > 0 {
 						{ formatDuration(data.DurationSec) }
@@ -125,9 +125,9 @@ templ SkillRunDetailContent(data SkillRunDetailData) {
 
 		// Chunk log
 		if len(data.Chunks) > 0 {
-			<div class="rounded-xl border border-base-content/10 bg-base-100 overflow-hidden">
+			<div class="rounded-xl border border-base-content/15 bg-base-100 overflow-hidden">
 				<div class="px-5 py-3 border-b border-base-content/5">
-					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/50">Chunk Log</p>
+					<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">Chunk Log</p>
 				</div>
 				<div class="divide-y divide-base-content/5">
 					for _, chunk := range data.Chunks {
@@ -177,7 +177,7 @@ templ skillRunChunkRow(chunk SkillRunChunkRow) {
 				}
 			</div>
 			// Right: stats
-			<div class="flex items-center gap-4 text-xs text-base-content/50 shrink-0">
+			<div class="flex items-center gap-4 text-xs text-base-content/65 shrink-0">
 				if chunk.Attempts > 1 {
 					<span class="flex items-center gap-1 text-warning">
 						<span class="iconify lucide--refresh-cw size-3"></span>
