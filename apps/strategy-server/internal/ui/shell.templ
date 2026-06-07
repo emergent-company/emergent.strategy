@@ -365,7 +365,7 @@ templ instanceSettingsMenu(instanceID string) {
 			if stats.GithubRepo != "" {
 				<div class="border-t border-base-content/15 mx-3 my-2"></div>
 				<div class="px-3 pb-2 space-y-1.5">
-					<!-- Sync state badge + SHA comparison -->
+					<!-- Branch + sync state -->
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-1.5">
 							<span class="iconify lucide--git-branch size-3 text-base-content/55"></span>
@@ -379,46 +379,52 @@ templ instanceSettingsMenu(instanceID string) {
 						</div>
 						@syncStateBadge(stats.SyncState)
 					</div>
-					<!-- SHA comparison: local → remote -->
-					if stats.CommitSHA != "" || stats.RemoteSHA != "" {
-						<div class="flex items-center gap-1.5 font-mono text-xs text-base-content/55">
-							if stats.CommitSHA != "" {
-								<span title="Local (last synced)">{ stats.CommitSHA }</span>
-							}
-							if stats.CommitSHA != "" && stats.RemoteSHA != "" && stats.CommitSHA != stats.RemoteSHA {
-								<span class="iconify lucide--arrow-right size-3"></span>
-								<span class="text-info" title="Remote HEAD">{ stats.RemoteSHA }</span>
-							} else if stats.RemoteSHA != "" && stats.CommitSHA == "" {
-								<span title="Remote HEAD">{ stats.RemoteSHA }</span>
-							}
-						</div>
-					}
-					<!-- Pending local changes -->
-					if stats.PendingBatchCount > 0 {
-						<div class="flex items-center gap-1.5">
-							<span class="iconify lucide--layers size-3 text-warning"></span>
-							<span class="text-xs text-warning">{ strconv.Itoa(stats.PendingBatchCount) } staged change(s) not pushed</span>
-						</div>
-					}
-					<!-- Last sync -->
+					<!-- Last sync: when + at which commit -->
 					if stats.LastSyncAt != "" {
-						<div class="flex items-center gap-1.5">
-							<span class="iconify lucide--clock size-3 text-base-content/30"></span>
-							<span class="text-xs text-base-content/55">
+						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
+							<span class="iconify lucide--arrow-down-to-line size-3 shrink-0"></span>
+							<span>
 								if stats.LastSyncDirection == "import" {
-									Imported { strconv.Itoa(stats.LastSyncArtifacts) } artifacts · { stats.LastSyncAt }
+									Synced { stats.LastSyncAt }
 								} else if stats.LastSyncDirection == "export" {
-									Pushed { strconv.Itoa(stats.LastSyncArtifacts) } artifacts · { stats.LastSyncAt }
+									Pushed { stats.LastSyncAt }
 								} else {
-									Last sync · { stats.LastSyncAt }
+									{ stats.LastSyncAt }
 								}
 							</span>
+							if stats.CommitSHA != "" {
+								<span class="font-mono text-base-content/40">{ "@ " + stats.CommitSHA }</span>
+							}
 							if stats.LastSyncPRURL != "" {
 								<a href={ templ.SafeURL(stats.LastSyncPRURL) } target="_blank" rel="noopener"
 									class="iconify lucide--external-link size-3 text-primary hover:text-primary/80 shrink-0"
 									onclick="event.stopPropagation()"
 									title="View PR"></a>
 							}
+						</div>
+					} else if stats.CommitSHA != "" {
+						<div class="flex items-center gap-1.5 text-xs text-base-content/55">
+							<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
+							<span class="font-mono">{ stats.CommitSHA }</span>
+						</div>
+					}
+					<!-- Remote HEAD (shown when different from local or when no local SHA) -->
+					if stats.RemoteSHA != "" {
+						{{ remoteDiffers := stats.CommitSHA != "" && stats.RemoteSHA != stats.CommitSHA }}
+						<div class="flex items-center gap-1.5 text-xs">
+							<span class="iconify lucide--cloud size-3 shrink-0 text-base-content/55"></span>
+							if remoteDiffers {
+								<span class="text-warning font-medium">Remote: <span class="font-mono">{ stats.RemoteSHA }</span></span>
+							} else {
+								<span class="text-base-content/55">Remote: <span class="font-mono">{ stats.RemoteSHA }</span></span>
+							}
+						</div>
+					}
+					<!-- Pending local changes -->
+					if stats.PendingBatchCount > 0 {
+						<div class="flex items-center gap-1.5">
+							<span class="iconify lucide--layers size-3 text-warning shrink-0"></span>
+							<span class="text-xs text-warning">{ strconv.Itoa(stats.PendingBatchCount) } staged change(s) not pushed</span>
 						</div>
 					}
 				</div>
