@@ -67,10 +67,18 @@ func (s *Server) handleSettingsImport(c echo.Context) error {
 
 	branch := c.FormValue("branch") // optional
 
-	_, err = s.syncSvc.ImportFromGithub(c.Request().Context(), sync.ImportParams{
-		InstanceID: instanceID,
-		Branch:     branch,
-	})
+	// Prefer user OAuth token (works without App installation).
+	// Fall back to App-based import only if no user token is present.
+	user := web.UserFromContext(ctx)
+	githubToken := s.loadUserGithubToken(ctx, user.ID)
+	if githubToken != "" {
+		_, err = s.syncSvc.ImportFromGithubWithUserToken(ctx, instanceID, branch, githubToken)
+	} else {
+		_, err = s.syncSvc.ImportFromGithub(ctx, sync.ImportParams{
+			InstanceID: instanceID,
+			Branch:     branch,
+		})
+	}
 	if err != nil {
 		s.log.Error("manual github import failed", "instance_id", instanceIDStr, "err", err)
 	}
