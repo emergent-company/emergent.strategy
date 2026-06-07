@@ -232,22 +232,34 @@ func (s *Service) DetermineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		return nil, fmt.Errorf("get remote HEAD SHA: %w", err)
 	}
 
-	// Count pending batches (staged mutations not yet committed).
-	pendingCount, dbErr := s.db.NewSelect().
-		TableExpr("strategy_mutations").
-		Where("instance_id = ?", instanceID).
-		Where("status = ?", domain.MutationStatusStaged).
-		Count(ctx)
-	if dbErr != nil {
-		slog.WarnContext(ctx, "failed to count pending batches", "err", dbErr)
-	}
-
 	localSHA := ""
 	if inst.GithubCommitSHA != nil {
 		localSHA = *inst.GithubCommitSHA
 	}
 
-	hasLocalChanges := int(pendingCount) > 0
+	// hasLocalChanges is true when the instance has unpushed work:
+	// staged mutations OR committed mutations created after the last GitHub sync.
+	stagedCount, dbErr := s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", domain.MutationStatusStaged).
+		Count(ctx)
+	if dbErr != nil {
+		slog.WarnContext(ctx, "failed to count staged mutations", "err", dbErr)
+	}
+	committedAfterSync, dbErr2 := s.db.NewSelect().
+		TableExpr("strategy_mutations").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", domain.MutationStatusCommitted).
+		Where(`created_at > COALESCE(
+			(SELECT MAX(created_at) FROM github_sync_log WHERE instance_id = ?), ?
+		)`, instanceID, "1970-01-01").
+		Count(ctx)
+	if dbErr2 != nil {
+		slog.WarnContext(ctx, "failed to count committed-after-sync mutations", "err", dbErr2)
+	}
+
+	hasLocalChanges := stagedCount > 0 || committedAfterSync > 0
 
 	// Four-state logic.
 	var state SyncState
@@ -275,7 +287,7 @@ func (s *Service) DetermineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		RemoteSHA:         remoteSHA,
 		TargetBranch:      targetBranch,
 		HasLocalChanges:   hasLocalChanges,
-		PendingBatchCount: int(pendingCount),
+		PendingBatchCount: int(stagedCount),
 	}, nil
 }
 
@@ -423,18 +435,39 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		localSHA = *inst.GithubCommitSHA
 	}
 
-	// Already in sync — no-op.
-	if localSHA != "" && remoteSHA == localSHA {
-		// Check for pending (uncommitted) mutations — if any exist the server is ahead.
-		pendingCount, _ := s.db.NewSelect().
+	// hasServerChanges returns true when the instance has local work not yet in GitHub:
+	// either staged mutations (not committed) or committed mutations created after the
+	// last GitHub sync (AIM cycles, convergence auto-commits, manual edits that were
+	// committed but never pushed).
+	hasServerChanges := func() (int, bool) {
+		// Staged mutations.
+		staged, _ := s.db.NewSelect().
 			TableExpr("strategy_mutations").
 			Where("instance_id = ?", instanceID).
-			Where("status = ?", "pending").
+			Where("status = ?", domain.MutationStatusStaged).
 			Count(ctx)
-		if pendingCount > 0 {
+		if staged > 0 {
+			return int(staged), true
+		}
+		// Committed mutations after the last sync log entry.
+		// Uses a subquery so we don't need a separate query for the sync timestamp.
+		committed, _ := s.db.NewSelect().
+			TableExpr("strategy_mutations").
+			Where("instance_id = ?", instanceID).
+			Where("status = ?", domain.MutationStatusCommitted).
+			Where(`created_at > COALESCE(
+				(SELECT MAX(created_at) FROM github_sync_log WHERE instance_id = ?), ?
+			)`, instanceID, "1970-01-01").
+			Count(ctx)
+		return int(committed), committed > 0
+	}
+
+	// Already in sync — no-op, unless there are local changes not yet pushed.
+	if localSHA != "" && remoteSHA == localSHA {
+		if n, ahead := hasServerChanges(); ahead {
 			return &ImportResult{
 				Status:         "server_ahead",
-				Recommendation: "You have " + fmt.Sprintf("%d", pendingCount) + " staged change(s) not yet pushed to GitHub. Push first, or discard them before importing.",
+				Recommendation: fmt.Sprintf("You have %d local change(s) not yet pushed to GitHub. Push first, or discard staged changes before importing.", n),
 				TargetBranch:   branch,
 				SyncState:      SyncStateServerAhead,
 			}, nil
@@ -447,19 +480,17 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		}, nil
 	}
 
-	// Local SHA set but differs from remote: check for pending mutations before overwriting.
-	if localSHA != "" && remoteSHA != localSHA {
-		pendingCount, _ := s.db.NewSelect().
-			TableExpr("strategy_mutations").
-			Where("instance_id = ?", instanceID).
-			Where("status = ?", "pending").
-			Count(ctx)
-		if pendingCount > 0 {
+	// Remote has moved ahead (or never synced): block if the server also has unpushed changes,
+	// since importing would silently overwrite them.
+	if localSHA != "" {
+		if n, diverged := hasServerChanges(); diverged {
 			return &ImportResult{
-				Status:         "server_ahead",
-				Recommendation: fmt.Sprintf("Remote has changed but you also have %d staged change(s) not pushed. Push your changes first, or discard them before importing.", pendingCount),
-				TargetBranch:   branch,
-				SyncState:      SyncStateDiverged,
+				Status: "server_ahead",
+				Recommendation: fmt.Sprintf(
+					"Remote has new commits AND you have %d local change(s) not pushed. "+
+						"Your changes would be overwritten. Push your changes to GitHub first.", n),
+				TargetBranch: branch,
+				SyncState:    SyncStateDiverged,
 			}, nil
 		}
 	}
