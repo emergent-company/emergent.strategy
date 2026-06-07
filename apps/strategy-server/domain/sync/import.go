@@ -251,6 +251,7 @@ func (s *Service) DetermineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		TableExpr("strategy_mutations").
 		Where("instance_id = ?", instanceID).
 		Where("status = ?", domain.MutationStatusCommitted).
+		Where("source != ?", "system").
 		Where(`created_at > COALESCE(
 			(SELECT MAX(created_at) FROM github_sync_log WHERE instance_id = ?), ?
 		)`, instanceID, "1970-01-01").
@@ -406,9 +407,6 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 	if s.reader == nil {
 		return nil, apperror.ErrBadRequest.WithDetail("GitHub reader is not configured")
 	}
-	if branch == "" {
-		branch = "main"
-	}
 	actorID := audit.ActorFromContext(ctx)
 
 	inst, err := s.loadInstance(ctx, instanceID)
@@ -417,6 +415,14 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 	}
 	if inst.GithubRepo == nil || *inst.GithubRepo == "" {
 		return nil, apperror.ErrBadRequest.WithDetail("instance has no github_repo configured")
+	}
+
+	// Resolve branch: explicit arg → instance's tracked branch → "main" fallback.
+	if branch == "" && inst.GithubBranch != nil && *inst.GithubBranch != "" {
+		branch = *inst.GithubBranch
+	}
+	if branch == "" {
+		branch = "main"
 	}
 
 	owner, repo, err := parseRepoSlug(*inst.GithubRepo)
@@ -435,12 +441,11 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		localSHA = *inst.GithubCommitSHA
 	}
 
-	// hasServerChanges returns true when the instance has local work not yet in GitHub:
-	// either staged mutations (not committed) or committed mutations created after the
-	// last GitHub sync (AIM cycles, convergence auto-commits, manual edits that were
-	// committed but never pushed).
+	// hasServerChanges returns true when the instance has user-authored local work
+	// not yet in GitHub. Excludes system-generated mutations (source='system') such
+	// as strategic index backfills and alignment jobs triggered by the import itself.
 	hasServerChanges := func() (int, bool) {
-		// Staged mutations.
+		// Staged mutations (any source — staged means waiting for human review).
 		staged, _ := s.db.NewSelect().
 			TableExpr("strategy_mutations").
 			Where("instance_id = ?", instanceID).
@@ -449,12 +454,12 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		if staged > 0 {
 			return int(staged), true
 		}
-		// Committed mutations after the last sync log entry.
-		// Uses a subquery so we don't need a separate query for the sync timestamp.
+		// Non-system committed mutations created after the last sync log entry.
 		committed, _ := s.db.NewSelect().
 			TableExpr("strategy_mutations").
 			Where("instance_id = ?", instanceID).
 			Where("status = ?", domain.MutationStatusCommitted).
+			Where("source != ?", "system").
 			Where(`created_at > COALESCE(
 				(SELECT MAX(created_at) FROM github_sync_log WHERE instance_id = ?), ?
 			)`, instanceID, "1970-01-01").
