@@ -422,6 +422,9 @@ var messages = map[Locale]map[string]string{
 		// ---------------------------------------------------------------------------
 		"settings.github_sync.title":    "GitHub Sync",
 		"settings.github_sync.subtitle": "Strategy artifact write-back to GitHub repositories",
+		"settings.lang.title":    "Language",
+		"settings.lang.subtitle": "Choose your preferred display language",
+		"settings.lang.save_btn": "Save",
 		"settings.github.app_configured":    "App configured",
 		"settings.github.not_configured":    "Not configured",
 		"settings.github.app_label":         "GitHub App",
@@ -884,6 +887,9 @@ var messages = map[Locale]map[string]string{
 		// ---------------------------------------------------------------------------
 		"settings.github_sync.title":    "GitHub-synkronisering",
 		"settings.github_sync.subtitle": "Tilbakeskriving av strategiartefakter til GitHub-repositorier",
+		"settings.lang.title":    "Språk",
+		"settings.lang.subtitle": "Velg foretrukket visningsspråk",
+		"settings.lang.save_btn": "Lagre",
 		"settings.github.app_configured":     "App konfigurert",
 		"settings.github.not_configured":     "Ikke konfigurert",
 		"settings.github.app_label":          "GitHub App",

@@ -278,6 +278,7 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	// The POST endpoints for sync and import are registered separately.
 	e.POST("/settings/sync", s.handleSettingsSync)
 	e.POST("/settings/import", s.handleSettingsImport)
+	e.POST("/settings/lang", s.handleSetLang)
 	e.POST("/strategies/:id/move", s.handleMoveInstance)
 
 	// GitHub connect flow — repo discovery and instance linking.

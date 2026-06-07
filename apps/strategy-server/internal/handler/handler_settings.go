@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/emergent-company/go-daisy/render"
@@ -17,7 +18,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
-	"strings"
 )
 
 // handleSettings renders the settings/status page.
@@ -34,6 +34,7 @@ func (s *Server) handleSettings(c echo.Context) error {
 			AppConfigured:   s.syncSvc != nil,
 			OAuthConfigured: s.githubOAuth != nil,
 		},
+		ActiveLang: string(langs.LocaleFromContext(ctx)),
 	}
 
 	sidebarGroups := s.sidebarGroups(c)
@@ -100,9 +101,28 @@ func (s *Server) handleSettingsSync(c echo.Context) error {
 	if err != nil {
 		s.log.Error("manual github sync failed", "instance_id", instanceIDStr, "err", err)
 		// Redirect back with error indicator — simple approach, no flash messages.
-		return c.Redirect(http.StatusSeeOther, "/settings")
 	}
+	return c.Redirect(http.StatusSeeOther, "/settings")
+}
 
+// handleSetLang handles POST /settings/lang.
+// Persists the user's language preference in a cookie and redirects to /settings.
+func (s *Server) handleSetLang(c echo.Context) error {
+	requested := langs.Locale(strings.TrimSpace(c.FormValue("lang")))
+	// Validate — only accept known locales.
+	switch requested {
+	case langs.LocaleEN, langs.LocaleNB:
+	default:
+		requested = langs.LocaleEN
+	}
+	c.SetCookie(&http.Cookie{
+		Name:     langs.LangCookie,
+		Value:    string(requested),
+		Path:     "/",
+		MaxAge:   365 * 24 * 60 * 60, // 1 year
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
 	return c.Redirect(http.StatusSeeOther, "/settings")
 }
 

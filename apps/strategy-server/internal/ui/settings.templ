@@ -53,10 +53,11 @@ type InstanceMemoryStatus struct {
 
 // SettingsData is the full data bundle for the settings page.
 type SettingsData struct {
-	Memory     MemoryHealthStatus
-	Instances  []InstanceMemoryStatus
-	GithubSync []GithubSyncStatus // one entry per instance; empty when App not configured
-	Github     GithubConfigStatus // server-side GitHub configuration state
+	Memory      MemoryHealthStatus
+	Instances   []InstanceMemoryStatus
+	GithubSync  []GithubSyncStatus // one entry per instance; empty when App not configured
+	Github      GithubConfigStatus // server-side GitHub configuration state
+	ActiveLang  string             // current locale code, e.g. "en" or "nb"
 }
 
 // GithubConfigStatus describes which GitHub mechanisms are configured server-side.
@@ -104,6 +105,9 @@ templ SettingsContent(data SettingsData) {
 		} else {
 			@githubNotConfiguredCard(data.Github)
 		}
+
+		<!-- Language preference -->
+		@langPickerCard(data.ActiveLang)
 	</div>
 }
 
@@ -557,4 +561,29 @@ templ githubSyncStatusBadge(status string, repoLinked bool) {
 				<span class="badge badge-ghost badge-sm text-base-content/40">{ langs.T(ctx, "ui.sync_state.never_synced") }</span>
 			}
 	}
+}
+
+// langPickerCard renders the language preference section of the settings page.
+templ langPickerCard(activeLang string) {
+	<div class="rounded-xl border border-base-content/10 bg-base-100 shadow-sm overflow-hidden">
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/10">
+			<span class="iconify lucide--languages size-5 text-base-content/60"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.lang.title") }</h2>
+				<p class="text-xs text-base-content/50 mt-0.5">{ langs.T(ctx, "settings.lang.subtitle") }</p>
+			</div>
+		</div>
+		<div class="px-5 py-4">
+			<form method="POST" action="/settings/lang" class="flex items-center gap-3">
+				<select name="lang" class="select select-sm select-bordered">
+					<option value="en" selected?={ activeLang == "en" || activeLang == "" }>English</option>
+					<option value="nb" selected?={ activeLang == "nb" }>Norsk (bokmål)</option>
+				</select>
+				<button type="submit" class="btn btn-sm btn-primary gap-1">
+					<span class="iconify lucide--check size-3.5"></span>
+					{ langs.T(ctx, "settings.lang.save_btn") }
+				</button>
+			</form>
+		</div>
+	</div>
 }
