@@ -127,6 +127,21 @@ func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyIns
 	if inst.GithubCommitSHA != nil && len(*inst.GithubCommitSHA) >= 7 {
 		stats.CommitSHA = (*inst.GithubCommitSHA)[:7]
 	}
+	if inst.MemorySyncStatus != nil {
+		stats.MemorySyncStatus = *inst.MemorySyncStatus
+	}
+	if inst.MemoryLastSyncedAt != nil {
+		stats.MemoryLastSyncAt = inst.MemoryLastSyncedAt.Format("2 Jan 15:04")
+	}
+	if inst.MemoryObjectCount != nil {
+		stats.MemoryObjectCount = *inst.MemoryObjectCount
+	}
+	if inst.MemoryEdgeCount != nil {
+		stats.MemoryEdgeCount = *inst.MemoryEdgeCount
+	}
+	if inst.MemoryDecomposedObjectCount != nil {
+		stats.MemoryDecomposed = *inst.MemoryDecomposedObjectCount
+	}
 
 	id := inst.ID.String()
 	var wg gosync.WaitGroup

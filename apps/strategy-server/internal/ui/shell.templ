@@ -423,6 +423,34 @@ templ instanceSettingsMenu(instanceID string) {
 					}
 				</div>
 			}
+			<!-- Memory section -->
+			<div class="border-t border-base-content/15 mx-3 my-2"></div>
+			<div class="px-3 pb-2 space-y-1.5">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-1.5">
+						<span class="iconify lucide--brain-circuit size-3 text-base-content/55 shrink-0"></span>
+						<span class="text-xs text-base-content/65">Memory graph</span>
+					</div>
+					@memoryStatusBadge(stats.MemorySyncStatus)
+				</div>
+				if stats.MemorySyncStatus == "synced" && stats.MemoryObjectCount > 0 {
+					<div class="flex items-center gap-3 text-xs text-base-content/55 font-mono">
+						<span title="Artifact-layer objects">{ strconv.Itoa(stats.MemoryObjectCount) } obj</span>
+						<span class="text-base-content/30">·</span>
+						<span title="Artifact-layer edges">{ strconv.Itoa(stats.MemoryEdgeCount) } edges</span>
+						if stats.MemoryDecomposed > 0 {
+							<span class="text-base-content/30">·</span>
+							<span title="Decomposed field-level objects" class="text-base-content/40">+{ strconv.Itoa(stats.MemoryDecomposed) } decomposed</span>
+						}
+					</div>
+					if stats.MemoryLastSyncAt != "" {
+						<div class="flex items-center gap-1.5 text-xs text-base-content/40">
+							<span class="iconify lucide--clock size-3 shrink-0"></span>
+							<span>{ stats.MemoryLastSyncAt }</span>
+						</div>
+					}
+				}
+			</div>
 			<!-- Divider + actions -->
 			<div class="border-t border-base-content/15"></div>
 			<div class="py-1">
@@ -488,6 +516,32 @@ templ syncStateBadge(state string) {
 		<span class="badge badge-xs badge-ghost">Not linked</span>
 	default:
 		// Empty string = sync state not loaded (no App, or no repo)
+	}
+}
+
+// memoryStatusBadge renders a compact badge for a memory sync status.
+templ memoryStatusBadge(status string) {
+	switch status {
+	case "synced":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-success">
+			<span class="iconify lucide--check size-2.5"></span>
+			Synced
+		</span>
+	case "pending":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-warning">
+			<span class="iconify lucide--loader size-2.5"></span>
+			Pending
+		</span>
+	case "failed":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-error">
+			<span class="iconify lucide--x size-2.5"></span>
+			Failed
+		</span>
+	default:
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-ghost text-base-content/65">
+			<span class="iconify lucide--minus size-2.5"></span>
+			Not synced
+		</span>
 	}
 }
 
