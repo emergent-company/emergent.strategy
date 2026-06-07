@@ -398,12 +398,12 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 					@githubEPFBadge(repo)
 					@githubWritebackBadge(repo.HasAppInstall)
 				</div>
-				<!-- Full name + last pushed -->
+				<!-- Full name + last push date -->
 				<div class="flex items-center gap-3 mt-0.5 flex-wrap">
 					<p class="text-xs text-base-content/55 font-mono">{ repo.FullName }</p>
 					if !repo.PushedAt.IsZero() {
-						<span class="text-xs text-base-content/55 flex items-center gap-1">
-							<span class="iconify lucide--git-commit-horizontal size-3"></span>
+						<span class="text-xs text-base-content/55 flex items-center gap-1" title={ "Last pushed: " + repo.PushedAt.Format("2 Jan 2006 15:04") }>
+							<span class="iconify lucide--clock size-3"></span>
 							{ githubRelativeTime(repo.PushedAt) }
 						</span>
 					}
@@ -411,6 +411,7 @@ templ githubRepoRow(repo GithubRepoScanItem, workspaces []WorkspaceScanItem) {
 				if repo.Description != "" {
 					<p class="text-xs text-base-content/55 mt-1 leading-relaxed">{ repo.Description }</p>
 				}
+				<!-- HEAD commit info (only available after full EPF scan) -->
 				if repo.HeadCommit.SHA != "" {
 					<div class="flex items-center gap-1.5 mt-1.5 text-xs text-base-content/55 font-mono">
 						<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
@@ -527,37 +528,59 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 
 		<!-- Connected instance banner -->
 		if inst.ConnectedInstanceID != "" {
-			<div class="flex items-center justify-between gap-3 flex-wrap">
-				<div class="flex items-center gap-2 flex-wrap">
-					<span class="inline-flex items-center gap-1 badge badge-success badge-sm">
-						<span class="iconify lucide--check-circle size-3"></span>
-						Connected
-					</span>
-					<a href={ templ.SafeURL("/strategies/" + inst.ConnectedInstanceID) }
-						class="text-sm font-semibold text-base-content hover:text-primary transition-colors">
-						{ inst.ConnectedInstanceName }
-					</a>
-					<span class="text-xs text-base-content/55">{ inst.ConnectedWorkspaceName }</span>
-					if inst.ConnectedCommitSHA != "" {
-						<span class="text-xs font-mono text-base-content/55 bg-base-content/8 border border-base-content/10 px-1.5 py-0.5 rounded">{ inst.ConnectedCommitSHA }</span>
-					}
-					if inst.ConnectedMemorySyncStatus == "synced" {
-						<span class="inline-flex items-center gap-1 badge badge-xs badge-success badge-outline" title="Synced to Memory graph">
-							<span class="iconify lucide--brain-circuit size-2.5"></span>
-							Memory
+			<div class="flex items-start justify-between gap-3 flex-wrap">
+				<div class="space-y-1">
+					<!-- Top row: Connected badge + instance name + workspace -->
+					<div class="flex items-center gap-2 flex-wrap">
+						<span class="inline-flex items-center gap-1 badge badge-success badge-sm">
+							<span class="iconify lucide--check-circle size-3"></span>
+							Connected
 						</span>
-					} else if inst.ConnectedMemorySyncStatus != "" {
-						<span class="inline-flex items-center gap-1 badge badge-xs badge-ghost" title={ "Memory: " + inst.ConnectedMemorySyncStatus }>
-							<span class="iconify lucide--brain-circuit size-2.5"></span>
-							{ inst.ConnectedMemorySyncStatus }
-						</span>
-					}
-					if inst.ChangedSinceSync {
-						<span class="inline-flex items-center gap-1 badge badge-xs badge-warning" title={ "Repo pushed " + githubRelativeTime(repo.PushedAt) + " — newer than last sync" }>
-							<span class="iconify lucide--arrow-up-circle size-2.5"></span>
-							Updated { githubRelativeTime(repo.PushedAt) }
-						</span>
-					}
+						<a href={ templ.SafeURL("/strategies/" + inst.ConnectedInstanceID) }
+							class="text-sm font-semibold text-base-content hover:text-primary transition-colors">
+							{ inst.ConnectedInstanceName }
+						</a>
+						<span class="text-xs text-base-content/55">{ inst.ConnectedWorkspaceName }</span>
+						if inst.ConnectedMemorySyncStatus == "synced" {
+							<span class="inline-flex items-center gap-1 badge badge-xs badge-success badge-outline" title="Synced to Memory graph">
+								<span class="iconify lucide--brain-circuit size-2.5"></span>
+								Memory
+							</span>
+						} else if inst.ConnectedMemorySyncStatus != "" {
+							<span class="inline-flex items-center gap-1 badge badge-xs badge-ghost" title={ "Memory: " + inst.ConnectedMemorySyncStatus }>
+								<span class="iconify lucide--brain-circuit size-2.5"></span>
+								{ inst.ConnectedMemorySyncStatus }
+							</span>
+						}
+					</div>
+					<!-- Second row: sync date + SHA vs remote push date -->
+					<div class="flex items-center gap-3 flex-wrap text-xs text-base-content/55">
+						if !inst.ConnectedLastSyncedAt.IsZero() {
+							<span class="flex items-center gap-1" title={ "Last synced: " + inst.ConnectedLastSyncedAt.Format("2 Jan 2006 15:04") }>
+								<span class="iconify lucide--arrow-down-to-line size-3"></span>
+								Synced { githubRelativeTime(inst.ConnectedLastSyncedAt) }
+								if inst.ConnectedCommitSHA != "" {
+									<span class="font-mono text-base-content/40">{ "@ " + inst.ConnectedCommitSHA }</span>
+								}
+							</span>
+						} else if inst.ConnectedCommitSHA != "" {
+							<span class="flex items-center gap-1">
+								<span class="iconify lucide--git-commit-horizontal size-3"></span>
+								<span class="font-mono">{ inst.ConnectedCommitSHA }</span>
+							</span>
+						}
+						if !repo.PushedAt.IsZero() {
+							<span class="flex items-center gap-1" title={ "Remote last pushed: " + repo.PushedAt.Format("2 Jan 2006 15:04") }>
+								if inst.ChangedSinceSync {
+									<span class="iconify lucide--clock size-3 text-warning"></span>
+									<span class="text-warning font-medium">Remote: { githubRelativeTime(repo.PushedAt) }</span>
+								} else {
+									<span class="iconify lucide--clock size-3"></span>
+									Remote: { githubRelativeTime(repo.PushedAt) }
+								}
+							</span>
+						}
+					</div>
 				</div>
 				<!-- Re-import action -->
 				<form method="POST" action="/github/connect/import" class="shrink-0">
