@@ -316,39 +316,39 @@ func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScan
 	return results, nil
 }
 
-// StartScanUserRepos kicks off a two-phase background scan:
-// 1. Quick scan (ListUserRepos only) — runs synchronously, caches partial results immediately.
-// 2. Full scan (EPF detection) — runs in background, replaces partial results when done.
-// Uses markRunning to ensure only one goroutine runs per cache key at a time.
-// No-op if full results are fresh or a scan is already in progress.
-func (s *Service) StartScanUserRepos(userToken string) {
+// StartScanUserRepos performs the quick scan synchronously and returns partial results
+// immediately, then kicks off the full EPF detection in the background.
+// Returns the partial ScanState so the caller can render the repo list right away
+// without waiting for a poll cycle.
+// Returns ScanState{} (not ready) when a scan is already running or results are fresh.
+func (s *Service) StartScanUserRepos(ctx context.Context, userToken string) ScanState {
 	cache := s.getScanCache()
 	cacheKey := "user:" + userToken[:min(16, len(userToken))]
 	if !cache.markRunning(cacheKey) {
-		return // already running or full results fresh
+		return ScanState{} // already running or full results fresh — caller uses GetCachedScanState
 	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-		defer cancel()
 
-		// Phase 1: quick scan — list repos only, cache immediately as partial.
-		quickResults, quickErr := s.doQuickScan(ctx, userToken)
-		if quickErr != nil {
-			slog.Warn("quick scan failed", "err", quickErr)
-			errTTL := scanErrorTTL
-			var rle *RateLimitError
-			if errors.As(quickErr, &rle) && rle.RetryAfter > 0 {
-				errTTL = rle.RetryAfter + scanErrorBuffer
-			}
-			cache.setError(cacheKey, quickErr, errTTL)
-			return
+	// Phase 1: quick scan — runs synchronously so the caller gets results immediately.
+	quickResults, quickErr := s.doQuickScan(ctx, userToken)
+	if quickErr != nil {
+		slog.WarnContext(ctx, "quick scan failed", "err", quickErr)
+		errTTL := scanErrorTTL
+		var rle *RateLimitError
+		if errors.As(quickErr, &rle) && rle.RetryAfter > 0 {
+			errTTL = rle.RetryAfter + scanErrorBuffer
 		}
-		cache.setPartialResult(cacheKey, quickResults)
+		cache.setError(cacheKey, quickErr, errTTL)
+		return ScanState{Ready: true, Err: quickErr}
+	}
+	cache.setPartialResult(cacheKey, quickResults)
 
-		// Phase 2: full scan — EPF detection per repo, replaces partial results.
-		results, err := s.doScan(ctx, userToken)
+	// Phase 2: full EPF detection runs in the background.
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		results, err := s.doScan(bgCtx, userToken)
 		if err != nil {
-			slog.Warn("background scan failed", "err", err)
+			slog.Warn("background EPF scan failed", "err", err)
 			errTTL := scanErrorTTL
 			var rle *RateLimitError
 			if errors.As(err, &rle) && rle.RetryAfter > 0 {
@@ -359,6 +359,8 @@ func (s *Service) StartScanUserRepos(userToken string) {
 		}
 		cache.setResult(cacheKey, results)
 	}()
+
+	return ScanState{Ready: true, Partial: true, Results: quickResults}
 }
 
 // GetCachedScanState returns the current scan state for the user token.

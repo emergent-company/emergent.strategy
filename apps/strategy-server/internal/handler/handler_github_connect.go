@@ -95,10 +95,35 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 		return nil
 	}
 
-	// Not ready yet — kick off the background scan (no-op if already running)
-	// and return a polling skeleton. HTMX will retry in 3 seconds.
-	s.syncSvc.StartScanUserRepos(githubToken)
-	render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoPollingSkeleton())
+	// Not cached — run quick scan synchronously (returns repo list immediately),
+	// then kick off full EPF detection in background.
+	state = s.syncSvc.StartScanUserRepos(ctx, githubToken)
+	if !state.Ready {
+		// Another goroutine just started (race) — return skeleton, next poll will get results.
+		render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoPollingSkeleton())
+		return nil
+	}
+
+	data := ui.GithubConnectData{
+		AppInstallURL: s.githubAppInstallURL,
+		ReposLoaded:   true,
+		PartialScan:   state.Partial,
+		Workspaces:    s.loadWorkspacesForAssignment(ctx),
+	}
+	if state.Err != nil {
+		var rle *syncdom.RateLimitError
+		if errors.As(state.Err, &rle) {
+			data.RateLimited = true
+			data.RetryAfter = rle.RetryAfter
+		} else {
+			data.ScanError = langs.T(ctx, "error.github_scan_failed")
+		}
+	} else {
+		repos := toUIRepoItems(state.Results)
+		s.annotateConnectedInstances(ctx, repos)
+		data.Repos = repos
+	}
+	render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
 	return nil
 }
 
