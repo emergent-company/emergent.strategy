@@ -112,6 +112,30 @@ func (s *Service) GetInstance(ctx context.Context, id uuid.UUID) (*domain.Strate
 	return &inst, nil
 }
 
+// GetByGithubRepo returns the first non-deleted instance linked to the given
+// github_repo slug (and optionally basePath). Returns nil, nil when not found.
+func (s *Service) GetByGithubRepo(ctx context.Context, githubRepo, basePath string) (*domain.StrategyInstance, error) {
+	var inst domain.StrategyInstance
+	q := s.db.NewSelect().
+		Model(&inst).
+		Where("github_repo = ? AND deleted_at IS NULL", githubRepo).
+		OrderExpr("created_at ASC").
+		Limit(1)
+	if basePath != "" {
+		q = q.Where("github_base_path = ?", basePath)
+	} else {
+		q = q.Where("github_base_path IS NULL OR github_base_path = ''")
+	}
+	err := q.Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get instance by github repo: %w", err)
+	}
+	return &inst, nil
+}
+
 // ImportParams holds the input for importing a new instance.
 type ImportParams struct {
 	WorkspaceID    uuid.UUID

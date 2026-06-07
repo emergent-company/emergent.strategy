@@ -13,6 +13,7 @@ import (
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	domain "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
@@ -98,16 +99,40 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 		workspaceID = ws.ID
 	}
 
-	// Create the instance in the chosen workspace.
 	instSvc := instancedom.NewService(s.db)
-	inst, err := instSvc.ImportInstance(ctx, instancedom.ImportParams{
-		WorkspaceID: workspaceID,
-		Name:        instanceName,
-		GithubRepo:  &githubRepo,
-	})
-	if err != nil {
-		s.log.Error("create instance for github import", "repo", githubRepo, "err", err)
-		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+
+	// Check for an existing instance already linked to this repo+path.
+	// If found, reuse it — move it to the chosen workspace if different,
+	// update settings, and proceed. This prevents duplicate instances when
+	// the user re-imports or relinks a repo they already connected.
+	existing, lookupErr := instSvc.GetByGithubRepo(ctx, githubRepo, basePath)
+	if lookupErr != nil {
+		s.log.Warn("lookup existing instance by repo", "repo", githubRepo, "err", lookupErr)
+	}
+
+	var inst *domain.StrategyInstance
+	if existing != nil {
+		// Reuse the existing instance.
+		// Move to the chosen workspace if it differs.
+		if existing.WorkspaceID != workspaceID {
+			if moveErr := instSvc.MoveInstance(ctx, existing.ID, workspaceID); moveErr != nil {
+				s.log.Error("move existing instance to new workspace", "instance_id", existing.ID, "err", moveErr)
+				return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+			}
+		}
+		inst = existing
+	} else {
+		// No existing instance — create a new one.
+		var createErr error
+		inst, createErr = instSvc.ImportInstance(ctx, instancedom.ImportParams{
+			WorkspaceID: workspaceID,
+			Name:        instanceName,
+			GithubRepo:  &githubRepo,
+		})
+		if createErr != nil {
+			s.log.Error("create instance for github import", "repo", githubRepo, "err", createErr)
+			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+		}
 	}
 
 	// Set base path if provided.
