@@ -56,6 +56,7 @@ type scanCacheEntry struct {
 	scanError error      // non-nil when the last scan failed
 	expiry    time.Time
 	running   bool       // true while a background scan goroutine is active
+	partial   bool       // true when results are from quick scan only (full scan pending)
 }
 
 // scanCache holds in-memory scan results keyed by cache key.
@@ -71,6 +72,7 @@ func newScanCache() *scanCache {
 // ScanState is the result of a non-blocking cache peek.
 type ScanState struct {
 	Ready   bool             // true when results (or a terminal error) are available
+	Partial bool             // true when Ready but only quick-scan data is available (no EPF detection yet)
 	Results []RepoScanResult // non-nil when Ready and no error
 	Err     error            // non-nil when Ready and scan failed
 }
@@ -91,11 +93,12 @@ func (sc *scanCache) peek(key string) ScanState {
 	if entry.running {
 		return ScanState{} // scan in progress
 	}
-	return ScanState{Ready: true, Results: entry.results, Err: entry.scanError}
+	return ScanState{Ready: true, Partial: entry.partial, Results: entry.results, Err: entry.scanError}
 }
 
 // markRunning sets the running flag, preventing duplicate goroutines.
-// Returns false if a scan is already running or results are fresh.
+// Returns false if a full scan is already running or full results are fresh.
+// Partial results do NOT block a new full scan from starting.
 func (sc *scanCache) markRunning(key string) bool {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
@@ -103,11 +106,24 @@ func (sc *scanCache) markRunning(key string) bool {
 	if entry.running {
 		return false // already in progress
 	}
-	if !entry.expiry.IsZero() && time.Now().Before(entry.expiry) && !entry.running {
-		return false // fresh result already cached
+	// Only block if we have full (non-partial) fresh results.
+	if !entry.expiry.IsZero() && time.Now().Before(entry.expiry) && !entry.partial {
+		return false // fresh full result already cached
 	}
 	sc.entries[key] = scanCacheEntry{running: true, expiry: time.Now().Add(10 * time.Minute)}
 	return true
+}
+
+// setPartialResult stores quick-scan results. The entry remains available for
+// the polling loop but the full scan goroutine will overwrite it with full results.
+func (sc *scanCache) setPartialResult(key string, results []RepoScanResult) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.entries[key] = scanCacheEntry{
+		results: results,
+		partial: true,
+		expiry:  time.Now().Add(scanCacheTTL),
+	}
 }
 
 func (sc *scanCache) setResult(key string, results []RepoScanResult) {
@@ -274,23 +290,65 @@ func (s *Service) doScan(ctx context.Context, userToken string) ([]RepoScanResul
 	return results, nil
 }
 
-// StartScanUserRepos kicks off a background scan goroutine and returns immediately.
+// doQuickScan lists repos and returns basic metadata (name, PushedAt, description)
+// without performing EPF detection. Much faster than doScan — no tree API calls.
+func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScanResult, error) {
+	userRepos, err := s.reader.ListUserRepos(ctx, userToken)
+	if err != nil {
+		return nil, fmt.Errorf("list user repos (quick): %w", err)
+	}
+	appInstallOwners := s.loadAppInstallOwners(ctx)
+	results := make([]RepoScanResult, len(userRepos))
+	for i, r := range userRepos {
+		results[i] = RepoScanResult{
+			Name:          r.Name,
+			FullName:      r.FullName,
+			Owner:         r.Owner,
+			HTMLURL:       r.HTMLURL,
+			DefaultBranch: r.DefaultBranch,
+			Private:       r.Private,
+			Description:   r.Description,
+			PushedAt:      r.PushedAt,
+			HasAppInstall: appInstallOwners[r.Owner],
+		}
+	}
+	slog.InfoContext(ctx, "quick scan complete", "repos", len(results))
+	return results, nil
+}
+
+// StartScanUserRepos kicks off a two-phase background scan:
+// 1. Quick scan (ListUserRepos only) — runs synchronously, caches partial results immediately.
+// 2. Full scan (EPF detection) — runs in background, replaces partial results when done.
 // Uses markRunning to ensure only one goroutine runs per cache key at a time.
-// No-op if results are fresh or a scan is already in progress.
+// No-op if full results are fresh or a scan is already in progress.
 func (s *Service) StartScanUserRepos(userToken string) {
 	cache := s.getScanCache()
 	cacheKey := "user:" + userToken[:min(16, len(userToken))]
 	if !cache.markRunning(cacheKey) {
-		return // already running or results fresh
+		return // already running or full results fresh
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
+
+		// Phase 1: quick scan — list repos only, cache immediately as partial.
+		quickResults, quickErr := s.doQuickScan(ctx, userToken)
+		if quickErr != nil {
+			slog.Warn("quick scan failed", "err", quickErr)
+			errTTL := scanErrorTTL
+			var rle *RateLimitError
+			if errors.As(quickErr, &rle) && rle.RetryAfter > 0 {
+				errTTL = rle.RetryAfter + scanErrorBuffer
+			}
+			cache.setError(cacheKey, quickErr, errTTL)
+			return
+		}
+		cache.setPartialResult(cacheKey, quickResults)
+
+		// Phase 2: full scan — EPF detection per repo, replaces partial results.
 		results, err := s.doScan(ctx, userToken)
 		if err != nil {
 			slog.Warn("background scan failed", "err", err)
-			// Use the actual rate-limit reset window as the error TTL so we don't
-			// hammer GitHub again until it's ready.
 			errTTL := scanErrorTTL
 			var rle *RateLimitError
 			if errors.As(err, &rle) && rle.RetryAfter > 0 {

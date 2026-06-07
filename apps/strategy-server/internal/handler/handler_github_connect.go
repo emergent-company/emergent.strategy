@@ -10,6 +10,7 @@ import (
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
@@ -68,6 +69,7 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 		data := ui.GithubConnectData{
 			AppInstallURL: s.githubAppInstallURL,
 			ReposLoaded:   true,
+			PartialScan:   state.Partial,
 			Workspaces:    s.loadWorkspacesForAssignment(ctx),
 		}
 		if state.Err != nil {
@@ -84,7 +86,12 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 			s.annotateConnectedInstances(ctx, repos)
 			data.Repos = repos
 		}
-		render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
+		// When partial, keep polling to pick up full scan results.
+		if state.Partial {
+			render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListPartialFragment(data))
+		} else {
+			render.RenderPartial(c.Response().Writer, c.Request(), ui.GithubConnectRepoListFragment(data))
+		}
 		return nil
 	}
 
@@ -347,6 +354,7 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 		WorkspaceName string
 		CommitSHA     string
 		MemoryStatus  string
+		LastSyncedAt  time.Time // from github_sync_log latest entry
 	}
 	lookup := make(map[string]connInfo, len(rows))
 	for _, r := range rows {
@@ -365,6 +373,35 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 		lookup[key] = info
 	}
 
+	// Load last sync timestamps from github_sync_log per instance.
+	if len(lookup) > 0 {
+		instanceIDs := make([]string, 0, len(lookup))
+		for _, info := range lookup {
+			instanceIDs = append(instanceIDs, info.ID)
+		}
+		var syncRows []struct {
+			InstanceID string    `bun:"instance_id"`
+			LastSync   time.Time `bun:"last_sync"`
+		}
+		_ = s.db.NewSelect().
+			TableExpr("github_sync_log").
+			ColumnExpr("instance_id::text, MAX(created_at) AS last_sync").
+			Where("instance_id IN (?)", bun.In(instanceIDs)).
+			GroupExpr("instance_id").
+			Scan(ctx, &syncRows)
+		// Build id→lastSync map and update lookup entries.
+		syncMap := make(map[string]time.Time, len(syncRows))
+		for _, sr := range syncRows {
+			syncMap[sr.InstanceID] = sr.LastSync
+		}
+		for key, info := range lookup {
+			if t, ok := syncMap[info.ID]; ok {
+				info.LastSyncedAt = t
+				lookup[key] = info
+			}
+		}
+	}
+
 	// Annotate each detected instance.
 	for i := range repos {
 		for j := range repos[i].DetectedInstances {
@@ -375,6 +412,11 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 				repos[i].DetectedInstances[j].ConnectedWorkspaceName = info.WorkspaceName
 				repos[i].DetectedInstances[j].ConnectedCommitSHA = info.CommitSHA
 				repos[i].DetectedInstances[j].ConnectedMemorySyncStatus = info.MemoryStatus
+				repos[i].DetectedInstances[j].ConnectedLastSyncedAt = info.LastSyncedAt
+				// Flag as changed when repo was pushed after the last import/sync.
+				if !info.LastSyncedAt.IsZero() && !repos[i].PushedAt.IsZero() {
+					repos[i].DetectedInstances[j].ChangedSinceSync = repos[i].PushedAt.After(info.LastSyncedAt)
+				}
 			}
 		}
 	}

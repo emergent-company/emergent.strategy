@@ -29,6 +29,10 @@ type GithubConnectData struct {
 	// RetryAfter is how long to wait before retrying (shown in the UI and used for auto-retry).
 	RateLimited bool
 	RetryAfter  time.Duration
+
+	// PartialScan is true when only quick-scan data is available (repo list without EPF detection).
+	// The polling loop continues when true, replacing results once the full scan completes.
+	PartialScan bool
 }
 
 // GithubRepoCommit holds summary information about the HEAD commit of a repo.
@@ -74,11 +78,13 @@ type GithubDetectedInstance struct {
 	SubmoduleSlug string // "owner/repo" of the EPF source repo
 
 	// Connected instance (non-empty when already imported into strategy-server)
-	ConnectedInstanceID        string // UUID of the live strategy instance
-	ConnectedInstanceName      string // display name
-	ConnectedWorkspaceName     string // "OrgName / WorkspaceName"
-	ConnectedCommitSHA         string // first 7 chars of last synced SHA, or ""
-	ConnectedMemorySyncStatus  string // "synced" | "pending" | "failed" | ""
+	ConnectedInstanceID        string    // UUID of the live strategy instance
+	ConnectedInstanceName      string    // display name
+	ConnectedWorkspaceName     string    // "OrgName / WorkspaceName"
+	ConnectedCommitSHA         string    // first 7 chars of last synced SHA, or ""
+	ConnectedMemorySyncStatus  string    // "synced" | "pending" | "failed" | ""
+	ConnectedLastSyncedAt      time.Time // time of last GitHub sync (zero if never)
+	ChangedSinceSync           bool      // true when repo PushedAt > ConnectedLastSyncedAt
 }
 
 // WorkspaceScanItem is a workspace the user can assign an import into.
@@ -245,6 +251,37 @@ templ GithubConnectRepoPollingSkeleton() {
 		hx-swap="outerHTML"
 	>
 		@githubRepoListLoadingInner()
+	</div>
+}
+
+// GithubConnectRepoListPartialFragment renders the repo list with quick-scan data only.
+// Continues polling every 3s until the full EPF scan completes.
+templ GithubConnectRepoListPartialFragment(data GithubConnectData) {
+	<div
+		id="github-repo-list"
+		class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden"
+		hx-get="/github/connect/repos"
+		hx-trigger="every 3s"
+		hx-swap="outerHTML"
+	>
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--folder-git-2 size-5 text-base-content/75"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
+				<p class="text-xs text-base-content/65 mt-0.5">{ fmt.Sprintf("%d repos found", len(data.Repos)) } — scanning for EPF...</p>
+			</div>
+			<span class="inline-flex items-center gap-1.5 text-xs text-base-content/65">
+				<span class="iconify lucide--loader size-3 animate-spin"></span>
+				Detecting EPF
+			</span>
+		</div>
+		<!-- Repo list with quick data only -->
+		<div class="divide-y divide-base-content/10">
+			for _, repo := range data.Repos {
+				@githubRepoRow(repo, data.Workspaces)
+			}
+		</div>
 	</div>
 }
 
@@ -521,6 +558,12 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 							{ inst.ConnectedMemorySyncStatus }
 						</span>
 					}
+					if inst.ChangedSinceSync {
+						<span class="inline-flex items-center gap-1 badge badge-xs badge-warning" title={ "Repo pushed " + githubRelativeTime(repo.PushedAt) + " — newer than last sync" }>
+							<span class="iconify lucide--arrow-up-circle size-2.5"></span>
+							Updated { githubRelativeTime(repo.PushedAt) }
+						</span>
+					}
 				</div>
 				<!-- Re-import action -->
 				<form method="POST" action="/github/connect/import" class="shrink-0">
@@ -528,12 +571,21 @@ templ githubImportForm(repo GithubRepoScanItem, inst GithubDetectedInstance, wor
 					<input type="hidden" name="github_base_path" value={ inst.BasePath }/>
 					<input type="hidden" name="branch" value={ repo.DefaultBranch }/>
 					<input type="hidden" name="workspace_id" value="__existing__"/>
-					<button type="submit" name="action" value="import"
-						class="btn btn-xs btn-ghost border border-base-content/15 gap-1"
-						title="Re-import artifacts from GitHub into this instance">
-						<span class="iconify lucide--refresh-cw size-3"></span>
-						Re-import
-					</button>
+					if inst.ChangedSinceSync {
+						<button type="submit" name="action" value="import"
+							class="btn btn-xs btn-warning gap-1"
+							title="Remote has changed since last sync — re-import to update">
+							<span class="iconify lucide--refresh-cw size-3"></span>
+							Import changes
+						</button>
+					} else {
+						<button type="submit" name="action" value="import"
+							class="btn btn-xs btn-ghost border border-base-content/15 gap-1"
+							title="Re-import artifacts from GitHub into this instance">
+							<span class="iconify lucide--refresh-cw size-3"></span>
+							Re-import
+						</button>
+					}
 				</form>
 			</div>
 		}
