@@ -361,6 +361,68 @@ templ instanceSettingsMenu(instanceID string) {
 					<span class={ "badge badge-xs " + instanceStatusBadge(stats.Status) }>{ stats.Status }</span>
 				</div>
 			</div>
+			<!-- Sync status section -->
+			if stats.GithubRepo != "" {
+				<div class="border-t border-base-content/10 mx-3 my-2"></div>
+				<div class="px-3 pb-2 space-y-1.5">
+					<!-- Sync state badge + SHA comparison -->
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-1.5">
+							<span class="iconify lucide--git-branch size-3 text-base-content/40"></span>
+							<span class="text-xs text-base-content/50">
+								if stats.GithubBranch != "" {
+									{ stats.GithubBranch }
+								} else {
+									main
+								}
+							</span>
+						</div>
+						@syncStateBadge(stats.SyncState)
+					</div>
+					<!-- SHA comparison: local → remote -->
+					if stats.CommitSHA != "" || stats.RemoteSHA != "" {
+						<div class="flex items-center gap-1.5 font-mono text-xs text-base-content/40">
+							if stats.CommitSHA != "" {
+								<span title="Local (last synced)">{ stats.CommitSHA }</span>
+							}
+							if stats.CommitSHA != "" && stats.RemoteSHA != "" && stats.CommitSHA != stats.RemoteSHA {
+								<span class="iconify lucide--arrow-right size-3"></span>
+								<span class="text-info" title="Remote HEAD">{ stats.RemoteSHA }</span>
+							} else if stats.RemoteSHA != "" && stats.CommitSHA == "" {
+								<span title="Remote HEAD">{ stats.RemoteSHA }</span>
+							}
+						</div>
+					}
+					<!-- Pending local changes -->
+					if stats.PendingBatchCount > 0 {
+						<div class="flex items-center gap-1.5">
+							<span class="iconify lucide--layers size-3 text-warning"></span>
+							<span class="text-xs text-warning">{ strconv.Itoa(stats.PendingBatchCount) } staged change(s) not pushed</span>
+						</div>
+					}
+					<!-- Last sync -->
+					if stats.LastSyncAt != "" {
+						<div class="flex items-center gap-1.5">
+							<span class="iconify lucide--clock size-3 text-base-content/30"></span>
+							<span class="text-xs text-base-content/40">
+								if stats.LastSyncDirection == "import" {
+									Imported { strconv.Itoa(stats.LastSyncArtifacts) } artifacts · { stats.LastSyncAt }
+								} else if stats.LastSyncDirection == "export" {
+									Pushed { strconv.Itoa(stats.LastSyncArtifacts) } artifacts · { stats.LastSyncAt }
+								} else {
+									Last sync · { stats.LastSyncAt }
+								}
+							</span>
+							if stats.LastSyncPRURL != "" {
+								<a href={ templ.SafeURL(stats.LastSyncPRURL) } target="_blank" rel="noopener"
+									class="iconify lucide--external-link size-3 text-primary hover:text-primary/80 shrink-0"
+									onclick="event.stopPropagation()"
+									title="View PR"></a>
+							}
+						</div>
+					}
+				</div>
+			}
 			<!-- Divider + actions -->
 			<div class="border-t border-base-content/10"></div>
 			<div class="py-1">
@@ -397,6 +459,36 @@ templ instanceSettingsMenu(instanceID string) {
 			});
 		}, { once: false, capture: false });
 	</script>
+}
+
+// syncStateBadge renders a compact badge for a sync state string.
+templ syncStateBadge(state string) {
+	switch state {
+	case "in_sync":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-success">
+			<span class="iconify lucide--check size-2.5"></span>
+			In sync
+		</span>
+	case "github_ahead":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-warning">
+			<span class="iconify lucide--download size-2.5"></span>
+			Behind
+		</span>
+	case "server_ahead":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-info">
+			<span class="iconify lucide--upload size-2.5"></span>
+			Ahead
+		</span>
+	case "diverged":
+		<span class="inline-flex items-center gap-1 badge badge-xs badge-error">
+			<span class="iconify lucide--git-merge size-2.5"></span>
+			Diverged
+		</span>
+	case "unlinked":
+		<span class="badge badge-xs badge-ghost">Not linked</span>
+	default:
+		// Empty string = sync state not loaded (no App, or no repo)
+	}
 }
 
 // instanceStatCell renders a single stat number + label in the stats grid.

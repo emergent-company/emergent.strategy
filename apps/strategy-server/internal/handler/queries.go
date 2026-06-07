@@ -196,6 +196,54 @@ func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyIns
 		stats.WarningSignals = int64(n)
 	}()
 
+	// Last sync log entry (DB-only, fast).
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var row struct {
+			Direction     string    `bun:"direction"`
+			Status        string    `bun:"status"`
+			ArtifactCount int       `bun:"artifact_count"`
+			PRUrl         *string   `bun:"pr_url"`
+			CreatedAt     time.Time `bun:"created_at"`
+		}
+		err := s.db.NewSelect().
+			TableExpr("github_sync_log").
+			ColumnExpr("direction, status, artifact_count, pr_url, created_at").
+			Where("instance_id = ?", id).
+			OrderExpr("created_at DESC").
+			Limit(1).
+			Scan(ctx, &row)
+		if err == nil {
+			stats.LastSyncAt = row.CreatedAt.Format("2 Jan 15:04")
+			stats.LastSyncDirection = row.Direction
+			stats.LastSyncArtifacts = row.ArtifactCount
+			stats.LastSyncStatus = row.Status
+			if row.PRUrl != nil {
+				stats.LastSyncPRURL = *row.PRUrl
+			}
+		}
+	}()
+
+	// Live sync state — only when repo linked and sync service available.
+	// Uses a short timeout; failure is non-fatal (state stays "").
+	if stats.GithubRepo != "" && s.syncSvc != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			stateCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			result, err := s.syncSvc.DetermineSyncState(stateCtx, inst.ID, "")
+			if err == nil {
+				stats.SyncState = string(result.State)
+				if len(result.RemoteSHA) >= 7 {
+					stats.RemoteSHA = result.RemoteSHA[:7]
+				}
+				stats.PendingBatchCount = result.PendingBatchCount
+			}
+		}()
+	}
+
 	wg.Wait()
 	return stats
 }

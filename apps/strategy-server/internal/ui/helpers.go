@@ -45,6 +45,16 @@ type InstanceStats struct {
 	CommitSHA       string // first 7 chars or ""
 	Status          string // "draft" / "active" / "archived"
 	CreatedAt       string // formatted date
+
+	// Sync state (populated when GitHub repo is linked)
+	SyncState         string // "in_sync" | "github_ahead" | "server_ahead" | "diverged" | "unlinked" | ""
+	RemoteSHA         string // first 7 chars of remote HEAD, or ""
+	PendingBatchCount int    // staged mutations not yet pushed
+	LastSyncAt        string // formatted date of last sync log entry
+	LastSyncDirection string // "import" | "export" | ""
+	LastSyncArtifacts int    // artifact_count from last sync log entry
+	LastSyncStatus    string // "pushed" | "pr_created" | "failed" | ""
+	LastSyncPRURL     string // PR URL if last sync created a PR
 }
 
 type instanceStatsKey struct{}
