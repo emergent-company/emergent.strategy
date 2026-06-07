@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +35,10 @@ type RepoReader interface {
 	ListFiles(ctx context.Context, token, owner, repo, branch, basePath string) ([]string, error)
 	// GetFileContent fetches the raw bytes of a file at the given path on the given branch.
 	GetFileContent(ctx context.Context, token, owner, repo, branch, path string) ([]byte, error)
+	// GetAllFileContents fetches all YAML files under basePath in a single tree walk.
+	// Returns a map of repo-relative path → raw bytes. More efficient than calling
+	// ListFiles + GetFileContent per file (avoids re-fetching the tree per file).
+	GetAllFileContents(ctx context.Context, token, owner, repo, branch, basePath string) (map[string][]byte, error)
 	// GetPullRequestState returns "open", "closed", or "merged" for a PR.
 	GetPullRequestState(ctx context.Context, token, owner, repo string, prNumber int) (string, error)
 
@@ -420,26 +423,10 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		basePath = *inst.GithubBasePath
 	}
 
-	// Fetch file list from GitHub.
-	paths, err := s.reader.ListFiles(ctx, token, owner, repo, targetBranch, basePath)
+	// Fetch all YAML file contents in a single tree walk + parallel blob downloads.
+	files, err := s.reader.GetAllFileContents(ctx, token, owner, repo, targetBranch, basePath)
 	if err != nil {
-		return 0, fmt.Errorf("list files from GitHub: %w", err)
-	}
-
-	// Fetch each file's content.
-	files := make(map[string][]byte, len(paths))
-	for _, path := range paths {
-		content, fetchErr := s.reader.GetFileContent(ctx, token, owner, repo, targetBranch, path)
-		if fetchErr != nil {
-			slog.WarnContext(ctx, "skip file: fetch failed", "path", path, "err", fetchErr)
-			continue
-		}
-		// Strip base path prefix to get a relative path for the parser.
-		relPath := path
-		if basePath != "" {
-			relPath = strings.TrimPrefix(path, strings.TrimSuffix(basePath, "/")+"/")
-		}
-		files[relPath] = content
+		return 0, fmt.Errorf("fetch files from GitHub: %w", err)
 	}
 
 	if len(files) == 0 {

@@ -257,6 +257,20 @@ func (m *mockRepoReader) GetFileContent(_ context.Context, _, _, _, _, path stri
 	return content, nil
 }
 
+func (m *mockRepoReader) GetAllFileContents(_ context.Context, _, _, _, _, _ string) (map[string][]byte, error) {
+	if m.listFilesErr != nil {
+		return nil, m.listFilesErr
+	}
+	if m.getFileContentErr != nil {
+		return nil, m.getFileContentErr
+	}
+	out := make(map[string][]byte, len(m.files))
+	for k, v := range m.files {
+		out[k] = v
+	}
+	return out, nil
+}
+
 func (m *mockRepoReader) GetPullRequestState(_ context.Context, _, _, _ string, _ int) (string, error) {
 	if m.getPRStateResult != "" {
 		return m.getPRStateResult, nil

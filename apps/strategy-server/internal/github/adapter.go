@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	gosync "sync"
 	"strings"
 	"time"
 
@@ -84,6 +85,81 @@ func (a *RepoReaderAdapter) GetFileContent(ctx context.Context, token, owner, re
 		}
 	}
 	return nil, fmt.Errorf("file not found in tree: %s", path)
+}
+
+// GetAllFileContents fetches the tree once, then downloads all YAML blobs in parallel.
+// This avoids the N+1 problem of calling GetFileContent (which re-fetches the tree) per file.
+func (a *RepoReaderAdapter) GetAllFileContents(ctx context.Context, token, owner, repo, branch, basePath string) (map[string][]byte, error) {
+	entries, err := a.client.GetTree(ctx, token, owner, repo, branch)
+	if err != nil {
+		return nil, err
+	}
+
+	prefix := ""
+	if basePath != "" {
+		prefix = strings.TrimSuffix(basePath, "/") + "/"
+	}
+
+	// Collect blob entries that are YAML and under basePath.
+	type blobEntry struct {
+		path string
+		sha  string
+	}
+	var blobs []blobEntry
+	for _, e := range entries {
+		if e.Type != "blob" {
+			continue
+		}
+		if !isYAML(e.Path) {
+			continue
+		}
+		if prefix != "" && !strings.HasPrefix(e.Path, prefix) {
+			continue
+		}
+		blobs = append(blobs, blobEntry{path: e.Path, sha: e.SHA})
+	}
+
+	if len(blobs) == 0 {
+		return map[string][]byte{}, nil
+	}
+
+	// Fetch blobs in parallel with a concurrency cap.
+	const maxConcurrent = 10
+	sem := make(chan struct{}, maxConcurrent)
+	results := make(map[string][]byte, len(blobs))
+	var mu gosync.Mutex
+	var fetchErr error
+	var wg gosync.WaitGroup
+
+	for _, b := range blobs {
+		b := b
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			content, err := a.client.GetBlob(ctx, token, owner, repo, b.sha)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				fetchErr = fmt.Errorf("fetch blob %s: %w", b.path, err)
+				return
+			}
+			// Strip basePath prefix to get repo-relative path for the parser.
+			relPath := b.path
+			if prefix != "" {
+				relPath = strings.TrimPrefix(b.path, prefix)
+			}
+			results[relPath] = content
+		}()
+	}
+	wg.Wait()
+
+	if fetchErr != nil {
+		return nil, fetchErr
+	}
+	return results, nil
 }
 
 func (a *RepoReaderAdapter) GetPullRequestState(ctx context.Context, token, owner, repo string, prNumber int) (string, error) {
