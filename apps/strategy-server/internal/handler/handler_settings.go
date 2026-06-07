@@ -100,8 +100,9 @@ func (s *Server) handleSettingsImport(c echo.Context) error {
 	}
 	if result != nil {
 		switch result.Status {
+		case "already_in_sync":
+			return c.String(http.StatusOK, "Already up to date — remote has not changed since last import.")
 		case "server_ahead":
-			// The only remaining server_ahead case: local staged mutations with no remote change.
 			msg := result.Recommendation
 			if msg == "" {
 				msg = "Your instance has staged changes not yet pushed to GitHub. Push first."
