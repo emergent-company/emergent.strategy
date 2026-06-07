@@ -690,8 +690,8 @@ templ TabRelatedPages(tabGroup string, instanceID string, currentPath string) {
 					templ.KV("bg-primary/10 text-primary font-medium", currentPath == landingHref),
 					templ.KV("text-base-content/75 hover:text-base-content hover:bg-base-200", currentPath != landingHref) }
 			>
-				<span class={ "iconify size-3.5 " + meta.Icon }></span>
-				{ meta.Label }
+			<span class={ "iconify size-3.5 " + meta.Icon }></span>
+			{ langs.T(ctx, meta.Label) }
 			</a>
 			<span class="text-base-content/20">|</span>
 			for _, item := range items {
