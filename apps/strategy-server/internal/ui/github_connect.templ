@@ -254,41 +254,35 @@ templ GithubConnectRepoPollingSkeleton() {
 	</div>
 }
 
-// GithubConnectRepoListPartialFragment renders the repo list with quick-scan data only.
-// Continues polling every 3s until the full EPF scan completes.
-templ GithubConnectRepoListPartialFragment(data GithubConnectData) {
-	<div
-		id="github-repo-list"
-		class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden"
-		hx-get="/github/connect/repos"
-		hx-trigger="every 3s"
-		hx-swap="outerHTML"
-	>
-		<!-- Header -->
-		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
-			<span class="iconify lucide--folder-git-2 size-5 text-base-content/75"></span>
-			<div class="grow">
-				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">Your repositories</h2>
-				<p class="text-xs text-base-content/65 mt-0.5">{ fmt.Sprintf("%d repos found", len(data.Repos)) } — scanning for EPF...</p>
-			</div>
-			<span class="inline-flex items-center gap-1.5 text-xs text-base-content/65">
-				<span class="iconify lucide--loader size-3 animate-spin"></span>
-				Detecting EPF
-			</span>
-		</div>
-		<!-- Repo list with quick data only -->
-		<div class="divide-y divide-base-content/10">
-			for _, repo := range data.Repos {
-				@githubRepoRow(repo, data.Workspaces)
-			}
-		</div>
-	</div>
+// GithubConnectRepoListPartialFragment is an alias — partial and full use the same template.
+// The data.PartialScan flag controls the scanning banner and HTMX polling inside.
+func GithubConnectRepoListPartialFragment(data GithubConnectData) templ.Component {
+	return GithubConnectRepoListFragment(data)
 }
 
 // GithubConnectRepoListFragment renders the repository list (result of async scan).
-// Returned by GET /github/connect/repos and swapped into #github-repo-list.
+// When data.PartialScan is true, shows a prominent scanning banner and keeps polling.
 templ GithubConnectRepoListFragment(data GithubConnectData) {
-	<div id="github-repo-list" class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
+	<div
+		id="github-repo-list"
+		class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden"
+		if data.PartialScan {
+			hx-get="/github/connect/repos"
+			hx-trigger="every 3s"
+			hx-swap="outerHTML"
+		}
+	>
+		<!-- Scanning banner — prominent, shown during partial scan -->
+		if data.PartialScan {
+			<div class="flex items-center gap-3 px-5 py-3 bg-primary/5 border-b border-primary/20">
+				<span class="iconify lucide--radar size-4 text-primary shrink-0 animate-pulse"></span>
+				<div class="grow">
+					<p class="text-sm font-medium text-primary">Scanning { fmt.Sprintf("%d", len(data.Repos)) } repositories for EPF instances...</p>
+					<p class="text-xs text-primary/65 mt-0.5">Repository list is ready. EPF detection running in the background.</p>
+				</div>
+				<span class="iconify lucide--loader size-4 text-primary animate-spin shrink-0"></span>
+			</div>
+		}
 		<!-- Header -->
 		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
 			<span class="iconify lucide--folder-git-2 size-5 text-base-content/75"></span>
@@ -297,7 +291,7 @@ templ GithubConnectRepoListFragment(data GithubConnectData) {
 				<p class="text-xs text-base-content/65 mt-0.5">All repos you have access to across your GitHub organizations</p>
 			</div>
 			<!-- Summary + refresh -->
-			if data.ScanError == "" {
+			if data.ScanError == "" && !data.PartialScan {
 				@githubEPFCountBadge(data.Repos)
 			}
 			<button
