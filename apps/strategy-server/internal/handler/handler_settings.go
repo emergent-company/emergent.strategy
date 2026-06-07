@@ -258,18 +258,12 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 		go func() {
 			defer wg.Done()
 
-			// Build workspace list excluding the current workspace.
-			otherWorkspaces := make([]ui.WorkspaceScanItem, 0, len(allWorkspaces))
-			for _, ws := range allWorkspaces {
-				if ws.ID != inst.WorkspaceID {
-					otherWorkspaces = append(otherWorkspaces, ws)
-				}
-			}
 			status := ui.GithubSyncStatus{
-				InstanceID:   inst.ID,
-				InstanceName: inst.Name,
-				Configured:   s.syncSvc.IsConfigured(),
-				Workspaces:   otherWorkspaces,
+				InstanceID:         inst.ID,
+				InstanceName:       inst.Name,
+				Configured:         s.syncSvc.IsConfigured(),
+				Workspaces:         allWorkspaces,
+				CurrentWorkspaceID: inst.WorkspaceID,
 			}
 			if inst.GithubRepo != nil && *inst.GithubRepo != "" {
 				status.RepoLinked = true

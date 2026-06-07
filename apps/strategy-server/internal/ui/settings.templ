@@ -23,7 +23,8 @@ type GithubSyncStatus struct {
 	LastSyncPR    string              // PR URL of last sync (may be empty)
 	LastStatus    string              // "pr_created" | "failed" | "pending" | ""
 	LastDirection string              // "export" | "import" | ""
-	Workspaces    []WorkspaceScanItem // all workspaces for the move dropdown
+	Workspaces           []WorkspaceScanItem // all workspaces for the move dropdown
+	CurrentWorkspaceID   string              // ID of the workspace this instance currently belongs to
 }
 
 // MemoryHealthStatus represents the current connectivity to the Memory server.
@@ -478,7 +479,7 @@ templ githubSyncRow(inst GithubSyncStatus) {
 					onchange="const inp=this.form.querySelector('.move-ws-input');if(inp){inp.style.display=this.value==='__new__'?'':'none';inp.required=this.value==='__new__';}"
 				>
 					for _, ws := range inst.Workspaces {
-						<option value={ ws.ID }>{ ws.OrgName } / { ws.Name }</option>
+						<option value={ ws.ID } selected?={ ws.ID == inst.CurrentWorkspaceID }>{ ws.OrgName } / { ws.Name }</option>
 					}
 					<option value="__new__">+ New workspace...</option>
 				</select>
