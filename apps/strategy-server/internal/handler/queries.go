@@ -28,6 +28,7 @@ func (s *Server) loadInstanceSummaries(ctx context.Context) ([]ui.InstanceSummar
 		ColumnExpr("o.id AS org_id, o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
 		Where("si.status != ?", "archived").
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
@@ -56,7 +57,7 @@ func (s *Server) loadInstance(ctx context.Context, id string) (*domain.StrategyI
 	var inst domain.StrategyInstance
 	err := s.db.NewSelect().
 		Model(&inst).
-		Where("id = ?", id).
+		Where("id = ? AND deleted_at IS NULL", id).
 		Scan(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load instance %s: %w", id, err)
@@ -89,6 +90,7 @@ func (s *Server) loadAllInstances(ctx context.Context) ([]ui.InstanceInfo, error
 		ColumnExpr("o.name AS org_name").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
 		Where("si.status != ?", "archived").
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
