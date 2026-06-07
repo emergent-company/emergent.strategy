@@ -348,9 +348,6 @@ templ instanceSettingsMenu(instanceID string) {
 					<div class="flex items-center gap-1.5 pt-0.5">
 						<span class="iconify lucide--github size-3 text-base-content/55 shrink-0"></span>
 						<span class="text-xs text-base-content/65 font-mono truncate">{ stats.GithubRepo }</span>
-						if stats.CommitSHA != "" {
-							<span class="text-xs text-base-content/30 font-mono shrink-0">{ stats.CommitSHA }</span>
-						}
 					</div>
 				}
 				<!-- Last version + status -->
@@ -379,21 +376,26 @@ templ instanceSettingsMenu(instanceID string) {
 						</div>
 						@syncStateBadge(stats.SyncState)
 					</div>
-					<!-- Last sync: when + at which commit -->
-					if stats.LastSyncAt != "" {
+					<!-- Last sync: date + local SHA on one line, remote on next -->
+					<div class="space-y-1">
+						<!-- Local: sync date + commit SHA -->
 						<div class="flex items-center gap-1.5 text-xs text-base-content/65">
 							<span class="iconify lucide--arrow-down-to-line size-3 shrink-0"></span>
-							<span>
-								if stats.LastSyncDirection == "import" {
-									Synced { stats.LastSyncAt }
-								} else if stats.LastSyncDirection == "export" {
-									Pushed { stats.LastSyncAt }
-								} else {
-									{ stats.LastSyncAt }
-								}
-							</span>
+							if stats.LastSyncAt != "" {
+								<span class="shrink-0">
+									if stats.LastSyncDirection == "import" {
+										Synced { stats.LastSyncAt }
+									} else if stats.LastSyncDirection == "export" {
+										Pushed { stats.LastSyncAt }
+									} else {
+										{ stats.LastSyncAt }
+									}
+								</span>
+							} else {
+								<span class="shrink-0">Local</span>
+							}
 							if stats.CommitSHA != "" {
-								<span class="font-mono text-base-content/40">{ "@ " + stats.CommitSHA }</span>
+								<span class="font-mono text-base-content/40 shrink-0">{ "@ " + stats.CommitSHA }</span>
 							}
 							if stats.LastSyncPRURL != "" {
 								<a href={ templ.SafeURL(stats.LastSyncPRURL) } target="_blank" rel="noopener"
@@ -402,24 +404,21 @@ templ instanceSettingsMenu(instanceID string) {
 									title="View PR"></a>
 							}
 						</div>
-					} else if stats.CommitSHA != "" {
-						<div class="flex items-center gap-1.5 text-xs text-base-content/55">
-							<span class="iconify lucide--git-commit-horizontal size-3 shrink-0"></span>
-							<span class="font-mono">{ stats.CommitSHA }</span>
-						</div>
-					}
-					<!-- Remote HEAD (shown when different from local or when no local SHA) -->
-					if stats.RemoteSHA != "" {
-						{{ remoteDiffers := stats.CommitSHA != "" && stats.RemoteSHA != stats.CommitSHA }}
-						<div class="flex items-center gap-1.5 text-xs">
-							<span class="iconify lucide--cloud size-3 shrink-0 text-base-content/55"></span>
-							if remoteDiffers {
-								<span class="text-warning font-medium">Remote: <span class="font-mono">{ stats.RemoteSHA }</span></span>
-							} else {
-								<span class="text-base-content/55">Remote: <span class="font-mono">{ stats.RemoteSHA }</span></span>
-							}
-						</div>
-					}
+						<!-- Remote HEAD -->
+						if stats.RemoteSHA != "" {
+							{{ remoteDiffers := stats.CommitSHA != "" && stats.RemoteSHA != stats.CommitSHA }}
+							<div class="flex items-center gap-1.5 text-xs">
+								<span class="iconify lucide--cloud size-3 shrink-0 text-base-content/55"></span>
+								if remoteDiffers {
+									<span class="text-warning font-medium shrink-0">Remote</span>
+									<span class="font-mono text-warning">{ stats.RemoteSHA }</span>
+								} else {
+									<span class="text-base-content/55 shrink-0">Remote</span>
+									<span class="font-mono text-base-content/55">{ stats.RemoteSHA }</span>
+								}
+							</div>
+						}
+					</div>
 					<!-- Pending local changes -->
 					if stats.PendingBatchCount > 0 {
 						<div class="flex items-center gap-1.5">
