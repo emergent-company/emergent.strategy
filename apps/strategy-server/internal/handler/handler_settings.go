@@ -126,6 +126,22 @@ func (s *Server) handleSetLang(c echo.Context) error {
 	return c.Redirect(http.StatusSeeOther, "/settings")
 }
 
+// handleDeleteInstance handles POST /strategies/:id/delete.
+// Soft-deletes the instance and redirects to /settings.
+func (s *Server) handleDeleteInstance(c echo.Context) error {
+	ctx := c.Request().Context()
+	instanceID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
+	}
+	instSvc := instancedom.NewService(s.db)
+	if delErr := instSvc.DeleteInstance(ctx, instanceID); delErr != nil {
+		s.log.Error("delete instance", "instance_id", instanceID, "err", delErr)
+		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.internal"))
+	}
+	return c.Redirect(http.StatusSeeOther, "/settings")
+}
+
 // probeMemoryHealth checks the current Memory server connectivity.
 func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 	if s.semanticSvc == nil || !s.semanticSvc.IsAvailable() {

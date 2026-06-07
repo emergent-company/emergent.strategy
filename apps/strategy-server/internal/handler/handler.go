@@ -280,6 +280,7 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.POST("/settings/import", s.handleSettingsImport)
 	e.POST("/settings/lang", s.handleSetLang)
 	e.POST("/strategies/:id/move", s.handleMoveInstance)
+	e.POST("/strategies/:id/delete", s.handleDeleteInstance)
 
 	// GitHub connect flow — repo discovery and instance linking.
 	e.GET("/github/connect", s.handleGithubConnect)

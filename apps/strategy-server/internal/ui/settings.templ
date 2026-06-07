@@ -455,6 +455,15 @@ templ githubSyncRow(inst GithubSyncStatus) {
 					</button>
 					</form>
 				}
+				<!-- Delete instance -->
+				<form method="POST" action={ templ.SafeURL("/strategies/" + inst.InstanceID + "/delete") } class="inline">
+					<button type="submit"
+						class="btn btn-xs btn-ghost border border-error/30 text-error/70 hover:text-error hover:border-error gap-1"
+						title={ "Delete " + inst.InstanceName }
+						onclick="return confirm('Delete this instance? This cannot be undone.')">
+						<span class="iconify lucide--trash-2 size-3"></span>
+					</button>
+				</form>
 			</div>
 		</div>
 		<!-- Move to workspace -->
