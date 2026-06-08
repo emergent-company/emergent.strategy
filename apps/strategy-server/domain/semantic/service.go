@@ -237,47 +237,39 @@ func (s *Service) DetectContradictions(ctx context.Context, instanceID string) (
 	// from epf-cli. This implementation provides basic structural checks
 	// by detecting orphaned nodes (objects with zero relationships).
 
-	page, err := s.client.ListObjects(ctx, memory.ListObjectsOptions{
-		Limit: 200,
-	})
+	// Scope orphan detection to the ARTIFACT layer only. The graph also holds a
+	// decomposed layer (fine-grained sub-objects like ValueModelComponent,
+	// PainPoint, Capability) where relationship-free nodes are normal and not
+	// contradictions; including them produced thousands of false positives.
+	//
+	// Fetch all artifact-layer objects via cursor pagination. A single
+	// ListObjects(Limit: 200) silently ignores instances with more than 200
+	// objects, which would report false orphans (and miss real ones).
+	rootIDs, objByID, err := s.listAllObjects(ctx, artifactLayerLabel)
 	if err != nil {
 		return nil, fmt.Errorf("detect contradictions: list objects: %w", err)
 	}
-	if len(page.Items) == 0 {
+	if len(rootIDs) == 0 {
 		return nil, nil
 	}
 
-	// Collect all object IDs and expand at depth 1. The returned
-	// relationships tell us which objects are connected.
-	rootIDs := make([]string, 0, len(page.Items))
-	objByID := make(map[string]*memory.Object, len(page.Items))
-	for i := range page.Items {
-		id := page.Items[i].StableID()
-		rootIDs = append(rootIDs, id)
-		objByID[id] = &page.Items[i]
-	}
-
-	expanded, err := s.client.Expand(ctx, memory.ExpandRequest{
-		RootIDs:  rootIDs,
-		MaxDepth: 1,
-		MaxNodes: 1000,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("detect contradictions: expand: %w", err)
-	}
-
-	// Build set of IDs that appear in at least one relationship.
-	connected := make(map[string]bool, len(expanded.Relationships)*2)
-	for _, rel := range expanded.Relationships {
-		connected[rel.FromID] = true
-		connected[rel.ToID] = true
-	}
-
-	// Any root object not in the connected set is orphaned.
+	// Determine connectivity per object via the per-object edges endpoint.
+	//
+	// NOTE: we deliberately do NOT use the graph Expand endpoint here. Expand
+	// keys traversal differently from how relationships are stored (it returned
+	// zero relationships even for objects that demonstrably have edges via
+	// /objects/{id}/edges), which made every artifact look orphaned. The edges
+	// endpoint reliably reports an object's relationships. This is a bounded
+	// 1+N over the artifact layer (~hundreds of objects), which is acceptable
+	// for this non-hot-path structural check.
 	var contradictions []*Contradiction
 	for _, id := range rootIDs {
-		if connected[id] {
-			continue
+		edges, err := s.client.ObjectEdges(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("detect contradictions: object edges: %w", err)
+		}
+		if len(edges.Incoming) > 0 || len(edges.Outgoing) > 0 {
+			continue // connected — not an orphan
 		}
 		obj := objByID[id]
 		contradictions = append(contradictions, &Contradiction{
@@ -287,6 +279,48 @@ func (s *Service) DetectContradictions(ctx context.Context, instanceID string) (
 	}
 
 	return contradictions, nil
+}
+
+// listObjectsPageLimit is the per-page size used when paginating all objects.
+const listObjectsPageLimit = 200
+
+// artifactLayerLabel scopes object listings to top-level EPF artifacts,
+// excluding the decomposed sub-object layer. Set at ingest time on every
+// artifact-layer object (see domain/ingest).
+const artifactLayerLabel = "layer:artifact"
+
+// listAllObjects fetches every object in the graph via cursor pagination,
+// returning their stable IDs (in order) and a lookup map by ID. When label is
+// non-empty, only objects carrying that label are returned.
+func (s *Service) listAllObjects(ctx context.Context, label string) ([]string, map[string]*memory.Object, error) {
+	var ids []string
+	objByID := make(map[string]*memory.Object)
+
+	cursor := ""
+	for {
+		page, err := s.client.ListObjects(ctx, memory.ListObjectsOptions{
+			Limit:  listObjectsPageLimit,
+			Label:  label,
+			Cursor: cursor,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		for i := range page.Items {
+			obj := &page.Items[i]
+			id := obj.StableID()
+			if _, seen := objByID[id]; seen {
+				continue
+			}
+			ids = append(ids, id)
+			objByID[id] = obj
+		}
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	return ids, objByID, nil
 }
 
 // RunScenario creates a what-if graph branch. Returns a scenario ID (branch ID).

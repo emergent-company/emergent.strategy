@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -183,6 +184,136 @@ func TestDetectContradictions_NotConfigured(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+// TestDetectContradictions_PaginatesAndUsesEdges covers emergent.strategy#45/#46:
+// DetectContradictions must (a) paginate ListObjects so instances with >200
+// objects are fully scanned, and (b) determine connectivity via the per-object
+// /edges endpoint — NOT the graph expand endpoint, which does not surface the
+// relationships reliably. Even-indexed objects have edges (connected);
+// odd-indexed have none (orphaned).
+func TestDetectContradictions_PaginatesAndUsesEdges(t *testing.T) {
+	const total = 130 // spans multiple pages at pageSize 60
+
+	makeObj := func(i int) map[string]any {
+		return map[string]any{"id": "obj-" + itoa(i), "type": "feature", "key": "fd-" + itoa(i)}
+	}
+
+	edgeCalls := 0
+	expandCalled := false
+
+	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
+			if r.URL.Query().Get("label") != "layer:artifact" {
+				t.Errorf("expected label=layer:artifact filter, got %q", r.URL.Query().Get("label"))
+			}
+			const pageSize = 60
+			start := 0
+			if c := r.URL.Query().Get("cursor"); c != "" {
+				start = atoi(c)
+			}
+			end := start + pageSize
+			if end > total {
+				end = total
+			}
+			items := make([]map[string]any, 0, end-start)
+			for i := start; i < end; i++ {
+				items = append(items, makeObj(i))
+			}
+			resp := map[string]any{"items": items, "total": total}
+			if end < total {
+				resp["next_cursor"] = itoa(end)
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case strings.HasSuffix(r.URL.Path, "/edges") && r.Method == http.MethodGet:
+			edgeCalls++
+			// Path: /api/graph/objects/obj-<i>/edges
+			id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/graph/objects/"), "/edges")
+			idx := atoi(strings.TrimPrefix(id, "obj-"))
+			resp := map[string]any{"incoming": []any{}, "outgoing": []any{}}
+			if idx%2 == 0 { // even = connected
+				resp["outgoing"] = []map[string]any{
+					{"id": "rel-" + id, "type": "enables", "src_id": id, "dst_id": "other"},
+				}
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case r.URL.Path == "/api/graph/expand":
+			expandCalled = true
+			w.WriteHeader(500) // must not be used
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+
+	got, err := svc.DetectContradictions(context.Background(), "inst-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if expandCalled {
+		t.Fatal("detect must not use the expand endpoint (it does not surface edges reliably)")
+	}
+	if edgeCalls != total {
+		t.Fatalf("expected an edges call per object (%d), got %d", total, edgeCalls)
+	}
+	wantOrphans := total / 2 // odd-indexed
+	if len(got) != wantOrphans {
+		t.Fatalf("expected %d orphaned contradictions, got %d", wantOrphans, len(got))
+	}
+}
+
+// TestDetectContradictions_ScopesToArtifactLayer verifies that orphan detection
+// only scans the artifact layer (label=layer:artifact) and never includes
+// decomposed sub-objects, which would otherwise flood the result with false
+// positives (emergent.strategy#46).
+func TestDetectContradictions_ScopesToArtifactLayer(t *testing.T) {
+	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
+			if label := r.URL.Query().Get("label"); label != "layer:artifact" {
+				t.Fatalf("contradiction scan must filter to layer:artifact; got label=%q", label)
+			}
+			resp := map[string]any{
+				"items": []map[string]any{
+					{"id": "art-feature", "type": "feature", "key": "fd-001"},
+					{"id": "art-orphan", "type": "north_star", "key": "north_star"},
+				},
+				"total": 2,
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case strings.HasSuffix(r.URL.Path, "/edges") && r.Method == http.MethodGet:
+			// art-feature is connected; art-orphan has no edges.
+			if strings.Contains(r.URL.Path, "art-feature") {
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"incoming": []any{},
+					"outgoing": []map[string]any{{"id": "rel-1", "type": "contributes_to", "src_id": "art-feature", "dst_id": "art-other"}},
+				})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"incoming": []any{}, "outgoing": []any{}})
+
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+
+	got, err := svc.DetectContradictions(context.Background(), "inst-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected exactly 1 orphan (north_star), got %d: %+v", len(got), got)
+	}
+	if !strings.Contains(got[0].Description, "north_star") {
+		t.Errorf("expected the orphan to be north_star, got %q", got[0].Description)
+	}
+}
+
+// itoa/atoi are tiny helpers to avoid importing strconv at call sites in tests.
+func itoa(i int) string { return strconv.Itoa(i) }
+func atoi(s string) int { n, _ := strconv.Atoi(s); return n }
 
 func TestRunScenario_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})

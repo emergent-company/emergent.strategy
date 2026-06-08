@@ -106,6 +106,10 @@ type ListObjectsOptions struct {
 	Type   string
 	Key    string
 	Status string
+	// Label filters to objects carrying the given label, e.g. "layer:artifact"
+	// to restrict to the top-level artifact layer (excluding decomposed
+	// sub-objects).
+	Label  string
 	Cursor string
 	Limit  int
 }
@@ -121,6 +125,9 @@ func (c *Client) ListObjects(ctx context.Context, opts ListObjectsOptions) (*Lis
 	}
 	if opts.Status != "" {
 		params.Set("status", opts.Status)
+	}
+	if opts.Label != "" {
+		params.Set("label", opts.Label)
 	}
 	if opts.Cursor != "" {
 		params.Set("cursor", opts.Cursor)
