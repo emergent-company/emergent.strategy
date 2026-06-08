@@ -2,5 +2,6 @@ go 1.26.1
 
 use (
 	./apps/epf-cli
+	./apps/orchestrator
 	./apps/strategy-server
 )
