@@ -1,0 +1,21 @@
+name: draft-opportunity
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial Insight Opportunity artifact. Requires insight_analyses. Reads north_star and evidence. Synthesises the single biggest strategic opportunity from analyses and evidence."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - insight_analyses
+  optional:
+    - north_star
+
+output:
+  format: json
+  artifact_types:
+    - insight_opportunity

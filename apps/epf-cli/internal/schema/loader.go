@@ -48,6 +48,9 @@ const (
 	ArtifactTrackHealthAssessment   ArtifactType = "track_health_assessment"
 	ArtifactLivingRealityAssessment ArtifactType = "living_reality_assessment"
 	ArtifactAimTriggerConfig        ArtifactType = "aim_trigger_config"
+
+	// Execution layer (cross-track, cross-phase)
+	ArtifactWorkPackage ArtifactType = "work_package"
 )
 
 // Phase represents an EPF phase
@@ -117,6 +120,9 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)track[_-]health[_-]assessment\.ya?ml$`), ArtifactTrackHealthAssessment, "", "Track Health Assessment"},
 	{regexp.MustCompile(`(?i)living[_-]reality[_-]assessment\.ya?ml$`), ArtifactLivingRealityAssessment, "", "Living Reality Assessment - Persistent baseline"},
 	{regexp.MustCompile(`(?i)aim[_-]trigger[_-]config\.ya?ml$`), ArtifactAimTriggerConfig, "", "AIM Trigger Configuration"},
+
+	// Execution layer — work packages live in work_packages/wp-*.yaml (cross-track, cross-phase)
+	{regexp.MustCompile(`(?i)work_packages?/wp-[^/]*\.ya?ml$`), ArtifactWorkPackage, "", "Work Package - Bounded execution unit (SOW contract)"},
 }
 
 // schemaFileMapping maps artifact types to schema filenames
@@ -143,6 +149,7 @@ var schemaFileMapping = map[ArtifactType]string{
 	ArtifactTrackHealthAssessment:   "track_health_assessment_schema.json",
 	ArtifactLivingRealityAssessment: "living_reality_assessment_schema.json",
 	ArtifactAimTriggerConfig:        "aim_trigger_config_schema.json",
+	ArtifactWorkPackage:             "work_package_schema.json",
 }
 
 // NewLoader creates a new schema loader

@@ -1,0 +1,21 @@
+name: draft-foundations
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial Strategy Foundations artifact. Requires north_star. Reads insight_analyses and evidence. Produces strategy_foundations covering product vision, value proposition, sequencing logic, and principles."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - north_star
+  optional:
+    - insight_analyses
+
+output:
+  format: json
+  artifact_types:
+    - strategy_foundations

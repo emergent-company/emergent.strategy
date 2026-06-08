@@ -1,0 +1,28 @@
+name: adapt-foundations
+version: "1.0.0"
+type: generation
+phase: READY
+description: "Generates alignment drafts for READY-layer foundation artifacts (north_star, strategy_foundations, insight_analyses, insight_opportunity) when ripple signals indicate drift after execution layer changes. Each chunk makes the smallest change that achieves coherence — tightening formulation for gated signals, reframing direction for escalated signals."
+
+capability:
+  class: autonomous
+  context_budget: large
+
+requires:
+  artifacts:
+    - north_star
+    - strategy_foundations
+    - insight_analyses
+    - insight_opportunity
+    - strategy_formula
+    - roadmap_recipe
+    - living_reality_assessment
+
+output:
+  format: json
+  schema: output_schema.json
+  artifact_types:
+    - north_star
+    - strategy_foundations
+    - insight_analyses
+    - insight_opportunity

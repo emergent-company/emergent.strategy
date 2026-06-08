@@ -1,0 +1,90 @@
+# Adapt Strategy — Chunk 1: strategy_formula
+
+You are the Emergent Strategy adaptation engine. Write a complete replacement
+`strategy_formula` artifact based on the calibration decision below.
+
+**Instance ID:** {{.InstanceID}}
+**Calibration Decision:** {{.Decision}}
+
+## Calibration Memo
+```json
+{{toJSON (index .Artifacts "calibration_memo")}}
+```
+
+## Assessment Summary
+```json
+{{.AssessmentSummary}}
+```
+
+## Current strategy_formula (replace this)
+```json
+{{toJSON (index .Artifacts "strategy_formula")}}
+```
+
+---
+
+## Decision-Specific Instructions
+
+{{if eq .Decision "pivot"}}
+The assessment evidence shows the current strategy direction is not working. You must:
+- Identify strategic bets inconsistent with the evidence; replace them with new bets aligned to the calibration memo reasoning
+- Revise OKRs to reflect the updated bets; adjust targets based on actual hit rates from the assessment
+- Add a `calibration_note` field to each revised OKR explaining the change
+- Preserve bets and OKRs that showed positive evidence
+- Lower `confidence_level` to reflect increased uncertainty from the pivot
+{{end}}
+
+{{if eq .Decision "persevere"}}
+The evidence supports continuing the current direction. You must:
+- Advance OKR targets incrementally based on achieved progress from the assessment
+- Mark validated bets with `validated: true` and add evidence notes
+- Add a `calibration_note` to each updated OKR reflecting the evidence
+{{end}}
+
+{{if eq .Decision "pull_the_plug"}}
+The strategy is fundamentally unviable. You must:
+- Add `review_flag: true` to the north_star section
+- Mark active OKRs as "discontinued" with a `calibration_note` explaining why
+- Preserve the historical record — do not delete, only deprecate
+{{end}}
+
+---
+
+## Output Format
+
+Respond with a single valid JSON object. The `strategy_formula` key uses a **double-envelope**
+structure: the outer key is the routing envelope, and the inner `strategy_formula` key is
+part of the artifact payload format. Both levels are required — do NOT flatten fields to the root.
+
+```json
+{
+  "strategy_formula": {
+    "strategy_formula": {
+      "version": "1.0.0",
+      "confidence_level": "medium",
+      "strategic_bets": [ { "id": "bet-1", "description": "...", "validated": false } ],
+      "okrs": [ { "id": "okr-1", "objective": "...", "key_results": ["..."], "calibration_note": "..." } ],
+      "riskiest_assumptions": [ { "id": "asm-s-001", "description": "...", "criticality": "high", "confidence": "low" } ]
+    }
+  },
+  "change_summary": "- bullet 1\n- bullet 2"
+}
+```
+
+IMPORTANT: The outer `strategy_formula` key is the routing envelope. The inner
+`strategy_formula` key is part of the artifact payload format. Both are required.
+Do not flatten the fields to the root level.
+
+`change_summary` is a short human-readable summary (2-4 bullet points, each max 120 chars)
+listing what you changed and why. Use "- " prefixed lines. Example:
+"- Replaced bet-2 (market expansion) with bet-2 (vertical deepening) based on pivot decision\n- Lowered OKR targets by 20% to reflect assessment hit rate\n- Added calibration_note to 3 revised OKRs"
+
+`strategy_formula` (inner) is a FULL REPLACEMENT payload — include every field from the
+current version, modified where needed. Do not omit preserved fields.
+
+**Rules:**
+1. Preserve existing IDs wherever the underlying element is not being replaced.
+2. Do not include any text outside the JSON object. No markdown fences, no explanation.
+3. The constraints below are machine-enforced — violations cause rejection.
+
+{{schemaConstraints "strategy_formula"}}

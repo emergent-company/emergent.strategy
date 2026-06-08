@@ -112,6 +112,13 @@ func TestDetectArtifactType(t *testing.T) {
 		{"living_reality_assessment.yaml", ArtifactLivingRealityAssessment, false},
 		{"aim_trigger_config.yaml", ArtifactAimTriggerConfig, false},
 
+		// Work packages (execution layer, cross-track)
+		{"work_packages/wp-001.yaml", ArtifactWorkPackage, false},
+		{"work_packages/wp-042_csv_import.yaml", ArtifactWorkPackage, false},
+		{"instance/work_packages/wp-1024.yml", ArtifactWorkPackage, false},
+		{"work_packages/notes.yaml", "", true}, // missing wp- prefix
+		{".github/workflows/release.yaml", "", true}, // workflows != work_packages
+
 		// Unknown files (should NOT match any EPF type)
 		{"random_file.yaml", "", true},
 		{"READY/unknown.yaml", "", true},

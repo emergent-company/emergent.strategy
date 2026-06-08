@@ -1,0 +1,23 @@
+name: draft-assessment
+version: "1.0.0"
+type: generation
+phase: AIM
+execution: prompt
+description: "Generates a complete assessment_report artifact for the AIM Assess step. Receives pre-computed OKR skeleton, prior actuals, assumption validations, strategic insights, and LRA context as parameters. Uses schemaConstraints for field validation."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - roadmap_recipe
+  optional:
+    - living_reality_assessment
+    - assessment_report
+
+output:
+  format: json
+  schema: output_schema.json
+  artifact_types:
+    - assessment_report

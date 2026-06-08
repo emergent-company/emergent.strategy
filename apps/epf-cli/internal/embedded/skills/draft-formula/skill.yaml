@@ -1,0 +1,23 @@
+name: draft-formula
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial Strategy Formula artifact. Requires north_star and strategy_foundations. Reads insight_opportunity and evidence. Produces strategy_formula covering positioning, moat, value creation levers, and business model."
+
+capability:
+  class: balanced
+  context_budget: medium
+
+requires:
+  artifacts:
+    - north_star
+    - strategy_foundations
+  optional:
+    - insight_opportunity
+    - insight_analyses
+
+output:
+  format: json
+  artifact_types:
+    - strategy_formula

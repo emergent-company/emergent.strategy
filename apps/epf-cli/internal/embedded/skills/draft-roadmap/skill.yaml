@@ -1,0 +1,23 @@
+name: draft-roadmap
+version: "1.0.0"
+type: creation
+phase: READY
+execution: prompt
+description: "Generates an initial Roadmap Recipe artifact. Requires strategy_formula and strategy_foundations. Produces roadmap_recipe with a first cycle covering product, commercial, strategy, and org_ops OKRs derived from the strategy bets."
+
+capability:
+  class: balanced
+  context_budget: large
+
+requires:
+  artifacts:
+    - strategy_formula
+    - strategy_foundations
+  optional:
+    - north_star
+    - insight_opportunity
+
+output:
+  format: json
+  artifact_types:
+    - roadmap_recipe
