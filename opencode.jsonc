@@ -28,8 +28,8 @@
       "timeout": 60000,
     },
   },
-  "tools": {
-    "todowrite": true,
-    "webfetch": true,
+  "permission": {
+    "webfetch": "allow",
+    "websearch": "allow",
   },
 }
