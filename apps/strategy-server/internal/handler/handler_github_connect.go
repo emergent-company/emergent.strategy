@@ -335,14 +335,6 @@ func (s *Server) loadUserGithubToken(ctx context.Context, userID uuid.UUID) stri
 	return token
 }
 
-func (s *Server) loadGithubUserLogin(ctx context.Context, userID uuid.UUID) string {
-	// For now return empty — we could store the login alongside the token in a follow-up.
-	// The UI handles empty string gracefully (doesn't show the "Connected as" badge).
-	_ = ctx
-	_ = userID
-	return ""
-}
-
 // annotateConnectedInstances queries the DB for existing strategy instances linked
 // to any of the scanned repos and annotates matching GithubDetectedInstance entries.
 // A single query loads all instances; matching is done in-memory by repo+basePath key.
@@ -411,7 +403,7 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 		_ = s.db.NewSelect().
 			TableExpr("github_sync_log").
 			ColumnExpr("instance_id::text, MAX(created_at) AS last_sync").
-			Where("instance_id IN (?)", bun.In(instanceIDs)).
+			Where("instance_id IN (?)", bun.List(instanceIDs)).
 			GroupExpr("instance_id").
 			Scan(ctx, &syncRows)
 		// Build id→lastSync map and update lookup entries.

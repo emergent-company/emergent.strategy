@@ -3,8 +3,8 @@ package handler
 import (
 	"context"
 	"net/http"
-	gosync "sync"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"github.com/emergent-company/go-daisy/render"
@@ -13,8 +13,8 @@ import (
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
-	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"

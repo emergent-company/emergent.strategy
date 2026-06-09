@@ -181,7 +181,11 @@ func (env *testEnv) request(t *testing.T, method, path string, headers map[strin
 	rec := newResponseRecorder()
 	env.Echo.ServeHTTP(rec, req)
 
-	return rec.Result()
+	resp := rec.Result()
+	// Close the synthesized response body at test end so callers don't each
+	// have to (satisfies bodyclose; the body is an in-memory reader).
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	return resp
 }
 
 // responseRecorder wraps http.ResponseWriter to capture status, headers, and body.
@@ -198,8 +202,8 @@ func newResponseRecorder() *responseRecorder {
 	}
 }
 
-func (r *responseRecorder) Header() http.Header       { return r.header }
-func (r *responseRecorder) WriteHeader(code int)       { r.statusCode = code }
+func (r *responseRecorder) Header() http.Header  { return r.header }
+func (r *responseRecorder) WriteHeader(code int) { r.statusCode = code }
 func (r *responseRecorder) Write(b []byte) (int, error) {
 	if r.statusCode == 0 {
 		r.statusCode = 200

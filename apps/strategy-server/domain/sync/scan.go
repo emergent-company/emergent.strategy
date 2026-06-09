@@ -47,16 +47,16 @@ type RepoScanResult struct {
 // Scan cache
 // ---------------------------------------------------------------------------
 
-const scanCacheTTL    = 30 * time.Minute
-const scanErrorTTL    = 60 * time.Second // minimum retry gap on non-rate-limit errors
+const scanCacheTTL = 30 * time.Minute
+const scanErrorTTL = 60 * time.Second    // minimum retry gap on non-rate-limit errors
 const scanErrorBuffer = 10 * time.Second // extra buffer added to rate limit RetryAfter
 
 type scanCacheEntry struct {
 	results   []RepoScanResult
-	scanError error      // non-nil when the last scan failed
+	scanError error // non-nil when the last scan failed
 	expiry    time.Time
-	running   bool       // true while a background scan goroutine is active
-	partial   bool       // true when results are from quick scan only (full scan pending)
+	running   bool // true while a background scan goroutine is active
+	partial   bool // true when results are from quick scan only (full scan pending)
 }
 
 // scanCache holds in-memory scan results keyed by cache key.

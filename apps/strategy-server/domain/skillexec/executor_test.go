@@ -794,9 +794,9 @@ func TestInnerKeyFor_Overrides(t *testing.T) {
 		{"strategy_formula", "strategy"},
 		{"roadmap_recipe", "roadmap"},
 		{"insight_opportunity", "opportunity"},
-		{"north_star", "north_star"},           // same
+		{"north_star", "north_star"},                     // same
 		{"strategy_foundations", "strategy_foundations"}, // same
-		{"assessment_report", "assessment_report"},      // flat schema, no override
+		{"assessment_report", "assessment_report"},       // flat schema, no override
 	}
 	for _, tc := range cases {
 		got := innerKeyFor(tc.outputKey)

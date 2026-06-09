@@ -23,7 +23,7 @@ func loadEnvLocal() {
 	if err != nil {
 		return // file doesn't exist — nothing to do
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {

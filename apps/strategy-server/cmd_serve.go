@@ -20,7 +20,6 @@ import (
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	evidencedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
-	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/heartbeat"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
@@ -35,6 +34,7 @@ import (
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
+	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
@@ -42,9 +42,9 @@ import (
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/logger"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
@@ -98,8 +98,8 @@ func runServer(cfg *config.Config) error {
 			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
 		}
 	} else {
-		log.Warn("MEMORY NOT CONFIGURED — semantic search, contradiction detection, scenarios, and graph ingestion are disabled. "+
-			"Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, and EPF_MEMORY_TOKEN in .env.local or environment. "+
+		log.Warn("MEMORY NOT CONFIGURED — semantic search, contradiction detection, scenarios, and graph ingestion are disabled. " +
+			"Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, and EPF_MEMORY_TOKEN in .env.local or environment. " +
 			"Run 'task dev-up-full' for a complete local setup.")
 	}
 
@@ -408,9 +408,9 @@ func runServer(cfg *config.Config) error {
 			Message string `json:"message,omitempty"` // human-readable detail
 		}
 		type healthResponse struct {
-			Status   string               `json:"status"`  // "ok" | "degraded"
-			Service  string               `json:"service"`
-			Systems  map[string]subsystem `json:"systems"`
+			Status  string               `json:"status"` // "ok" | "degraded"
+			Service string               `json:"service"`
+			Systems map[string]subsystem `json:"systems"`
 		}
 
 		systems := make(map[string]subsystem)

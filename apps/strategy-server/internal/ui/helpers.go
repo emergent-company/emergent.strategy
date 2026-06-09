@@ -183,14 +183,6 @@ func countDraft(instances []InstanceInfo) int {
 	return n
 }
 
-// aimSubLabel formats a "X/Y label" string for AIM sub-items.
-func aimSubLabel(count, total int, label string) string {
-	if total == 0 {
-		return ""
-	}
-	return strconv.Itoa(count) + "/" + strconv.Itoa(total) + " " + label
-}
-
 // instanceCoherenceColor returns a CSS color class based on the coherence score string.
 func instanceCoherenceColor(score string) string {
 	if score == "" {

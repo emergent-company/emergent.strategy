@@ -301,10 +301,10 @@ func (s *Server) enrichVersionDetailFromSnapshot(ctx context.Context, ver *domai
 	}
 	if calibPayload != nil {
 		var calib struct {
-			Decision                  string  `json:"decision"`
-			Reasoning                 string  `json:"reasoning"`
-			OKRHitRatePct             float64 `json:"okr_hit_rate_pct"`
-			InvalidatedAssumptionCount int    `json:"invalidated_assumption_count"`
+			Decision                   string  `json:"decision"`
+			Reasoning                  string  `json:"reasoning"`
+			OKRHitRatePct              float64 `json:"okr_hit_rate_pct"`
+			InvalidatedAssumptionCount int     `json:"invalidated_assumption_count"`
 		}
 		if err := json.Unmarshal(calibPayload, &calib); err == nil && calib.Decision != "" {
 			data.CalibrationDecision = calib.Decision

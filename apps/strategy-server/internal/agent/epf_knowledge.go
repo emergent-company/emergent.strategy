@@ -16,10 +16,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 )
 
-// epfFrameworkTopics holds the EPF framework topics loaded from embedded docs.
-// Populated by init() below and appended to KnowledgeBase.
-var epfFrameworkTopics []TopicEntry
-
 func init() {
 	topics, err := loadEPFFrameworkTopics()
 	if err != nil {

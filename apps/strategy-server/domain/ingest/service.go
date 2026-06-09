@@ -209,10 +209,10 @@ func (s *Service) RepairMemoryDrift(ctx context.Context) {
 	// Find instances that were synced before the memory server last started.
 	// Those instances' graphs were wiped by the restart.
 	type row struct {
-		ID             uuid.UUID  `bun:"id"`
-		Name           string     `bun:"name"`
-		LastSyncedAt   *time.Time `bun:"memory_last_synced_at"`
-		ObjectCount    *int       `bun:"memory_object_count"`
+		ID           uuid.UUID  `bun:"id"`
+		Name         string     `bun:"name"`
+		LastSyncedAt *time.Time `bun:"memory_last_synced_at"`
+		ObjectCount  *int       `bun:"memory_object_count"`
 	}
 	var stale []row
 	err = s.db.NewSelect().

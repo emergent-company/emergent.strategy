@@ -257,8 +257,6 @@ func extractNorthStarOrg(payloads map[string]any) string {
 	return ""
 }
 
-
-
 // ingestDecomposed runs the epf-cli decomposer on the instance directory and
 // upserts the resulting graph objects and relationships into Memory.
 // This produces a fine-grained graph (beliefs, trends, personas, capabilities,

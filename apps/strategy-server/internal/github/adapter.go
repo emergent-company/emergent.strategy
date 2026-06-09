@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	gosync "sync"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"

@@ -114,8 +114,8 @@ func DefaultRippleConfig() RippleConfig {
 		CascadeEscalationDepth: 2,
 		CascadeMaxDepth:        3,
 		SkillCooldowns: map[string]int{
-			"adapt-foundations": 300,  // 5 minutes
-			"adapt-strategy":    600,  // 10 minutes
+			"adapt-foundations": 300, // 5 minutes
+			"adapt-strategy":    600, // 10 minutes
 		},
 	}
 }

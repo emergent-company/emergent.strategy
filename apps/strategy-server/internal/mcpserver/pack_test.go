@@ -1034,7 +1034,6 @@ func TestMCP_ScaffoldSkill_ScriptMode(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // I.22 — scaffold_skill → install_pack → get_installed_skill round-trip
 // ---------------------------------------------------------------------------

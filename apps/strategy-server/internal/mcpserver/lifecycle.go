@@ -26,21 +26,21 @@ type LifecycleMode struct {
 
 // LifecycleSignals are the raw data used to determine lifecycle mode.
 type LifecycleSignals struct {
-	ArtifactCount     int      `json:"artifact_count"`
-	FeatureCount      int      `json:"feature_count"`
-	VersionCount      int      `json:"version_count"`
-	HasNorthStar      bool     `json:"has_north_star"`
-	HasFoundations    bool     `json:"has_foundations"`
-	HasInsightAnalyses   bool  `json:"has_insight_analyses"`
-	HasInsightOpportunity bool `json:"has_insight_opportunity"`
-	HasFormula        bool     `json:"has_formula"`
-	HasRoadmap        bool     `json:"has_roadmap"`
-	HasValueModel     bool     `json:"has_value_model"`
-	EvidenceCount     int      `json:"evidence_count"`
-	MissingFoundation []string `json:"missing_foundation,omitempty"`
-	InstanceStatus    string   `json:"instance_status"`
-	DaysSinceCreation int      `json:"days_since_creation"`
-	DaysSinceUpdate   int      `json:"days_since_last_update"`
+	ArtifactCount         int      `json:"artifact_count"`
+	FeatureCount          int      `json:"feature_count"`
+	VersionCount          int      `json:"version_count"`
+	HasNorthStar          bool     `json:"has_north_star"`
+	HasFoundations        bool     `json:"has_foundations"`
+	HasInsightAnalyses    bool     `json:"has_insight_analyses"`
+	HasInsightOpportunity bool     `json:"has_insight_opportunity"`
+	HasFormula            bool     `json:"has_formula"`
+	HasRoadmap            bool     `json:"has_roadmap"`
+	HasValueModel         bool     `json:"has_value_model"`
+	EvidenceCount         int      `json:"evidence_count"`
+	MissingFoundation     []string `json:"missing_foundation,omitempty"`
+	InstanceStatus        string   `json:"instance_status"`
+	DaysSinceCreation     int      `json:"days_since_creation"`
+	DaysSinceUpdate       int      `json:"days_since_last_update"`
 
 	// Semantic signals — populated when Memory graph is available.
 	SemanticAvailable bool             `json:"semantic_available"`

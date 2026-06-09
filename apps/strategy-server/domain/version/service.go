@@ -82,8 +82,8 @@ type DiffResult struct {
 
 // DiffArtifact identifies an artifact in a diff with optional change details.
 type DiffArtifact struct {
-	ArtifactKey    string   `json:"artifact_key"`
-	ChangeDetails  []string `json:"change_details,omitempty"` // human-readable field-level changes
+	ArtifactKey   string   `json:"artifact_key"`
+	ChangeDetails []string `json:"change_details,omitempty"` // human-readable field-level changes
 }
 
 // ---------------------------------------------------------------------------
@@ -716,7 +716,7 @@ func diffCalibrationMemo(from, to map[string]any) []string {
 		details = append(details, fmt.Sprintf("Decision: %s", toDec))
 	}
 	if toRate, ok := to["okr_hit_rate_pct"]; ok {
-		fromRate, _ := from["okr_hit_rate_pct"]
+		fromRate := from["okr_hit_rate_pct"]
 		if fmt.Sprint(toRate) != fmt.Sprint(fromRate) {
 			details = append(details, fmt.Sprintf("OKR hit rate: %v%%", toRate))
 		}

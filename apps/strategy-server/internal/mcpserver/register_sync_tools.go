@@ -153,10 +153,10 @@ func registerListGithubInstallationsTool(s *server.MCPServer, svc Services) {
 			})
 		}
 		return mustJSON(map[string]any{
-			"app_configured":    true,
-			"installations":     installs,
-			"total":             len(installs),
-			"app_install_url":   svc.GithubAppInstallURL,
+			"app_configured":  true,
+			"installations":   installs,
+			"total":           len(installs),
+			"app_install_url": svc.GithubAppInstallURL,
 		})
 	})
 }
@@ -183,9 +183,9 @@ func registerScanGithubReposTool(s *server.MCPServer, svc Services) {
 			}
 		}
 		return mustJSON(map[string]any{
-			"github_owner":  owner,
-			"repos":         repos,
-			"total":         len(repos),
+			"github_owner":   owner,
+			"repos":          repos,
+			"total":          len(repos),
 			"repos_with_epf": epfCount,
 		})
 	})

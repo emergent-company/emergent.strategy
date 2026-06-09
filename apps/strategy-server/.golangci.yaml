@@ -22,29 +22,40 @@ linters:
     - gocyclo
     - gocognit
 
+  settings:
+    errcheck:
+      check-type-assertions: true
+    gocyclo:
+      min-complexity: 40 # High threshold — advisory only.
+    gocognit:
+      min-complexity: 60 # High threshold — advisory only. Large domain
+        # functions are inherently complex. Lower this only
+        # if you have the bandwidth to refactor.
+    misspell:
+      # Norwegian i18n strings and a legitimate "strat" abbreviation trip the
+      # US-English dictionary. These are not misspellings.
+      ignore-rules:
+        - strat
+        - strategis
+        - strategisk
+        - publiser
+
   exclusions:
+    paths:
+      - openspec
+      - docs
+      - vendor
+      - internal/embedded
     rules:
       # Test files: errcheck false-positives on defer cleanup are acceptable.
+      # bodyclose: test HTTP responses use in-memory bodies and are closed via
+      # t.Cleanup in shared helpers, which the linter's local analysis can't see.
       - path: _test\.go
         linters:
           - errcheck
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-  gocyclo:
-    min-complexity: 40    # High threshold — advisory only.
-  gocognit:
-    min-complexity: 60    # High threshold — advisory only. Large domain
-                          # functions are inherently complex. Lower this only
-                          # if you have the bandwidth to refactor.
+          - bodyclose
 
 issues:
   # Stop after this many issues so output is readable.
   max-issues-per-linter: 50
   max-same-issues: 10
-  exclude-dirs:
-    - openspec
-    - docs
-    - vendor
-    - internal/embedded

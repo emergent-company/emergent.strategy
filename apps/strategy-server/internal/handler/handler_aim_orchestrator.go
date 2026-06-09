@@ -391,15 +391,15 @@ func (s *Server) buildRunPanelData(ctx context.Context, instanceID string, run *
 		}
 
 		stepRows[i] = ui.AimRunStepRow{
-			Name:            sl.Name,
-			Status:          sl.Status,
-			BatchID:         sl.BatchID,
-			Error:           sl.Error,
-			LLMUsed:         llmUsed,
-			TotalTokens:     inputTokens + outputTokens,
-			DurationSec:     durationSec,
-			ArtifactTypes:   artifactTypes,
-			ArtifactLinks:   artifactLinks,
+			Name:          sl.Name,
+			Status:        sl.Status,
+			BatchID:       sl.BatchID,
+			Error:         sl.Error,
+			LLMUsed:       llmUsed,
+			TotalTokens:   inputTokens + outputTokens,
+			DurationSec:   durationSec,
+			ArtifactTypes: artifactTypes,
+			ArtifactLinks: artifactLinks,
 
 			AutoAdvanced:       autoAdvanced,
 			AutoAdvancedReason: autoAdvancedReason,

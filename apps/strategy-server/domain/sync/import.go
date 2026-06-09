@@ -80,7 +80,7 @@ type UserRepoInfo struct {
 // RepoCommitInfo holds summary information about the HEAD commit of a repository.
 type RepoCommitInfo struct {
 	SHA        string
-	Message    string    // first line only
+	Message    string // first line only
 	AuthorName string
 	AuthoredAt time.Time
 }
@@ -177,13 +177,13 @@ type ImportParams struct {
 
 // ImportResult is the outcome of an import operation.
 type ImportResult struct {
-	Status         string    `json:"status"` // "imported", "already_in_sync", "server_ahead", "safety_pr_created"
-	Recommendation string    `json:"recommendation,omitempty"`
-	TargetBranch   string    `json:"target_branch"`
-	ArtifactCount  int       `json:"artifact_count"`
-	SafetyPRURL        string `json:"safety_pr_url,omitempty"`
-	SnapshotVersionID  string `json:"snapshot_version_id,omitempty"` // auto-published before overwrite
-	SyncState      SyncState `json:"sync_state"`
+	Status            string    `json:"status"` // "imported", "already_in_sync", "server_ahead", "safety_pr_created"
+	Recommendation    string    `json:"recommendation,omitempty"`
+	TargetBranch      string    `json:"target_branch"`
+	ArtifactCount     int       `json:"artifact_count"`
+	SafetyPRURL       string    `json:"safety_pr_url,omitempty"`
+	SnapshotVersionID string    `json:"snapshot_version_id,omitempty"` // auto-published before overwrite
+	SyncState         SyncState `json:"sync_state"`
 }
 
 // ---------------------------------------------------------------------------

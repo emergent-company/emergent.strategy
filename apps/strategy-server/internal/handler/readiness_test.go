@@ -89,12 +89,12 @@ func TestComputeReadyReadiness_PartialArtifacts(t *testing.T) {
 func TestComputeReadyReadiness_ReadinessThreshold(t *testing.T) {
 	// 5 artifacts + evidence → should be just under 80
 	data := ui.ReadyPhaseData{
-		NorthStarExists:  true,
-		InsightExists:    true,
+		NorthStarExists:   true,
+		InsightExists:     true,
 		OpportunityExists: true,
-		FoundationExists: true,
-		FormulaExists:    true,
-		EvidenceCount:    2,
+		FoundationExists:  true,
+		FormulaExists:     true,
+		EvidenceCount:     2,
 	}
 	score, _, _ := computeReadyReadiness(data)
 	// 5×14 + 8 + 8 = 86 — above 80

@@ -214,7 +214,7 @@ func (e *Executor) Run(ctx context.Context, instanceID uuid.UUID, skillName stri
 		result, err := e.stageSkeleton(ctx, instanceID, batchID, batchDesc, bundle)
 		if e.runLedger != nil && runID != uuid.Nil {
 			if err != nil {
-				e.runLedger.Fail(ctx, runID, err.Error())
+				_ = e.runLedger.Fail(ctx, runID, err.Error())
 			} else {
 				_ = e.runLedger.Complete(ctx, runID, result.BatchID)
 			}
@@ -244,7 +244,7 @@ func (e *Executor) Run(ctx context.Context, instanceID uuid.UUID, skillName stri
 				InputTokens:  callResult.InputTokens,
 				OutputTokens: callResult.OutputTokens,
 			})
-			e.runLedger.Fail(ctx, runID, llmErr.Error())
+			_ = e.runLedger.Fail(ctx, runID, llmErr.Error())
 		}
 		return SkillResult{
 			RunID:        runID,
@@ -266,7 +266,7 @@ func (e *Executor) Run(ctx context.Context, instanceID uuid.UUID, skillName stri
 				InputTokens:  callResult.InputTokens,
 				OutputTokens: callResult.OutputTokens,
 			})
-			e.runLedger.Fail(ctx, runID, err.Error())
+			_ = e.runLedger.Fail(ctx, runID, err.Error())
 		}
 		return SkillResult{
 			RunID:        runID,
@@ -1722,7 +1722,7 @@ func fixMaxItemsViolations(artifact any, errs []string) int {
 			continue
 		}
 
-		var current any = artifact
+		current := artifact
 		var parentMap map[string]any
 		var lastKey string
 		for _, seg := range segments {

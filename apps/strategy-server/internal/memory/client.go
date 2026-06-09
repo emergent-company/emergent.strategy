@@ -107,7 +107,7 @@ func isTransient(err error) bool {
 	if errors.As(err, &apiErr) {
 		switch apiErr.StatusCode {
 		case http.StatusTooManyRequests, // 429
-			http.StatusBadGateway,        // 502
+			http.StatusBadGateway,         // 502
 			http.StatusServiceUnavailable, // 503
 			http.StatusGatewayTimeout:     // 504
 			return true

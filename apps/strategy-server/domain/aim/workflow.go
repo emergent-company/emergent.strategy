@@ -67,12 +67,12 @@ func (w *CycleWorkflow) ConcurrencyKey(run *orchestration.Run) string {
 
 // Steps returns the six ordered steps of an AIM cycle.
 //
-//	1. draft_assessment  → human reviews assessment report
-//	2. draft_calibration → human reviews calibration memo + decision
-//	3. adapt_strategy    → human reviews execution-layer rewrites
-//	4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
-//	5. align_portfolio   → deterministic value model activation (auto-commits, no human gate)
-//	6. snapshot_cycle    → auto-publishes version snapshot
+//  1. draft_assessment  → human reviews assessment report
+//  2. draft_calibration → human reviews calibration memo + decision
+//  3. adapt_strategy    → human reviews execution-layer rewrites
+//  4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
+//  5. align_portfolio   → deterministic value model activation (auto-commits, no human gate)
+//  6. snapshot_cycle    → auto-publishes version snapshot
 func (w *CycleWorkflow) Steps() []orchestration.Step {
 	return []orchestration.Step{
 		{
@@ -276,8 +276,9 @@ func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestrati
 	result, err := w.aligner.AlignPortfolio(ctx, instanceID)
 	if err != nil {
 		// Alignment failures are non-fatal: log and continue to snapshot_cycle.
-		// The next heartbeat consistency check will correct any drift.
-		return orchestration.StepResult{
+		// The next heartbeat consistency check will correct any drift. The error
+		// is captured in Meta rather than returned, by design.
+		return orchestration.StepResult{ //nolint:nilerr
 			Meta: map[string]any{
 				"error":   err.Error(),
 				"skipped": true,

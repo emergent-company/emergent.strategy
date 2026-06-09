@@ -20,30 +20,30 @@ import (
 
 // HealthReport is the full output of a watchdog run for one instance.
 type HealthReport struct {
-	InstanceID      uuid.UUID            `json:"instance_id"`
-	GeneratedAt     time.Time            `json:"generated_at"`
-	StaleArtifacts  []StaleArtifact      `json:"stale_artifacts"`
-	OrphanArtifacts []OrphanArtifact     `json:"orphan_artifacts"`
-	CoherenceIssues []CoherenceIssue     `json:"coherence_issues"`
-	GhostTypes      []string             `json:"ghost_types,omitempty"`
-	Summary         HealthSummary        `json:"summary"`
+	InstanceID      uuid.UUID        `json:"instance_id"`
+	GeneratedAt     time.Time        `json:"generated_at"`
+	StaleArtifacts  []StaleArtifact  `json:"stale_artifacts"`
+	OrphanArtifacts []OrphanArtifact `json:"orphan_artifacts"`
+	CoherenceIssues []CoherenceIssue `json:"coherence_issues"`
+	GhostTypes      []string         `json:"ghost_types,omitempty"`
+	Summary         HealthSummary    `json:"summary"`
 }
 
 // HealthSummary provides a quick overview of the health report.
 type HealthSummary struct {
-	StaleCount     int    `json:"stale_count"`
-	OrphanCount    int    `json:"orphan_count"`
-	IssueCount     int    `json:"issue_count"`
-	OverallStatus  string `json:"overall_status"` // "healthy" | "warning" | "critical"
+	StaleCount    int    `json:"stale_count"`
+	OrphanCount   int    `json:"orphan_count"`
+	IssueCount    int    `json:"issue_count"`
+	OverallStatus string `json:"overall_status"` // "healthy" | "warning" | "critical"
 }
 
 // StaleArtifact is an artifact whose UpdatedAt exceeds the staleness threshold.
 type StaleArtifact struct {
-	ArtifactKey  string        `json:"artifact_key"`
-	ArtifactType string        `json:"artifact_type"`
-	DaysSinceUpdate int        `json:"days_since_update"`
-	Threshold    int           `json:"threshold_days"`
-	Severity     string        `json:"severity"` // "info" | "warning"
+	ArtifactKey     string `json:"artifact_key"`
+	ArtifactType    string `json:"artifact_type"`
+	DaysSinceUpdate int    `json:"days_since_update"`
+	Threshold       int    `json:"threshold_days"`
+	Severity        string `json:"severity"` // "info" | "warning"
 }
 
 // OrphanArtifact is an artifact with zero inbound and outbound relationships.
@@ -54,7 +54,7 @@ type OrphanArtifact struct {
 
 // CoherenceIssue is a cross-phase alignment problem.
 type CoherenceIssue struct {
-	Type        string `json:"type"`        // see coherenceIssueType constants
+	Type        string `json:"type"` // see coherenceIssueType constants
 	ArtifactKey string `json:"artifact_key,omitempty"`
 	Message     string `json:"message"`
 	Severity    string `json:"severity"` // "info" | "warning" | "critical"
@@ -62,11 +62,11 @@ type CoherenceIssue struct {
 
 // Coherence issue type constants.
 const (
-	IssueUnlinkedFeature   = "unlinked_feature"    // feature without delivered_by_kr edge
-	IssueUndeliveredKR     = "undelivered_kr"       // roadmap KR without delivering feature
-	IssueUnusedComponent   = "unused_component"     // value model component active but no contributes_to
-	IssueUnsupportedTier   = "unsupported_tier"     // definition at tier>1 without OKR support
-	IssueStaleEvidence     = "stale_evidence"       // unprocessed evidence older than 30 days
+	IssueUnlinkedFeature = "unlinked_feature" // feature without delivered_by_kr edge
+	IssueUndeliveredKR   = "undelivered_kr"   // roadmap KR without delivering feature
+	IssueUnusedComponent = "unused_component" // value model component active but no contributes_to
+	IssueUnsupportedTier = "unsupported_tier" // definition at tier>1 without OKR support
+	IssueStaleEvidence   = "stale_evidence"   // unprocessed evidence older than 30 days
 )
 
 // ---------------------------------------------------------------------------
@@ -74,17 +74,17 @@ const (
 // ---------------------------------------------------------------------------
 
 var stalenessThresholds = map[string]int{
-	"north_star":             90,
-	"strategy_foundations":   90,
-	"insight_analyses":       90,
-	"insight_opportunity":    90,
-	"strategy_formula":       90,
-	"roadmap_recipe":         90,
+	"north_star":               90,
+	"strategy_foundations":     90,
+	"insight_analyses":         90,
+	"insight_opportunity":      90,
+	"strategy_formula":         90,
+	"roadmap_recipe":           90,
 	domain.ArtifactTypeFeature: 60,
-	"commercial_def":         180,
-	"org_ops_def":            180,
-	"strategy_def":           180,
-	"evidence":               30, // unprocessed evidence
+	"commercial_def":           180,
+	"org_ops_def":              180,
+	"strategy_def":             180,
+	"evidence":                 30, // unprocessed evidence
 }
 
 // ghostArtifactTypes are artifact types that exist in the phase registry but
@@ -193,12 +193,9 @@ func (s *Service) checkStaleness(artifacts []*domain.StrategyArtifact) []StaleAr
 			continue // no threshold configured → not tracked
 		}
 
-		// Special case: evidence staleness applies only to unprocessed items.
-		if a.ArtifactType == "evidence" {
-			// Check processing_status in payload; skip if processed.
-			// We check the days threshold against UpdatedAt regardless —
-			// if an evidence item was never actioned, it's stale.
-		}
+		// Note: evidence staleness applies only to unprocessed items. We check
+		// the days threshold against UpdatedAt regardless — if an evidence item
+		// was never actioned, it's stale.
 
 		daysSince := int(now.Sub(a.UpdatedAt.UTC()).Hours() / 24)
 		if daysSince > threshold {
@@ -335,9 +332,10 @@ func buildSummary(r *HealthReport) HealthSummary {
 	criticalCount := 0
 	warningCount := 0
 	for _, issue := range r.CoherenceIssues {
-		if issue.Severity == "critical" {
+		switch issue.Severity {
+		case "critical":
 			criticalCount++
-		} else if issue.Severity == "warning" {
+		case "warning":
 			warningCount++
 		}
 	}

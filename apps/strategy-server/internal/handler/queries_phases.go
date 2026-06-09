@@ -132,7 +132,7 @@ func (s *Server) loadReadyPendingBatches(ctx context.Context, instanceID string)
 		ColumnExpr("MAX(batch_description) AS batch_description").
 		Where("instance_id = ?", instanceID).
 		Where("status = ?", "staged").
-		Where("artifact_type IN (" + readyTypeList + ")").
+		Where("artifact_type IN ("+readyTypeList+")").
 		GroupExpr("batch_id").
 		OrderExpr("MIN(created_at) ASC").
 		Limit(5).
@@ -1227,9 +1227,9 @@ func (s *Server) loadAimPipelineData(ctx context.Context, instanceID string) ui.
 
 	// ── Latest version info ──
 	type versionRow struct {
-		Label      *string    `bun:"label"`
-		Published  time.Time  `bun:"published_at"`
-		Score      *string    `bun:"equilibrium_score"`
+		Label     *string   `bun:"label"`
+		Published time.Time `bun:"published_at"`
+		Score     *string   `bun:"equilibrium_score"`
 	}
 	var v versionRow
 	err := s.db.NewSelect().
@@ -1387,11 +1387,12 @@ func (s *Server) loadPipelineTimeline(ctx context.Context, instanceID string) []
 		icon := "lucide--inbox"
 		iconColor := "text-base-content/50"
 		isActive := false
-		if proposal.Status == "pending" {
+		switch proposal.Status {
+		case "pending":
 			statusLabel = "awaiting approval"
 			iconColor = "text-warning"
 			isActive = true
-		} else if proposal.Status == "approved" {
+		case "approved":
 			statusLabel = "approved"
 			iconColor = "text-success"
 		}
@@ -1511,7 +1512,7 @@ func (s *Server) loadPipelineTimeline(ctx context.Context, instanceID string) []
 //   - Each of the 6 core READY artifacts: 14 points when present (total 84)
 //   - Evidence loaded (>= 2 items): 8 points
 //   - No pending batches blocking review: 8 points
-//   Total max: 100
+//     Total max: 100
 func computeReadyReadiness(data ui.ReadyPhaseData) (int, []string, []ui.ReadinessItem) {
 	score := 0
 	var blockers []string
@@ -1675,7 +1676,7 @@ func (s *Server) computeEvidenceSufficiency(ctx context.Context, instID uuid.UUI
 		result[artType] = ui.EvidenceSufficiencyResult{
 			Sufficient:    sufficient,
 			EvidenceCount: matchCount,
-			MissingTags:  missingTags,
+			MissingTags:   missingTags,
 		}
 	}
 	return result

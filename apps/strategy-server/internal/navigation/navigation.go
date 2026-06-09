@@ -24,9 +24,9 @@ const (
 
 	// Instance-scoped screens (strategy instance)
 	ExecutionDashboard ScreenID = "execution-dashboard"
-	ActivityOverview   ScreenID = "activity-overview"   // Live cascade tracker — active runs, pending batches
-	SkillRuns          ScreenID = "skill-runs"           // Skill run history + LLM usage
-	SkillRunDetail     ScreenID = "skill-run-detail"     // Single run detail (hidden from sub-nav)
+	ActivityOverview   ScreenID = "activity-overview" // Live cascade tracker — active runs, pending batches
+	SkillRuns          ScreenID = "skill-runs"        // Skill run history + LLM usage
+	SkillRunDetail     ScreenID = "skill-run-detail"  // Single run detail (hidden from sub-nav)
 
 	// READY phase screens
 	ReadyOverview      ScreenID = "ready-overview"
@@ -49,17 +49,17 @@ const (
 	DefinitionDetail ScreenID = "definition-detail"
 
 	// AIM phase screens
-	AimOverview      ScreenID = "aim-overview"
-	LRA              ScreenID = "aim-lra"
-	AssessmentReport ScreenID = "aim-assessment"
-	Assumptions      ScreenID = "aim-assumptions"
-	Calibration      ScreenID = "aim-calibration"
-	Coherence        ScreenID = "aim-coherence"
-	AimVersions      ScreenID = "aim-versions"
-	AimProposals     ScreenID = "aim-proposals"    // Cycle proposals inbox — human approval gate
-	AimDraftReview   ScreenID = "aim-draft-review" // AI draft review — hidden from sub-nav
-	AimRunPanel      ScreenID = "aim-run-panel"    // Orchestrated cycle run panel — hidden from sub-nav
-	AimCycleRuns     ScreenID = "aim-cycle-runs"   // Cycle runs listing — visible in sub-nav
+	AimOverview          ScreenID = "aim-overview"
+	LRA                  ScreenID = "aim-lra"
+	AssessmentReport     ScreenID = "aim-assessment"
+	Assumptions          ScreenID = "aim-assumptions"
+	Calibration          ScreenID = "aim-calibration"
+	Coherence            ScreenID = "aim-coherence"
+	AimVersions          ScreenID = "aim-versions"
+	AimProposals         ScreenID = "aim-proposals"          // Cycle proposals inbox — human approval gate
+	AimDraftReview       ScreenID = "aim-draft-review"       // AI draft review — hidden from sub-nav
+	AimRunPanel          ScreenID = "aim-run-panel"          // Orchestrated cycle run panel — hidden from sub-nav
+	AimCycleRuns         ScreenID = "aim-cycle-runs"         // Cycle runs listing — visible in sub-nav
 	AimEvidence          ScreenID = "aim-evidence"           // Evidence collection and management
 	AimEvidenceInterview ScreenID = "aim-evidence-interview" // Evidence interview wizard — hidden from sub-nav
 	VersionDetail        ScreenID = "aim-version-detail"     // Single version detail — hidden from sub-nav

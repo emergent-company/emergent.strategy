@@ -598,6 +598,10 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 // foundationArtifactKeys is the set of READY-layer artifact keys that
 // adapt-foundations can update. Signals whose target_key is one of these
 // trigger the async foundation draft.
+// Only used by the deprecated postCommitRippleAnalysis stub (see above); the
+// live implementation lives in internal/pipeline/postcommit.go.
+//
+//nolint:unused
 var foundationArtifactKeys = map[string]bool{
 	"north-star":           true,
 	"north_star":           true,
@@ -613,6 +617,10 @@ var foundationArtifactKeys = map[string]bool{
 // foundation artifacts with gated or escalated authority. If so, it runs
 // adapt-foundations asynchronously, producing a staged batch for human review.
 // This function is non-blocking — it launches a goroutine and returns immediately.
+// Only used by the deprecated postCommitRippleAnalysis stub (see above); the
+// live implementation lives in internal/pipeline/postcommit.go.
+//
+//nolint:unused
 func enqueueFoundationDraft(ctx context.Context, svc Services, instanceID uuid.UUID, newSignals []*domain.RippleSignal, changedKeys []string) {
 	if svc.SkillExecutor == nil {
 		slog.WarnContext(ctx, "ripple: adapt-foundations not enqueued: skill executor unavailable",

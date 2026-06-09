@@ -348,15 +348,15 @@ func (s *Service) AssembleAssessmentParams(ctx context.Context, instanceID uuid.
 	cycle := extractStringField(roadmapPayload, "roadmap.cycle")
 
 	params := map[string]any{
-		"okr_skeleton":            okrAssessments,
-		"assumption_validations":  assumptionValidations,
-		"strategic_insights":      strategicInsights,
-		"evidence_summary":        evidenceSummary,
-		"strategic_context":       strategicContext,
-		"signal_context":          signalContext,
-		"lra_context":             lraContext,
-		"cycle":                   cycle,
-		"_trigger":                "aim_cycle",
+		"okr_skeleton":           okrAssessments,
+		"assumption_validations": assumptionValidations,
+		"strategic_insights":     strategicInsights,
+		"evidence_summary":       evidenceSummary,
+		"strategic_context":      strategicContext,
+		"signal_context":         signalContext,
+		"lra_context":            lraContext,
+		"cycle":                  cycle,
+		"_trigger":               "aim_cycle",
 	}
 
 	return params, nil
@@ -386,12 +386,12 @@ func (s *Service) AssembleCalibrationParams(ctx context.Context, instanceID uuid
 	formulaReasoning := buildReasoningSummary(decision, hitRate, total, hitCount, invalidatedCount)
 
 	params := map[string]any{
-		"decision":           decision,
-		"hit_rate_pct":       hitRate,
-		"invalidated_count":  invalidatedCount,
-		"formula_reasoning":  formulaReasoning,
-		"assessment_data":    assessmentPayload,
-		"_trigger":           "aim_cycle",
+		"decision":          decision,
+		"hit_rate_pct":      hitRate,
+		"invalidated_count": invalidatedCount,
+		"formula_reasoning": formulaReasoning,
+		"assessment_data":   assessmentPayload,
+		"_trigger":          "aim_cycle",
 	}
 
 	return params, nil

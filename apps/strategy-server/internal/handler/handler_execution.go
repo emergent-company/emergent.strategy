@@ -535,9 +535,9 @@ func (s *Server) loadStrategyLoopWidget(ctx context.Context, instanceID string, 
 // Returns "" if no calibration memo exists.
 func (s *Server) loadCalibrationTooltip(ctx context.Context, instanceID string) string {
 	var payload struct {
-		Decision    string `json:"decision"`
-		Reasoning   string `json:"reasoning"`
-		OKRHitRate  *int   `json:"okr_hit_rate_pct"`
+		Decision   string `json:"decision"`
+		Reasoning  string `json:"reasoning"`
+		OKRHitRate *int   `json:"okr_hit_rate_pct"`
 	}
 
 	var raw string
@@ -563,7 +563,7 @@ func (s *Server) loadCalibrationTooltip(ctx context.Context, instanceID string) 
 	b.WriteString("Calibration: ")
 	b.WriteString(payload.Decision)
 	if payload.OKRHitRate != nil {
-		b.WriteString(fmt.Sprintf(" · OKR hit rate: %d%%", *payload.OKRHitRate))
+		_, _ = fmt.Fprintf(&b, " · OKR hit rate: %d%%", *payload.OKRHitRate)
 	}
 	if payload.Reasoning != "" {
 		reasoning := payload.Reasoning

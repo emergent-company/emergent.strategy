@@ -24,8 +24,8 @@ import (
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	userdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
-	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
+	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -41,7 +41,7 @@ type Server struct {
 	log                 *slog.Logger
 	semanticSvc         *semantic.Service
 	rippleSvc           *ripple.Service
-	strategySvc         *strategydom.Service  // required for index derivation on batch commit
+	strategySvc         *strategydom.Service // required for index derivation on batch commit
 	versionSvc          *version.Service
 	syncSvc             *syncdom.Service      // nil when GitHub App not configured
 	userSvc             *userdom.Service      // for GitHub token storage

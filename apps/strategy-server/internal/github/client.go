@@ -432,7 +432,7 @@ func (t *tokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // Installation represents a GitHub App installation on an org or personal account.
 type Installation struct {
-	ID        int64  // installation ID (used internally to get tokens)
+	ID         int64  // installation ID (used internally to get tokens)
 	OwnerLogin string // org login or personal account login, e.g. "acme-company"
 	OwnerType  string // "Organization" or "User"
 	HTMLURL    string // link to the installation on GitHub
@@ -681,9 +681,9 @@ type DetectedInstance struct {
 
 // CommitInfo holds summary information about a single git commit.
 type CommitInfo struct {
-	SHA       string    // full 40-char SHA
-	Message   string    // first line of the commit message
-	AuthorName string   // committer display name
+	SHA        string // full 40-char SHA
+	Message    string // first line of the commit message
+	AuthorName string // committer display name
 	AuthoredAt time.Time
 }
 

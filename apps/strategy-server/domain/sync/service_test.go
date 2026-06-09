@@ -758,5 +758,3 @@ func TestGetSyncHistory_Empty(t *testing.T) {
 		t.Errorf("expected 0 logs, got %d", len(logs))
 	}
 }
-
-

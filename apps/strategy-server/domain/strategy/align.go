@@ -564,30 +564,3 @@ func alignTrack(track string, targets []krTarget, payload json.RawMessage) (Trac
 }
 
 // ── helpers for checking roadmap exists ──────────────────────────────────────
-
-// roadmapExists checks if a roadmap_recipe artifact exists for the instance.
-// Used by consistency checks and callers that want a quick existence test.
-func (s *Service) roadmapExists(ctx context.Context, instanceID uuid.UUID) bool {
-	exists, err := s.db.NewSelect().
-		TableExpr("strategy_artifacts").
-		Where("instance_id = ? AND artifact_type = ? AND status != ?",
-			instanceID, domain.ArtifactTypeRoadmap, "archived").
-		Exists(ctx)
-	if err != nil {
-		return false
-	}
-	return exists
-}
-
-// valueModelExists checks if any value_model artifact exists for the instance.
-func (s *Service) valueModelExists(ctx context.Context, instanceID uuid.UUID) bool {
-	exists, err := s.db.NewSelect().
-		TableExpr("strategy_artifacts").
-		Where("instance_id = ? AND artifact_type = ? AND status != ?",
-			instanceID, domain.ArtifactTypeValueModel, "archived").
-		Exists(ctx)
-	if err != nil {
-		return false
-	}
-	return exists
-}
