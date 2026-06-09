@@ -205,6 +205,7 @@ func (s *Server) handleDraftReview(c echo.Context) error {
 		CurrentPath: currentPath,
 		ScreenID:    "aim-draft-review",
 		TabGroup:    "aim",
+		BackRunID:   s.runIDForBatch(ctx, batchIDStr),
 	}
 
 	// Build items with inline previews — a single unified list.

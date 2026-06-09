@@ -37,7 +37,7 @@ type AimDraftReviewItem struct {
 
 // AimDraftReviewContent renders the AI draft review screen.
 templ AimDraftReviewContent(data AimDraftReviewData) {
-	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	@StepBackLink(data.NavContext)
 	<div class="space-y-6">
 		// Header card with integrated actions
 		<div class="rounded-xl border border-primary/30 bg-primary/5 px-6 py-5">

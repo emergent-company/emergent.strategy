@@ -719,6 +719,72 @@ templ TabBackLink(tabGroup string, instanceID string, currentPath string) {
 	@TabRelatedPages(tabGroup, instanceID, currentPath)
 }
 
+// isAimCycleStep reports whether a screen is an AIM cycle-step drill-down — an
+// AIM screen hidden from the sub-nav (LRA, assessment, calibration, draft
+// review, run panel, version detail, etc.). These are transient steps reached
+// from the cycle, not standing AIM destinations, so they get a single "back to
+// cycle" link rather than the full AIM sub-nav. Driven by the navigation graph
+// (TabAim + SubNavHidden) so the rule stays consistent with the graph.
+func isAimCycleStep(screenID string) bool {
+	s := navGraph.ScreenByID(strategynav.ScreenID(screenID))
+	return s != nil && s.TabGroup == strategynav.TabAim && s.SubNavHidden
+}
+
+// ContextBackLink renders the appropriate back-navigation for a screen: a single
+// "back to step progress" link for AIM cycle-step drill-downs, otherwise the
+// tab's full sub-nav bar. Used by shared empty-state/placeholder pages so an
+// empty drill-down (e.g. a calibration memo not yet created) doesn't show the
+// full section nav with nothing active.
+templ ContextBackLink(navCtx NavContext) {
+	if isAimCycleStep(navCtx.ScreenID) {
+		@StepBackLink(navCtx)
+	} else {
+		@TabBackLink(navCtx.TabGroup, navCtx.InstanceID, navCtx.CurrentPath)
+	}
+}
+
+// stepBackHref returns the destination for an AIM cycle-step drill-down's back
+// link: the producing run's step-progress screen when known, else the AIM
+// landing (which shows the cycle stepper).
+func stepBackHref(navCtx NavContext) string {
+	if navCtx.BackRunID != "" {
+		return "/strategies/" + navCtx.InstanceID + "/aim/runs/" + navCtx.BackRunID
+	}
+	return "/strategies/" + navCtx.InstanceID + "/aim"
+}
+
+// stepBackLabel returns the i18n key for the back link: "back to step progress"
+// when a specific run is the target, else "back to AIM cycle".
+func stepBackLabel(navCtx NavContext) string {
+	if navCtx.BackRunID != "" {
+		return "nav.back_to_step_progress"
+	}
+	return "nav.back_to_cycle"
+}
+
+// StepBackLink renders a single "back" link for AIM cycle-step drill-down pages
+// (LRA, assessment, calibration, draft review, run panel, version detail, etc.).
+// Unlike TabBackLink, it does NOT render the full AIM sub-nav bar — these pages
+// are transient steps reached from a cycle run, not standing AIM destinations.
+// It returns the user to the run's step-progress screen (/aim/runs/:runID) when
+// the producing run is known, otherwise to the AIM cycle steps overview (/aim).
+templ StepBackLink(navCtx NavContext) {
+	{{ href := stepBackHref(navCtx) }}
+	<div class="mb-4">
+		<a
+			href={ templ.SafeURL(href) }
+			hx-get={ string(templ.SafeURL(href)) }
+			hx-target="#tab-content"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			class="inline-flex items-center gap-1.5 px-3 py-1.5 -ml-3 rounded-lg text-sm text-base-content/75 hover:text-base-content hover:bg-base-200 transition-colors"
+		>
+			<span class="iconify size-3.5 lucide--arrow-left"></span>
+			{ langs.T(ctx, stepBackLabel(navCtx)) }
+		</a>
+	</div>
+}
+
 // --- Page Header (breadcrumbs from graph) ---
 
 // graphCrumbs builds breadcrumb steps for a screen from the navigation graph.
@@ -762,6 +828,12 @@ type NavContext struct {
 	CurrentPath string
 	ScreenID    string // navigation screen ID for graphCrumbs
 	TabGroup    string // "ready", "fire", or "aim"
+
+	// BackRunID, when set on an AIM cycle-step drill-down, makes the "back" link
+	// return to that run's step-progress screen (/aim/runs/:runID) instead of the
+	// AIM tab landing. Handlers resolve the producing run (by batch, version, or
+	// latest run for the instance); empty falls back to the AIM landing.
+	BackRunID string
 }
 
 // --- Screen ID constants (for use in templ templates) ---

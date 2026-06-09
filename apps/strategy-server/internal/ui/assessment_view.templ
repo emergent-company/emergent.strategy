@@ -55,7 +55,7 @@ type AssessmentAssumption struct {
 
 // AssessmentContent renders the bespoke Assessment Report view.
 templ AssessmentContent(data AssessmentViewData) {
-	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	@StepBackLink(data.NavContext)
 	<div class="space-y-8">
 		// ── Hero ──
 		@assessmentHero(data)

@@ -1791,6 +1791,152 @@ func TabBackLink(tabGroup string, instanceID string, currentPath string) templ.C
 	})
 }
 
+// isAimCycleStep reports whether a screen is an AIM cycle-step drill-down — an
+// AIM screen hidden from the sub-nav (LRA, assessment, calibration, draft
+// review, run panel, version detail, etc.). These are transient steps reached
+// from the cycle, not standing AIM destinations, so they get a single "back to
+// cycle" link rather than the full AIM sub-nav. Driven by the navigation graph
+// (TabAim + SubNavHidden) so the rule stays consistent with the graph.
+func isAimCycleStep(screenID string) bool {
+	s := navGraph.ScreenByID(strategynav.ScreenID(screenID))
+	return s != nil && s.TabGroup == strategynav.TabAim && s.SubNavHidden
+}
+
+// ContextBackLink renders the appropriate back-navigation for a screen: a single
+// "back to step progress" link for AIM cycle-step drill-downs, otherwise the
+// tab's full sub-nav bar. Used by shared empty-state/placeholder pages so an
+// empty drill-down (e.g. a calibration memo not yet created) doesn't show the
+// full section nav with nothing active.
+func ContextBackLink(navCtx NavContext) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var82 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var82 == nil {
+			templ_7745c5c3_Var82 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		if isAimCycleStep(navCtx.ScreenID) {
+			templ_7745c5c3_Err = StepBackLink(navCtx).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = TabBackLink(navCtx.TabGroup, navCtx.InstanceID, navCtx.CurrentPath).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		return nil
+	})
+}
+
+// stepBackHref returns the destination for an AIM cycle-step drill-down's back
+// link: the producing run's step-progress screen when known, else the AIM
+// landing (which shows the cycle stepper).
+func stepBackHref(navCtx NavContext) string {
+	if navCtx.BackRunID != "" {
+		return "/strategies/" + navCtx.InstanceID + "/aim/runs/" + navCtx.BackRunID
+	}
+	return "/strategies/" + navCtx.InstanceID + "/aim"
+}
+
+// stepBackLabel returns the i18n key for the back link: "back to step progress"
+// when a specific run is the target, else "back to AIM cycle".
+func stepBackLabel(navCtx NavContext) string {
+	if navCtx.BackRunID != "" {
+		return "nav.back_to_step_progress"
+	}
+	return "nav.back_to_cycle"
+}
+
+// StepBackLink renders a single "back" link for AIM cycle-step drill-down pages
+// (LRA, assessment, calibration, draft review, run panel, version detail, etc.).
+// Unlike TabBackLink, it does NOT render the full AIM sub-nav bar — these pages
+// are transient steps reached from a cycle run, not standing AIM destinations.
+// It returns the user to the run's step-progress screen (/aim/runs/:runID) when
+// the producing run is known, otherwise to the AIM cycle steps overview (/aim).
+func StepBackLink(navCtx NavContext) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var83 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var83 == nil {
+			templ_7745c5c3_Var83 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		href := stepBackHref(navCtx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"mb-4\"><a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var84 templ.SafeURL
+		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(href))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 775, Col: 29}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\" hx-get=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var85 string
+		templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.ResolveAttributeValue(string(templ.SafeURL(href)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 776, Col: 39}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var85)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "\" hx-target=\"#tab-content\" hx-swap=\"innerHTML\" hx-push-url=\"true\" class=\"inline-flex items-center gap-1.5 px-3 py-1.5 -ml-3 rounded-lg text-sm text-base-content/75 hover:text-base-content hover:bg-base-200 transition-colors\"><span class=\"iconify size-3.5 lucide--arrow-left\"></span> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var86 string
+		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, stepBackLabel(navCtx)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 783, Col: 40}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "</a></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
 // --- Page Header (breadcrumbs from graph) ---
 
 // graphCrumbs builds breadcrumb steps for a screen from the navigation graph.
@@ -1834,6 +1980,12 @@ type NavContext struct {
 	CurrentPath string
 	ScreenID    string // navigation screen ID for graphCrumbs
 	TabGroup    string // "ready", "fire", or "aim"
+
+	// BackRunID, when set on an AIM cycle-step drill-down, makes the "back" link
+	// return to that run's step-progress screen (/aim/runs/:runID) instead of the
+	// AIM tab landing. Handlers resolve the producing run (by batch, version, or
+	// latest run for the instance); empty falls back to the AIM landing.
+	BackRunID string
 }
 
 // --- Screen ID constants (for use in templ templates) ---
@@ -1890,12 +2042,12 @@ func InstancePhaseFullPage(title string, currentPath string, sidebarGroups []lay
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var82 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var82 == nil {
-			templ_7745c5c3_Var82 = templ.NopComponent
+		templ_7745c5c3_Var87 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var87 == nil {
+			templ_7745c5c3_Var87 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var83 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var88 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1913,7 +2065,7 @@ func InstancePhaseFullPage(title string, currentPath string, sidebarGroups []lay
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs).Render(templ.WithChildren(ctx, templ_7745c5c3_Var83), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = InstanceShellPage(title, currentPath, sidebarGroups, instanceName, tabs).Render(templ.WithChildren(ctx, templ_7745c5c3_Var88), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1939,12 +2091,12 @@ func InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var84 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var84 == nil {
-			templ_7745c5c3_Var84 = templ.NopComponent
+		templ_7745c5c3_Var89 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var89 == nil {
+			templ_7745c5c3_Var89 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var85 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var90 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -1962,7 +2114,7 @@ func InstanceChromeWithContent(instanceName string, tabs []TabProps, currentPath
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = InstanceChrome(instanceName, tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var85), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = InstanceChrome(instanceName, tabs, currentPath).Render(templ.WithChildren(ctx, templ_7745c5c3_Var90), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1988,52 +2140,52 @@ func systemWarningBanner() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var86 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var86 == nil {
-			templ_7745c5c3_Var86 = templ.NopComponent
+		templ_7745c5c3_Var91 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var91 == nil {
+			templ_7745c5c3_Var91 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if !GetSystemConfig().MemoryConfigured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<div class=\"bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0\"><span class=\"iconify lucide--alert-triangle size-4 text-warning shrink-0\"></span> <span class=\"text-warning-content/80\"><strong>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<div class=\"bg-warning/10 border-b border-warning/25 px-4 py-2 flex items-center gap-2 text-sm shrink-0\"><span class=\"iconify lucide--alert-triangle size-4 text-warning shrink-0\"></span> <span class=\"text-warning-content/80\"><strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var87 string
-			templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.title"))
+			var templ_7745c5c3_Var92 string
+			templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.title"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 826, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 898, Col: 65}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "</strong>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var88 string
-			templ_7745c5c3_Var88, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.body"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 826, Col: 128}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var88))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 133, "</strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</span> <a href=\"/settings\" class=\"ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline\">")
+			var templ_7745c5c3_Var93 string
+			templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "warning.memory_not_configured.body"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 898, Col: 128}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var89 string
-			templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "nav.screen.settings"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 831, Col: 41}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 134, "</span> <a href=\"/settings\" class=\"ml-auto text-xs font-medium text-warning-content/60 hover:text-warning-content underline\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 131, "</a></div>")
+			var templ_7745c5c3_Var94 string
+			templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "nav.screen.settings"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/shell.templ`, Line: 903, Col: 41}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, "</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -2059,12 +2211,12 @@ func themeRestoreScript() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var90 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var90 == nil {
-			templ_7745c5c3_Var90 = templ.NopComponent
+		templ_7745c5c3_Var95 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var95 == nil {
+			templ_7745c5c3_Var95 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 132, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 136, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar saved = localStorage.getItem('go-daisy-theme');\n\t\t\t\tif (saved) {\n\t\t\t\t\tdocument.documentElement.setAttribute('data-theme', saved);\n\t\t\t\t\tif (saved === 'dark') {\n\t\t\t\t\t\tvar sun = document.getElementById('theme-icon-sun');\n\t\t\t\t\t\tvar moon = document.getElementById('theme-icon-moon');\n\t\t\t\t\t\tif (sun) sun.style.display = 'none';\n\t\t\t\t\t\tif (moon) moon.style.display = '';\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t} catch(e) {}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

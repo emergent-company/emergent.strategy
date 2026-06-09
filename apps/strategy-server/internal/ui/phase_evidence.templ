@@ -308,7 +308,6 @@ type EvidenceInterviewData struct {
 
 // EvidenceInterviewContent renders the guided interview page.
 templ EvidenceInterviewContent(data EvidenceInterviewData) {
-	@TabRelatedPages("aim", data.InstanceID, "/strategies/" + data.InstanceID + "/aim")
 	<div class="space-y-6">
 		// Header
 		<div>

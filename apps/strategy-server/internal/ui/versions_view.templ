@@ -172,7 +172,7 @@ templ versionListRow(v VersionRow) {
 
 // VersionDetailContent renders a single version with diff from parent.
 templ VersionDetailContent(data VersionDetailData) {
-	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	@StepBackLink(data.NavContext)
 	<div class="space-y-6">
 		// ── Header ──
 		<div class="flex items-start justify-between gap-4">

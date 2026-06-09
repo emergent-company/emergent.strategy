@@ -453,6 +453,18 @@ func artifactScreenID(artifactType string) string {
 	}
 }
 
+// isAIMCycleArtifact reports whether an artifact type is produced by the AIM
+// cycle and rendered as a cycle-step drill-down (assessment, calibration, LRA).
+// Used to scope run-aware "back" links to AIM artifacts only.
+func isAIMCycleArtifact(artifactType string) bool {
+	switch artifactType {
+	case "living_reality_assessment", "assessment_report", "calibration_memo":
+		return true
+	default:
+		return false
+	}
+}
+
 // handlePlaceholderFromGraph returns a handler that renders a placeholder page
 // for a screen defined in the graph but not yet implemented.
 func (s *Server) handlePlaceholderFromGraph(screen navigation.ScreenDef) echo.HandlerFunc {

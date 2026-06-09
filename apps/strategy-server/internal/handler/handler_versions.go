@@ -175,6 +175,8 @@ func (s *Server) handleVersionDetail(c echo.Context) error {
 	if ver.Source == "aim_cycle" {
 		s.enrichVersionDetailFromSnapshot(ctx, ver, &detailData)
 	}
+	// Back link returns to the producing run's step-progress screen when known.
+	detailData.BackRunID = detailData.CycleRunID
 
 	content := ui.VersionDetailContent(detailData)
 	return s.renderInstancePage(c, "v"+fmt.Sprintf("%d", ver.Version), ui.PhaseRenderData{

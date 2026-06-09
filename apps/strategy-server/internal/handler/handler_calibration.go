@@ -25,6 +25,7 @@ func (s *Server) loadCalibrationView(ctx context.Context, instanceID string) tem
 		CurrentPath: currentPath,
 		ScreenID:    "aim-calibration",
 		TabGroup:    "aim",
+		BackRunID:   s.latestAIMRunID(ctx, instanceID),
 	}
 
 	type row struct {

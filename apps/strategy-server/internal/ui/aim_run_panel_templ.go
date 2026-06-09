@@ -99,10 +99,6 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"aim-run-panel\" class=\"space-y-6\" data-stream-url=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -110,7 +106,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.StreamURL)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 78, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 79, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -145,7 +141,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "page.aim_cycle_run"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 86, Col: 122}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 87, Col: 122}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -163,7 +159,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(runStepLabel(data.CurrentStep))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 89, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 90, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -173,7 +169,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(runStatusLabelI18n(ctx, data.Status))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 91, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 92, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -209,7 +205,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(runStatusLabelI18n(ctx, data.Status))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 97, Col: 100}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 98, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -227,7 +223,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			var templ_7745c5c3_Var11 templ.SafeURL
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.RunID + "/abort"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 101, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 102, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -246,7 +242,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 			var templ_7745c5c3_Var12 templ.SafeURL
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/runs/" + data.RunID + "/retry"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 113, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 114, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -264,7 +260,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		var templ_7745c5c3_Var13 templ.SafeURL
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/runs"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 122, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 123, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -277,7 +273,7 @@ func AimRunPanelContent(data AimRunPanelData) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("/strategies/" + data.InstanceID + "/aim/runs")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 123, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 124, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -498,7 +494,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(num))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 240, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 241, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -534,7 +530,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(runStepLabel(step.Name))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 247, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 248, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -564,7 +560,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue("Skipped: " + step.SkippedReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 265, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 266, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 			if templ_7745c5c3_Err != nil {
@@ -587,7 +583,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(runStepDescription(step.Name))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 276, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 277, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -606,7 +602,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("width: %.0f%%", cascadeProgress(step.ChunksCompleted, step.ChunkCount)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 283, Col: 100}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 284, Col: 100}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -619,7 +615,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.ChunksCompleted))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 288, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 289, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -632,7 +628,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.ChunkCount))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 288, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 289, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -650,7 +646,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(runStepDescription(step.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 293, Col: 83}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 294, Col: 83}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -674,7 +670,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(step.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 298, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 299, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -710,7 +706,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 					var templ_7745c5c3_Var33 templ.SafeURL
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(link.Href))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 307, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 308, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
@@ -723,7 +719,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 					var templ_7745c5c3_Var34 string
 					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(link.Href)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 308, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 309, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 					if templ_7745c5c3_Err != nil {
@@ -758,7 +754,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 					var templ_7745c5c3_Var37 string
 					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(link.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 315, Col: 20}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 316, Col: 20}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 					if templ_7745c5c3_Err != nil {
@@ -786,7 +782,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(formatTokens(step.TotalTokens))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 326, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 327, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -805,7 +801,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 				var templ_7745c5c3_Var39 string
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(formatDuration(step.DurationSec))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 333, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 334, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
@@ -833,7 +829,7 @@ func aimRunStepRow(num int, step AimRunStepRow, instanceID string) templ.Compone
 			var templ_7745c5c3_Var40 templ.SafeURL
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + instanceID + "/aim/draft-review/" + step.BatchID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 343, Col: 87}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 344, Col: 87}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -889,7 +885,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var42 string
 					templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.OKRCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 362, Col: 28}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 363, Col: 28}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 					if templ_7745c5c3_Err != nil {
@@ -908,7 +904,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var43 string
 					templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.AssumptionCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 368, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 369, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 					if templ_7745c5c3_Err != nil {
@@ -955,7 +951,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(calibrationDecisionLabel(step.SuggestedDecision))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 377, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 378, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -973,7 +969,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var47 string
 					templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.0f%%", step.OKRHitRatePct))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 382, Col: 50}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 383, Col: 50}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 					if templ_7745c5c3_Err != nil {
@@ -992,7 +988,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var48 string
 					templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.InvalidatedCount))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 388, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 389, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 					if templ_7745c5c3_Err != nil {
@@ -1017,7 +1013,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.TracksProcessed))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 398, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 399, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -1035,7 +1031,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var50 string
 					templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.TracksChanged))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 403, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 404, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 					if templ_7745c5c3_Err != nil {
@@ -1054,7 +1050,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var51 string
 					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.TotalActivated))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 409, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 410, Col: 34}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 					if templ_7745c5c3_Err != nil {
@@ -1073,7 +1069,7 @@ func aimRunStepMeta(step AimRunStepRow) templ.Component {
 					var templ_7745c5c3_Var52 string
 					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(itoa(step.TotalDeactivated))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 415, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/aim_run_panel.templ`, Line: 416, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 					if templ_7745c5c3_Err != nil {

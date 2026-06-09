@@ -130,6 +130,11 @@ func (s *Server) handleArtifactViewByType(artifactType string) echo.HandlerFunc 
 		tabGroup := artifactTabGroup(artifactType)
 		screenID := artifactScreenID(artifactType)
 		navCtx := ui.NavContext{InstanceID: instanceID, CurrentPath: currentPath, ScreenID: screenID, TabGroup: tabGroup}
+		// AIM cycle-step artifacts back-link to the producing run's step-progress
+		// screen. Scoped to AIM artifact types so READY/FIRE artifacts are unaffected.
+		if isAIMCycleArtifact(artifactType) {
+			navCtx.BackRunID = s.latestAIMRunID(ctx, instanceID)
+		}
 		content := s.bespokeContent(ctx, instanceID, row.Track, navCtx, artifactType, row.ArtifactKey, name, row.Status, payload)
 
 		tabs := s.strategyTabs(ctx, instanceID, currentPath)
@@ -467,6 +472,9 @@ func (s *Server) renderArtifactPlaceholder(c echo.Context, instance *domain.Stra
 	tabGroup := artifactTabGroup(artifactType)
 	screenID := artifactScreenID(artifactType)
 	navCtx := ui.NavContext{InstanceID: instanceID, CurrentPath: currentPath, ScreenID: screenID, TabGroup: tabGroup}
+	if isAIMCycleArtifact(artifactType) {
+		navCtx.BackRunID = s.latestAIMRunID(c.Request().Context(), instanceID)
+	}
 	content := ui.ArtifactPlaceholder(navCtx,
 		ui.FormatKey(artifactType),
 		"This artifact has not been created yet. Use the MCP tools to author it.",

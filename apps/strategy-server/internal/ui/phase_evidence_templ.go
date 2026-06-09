@@ -569,10 +569,6 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 			templ_7745c5c3_Var21 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"space-y-6\"><div><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -580,7 +576,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		var templ_7745c5c3_Var22 templ.SafeURL
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/aim/evidence"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 315, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 314, Col: 74}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -593,7 +589,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "page.strategy_interview"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 319, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 318, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -616,7 +612,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		var templ_7745c5c3_Var24 templ.SafeURL
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/strategies/" + data.InstanceID + "/evidence/interview"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 333, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 332, Col: 98}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -639,7 +635,7 @@ func EvidenceInterviewContent(data EvidenceInterviewData) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "action.save"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 340, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 339, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -715,7 +711,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(q.Question)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 359, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 358, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -733,7 +729,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(q.Hint)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 361, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 360, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -756,7 +752,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(tag)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 365, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 364, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -779,7 +775,7 @@ func interviewQuestion(q InterviewQuestion) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(q.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 371, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/phase_evidence.templ`, Line: 370, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 			if templ_7745c5c3_Err != nil {

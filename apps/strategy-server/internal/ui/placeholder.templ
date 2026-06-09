@@ -1,9 +1,11 @@
 package ui
 
 // ArtifactPlaceholder renders a placeholder page with sub-nav and breadcrumbs.
-// Used when an expected artifact has not been created yet.
+// Used when an expected artifact has not been created yet. The back-navigation
+// adapts to the screen: AIM cycle-step drill-downs get a single "back to cycle"
+// link; standing pages keep the full tab sub-nav.
 templ ArtifactPlaceholder(navCtx NavContext, title string, description string, icon string) {
-	@TabBackLink(navCtx.TabGroup, navCtx.InstanceID, navCtx.CurrentPath)
+	@ContextBackLink(navCtx)
 	@PlaceholderContent(title, description, icon)
 }
 

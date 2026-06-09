@@ -71,7 +71,8 @@ type ArtifactLink struct {
 // AimRunPanelContent renders the orchestrated AIM cycle run panel.
 // It connects to the SSE stream to receive live updates via plain EventSource.
 templ AimRunPanelContent(data AimRunPanelData) {
-	@TabRelatedPages("aim", data.InstanceID, "/strategies/"+data.InstanceID+"/aim")
+	// The run panel IS the step-progress screen; its "back" is the Cycle Runs
+	// list, rendered as a button in the run header below — no StepBackLink here.
 	<div
 		id="aim-run-panel"
 		class="space-y-6"

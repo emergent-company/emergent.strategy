@@ -41,7 +41,7 @@ type CalibrationViewData struct {
 
 // CalibrationContent renders the bespoke Calibration Memo view.
 templ CalibrationContent(data CalibrationViewData) {
-	@TabBackLink(data.TabGroup, data.InstanceID, data.CurrentPath)
+	@StepBackLink(data.NavContext)
 	<div class="space-y-8">
 		// ── Pending-assessment notice — shown when decision is not yet made ──
 		if data.Decision == "pending_assessment" || data.Decision == "" {

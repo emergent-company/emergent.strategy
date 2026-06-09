@@ -508,3 +508,37 @@ func artifactLink(ctx context.Context, artifactType, instanceID string) (ui.Arti
 		Icon:  def.icon,
 	}, true
 }
+
+// runIDForBatch returns the orchestration run ID (as a string) that staged the
+// given batch, or "" when no run is found or orchestration is not configured.
+// Used to point cycle-step drill-down "back" links at the run's step-progress
+// screen. Errors are swallowed — the back link falls back to the AIM landing.
+func (s *Server) runIDForBatch(ctx context.Context, batchID string) string {
+	if s.orchestrationEngine == nil || batchID == "" {
+		return ""
+	}
+	run, err := s.orchestrationEngine.FindRunByBatch(ctx, batchID)
+	if err != nil || run == nil {
+		return ""
+	}
+	return run.ID.String()
+}
+
+// latestAIMRunID returns the most recent AIM cycle run ID (as a string) for the
+// instance, preferring an active run, then the newest run. Returns "" when none
+// exists or orchestration is not configured. Used by singleton "latest artifact"
+// drill-downs (assessment, calibration, LRA) whose producing run is not encoded
+// in the URL. Errors are swallowed — the back link falls back to the AIM landing.
+func (s *Server) latestAIMRunID(ctx context.Context, instanceID string) string {
+	if s.orchestrationEngine == nil || instanceID == "" {
+		return ""
+	}
+	if run, err := s.orchestrationEngine.ActiveRun(ctx, aimdom.WorkflowName, instanceID); err == nil && run != nil {
+		return run.ID.String()
+	}
+	runs, err := s.orchestrationEngine.ListRuns(ctx, aimdom.WorkflowName, instanceID)
+	if err != nil || len(runs) == 0 {
+		return ""
+	}
+	return runs[0].ID.String()
+}
