@@ -41,7 +41,12 @@ func registerPackTools(s *server.MCPServer, svc Services) {
 // Skill resolution tools
 // ---------------------------------------------------------------------------
 
-func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:gocyclo
+func registerSkillResolutionTools(s *server.MCPServer, svc Services) {
+	registerSkillLookupTools(s, svc)
+	registerSkillRunTool(s, svc)
+}
+
+func registerSkillLookupTools(s *server.MCPServer, svc Services) {
 	// list_installed_skills
 	s.AddTool(mcp.NewTool("list_installed_skills",
 		mcp.WithDescription("USE WHEN you need to list all skills available to an instance, with source provenance (installed | canonical | generator-alias). Use source_filter to narrow to installed-only."),
@@ -86,7 +91,9 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) { //nolint:
 		}
 		return mustJSON(skill)
 	})
+}
 
+func registerSkillRunTool(s *server.MCPServer, svc Services) { //nolint:gocyclo
 	// run_skill
 	s.AddTool(mcp.NewTool("run_skill",
 		mcp.WithDescription("USE WHEN you need to execute an installed or canonical skill. Prompt-mode skills return the prompt for you to follow. Script-mode skills run a subprocess and return the output."),
@@ -401,7 +408,12 @@ trusted: false
 // Pack management tools
 // ---------------------------------------------------------------------------
 
-func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:gocyclo
+func registerPackManagementTools(s *server.MCPServer, svc Services) {
+	registerPackInstallTools(s, svc)
+	registerPackInspectionTools(s, svc)
+}
+
+func registerPackInstallTools(s *server.MCPServer, svc Services) { //nolint:gocyclo
 	// install_pack
 	s.AddTool(mcp.NewTool("install_pack",
 		mcp.WithDescription("USE WHEN you need to install a skill pack into an instance. Provide pack_yaml and an array of skills. Use force: true to upgrade an existing pack."),
@@ -496,7 +508,9 @@ func registerPackManagementTools(s *server.MCPServer, svc Services) { //nolint:g
 		}
 		return mustJSON(out)
 	})
+}
 
+func registerPackInspectionTools(s *server.MCPServer, svc Services) { //nolint:gocyclo
 	// get_pack
 	s.AddTool(mcp.NewTool("get_pack",
 		mcp.WithDescription("USE WHEN you need full details of an installed pack including all skill names and apps."),

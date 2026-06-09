@@ -17,6 +17,13 @@ func registerOrgTools(s *server.MCPServer, svc Services) {
 		return
 	}
 
+	registerOrgCrudTools(s, svc)
+	registerOrgMembershipTools(s, svc)
+	registerOrgReadTools(s, svc)
+}
+
+// registerOrgCrudTools registers org creation, update, and workspace assignment tools.
+func registerOrgCrudTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("create_org",
 		mcp.WithDescription("USE WHEN you need to create a new organisation. The caller becomes the org admin."),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Organisation name")),
@@ -117,6 +124,10 @@ func registerOrgTools(s *server.MCPServer, svc Services) {
 		return mustJSON(map[string]any{"assigned": true, "workspace_id": wsID, "org_id": orgID})
 	})
 
+}
+
+// registerOrgReadTools registers read-only org tools (list orgs, list members).
+func registerOrgReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("list_orgs",
 		mcp.WithDescription("USE WHEN you need to see all organisations the caller belongs to."),
 	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -130,7 +141,10 @@ func registerOrgTools(s *server.MCPServer, svc Services) {
 		}
 		return mustJSON(orgs)
 	})
+}
 
+// registerOrgMembershipTools registers membership tools (invite, remove, list members).
+func registerOrgMembershipTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("invite_member",
 		mcp.WithDescription("USE WHEN you need to invite a user to an organisation by email. Requires org_admin role."),
 		mcp.WithString("org_id", mcp.Required(), mcp.Description("Organisation UUID")),

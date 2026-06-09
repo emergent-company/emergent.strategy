@@ -104,36 +104,8 @@ func (s *Server) loadVMDefinitionsByComponent(
 
 	// Build comp name → comp ID lookup from the value model payload.
 	// contributes_to paths use component names (not IDs), so we need both.
-	type compInfo struct {
-		id   string
-		name string
-	}
-	var allComps []compInfo
-	compByName := make(map[string]string) // lowercased name → id
-	if layers, ok := vmPayload["layers"].([]any); ok {
-		for _, lAny := range layers {
-			lm, ok := lAny.(map[string]any)
-			if !ok {
-				continue
-			}
-			if rawComps, ok := lm["components"].([]any); ok {
-				for _, cAny := range rawComps {
-					cm, ok := cAny.(map[string]any)
-					if !ok {
-						continue
-					}
-					id, _ := cm["id"].(string)
-					name, _ := cm["name"].(string)
-					if id == "" {
-						continue
-					}
-					allComps = append(allComps, compInfo{id: id, name: name})
-					compByName[strings.ToLower(name)] = id
-				}
-			}
-		}
-	}
-	if len(allComps) == 0 {
+	compByName := buildVMCompByName(vmPayload)
+	if len(compByName) == 0 {
 		return nil
 	}
 
@@ -156,61 +128,106 @@ func (s *Server) loadVMDefinitionsByComponent(
 	placed := make(map[string]bool) // "defKey|compID" dedup
 
 	for _, r := range rows {
-		dName := r.Name
-		if dName == "" {
-			dName = r.ArtifactKey
-		}
-
-		tier := 0
-		var p map[string]any
-		if json.Unmarshal([]byte(r.Payload), &p) == nil {
-			if mat, ok := p["maturity"].(map[string]any); ok {
-				if t, ok := mat["current_tier"].(float64); ok {
-					tier = int(t)
-				}
-			}
-		}
-
-		d := ui.VMComponentDefinition{
-			Key:     r.ArtifactKey,
-			Name:    dName,
-			Status:  r.Status,
-			Tier:    tier,
-			ViewURL: viewURLFn(r.ArtifactKey),
-		}
-
-		// Extract contributes_to paths.
-		var paths []string
-		if p != nil {
-			if ct, ok := p["contributes_to"].([]any); ok {
-				for _, v := range ct {
-					if sv, ok := v.(string); ok {
-						paths = append(paths, sv)
-					}
-				}
-			}
-		}
-
-		for _, path := range paths {
-			parts := strings.SplitN(path, ".", 3)
-			if len(parts) < 2 {
-				continue
-			}
-			compNameRaw := parts[1]
-			compID, ok := compByName[strings.ToLower(compNameRaw)]
-			if !ok {
-				continue
-			}
-			placeKey := r.ArtifactKey + "|" + compID
-			if placed[placeKey] {
-				continue
-			}
-			placed[placeKey] = true
-			result[compID] = append(result[compID], d)
-		}
+		d, paths := buildVMComponentDefinition(r.ArtifactKey, r.Name, r.Status, r.Payload, viewURLFn)
+		placeVMDefinition(result, placed, d, paths, compByName)
 	}
 
 	return result
+}
+
+// buildVMCompByName builds a lowercased-component-name → component-ID lookup
+// from a value model payload. contributes_to paths reference component names,
+// not IDs, so this mapping is needed to assign definitions to components.
+func buildVMCompByName(vmPayload map[string]any) map[string]string {
+	compByName := make(map[string]string)
+	layers, ok := vmPayload["layers"].([]any)
+	if !ok {
+		return compByName
+	}
+	for _, lAny := range layers {
+		lm, ok := lAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		rawComps, ok := lm["components"].([]any)
+		if !ok {
+			continue
+		}
+		for _, cAny := range rawComps {
+			cm, ok := cAny.(map[string]any)
+			if !ok {
+				continue
+			}
+			id, _ := cm["id"].(string)
+			name, _ := cm["name"].(string)
+			if id == "" {
+				continue
+			}
+			compByName[strings.ToLower(name)] = id
+		}
+	}
+	return compByName
+}
+
+// buildVMComponentDefinition constructs a VMComponentDefinition from a definition
+// row and returns it along with the contributes_to paths parsed from its payload.
+func buildVMComponentDefinition(artifactKey, name, status, payloadStr string, viewURLFn func(string) string) (ui.VMComponentDefinition, []string) {
+	dName := name
+	if dName == "" {
+		dName = artifactKey
+	}
+
+	tier := 0
+	var p map[string]any
+	if json.Unmarshal([]byte(payloadStr), &p) == nil {
+		if mat, ok := p["maturity"].(map[string]any); ok {
+			if t, ok := mat["current_tier"].(float64); ok {
+				tier = int(t)
+			}
+		}
+	}
+
+	d := ui.VMComponentDefinition{
+		Key:     artifactKey,
+		Name:    dName,
+		Status:  status,
+		Tier:    tier,
+		ViewURL: viewURLFn(artifactKey),
+	}
+
+	var paths []string
+	if p != nil {
+		if ct, ok := p["contributes_to"].([]any); ok {
+			for _, v := range ct {
+				if sv, ok := v.(string); ok {
+					paths = append(paths, sv)
+				}
+			}
+		}
+	}
+	return d, paths
+}
+
+// placeVMDefinition assigns a definition to each component referenced by its
+// contributes_to paths, deduplicating via the placed set.
+func placeVMDefinition(result map[string][]ui.VMComponentDefinition, placed map[string]bool, d ui.VMComponentDefinition, paths []string, compByName map[string]string) {
+	for _, path := range paths {
+		parts := strings.SplitN(path, ".", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		compNameRaw := parts[1]
+		compID, ok := compByName[strings.ToLower(compNameRaw)]
+		if !ok {
+			continue
+		}
+		placeKey := d.Key + "|" + compID
+		if placed[placeKey] {
+			continue
+		}
+		placed[placeKey] = true
+		result[compID] = append(result[compID], d)
+	}
 }
 
 // vmTrackDefConfig returns the artifact type and a URL builder function for

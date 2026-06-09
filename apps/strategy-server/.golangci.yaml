@@ -18,7 +18,9 @@ linters:
     - unused
     - ineffassign
     - misspell
-    # Advisory — tracked but not blocking.
+    # Complexity — zero tolerance. The codebase was brought to zero findings;
+    # keep it there. Split long tool-registration funcs and extract helpers from
+    # branchy logic rather than raising these thresholds.
     - gocyclo
     - gocognit
 
@@ -26,11 +28,9 @@ linters:
     errcheck:
       check-type-assertions: true
     gocyclo:
-      min-complexity: 40 # High threshold — advisory only.
+      min-complexity: 40
     gocognit:
-      min-complexity: 60 # High threshold — advisory only. Large domain
-        # functions are inherently complex. Lower this only
-        # if you have the bandwidth to refactor.
+      min-complexity: 60
     misspell:
       # Norwegian i18n strings and a legitimate "strat" abbreviation trip the
       # US-English dictionary. These are not misspellings.

@@ -138,78 +138,7 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 		// entirely — the agent sees the signals in the convergence_summary
 		// and drives resolution via subsequent MCP calls.
 		if svc.Resolver != nil && svc.CommitAutoFn != nil {
-			autoSignals, _ := svc.Ripple.ListSignals(ctx, ListParams{
-				InstanceID: instanceID,
-				Status:     domain.SignalStatusActive,
-				Limit:      50,
-			})
-			for _, sig := range autoSignals {
-				// Classify authority on-the-fly for signals that may have been
-				// seeded without a tier, or re-classify with current policy.
-				tier := classifySignalAuthority(sig, analyzer != nil)
-				if tier != string(AuthorityAutonomous) {
-					continue
-				}
-
-				// Load the target artifact's current payload.
-				var targetArt domain.StrategyArtifact
-				loadErr := svc.DB.NewSelect().Model(&targetArt).
-					Where("sa.instance_id = ?", instanceID).
-					Where("sa.artifact_key = ?", sig.TargetKey).
-					Where("sa.status = ?", domain.ArtifactStatusActive).
-					Scan(ctx)
-				if loadErr != nil {
-					continue
-				}
-
-				// Ask the resolver to generate a fix.
-				result, resolveErr := svc.Resolver.Resolve(ctx, sig, targetArt.Payload)
-				if resolveErr != nil {
-					slog.WarnContext(ctx, "convergence: resolver failed",
-						"signal", sig.ID, "target", sig.TargetKey, "error", resolveErr)
-					continue
-				}
-				if result == nil || !result.Updated {
-					continue
-				}
-
-				// Check change budget before committing.
-				if cumulativeChange+result.Distance > cfg.Damping.ChangeBudget {
-					slog.InfoContext(ctx, "convergence: skipping auto-commit — would exceed change budget",
-						"cumulative", cumulativeChange, "this", result.Distance, "budget", cfg.Damping.ChangeBudget)
-					continue
-				}
-
-				// Commit the fix.
-				commitErr := svc.CommitAutoFn(ctx, instanceID, sig.TargetKey, targetArt.ArtifactType, result.NewPayload, sig.ID)
-				if commitErr != nil {
-					slog.WarnContext(ctx, "convergence: auto-commit failed",
-						"target", sig.TargetKey, "error", commitErr)
-					continue
-				}
-
-				// Track the change.
-				cumulativeChange += result.Distance
-				changedThisCycle = true
-				summary.AutoResolved++
-				summary.LLMInputTokens += result.InputTokens
-				summary.LLMOutputTokens += result.OutputTokens
-
-				// Auto-resolve the signal.
-				if _, resolveSignalErr := svc.Ripple.ResolveSignal(ctx, sig.ID, nil); resolveSignalErr != nil {
-					slog.WarnContext(ctx, "convergence: failed to resolve signal after auto-commit",
-						"signal", sig.ID, "error", resolveSignalErr)
-				}
-
-				// Trigger Memory ingestion for the auto-committed artifact.
-				if svc.Ingest != nil {
-					svc.Ingest.EnqueueBatch(instanceID, sig.ID) // signal ID as batch proxy
-				}
-
-				slog.InfoContext(ctx, "convergence: auto-resolved signal",
-					"signal", sig.ID, "target", sig.TargetKey,
-					"distance", result.Distance, "explanation", result.Explanation)
-			}
+			resolveAutonomousSignals(ctx, instanceID, cfg, svc, analyzer != nil, summary, &cumulativeChange, &changedThisCycle)
 		}
 
 		// Count current signals for damping checks.
@@ -227,41 +156,8 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 			summary.Escalated += gatedCount
 		}
 
-		// Emergency brake: signal count increasing for 2 consecutive iterations.
-		if iter > 0 && currentSignalCount > prevSignalCount {
-			consecutiveIncreases++
-			if consecutiveIncreases >= 2 {
-				summary.DampingReason = "emergency_brake"
-				summary.EndingScore = equilibrium.Score
-				slog.WarnContext(ctx, "convergence: emergency brake — signal count increasing for 2 consecutive iterations",
-					"prev", prevSignalCount, "current", currentSignalCount, "iteration", iter)
-				break
-			}
-		} else {
-			consecutiveIncreases = 0
-		}
-		prevSignalCount = currentSignalCount
-
-		// Anchor drift check: compare current anchor artifact text to pre-cycle state.
-		if anchorDrifted(ctx, svc.DB, instanceID, anchorSnapshots, cfg.Damping.AnchorDriftLimit) {
-			summary.DampingReason = "anchor_drift"
-			summary.EndingScore = equilibrium.Score
-			slog.WarnContext(ctx, "convergence: anchor drift — foundational artifact shifted beyond limit",
-				"limit", cfg.Damping.AnchorDriftLimit, "iteration", iter)
-			break
-		}
-
-		// Check equilibrium.
-		if equilibrium.InEquilibrium {
-			summary.EndingScore = equilibrium.Score
-			summary.EquilibriumReached = true
-			break
-		}
-
-		// Change budget check.
-		if cumulativeChange >= cfg.Damping.ChangeBudget {
-			summary.DampingReason = "change_budget_exceeded"
-			summary.EndingScore = equilibrium.Score
+		if applyDampingChecks(ctx, instanceID, iter, cfg, svc, equilibrium, anchorSnapshots,
+			cumulativeChange, currentSignalCount, &prevSignalCount, &consecutiveIncreases, summary) {
 			break
 		}
 
@@ -291,6 +187,185 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 	}
 
 	// Persist convergence run record.
+	persistConvergenceRun(ctx, instanceID, triggerBatchID, svc, summary)
+
+	return summary
+}
+
+// resolveAutonomousSignals lists active signals and, for each autonomous-tier
+// signal, asks the resolver to generate a fix and auto-commits it (subject to
+// the change budget). It updates the running summary and convergence state via
+// the provided pointers. Used only in server-orchestrated mode (Resolver set).
+func resolveAutonomousSignals(
+	ctx context.Context,
+	instanceID uuid.UUID,
+	cfg RippleConfig,
+	svc ConvergenceServices,
+	hasSemanticAnalyzer bool,
+	summary *ConvergenceSummary,
+	cumulativeChange *float64,
+	changedThisCycle *bool,
+) {
+	autoSignals, _ := svc.Ripple.ListSignals(ctx, ListParams{
+		InstanceID: instanceID,
+		Status:     domain.SignalStatusActive,
+		Limit:      50,
+	})
+	for _, sig := range autoSignals {
+		resolveAutonomousSignal(ctx, instanceID, cfg, svc, hasSemanticAnalyzer, sig, summary, cumulativeChange, changedThisCycle)
+	}
+}
+
+// resolveAutonomousSignal attempts to auto-resolve a single signal. It is a
+// no-op (returns early) when the signal is not autonomous, its target cannot be
+// loaded, the resolver produces no update, or the change budget would be
+// exceeded. On a successful commit it updates summary and convergence state.
+func resolveAutonomousSignal(
+	ctx context.Context,
+	instanceID uuid.UUID,
+	cfg RippleConfig,
+	svc ConvergenceServices,
+	hasSemanticAnalyzer bool,
+	sig *domain.RippleSignal,
+	summary *ConvergenceSummary,
+	cumulativeChange *float64,
+	changedThisCycle *bool,
+) {
+	// Classify authority on-the-fly for signals that may have been
+	// seeded without a tier, or re-classify with current policy.
+	tier := classifySignalAuthority(sig, hasSemanticAnalyzer)
+	if tier != string(AuthorityAutonomous) {
+		return
+	}
+
+	// Load the target artifact's current payload.
+	var targetArt domain.StrategyArtifact
+	loadErr := svc.DB.NewSelect().Model(&targetArt).
+		Where("sa.instance_id = ?", instanceID).
+		Where("sa.artifact_key = ?", sig.TargetKey).
+		Where("sa.status = ?", domain.ArtifactStatusActive).
+		Scan(ctx)
+	if loadErr != nil {
+		return
+	}
+
+	// Ask the resolver to generate a fix.
+	result, resolveErr := svc.Resolver.Resolve(ctx, sig, targetArt.Payload)
+	if resolveErr != nil {
+		slog.WarnContext(ctx, "convergence: resolver failed",
+			"signal", sig.ID, "target", sig.TargetKey, "error", resolveErr)
+		return
+	}
+	if result == nil || !result.Updated {
+		return
+	}
+
+	// Check change budget before committing.
+	if *cumulativeChange+result.Distance > cfg.Damping.ChangeBudget {
+		slog.InfoContext(ctx, "convergence: skipping auto-commit — would exceed change budget",
+			"cumulative", *cumulativeChange, "this", result.Distance, "budget", cfg.Damping.ChangeBudget)
+		return
+	}
+
+	// Commit the fix.
+	commitErr := svc.CommitAutoFn(ctx, instanceID, sig.TargetKey, targetArt.ArtifactType, result.NewPayload, sig.ID)
+	if commitErr != nil {
+		slog.WarnContext(ctx, "convergence: auto-commit failed",
+			"target", sig.TargetKey, "error", commitErr)
+		return
+	}
+
+	// Track the change.
+	*cumulativeChange += result.Distance
+	*changedThisCycle = true
+	summary.AutoResolved++
+	summary.LLMInputTokens += result.InputTokens
+	summary.LLMOutputTokens += result.OutputTokens
+
+	// Auto-resolve the signal.
+	if _, resolveSignalErr := svc.Ripple.ResolveSignal(ctx, sig.ID, nil); resolveSignalErr != nil {
+		slog.WarnContext(ctx, "convergence: failed to resolve signal after auto-commit",
+			"signal", sig.ID, "error", resolveSignalErr)
+	}
+
+	// Trigger Memory ingestion for the auto-committed artifact.
+	if svc.Ingest != nil {
+		svc.Ingest.EnqueueBatch(instanceID, sig.ID) // signal ID as batch proxy
+	}
+
+	slog.InfoContext(ctx, "convergence: auto-resolved signal",
+		"signal", sig.ID, "target", sig.TargetKey,
+		"distance", result.Distance, "explanation", result.Explanation)
+}
+
+// applyDampingChecks evaluates the four damping conditions (emergency brake,
+// anchor drift, equilibrium reached, change budget exceeded) for the current
+// iteration. It mutates summary and the prevSignalCount/consecutiveIncreases
+// counters in place. It returns true when the convergence loop should break.
+func applyDampingChecks(
+	ctx context.Context,
+	instanceID uuid.UUID,
+	iter int,
+	cfg RippleConfig,
+	svc ConvergenceServices,
+	equilibrium *EquilibriumReport,
+	anchorSnapshots map[string]string,
+	cumulativeChange float64,
+	currentSignalCount int,
+	prevSignalCount *int,
+	consecutiveIncreases *int,
+	summary *ConvergenceSummary,
+) bool {
+	// Emergency brake: signal count increasing for 2 consecutive iterations.
+	if iter > 0 && currentSignalCount > *prevSignalCount {
+		*consecutiveIncreases++
+		if *consecutiveIncreases >= 2 {
+			summary.DampingReason = "emergency_brake"
+			summary.EndingScore = equilibrium.Score
+			slog.WarnContext(ctx, "convergence: emergency brake — signal count increasing for 2 consecutive iterations",
+				"prev", *prevSignalCount, "current", currentSignalCount, "iteration", iter)
+			return true
+		}
+	} else {
+		*consecutiveIncreases = 0
+	}
+	*prevSignalCount = currentSignalCount
+
+	// Anchor drift check: compare current anchor artifact text to pre-cycle state.
+	if anchorDrifted(ctx, svc.DB, instanceID, anchorSnapshots, cfg.Damping.AnchorDriftLimit) {
+		summary.DampingReason = "anchor_drift"
+		summary.EndingScore = equilibrium.Score
+		slog.WarnContext(ctx, "convergence: anchor drift — foundational artifact shifted beyond limit",
+			"limit", cfg.Damping.AnchorDriftLimit, "iteration", iter)
+		return true
+	}
+
+	// Check equilibrium.
+	if equilibrium.InEquilibrium {
+		summary.EndingScore = equilibrium.Score
+		summary.EquilibriumReached = true
+		return true
+	}
+
+	// Change budget check.
+	if cumulativeChange >= cfg.Damping.ChangeBudget {
+		summary.DampingReason = "change_budget_exceeded"
+		summary.EndingScore = equilibrium.Score
+		return true
+	}
+
+	return false
+}
+
+// persistConvergenceRun writes the convergence run record (including damping
+// reason, summary JSON, and published version ID) to the run ledger.
+func persistConvergenceRun(
+	ctx context.Context,
+	instanceID uuid.UUID,
+	triggerBatchID *uuid.UUID,
+	svc ConvergenceServices,
+	summary *ConvergenceSummary,
+) {
 	run := &domain.ConvergenceRun{
 		InstanceID:         instanceID,
 		TriggeringBatchID:  triggerBatchID,
@@ -316,8 +391,6 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 	if saveErr := svc.Ripple.SaveConvergenceRun(ctx, run); saveErr != nil {
 		slog.WarnContext(ctx, "convergence: failed to save run record", "error", saveErr)
 	}
-
-	return summary
 }
 
 // deduplicateSignals removes duplicate signals by (source_key, target_key, signal_type).

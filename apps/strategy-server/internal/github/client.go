@@ -929,22 +929,7 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 		return nil, nil, false, commitInfo, fmt.Errorf("get root tree: %w", rootErr)
 	}
 
-	hasReadyDir := false
-	metaAtRoot := false
-	var gitmodulesSHA string
-	for _, e := range rootTree.Entries {
-		if e.GetType() == "tree" && e.GetPath() == "READY" {
-			hasReadyDir = true
-		}
-		if e.GetPath() == ".gitmodules" && e.GetType() == "blob" {
-			gitmodulesSHA = e.GetSHA()
-		}
-		for _, marker := range epfRootMarkers {
-			if e.GetPath() == marker {
-				metaAtRoot = true
-			}
-		}
-	}
+	hasReadyDir, metaAtRoot, gitmodulesSHA := scanRootTree(rootTree.Entries)
 
 	// Fetch and parse .gitmodules when present (best-effort).
 	submodules = c.fetchSubmoduleRefs(ctx, token, owner, repo, gitmodulesSHA)
@@ -1009,58 +994,7 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 
 	// Find all READY/ directories — collect base paths first.
 	// For each candidate, determine whether it is native or submodule-hosted.
-	type candidate struct {
-		basePath      string
-		isSubmodule   bool
-		submoduleSlug string
-	}
-	seen := make(map[string]bool)
-	var candidates []candidate
-
-	for _, e := range fullTree.Entries {
-		if e.GetType() != "tree" {
-			continue
-		}
-		// Match paths that end with "/READY" or are exactly "READY".
-		p := e.GetPath()
-		var basePath string
-		if p == "READY" {
-			basePath = ""
-		} else if strings.HasSuffix(p, "/READY") {
-			basePath = strings.TrimSuffix(p, "/READY")
-		} else {
-			continue
-		}
-
-		// Skip paths that are test fixtures, embedded schema dirs, etc.
-		if isIgnoredEPFBasePath(basePath) {
-			slog.DebugContext(ctx, "EPF scan: skipping ignored path", "base_path", basePath)
-			continue
-		}
-
-		// Check if this path lives inside a git submodule.
-		// If so, it may still be a valid EPF instance — just hosted in the submodule repo.
-		// We include it but flag it as IsSubmodule=true rather than silently dropping it.
-		// Exception: if the submodule is not declared in .gitmodules (no slug), it is likely
-		// committed framework content — skip it to avoid false positives.
-		isUnderSub, subSlug := submoduleContaining(basePath, submodulePathToSlug)
-		if isUnderSub && subSlug == "" {
-			// Submodule with no .gitmodules entry — committed framework content, skip.
-			slog.DebugContext(ctx, "EPF scan: skipping uncommitted submodule path",
-				"base_path", basePath)
-			continue
-		}
-
-		if seen[basePath] {
-			continue
-		}
-		seen[basePath] = true
-		candidates = append(candidates, candidate{
-			basePath:      basePath,
-			isSubmodule:   isUnderSub,
-			submoduleSlug: subSlug,
-		})
-	}
+	candidates := collectEPFCandidates(ctx, fullTree.Entries, submodulePathToSlug)
 
 	// Keep only shallowest base paths — discard any path that is a child of another.
 	for _, c := range candidates {
@@ -1099,6 +1033,89 @@ func (c *Client) DetectEPFInRepo(ctx context.Context, token, owner, repo, branch
 	}
 
 	return instances, submodules, truncated, commitInfo, nil
+}
+
+// scanRootTree inspects the non-recursive root tree entries (Pass 1) and reports
+// whether a root-level READY/ directory exists, whether a root EPF marker file is
+// present, and the blob SHA of .gitmodules (empty when absent).
+func scanRootTree(entries []*gh.TreeEntry) (hasReadyDir, metaAtRoot bool, gitmodulesSHA string) {
+	for _, e := range entries {
+		if e.GetType() == "tree" && e.GetPath() == "READY" {
+			hasReadyDir = true
+		}
+		if e.GetPath() == ".gitmodules" && e.GetType() == "blob" {
+			gitmodulesSHA = e.GetSHA()
+		}
+		for _, marker := range epfRootMarkers {
+			if e.GetPath() == marker {
+				metaAtRoot = true
+			}
+		}
+	}
+	return hasReadyDir, metaAtRoot, gitmodulesSHA
+}
+
+// epfCandidate is a deduplicated READY/ base path discovered during the recursive
+// Pass 2 scan, annotated with submodule provenance.
+type epfCandidate struct {
+	basePath      string
+	isSubmodule   bool
+	submoduleSlug string
+}
+
+// collectEPFCandidates walks the recursive tree entries (Pass 2) and returns the
+// deduplicated set of READY/ base paths, skipping ignored paths and uncommitted
+// submodule framework content.
+func collectEPFCandidates(ctx context.Context, entries []*gh.TreeEntry, submodulePathToSlug map[string]string) []epfCandidate {
+	seen := make(map[string]bool)
+	var candidates []epfCandidate
+
+	for _, e := range entries {
+		if e.GetType() != "tree" {
+			continue
+		}
+		// Match paths that end with "/READY" or are exactly "READY".
+		p := e.GetPath()
+		var basePath string
+		if p == "READY" {
+			basePath = ""
+		} else if strings.HasSuffix(p, "/READY") {
+			basePath = strings.TrimSuffix(p, "/READY")
+		} else {
+			continue
+		}
+
+		// Skip paths that are test fixtures, embedded schema dirs, etc.
+		if isIgnoredEPFBasePath(basePath) {
+			slog.DebugContext(ctx, "EPF scan: skipping ignored path", "base_path", basePath)
+			continue
+		}
+
+		// Check if this path lives inside a git submodule.
+		// If so, it may still be a valid EPF instance — just hosted in the submodule repo.
+		// We include it but flag it as IsSubmodule=true rather than silently dropping it.
+		// Exception: if the submodule is not declared in .gitmodules (no slug), it is likely
+		// committed framework content — skip it to avoid false positives.
+		isUnderSub, subSlug := submoduleContaining(basePath, submodulePathToSlug)
+		if isUnderSub && subSlug == "" {
+			// Submodule with no .gitmodules entry — committed framework content, skip.
+			slog.DebugContext(ctx, "EPF scan: skipping uncommitted submodule path",
+				"base_path", basePath)
+			continue
+		}
+
+		if seen[basePath] {
+			continue
+		}
+		seen[basePath] = true
+		candidates = append(candidates, epfCandidate{
+			basePath:      basePath,
+			isSubmodule:   isUnderSub,
+			submoduleSlug: subSlug,
+		})
+	}
+
+	return candidates
 }
 
 // submoduleContaining returns (true, slug) if basePath is under a known submodule path.

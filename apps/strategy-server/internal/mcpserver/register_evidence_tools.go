@@ -31,6 +31,13 @@ func registerEvidenceTools(s *server.MCPServer, svc Services) {
 		return
 	}
 
+	registerEvidenceIngestTool(s, svc)
+	registerEvidenceReadTools(s, svc)
+	registerEvidenceWriteTools(s, svc)
+}
+
+// registerEvidenceIngestTool registers the ingest_evidence tool.
+func registerEvidenceIngestTool(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// ingest_evidence — submit a structured evidence item
 	// -----------------------------------------------------------------------
@@ -109,6 +116,10 @@ func registerEvidenceTools(s *server.MCPServer, svc Services) {
 		})
 	})
 
+}
+
+// registerEvidenceReadTools registers list_evidence and get_evidence.
+func registerEvidenceReadTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// list_evidence — list evidence items with optional filters
 	// -----------------------------------------------------------------------
@@ -178,6 +189,10 @@ func registerEvidenceTools(s *server.MCPServer, svc Services) {
 		return mustJSON(item)
 	})
 
+}
+
+// registerEvidenceWriteTools registers link_evidence and update_evidence.
+func registerEvidenceWriteTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// link_evidence — link an evidence item to another artifact
 	// -----------------------------------------------------------------------

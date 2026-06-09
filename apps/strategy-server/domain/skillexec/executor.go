@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"strings"
 	"text/template"
@@ -454,39 +455,16 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 	for i, chunk := range chunks {
 		chunkNum := i + 1
 
-		// Read chunk prompt template from embedded FS.
-		promptBytes, err := skillFS.Open(chunk.promptFile)
-		if err != nil {
-			failErr := fmt.Errorf("skillexec: chunk %d: open prompt %q: %w", chunkNum, chunk.promptFile, err)
-			if e.runLedger != nil && runID != uuid.Nil {
-				_ = e.runLedger.Fail(ctx, runID, failErr.Error())
-			}
-			return SkillResult{RunID: runID}, failErr
-		}
-		buf := new(bytes.Buffer)
-		if _, err := buf.ReadFrom(promptBytes); err != nil {
-			failErr := fmt.Errorf("skillexec: chunk %d: read prompt: %w", chunkNum, err)
-			if e.runLedger != nil && runID != uuid.Nil {
-				_ = e.runLedger.Fail(ctx, runID, failErr.Error())
-			}
-			return SkillResult{RunID: runID}, failErr
-		}
-		_ = promptBytes.(interface{ Close() error }).Close() //nolint:errcheck
-
 		// Inject prior outputs into the bundle for this chunk.
 		bundle.PriorOutputs = priorOutputs
 
-		// Render the chunk prompt template.
-		rendered, droppedFeatures, err := renderPrompt(buf.String(), bundle)
+		// Load and render the chunk prompt template.
+		rendered, droppedFeatures, err := e.loadChunkPrompt(ctx, skillFS, skillName, chunkNum, chunk, bundle)
 		if err != nil {
-			failErr := fmt.Errorf("skillexec: chunk %d: render prompt: %w", chunkNum, err)
 			if e.runLedger != nil && runID != uuid.Nil {
-				_ = e.runLedger.Fail(ctx, runID, failErr.Error())
+				_ = e.runLedger.Fail(ctx, runID, err.Error())
 			}
-			return SkillResult{RunID: runID}, failErr
-		}
-		if droppedFeatures > 0 {
-			slog.WarnContext(ctx, "skillexec: chunk context truncated", "skill", skillName, "chunk", chunkNum, "dropped_features", droppedFeatures)
+			return SkillResult{RunID: runID}, err
 		}
 
 		slog.InfoContext(ctx, "skillexec: running chunk",
@@ -504,43 +482,7 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 		// LLM call + validation for this chunk only.
 		chunkResult, err := e.callWithValidationChunk(ctx, skillName, chunkNum, chunk.outputKey, chunk.artifactType, rendered, instanceID, existingForMerge)
 		if err != nil {
-			// Accumulate tokens from the failed chunk (includes all retry attempts).
-			if chunkResult != nil {
-				totalInputTokens += chunkResult.InputTokens
-				totalOutputTokens += chunkResult.OutputTokens
-			}
-			e.record(ctx, instanceID, "skill.failed", map[string]any{
-				"skill_name":    skillName,
-				"batch_id":      batchID.String(),
-				"chunk":         chunkNum,
-				"output_key":    chunk.outputKey,
-				"error":         err.Error(),
-				"staged_so_far": allArtifactTypes,
-				"input_tokens":  totalInputTokens,
-				"output_tokens": totalOutputTokens,
-			})
-			// Record the failed chunk and overall failure in the run ledger.
-			if e.runLedger != nil && runID != uuid.Nil {
-				var chunkIn, chunkOut int
-				if chunkResult != nil {
-					chunkIn = chunkResult.InputTokens
-					chunkOut = chunkResult.OutputTokens
-				}
-				_ = e.runLedger.UpdateChunk(ctx, runID, RunLedgerChunkEntry{
-					Chunk:        chunkNum,
-					OutputKey:    chunk.outputKey,
-					ArtifactType: chunk.artifactType,
-					Status:       "failed",
-					StartedAt:    time.Now().UTC().Format(time.RFC3339),
-					CompletedAt:  time.Now().UTC().Format(time.RFC3339),
-					InputTokens:  chunkIn,
-					OutputTokens: chunkOut,
-				})
-				_ = e.runLedger.Fail(ctx, runID, err.Error())
-			}
-			// Write metadata and promote staging → staged so the partial
-			// batch is visible for review/discard with change summaries.
-			e.finalizeBatch(ctx, batchID, skillName, trigger, params, changeSummaries)
+			e.handleChunkFailure(ctx, instanceID, batchID, runID, skillName, trigger, params, chunk, chunkNum, err, chunkResult, allArtifactTypes, changeSummaries, &totalInputTokens, &totalOutputTokens)
 			return SkillResult{
 				RunID:         runID,
 				BatchID:       batchID,
@@ -565,51 +507,7 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 		}
 		allArtifactTypes = append(allArtifactTypes, staged...)
 
-		// Record the successful chunk and make its output available to subsequent chunks.
-		if val, ok := chunkResult.Output[chunk.outputKey]; ok {
-			priorOutputs[chunk.outputKey] = val
-		}
-
-		// Collect change_summary if the LLM produced one.
-		// Key by each actually-staged artifact type so the handler can look up
-		// summaries by artifact_type directly. Also store by output_key as fallback.
-		if cs, ok := chunkResult.Output["change_summary"].(string); ok && cs != "" {
-			changeSummaries[chunk.outputKey] = cs
-			for _, at := range staged {
-				changeSummaries[at] = cs
-			}
-		}
-
-		// Update the run ledger with this chunk's results.
-		if e.runLedger != nil && runID != uuid.Nil {
-			chunkStarted := time.Now().Add(-time.Duration(chunkResult.InputTokens+chunkResult.OutputTokens) * time.Millisecond) // rough estimate
-			_ = e.runLedger.UpdateChunk(ctx, runID, RunLedgerChunkEntry{
-				Chunk:            chunkNum,
-				OutputKey:        chunk.outputKey,
-				ArtifactType:     chunk.artifactType,
-				Status:           "staged",
-				StartedAt:        chunkStarted.UTC().Format(time.RFC3339),
-				CompletedAt:      time.Now().UTC().Format(time.RFC3339),
-				InputTokens:      chunkResult.InputTokens,
-				OutputTokens:     chunkResult.OutputTokens,
-				ContextTruncated: droppedFeatures > 0,
-				DroppedFeatures:  droppedFeatures,
-			})
-		}
-
-		e.record(ctx, instanceID, "skill.chunk_staged", map[string]any{
-			"skill_name":     skillName,
-			"batch_id":       batchID.String(),
-			"chunk":          chunkNum,
-			"output_key":     chunk.outputKey,
-			"artifact_types": staged,
-			"input_tokens":   chunkResult.InputTokens,
-			"output_tokens":  chunkResult.OutputTokens,
-			"run_id":         runID.String(),
-		})
-
-		slog.InfoContext(ctx, "skillexec: chunk staged",
-			"skill", skillName, "chunk", chunkNum, "output_key", chunk.outputKey, "artifact_types", staged)
+		e.recordChunkStaged(ctx, instanceID, batchID, runID, skillName, chunk, chunkNum, chunkResult, staged, droppedFeatures, priorOutputs, changeSummaries)
 	}
 
 	// Use a background context for post-chunk bookkeeping — the HTTP request
@@ -648,6 +546,157 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 		InputTokens:      totalInputTokens,
 		OutputTokens:     totalOutputTokens,
 	}, nil
+}
+
+// loadChunkPrompt opens the chunk's prompt template from the skill FS and
+// renders it against the bundle. Returns the rendered prompt and the number of
+// features dropped due to context-budget truncation.
+func (e *Executor) loadChunkPrompt(
+	ctx context.Context,
+	skillFS fs.FS,
+	skillName string,
+	chunkNum int,
+	chunk chunkDef,
+	bundle *ContextBundle,
+) (string, int, error) {
+	// Read chunk prompt template from embedded FS.
+	promptBytes, err := skillFS.Open(chunk.promptFile)
+	if err != nil {
+		return "", 0, fmt.Errorf("skillexec: chunk %d: open prompt %q: %w", chunkNum, chunk.promptFile, err)
+	}
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(promptBytes); err != nil {
+		return "", 0, fmt.Errorf("skillexec: chunk %d: read prompt: %w", chunkNum, err)
+	}
+	_ = promptBytes.(interface{ Close() error }).Close() //nolint:errcheck
+
+	// Render the chunk prompt template.
+	rendered, droppedFeatures, err := renderPrompt(buf.String(), bundle)
+	if err != nil {
+		return "", 0, fmt.Errorf("skillexec: chunk %d: render prompt: %w", chunkNum, err)
+	}
+	if droppedFeatures > 0 {
+		slog.WarnContext(ctx, "skillexec: chunk context truncated", "skill", skillName, "chunk", chunkNum, "dropped_features", droppedFeatures)
+	}
+	return rendered, droppedFeatures, nil
+}
+
+// handleChunkFailure records the failed chunk in the activity stream and run
+// ledger, accumulates the failed chunk's token usage into the running totals,
+// and finalizes the partial batch so it remains reviewable. The caller is
+// responsible for returning the SkillResult and wrapped error.
+func (e *Executor) handleChunkFailure(
+	ctx context.Context,
+	instanceID, batchID, runID uuid.UUID,
+	skillName, trigger string,
+	params map[string]any,
+	chunk chunkDef,
+	chunkNum int,
+	chunkErr error,
+	chunkResult *chunkCallResult,
+	allArtifactTypes []string,
+	changeSummaries map[string]string,
+	totalInputTokens, totalOutputTokens *int,
+) {
+	// Accumulate tokens from the failed chunk (includes all retry attempts).
+	if chunkResult != nil {
+		*totalInputTokens += chunkResult.InputTokens
+		*totalOutputTokens += chunkResult.OutputTokens
+	}
+	e.record(ctx, instanceID, "skill.failed", map[string]any{
+		"skill_name":    skillName,
+		"batch_id":      batchID.String(),
+		"chunk":         chunkNum,
+		"output_key":    chunk.outputKey,
+		"error":         chunkErr.Error(),
+		"staged_so_far": allArtifactTypes,
+		"input_tokens":  *totalInputTokens,
+		"output_tokens": *totalOutputTokens,
+	})
+	// Record the failed chunk and overall failure in the run ledger.
+	if e.runLedger != nil && runID != uuid.Nil {
+		var chunkIn, chunkOut int
+		if chunkResult != nil {
+			chunkIn = chunkResult.InputTokens
+			chunkOut = chunkResult.OutputTokens
+		}
+		_ = e.runLedger.UpdateChunk(ctx, runID, RunLedgerChunkEntry{
+			Chunk:        chunkNum,
+			OutputKey:    chunk.outputKey,
+			ArtifactType: chunk.artifactType,
+			Status:       "failed",
+			StartedAt:    time.Now().UTC().Format(time.RFC3339),
+			CompletedAt:  time.Now().UTC().Format(time.RFC3339),
+			InputTokens:  chunkIn,
+			OutputTokens: chunkOut,
+		})
+		_ = e.runLedger.Fail(ctx, runID, chunkErr.Error())
+	}
+	// Write metadata and promote staging → staged so the partial
+	// batch is visible for review/discard with change summaries.
+	e.finalizeBatch(ctx, batchID, skillName, trigger, params, changeSummaries)
+}
+
+// recordChunkStaged records a successfully staged chunk: it exposes the chunk's
+// output to subsequent chunks, collects any change_summary, updates the run
+// ledger, and emits the skill.chunk_staged activity event.
+func (e *Executor) recordChunkStaged(
+	ctx context.Context,
+	instanceID, batchID, runID uuid.UUID,
+	skillName string,
+	chunk chunkDef,
+	chunkNum int,
+	chunkResult *chunkCallResult,
+	staged []string,
+	droppedFeatures int,
+	priorOutputs map[string]any,
+	changeSummaries map[string]string,
+) {
+	// Record the successful chunk and make its output available to subsequent chunks.
+	if val, ok := chunkResult.Output[chunk.outputKey]; ok {
+		priorOutputs[chunk.outputKey] = val
+	}
+
+	// Collect change_summary if the LLM produced one.
+	// Key by each actually-staged artifact type so the handler can look up
+	// summaries by artifact_type directly. Also store by output_key as fallback.
+	if cs, ok := chunkResult.Output["change_summary"].(string); ok && cs != "" {
+		changeSummaries[chunk.outputKey] = cs
+		for _, at := range staged {
+			changeSummaries[at] = cs
+		}
+	}
+
+	// Update the run ledger with this chunk's results.
+	if e.runLedger != nil && runID != uuid.Nil {
+		chunkStarted := time.Now().Add(-time.Duration(chunkResult.InputTokens+chunkResult.OutputTokens) * time.Millisecond) // rough estimate
+		_ = e.runLedger.UpdateChunk(ctx, runID, RunLedgerChunkEntry{
+			Chunk:            chunkNum,
+			OutputKey:        chunk.outputKey,
+			ArtifactType:     chunk.artifactType,
+			Status:           "staged",
+			StartedAt:        chunkStarted.UTC().Format(time.RFC3339),
+			CompletedAt:      time.Now().UTC().Format(time.RFC3339),
+			InputTokens:      chunkResult.InputTokens,
+			OutputTokens:     chunkResult.OutputTokens,
+			ContextTruncated: droppedFeatures > 0,
+			DroppedFeatures:  droppedFeatures,
+		})
+	}
+
+	e.record(ctx, instanceID, "skill.chunk_staged", map[string]any{
+		"skill_name":     skillName,
+		"batch_id":       batchID.String(),
+		"chunk":          chunkNum,
+		"output_key":     chunk.outputKey,
+		"artifact_types": staged,
+		"input_tokens":   chunkResult.InputTokens,
+		"output_tokens":  chunkResult.OutputTokens,
+		"run_id":         runID.String(),
+	})
+
+	slog.InfoContext(ctx, "skillexec: chunk staged",
+		"skill", skillName, "chunk", chunkNum, "output_key", chunk.outputKey, "artifact_types", staged)
 }
 
 // callWithValidationChunk is a scoped variant of callWithValidation for a single

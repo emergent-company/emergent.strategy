@@ -20,7 +20,14 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 	if svc.Ripple == nil {
 		return
 	}
+	registerRippleSignalTools(s, svc)
+	registerRippleSignalStateTools(s, svc)
+	registerRippleConfigTools(s, svc)
+	registerRippleConvergenceTools(s, svc)
+}
 
+// registerRippleSignalTools registers the blast-radius and coherence analysis tools.
+func registerRippleSignalTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// propose_change — preview the blast radius of a proposed artifact change
 	// -----------------------------------------------------------------------
@@ -148,6 +155,10 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// list_signals — list active ripple signals for an instance
 	// -----------------------------------------------------------------------
+}
+
+// registerRippleSignalStateTools registers signal listing, state transitions, and batch generation.
+func registerRippleSignalStateTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("list_signals",
 		mcp.WithDescription("USE WHEN you need to see active ripple signals — misalignments between connected artifacts."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
@@ -339,6 +350,10 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 		return mustJSON(result)
 	})
 
+}
+
+// registerRippleConfigTools registers the ripple configuration read/write tools.
+func registerRippleConfigTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// get_ripple_config — read current ripple config for an instance
 	// -----------------------------------------------------------------------
@@ -405,6 +420,10 @@ func registerRippleTools(s *server.MCPServer, svc Services) {
 	// -----------------------------------------------------------------------
 	// get_equilibrium_status — current equilibrium score and breakdown
 	// -----------------------------------------------------------------------
+}
+
+// registerRippleConvergenceTools registers the equilibrium and convergence-history tools.
+func registerRippleConvergenceTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("get_equilibrium_status",
 		mcp.WithDescription("USE WHEN you need the current equilibrium score and coherence breakdown for an instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),

@@ -58,6 +58,42 @@ func DetectCrossTrackTension(ctx context.Context, db *bun.DB, mem *memory.Client
 	// Build track membership: infer from explicit Track field, contributes_to
 	// targets (value model keys like "vm-product" → product track), and
 	// artifact type conventions.
+	trackArtifacts := inferTrackMembership(artifacts, rels)
+
+	// Need at least 2 tracks to detect tension.
+	tracks := make([]string, 0, len(trackArtifacts))
+	for t := range trackArtifacts {
+		tracks = append(tracks, t)
+	}
+	if len(tracks) < 2 {
+		return nil, nil, nil
+	}
+	sort.Strings(tracks)
+
+	var signals []*domain.RippleSignal
+	var results []TensionResult
+
+	// For each pair of tracks, measure cross-track similarity.
+	for i := 0; i < len(tracks); i++ {
+		for j := i + 1; j < len(tracks); j++ {
+			result, signal := measureTrackPairTension(ctx, mem, instanceID, cfg, tracks[i], tracks[j], trackArtifacts)
+			if result == nil {
+				continue
+			}
+			results = append(results, *result)
+			if signal != nil {
+				signals = append(signals, signal)
+			}
+		}
+	}
+
+	return signals, results, nil
+}
+
+// inferTrackMembership groups artifacts by their inferred track using three
+// passes: explicit Track field, value-model artifact-key conventions, and
+// contributes_to relationship targets. Returns track slug → member artifacts.
+func inferTrackMembership(artifacts []*domain.StrategyArtifact, rels []domain.StrategyRelationship) map[string][]*domain.StrategyArtifact {
 	trackArtifacts := make(map[string][]*domain.StrategyArtifact)
 	artByKey := make(map[string]*domain.StrategyArtifact)
 	for _, a := range artifacts {
@@ -113,118 +149,113 @@ func DetectCrossTrackTension(ctx context.Context, db *bun.DB, mem *memory.Client
 			trackArtifacts[track] = append(trackArtifacts[track], a)
 		}
 	}
+	return trackArtifacts
+}
 
-	// Need at least 2 tracks to detect tension.
-	tracks := make([]string, 0, len(trackArtifacts))
-	for t := range trackArtifacts {
-		tracks = append(tracks, t)
+// measureTrackPairTension measures cross-track semantic similarity for one pair
+// of tracks by querying Memory with track A's content filtered to track B's
+// types. It returns the tension result and, when divergence exceeds baseline, a
+// tension signal. Returns (nil, nil) when track A has no query content or the
+// search fails (the caller skips these pairs).
+func measureTrackPairTension(
+	ctx context.Context,
+	mem *memory.Client,
+	instanceID uuid.UUID,
+	cfg RippleConfig,
+	trackA, trackB string,
+	trackArtifacts map[string][]*domain.StrategyArtifact,
+) (*TensionResult, *domain.RippleSignal) {
+	// Build a representative query from track A's content.
+	queryA := buildTrackQuery(trackArtifacts[trackA])
+	if queryA == "" {
+		return nil, nil
 	}
-	if len(tracks) < 2 {
-		return nil, nil, nil
+
+	// Collect the artifact types present in track B so we can
+	// filter the search to only return those types.
+	trackBTypes := make(map[string]bool)
+	for _, b := range trackArtifacts[trackB] {
+		trackBTypes[b.ArtifactType] = true
 	}
-	sort.Strings(tracks)
+	typeFilter := make([]string, 0, len(trackBTypes))
+	for t := range trackBTypes {
+		typeFilter = append(typeFilter, t)
+	}
 
-	var signals []*domain.RippleSignal
-	var results []TensionResult
+	// Search Memory with track A's content, filtered to track B's types.
+	searchResults, searchErr := mem.Search(ctx, memory.SearchRequest{
+		Query: truncateForSearch(queryA, 500),
+		Limit: 30,
+		Types: typeFilter,
+	})
+	if searchErr != nil {
+		slog.WarnContext(ctx, "tension: search failed",
+			"trackA", trackA, "trackB", trackB, "error", searchErr)
+		return nil, nil
+	}
 
-	// For each pair of tracks, measure cross-track similarity.
-	for i := 0; i < len(tracks); i++ {
-		for j := i + 1; j < len(tracks); j++ {
-			trackA, trackB := tracks[i], tracks[j]
+	// Measure how well track B's artifacts appear in results when
+	// querying with track A's content. High scores = aligned.
+	trackBKeys := make(map[string]bool)
+	for _, a := range trackArtifacts[trackB] {
+		trackBKeys[a.ArtifactKey] = true
+	}
 
-			// Build a representative query from track A's content.
-			queryA := buildTrackQuery(trackArtifacts[trackA])
-			if queryA == "" {
-				continue
-			}
-
-			// Collect the artifact types present in track B so we can
-			// filter the search to only return those types.
-			trackBTypes := make(map[string]bool)
-			for _, b := range trackArtifacts[trackB] {
-				trackBTypes[b.ArtifactType] = true
-			}
-			typeFilter := make([]string, 0, len(trackBTypes))
-			for t := range trackBTypes {
-				typeFilter = append(typeFilter, t)
-			}
-
-			// Search Memory with track A's content, filtered to track B's types.
-			searchResults, searchErr := mem.Search(ctx, memory.SearchRequest{
-				Query: truncateForSearch(queryA, 500),
-				Limit: 30,
-				Types: typeFilter,
-			})
-			if searchErr != nil {
-				slog.WarnContext(ctx, "tension: search failed",
-					"trackA", trackA, "trackB", trackB, "error", searchErr)
-				continue
-			}
-
-			// Measure how well track B's artifacts appear in results when
-			// querying with track A's content. High scores = aligned.
-			trackBKeys := make(map[string]bool)
-			for _, a := range trackArtifacts[trackB] {
-				trackBKeys[a.ArtifactKey] = true
-			}
-
-			var totalScore float64
-			var matchCount int
-			for _, r := range searchResults {
-				if trackBKeys[r.Object.Key] {
-					totalScore += r.Score
-					matchCount++
-				}
-			}
-
-			// Average similarity of track B artifacts found in track A query.
-			var avgSimilarity float64
-			if matchCount > 0 {
-				avgSimilarity = totalScore / float64(matchCount)
-			}
-			// If no track B artifacts found at all, similarity is very low.
-
-			// Convert similarity to divergence: higher divergence = more tension.
-			// Divergence = 1.0 - similarity.
-			divergence := 1.0 - avgSimilarity
-			baseline := cfg.TensionBaseline(trackA, trackB)
-			excess := divergence - baseline
-			if excess < 0 {
-				excess = 0
-			}
-
-			result := TensionResult{
-				TrackA:        trackA,
-				TrackB:        trackB,
-				MeasuredScore: avgSimilarity,
-				Baseline:      baseline,
-				Excess:        excess,
-			}
-			results = append(results, result)
-
-			// Only emit signals for excess tension.
-			if excess > 0 {
-				severity := domain.SignalSeverityWarning
-				if excess >= 0.15 {
-					severity = domain.SignalSeverityCritical
-				}
-
-				desc := fmt.Sprintf("Tracks %s and %s show excess semantic tension (divergence %.2f, baseline %.2f, excess %.2f). The tracks may be strategically misaligned.",
-					trackA, trackB, divergence, baseline, excess)
-
-				signals = append(signals, &domain.RippleSignal{
-					InstanceID:  instanceID,
-					SignalType:  domain.SignalTypeTension,
-					Severity:    severity,
-					SourceKey:   trackA,
-					TargetKey:   trackB,
-					Description: desc,
-				})
-			}
+	var totalScore float64
+	var matchCount int
+	for _, r := range searchResults {
+		if trackBKeys[r.Object.Key] {
+			totalScore += r.Score
+			matchCount++
 		}
 	}
 
-	return signals, results, nil
+	// Average similarity of track B artifacts found in track A query.
+	var avgSimilarity float64
+	if matchCount > 0 {
+		avgSimilarity = totalScore / float64(matchCount)
+	}
+	// If no track B artifacts found at all, similarity is very low.
+
+	// Convert similarity to divergence: higher divergence = more tension.
+	// Divergence = 1.0 - similarity.
+	divergence := 1.0 - avgSimilarity
+	baseline := cfg.TensionBaseline(trackA, trackB)
+	excess := divergence - baseline
+	if excess < 0 {
+		excess = 0
+	}
+
+	result := &TensionResult{
+		TrackA:        trackA,
+		TrackB:        trackB,
+		MeasuredScore: avgSimilarity,
+		Baseline:      baseline,
+		Excess:        excess,
+	}
+
+	// Only emit signals for excess tension.
+	if excess <= 0 {
+		return result, nil
+	}
+
+	severity := domain.SignalSeverityWarning
+	if excess >= 0.15 {
+		severity = domain.SignalSeverityCritical
+	}
+
+	desc := fmt.Sprintf("Tracks %s and %s show excess semantic tension (divergence %.2f, baseline %.2f, excess %.2f). The tracks may be strategically misaligned.",
+		trackA, trackB, divergence, baseline, excess)
+
+	signal := &domain.RippleSignal{
+		InstanceID:  instanceID,
+		SignalType:  domain.SignalTypeTension,
+		Severity:    severity,
+		SourceKey:   trackA,
+		TargetKey:   trackB,
+		Description: desc,
+	}
+	return result, signal
 }
 
 // buildTrackQuery concatenates the first N words from each artifact in a track

@@ -453,51 +453,7 @@ func (s *Server) loadCanonicalLayerGroups(
 	}
 
 	// Build ordered layer + component structure; keep a lookup by comp name (lowercased) for matching.
-	type compMeta struct {
-		id   string
-		name string
-		idx  int // position within layer
-	}
-	type layerMeta struct {
-		id         string
-		name       string
-		comps      []compMeta
-		compByName map[string]int // lowercased comp name → index in comps
-	}
-
-	layers := make([]layerMeta, 0, len(rawLayers))
-	for _, lAny := range rawLayers {
-		lm, ok := lAny.(map[string]any)
-		if !ok {
-			continue
-		}
-		lid, _ := lm["id"].(string)
-		lname, _ := lm["name"].(string)
-		if lid == "" {
-			continue
-		}
-		meta := layerMeta{
-			id:         lid,
-			name:       toTitleCase(lname),
-			compByName: make(map[string]int),
-		}
-		rawComps, _ := lm["components"].([]any)
-		for _, cAny := range rawComps {
-			cm, ok := cAny.(map[string]any)
-			if !ok {
-				continue
-			}
-			cid, _ := cm["id"].(string)
-			cname, _ := cm["name"].(string)
-			if cid == "" {
-				continue
-			}
-			idx := len(meta.comps)
-			meta.comps = append(meta.comps, compMeta{id: cid, name: cname, idx: idx})
-			meta.compByName[strings.ToLower(cname)] = idx
-		}
-		layers = append(layers, meta)
-	}
+	layers := buildCanonicalLayerMeta(rawLayers)
 
 	// 2. Load all definitions for this track.
 	var rows []struct {
@@ -525,83 +481,157 @@ func (s *Server) loadCanonicalLayerGroups(
 	}
 
 	for _, r := range rows {
-		name := r.Name
-		if name == "" {
-			name = r.ArtifactKey
-		}
-		tier := 0
-		var tierDesc, effort, owner string
-		var p map[string]any
-		if json.Unmarshal([]byte(r.Payload), &p) == nil {
-			if mat, ok := p["maturity"].(map[string]any); ok {
-				if t, ok := mat["current_tier"].(float64); ok {
-					tier = int(t)
-					// Pull description + effort from the current tier block.
-					var tierKey string
-					switch tier {
-					case 2:
-						tierKey = "tier_2_intermediate"
-					case 3:
-						tierKey = "tier_3_advanced"
-					default:
-						tierKey = fmt.Sprintf("tier_%d_basic", tier)
-					}
-					if tb, ok := mat[tierKey].(map[string]any); ok {
-						tierDesc, _ = tb["description"].(string)
-						effort, _ = tb["effort"].(string)
-					}
-				}
-			}
-			if def, ok := p["definition"].(map[string]any); ok {
-				owner, _ = def["owner"].(string)
-			}
-		}
-		// Extract contributes_to paths first so MissingValueModelLink can be set accurately.
-		// Each path is "Track.ComponentName.def-slug"
-		var paths []string
-		if ct, ok := p["contributes_to"].([]any); ok {
-			for _, v := range ct {
-				if s, ok := v.(string); ok {
-					paths = append(paths, s)
-				}
-			}
-		}
+		def, paths := buildCanonicalDefinition(instanceID, r.ArtifactKey, r.Name, r.Status, r.Payload, defURL)
+		placeCanonicalDefinition(groups, layers, def, r.ArtifactKey, paths)
+	}
 
-		def := ui.FireTrackDefinition{
-			Key:                   r.ArtifactKey,
-			Name:                  name,
-			Status:                r.Status,
-			MaturityTier:          tier,
-			MaturityDescription:   tierDesc,
-			Effort:                effort,
-			Owner:                 owner,
-			ViewURL:               defURL(instanceID, r.ArtifactKey),
-			MissingValueModelLink: len(paths) == 0,
-		}
+	// 4. Build result, skipping empty layers.
+	return assembleCanonicalLayerGroups(layers, groups)
+}
 
-		placed := make(map[string]bool) // prevent placing same def in same comp twice
-		for _, path := range paths {
-			parts := strings.SplitN(path, ".", 3)
-			if len(parts) < 2 {
+// canonicalCompMeta describes a component within a canonical value model layer.
+type canonicalCompMeta struct {
+	id   string
+	name string
+	idx  int // position within layer
+}
+
+// canonicalLayerMeta describes a canonical value model layer plus a name lookup.
+type canonicalLayerMeta struct {
+	id         string
+	name       string
+	comps      []canonicalCompMeta
+	compByName map[string]int // lowercased comp name → index in comps
+}
+
+// buildCanonicalLayerMeta builds the ordered layer + component structure from the
+// raw value model layers, with a lowercased component-name lookup for matching.
+func buildCanonicalLayerMeta(rawLayers []any) []canonicalLayerMeta {
+	layers := make([]canonicalLayerMeta, 0, len(rawLayers))
+	for _, lAny := range rawLayers {
+		lm, ok := lAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		lid, _ := lm["id"].(string)
+		lname, _ := lm["name"].(string)
+		if lid == "" {
+			continue
+		}
+		meta := canonicalLayerMeta{
+			id:         lid,
+			name:       toTitleCase(lname),
+			compByName: make(map[string]int),
+		}
+		rawComps, _ := lm["components"].([]any)
+		for _, cAny := range rawComps {
+			cm, ok := cAny.(map[string]any)
+			if !ok {
 				continue
 			}
-			compNameRaw := parts[1] // e.g. "Vision & mission", "Competitor Analysis"
-			compKey := strings.ToLower(compNameRaw)
-			// Find which layer contains this component
-			for li, layer := range layers {
-				if ci, ok := layer.compByName[compKey]; ok {
-					placeKey := r.ArtifactKey + "|" + layer.comps[ci].id
-					if !placed[placeKey] {
-						placed[placeKey] = true
-						groups[li][ci] = append(groups[li][ci], def)
-					}
-					break
+			cid, _ := cm["id"].(string)
+			cname, _ := cm["name"].(string)
+			if cid == "" {
+				continue
+			}
+			idx := len(meta.comps)
+			meta.comps = append(meta.comps, canonicalCompMeta{id: cid, name: cname, idx: idx})
+			meta.compByName[strings.ToLower(cname)] = idx
+		}
+		layers = append(layers, meta)
+	}
+	return layers
+}
+
+// buildCanonicalDefinition constructs a FireTrackDefinition from a definition row
+// and returns it along with the contributes_to paths parsed from its payload.
+func buildCanonicalDefinition(instanceID, artifactKey, name, status, payloadStr string, defURL func(instanceID, key string) string) (ui.FireTrackDefinition, []string) {
+	if name == "" {
+		name = artifactKey
+	}
+	tier := 0
+	var tierDesc, effort, owner string
+	var p map[string]any
+	if json.Unmarshal([]byte(payloadStr), &p) == nil {
+		if mat, ok := p["maturity"].(map[string]any); ok {
+			if t, ok := mat["current_tier"].(float64); ok {
+				tier = int(t)
+				// Pull description + effort from the current tier block.
+				if tb, ok := mat[canonicalTierKey(tier)].(map[string]any); ok {
+					tierDesc, _ = tb["description"].(string)
+					effort, _ = tb["effort"].(string)
 				}
+			}
+		}
+		if def, ok := p["definition"].(map[string]any); ok {
+			owner, _ = def["owner"].(string)
+		}
+	}
+	// Extract contributes_to paths first so MissingValueModelLink can be set accurately.
+	// Each path is "Track.ComponentName.def-slug"
+	var paths []string
+	if ct, ok := p["contributes_to"].([]any); ok {
+		for _, v := range ct {
+			if s, ok := v.(string); ok {
+				paths = append(paths, s)
 			}
 		}
 	}
 
-	// 4. Build result, skipping empty layers.
+	def := ui.FireTrackDefinition{
+		Key:                   artifactKey,
+		Name:                  name,
+		Status:                status,
+		MaturityTier:          tier,
+		MaturityDescription:   tierDesc,
+		Effort:                effort,
+		Owner:                 owner,
+		ViewURL:               defURL(instanceID, artifactKey),
+		MissingValueModelLink: len(paths) == 0,
+	}
+	return def, paths
+}
+
+// canonicalTierKey maps a numeric maturity tier to its payload block key.
+func canonicalTierKey(tier int) string {
+	switch tier {
+	case 2:
+		return "tier_2_intermediate"
+	case 3:
+		return "tier_3_advanced"
+	default:
+		return fmt.Sprintf("tier_%d_basic", tier)
+	}
+}
+
+// placeCanonicalDefinition assigns a definition into the groups grid by matching
+// the second segment of each contributes_to path against component names.
+func placeCanonicalDefinition(groups [][][]ui.FireTrackDefinition, layers []canonicalLayerMeta, def ui.FireTrackDefinition, artifactKey string, paths []string) {
+	placed := make(map[string]bool) // prevent placing same def in same comp twice
+	for _, path := range paths {
+		parts := strings.SplitN(path, ".", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		compNameRaw := parts[1] // e.g. "Vision & mission", "Competitor Analysis"
+		compKey := strings.ToLower(compNameRaw)
+		// Find which layer contains this component
+		for li, layer := range layers {
+			if ci, ok := layer.compByName[compKey]; ok {
+				placeKey := artifactKey + "|" + layer.comps[ci].id
+				if !placed[placeKey] {
+					placed[placeKey] = true
+					groups[li][ci] = append(groups[li][ci], def)
+				}
+				break
+			}
+		}
+	}
+}
+
+// assembleCanonicalLayerGroups builds the final FireLayerGroup slice from the
+// layer metadata and the populated groups grid.
+func assembleCanonicalLayerGroups(layers []canonicalLayerMeta, groups [][][]ui.FireTrackDefinition) []ui.FireLayerGroup {
 	result := make([]ui.FireLayerGroup, 0, len(layers))
 	for li, layer := range layers {
 		lg := ui.FireLayerGroup{
@@ -685,90 +715,11 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 		OrderExpr("artifact_key ASC").
 		Scan(ctx, &vmRows)
 
-	// Internal types for building the hierarchy.
-	type compMeta struct {
-		id        string // kebab-case, e.g. "knowledge-graph"
-		name      string // display name, e.g. "Knowledge Graph"
-		normalKey string // lowercase, no hyphens — for matching
-	}
-	type layerMeta struct {
-		id        string
-		name      string          // display name
-		layerKeys map[string]bool // camelCase variants from kebabToCamelCaseVariants
-		comps     []compMeta
-		compByKey map[string]int // normalKey → index in comps
-	}
-	type vmMeta struct {
-		key    string
-		name   string
-		layers []layerMeta
-		// fast lookup: camelCase layer key → layer index
-		layerIdx map[string]int
-	}
-
-	vms := make([]vmMeta, 0, len(vmRows))
+	vms := make([]productVMMeta, 0, len(vmRows))
 	for _, r := range vmRows {
-		var m map[string]any
-		if json.Unmarshal([]byte(r.Payload), &m) != nil {
-			continue
+		if vm, ok := buildProductVMMeta(r.ArtifactKey, r.Payload); ok {
+			vms = append(vms, vm)
 		}
-		displayName := productLineDisplayName(r.ArtifactKey, m)
-		vm := vmMeta{
-			key:      r.ArtifactKey,
-			name:     displayName,
-			layerIdx: make(map[string]int),
-		}
-		if ls, ok := m["layers"].([]any); ok {
-			for _, lAny := range ls {
-				lm, ok := lAny.(map[string]any)
-				if !ok {
-					continue
-				}
-				layerID, _ := lm["id"].(string)
-				layerName, _ := lm["name"].(string)
-				if layerID == "" {
-					continue
-				}
-				lMeta := layerMeta{
-					id:        layerID,
-					name:      toTitleCase(layerName),
-					layerKeys: make(map[string]bool),
-					compByKey: make(map[string]int),
-				}
-				for _, v := range kebabToCamelCaseVariants(layerID) {
-					lMeta.layerKeys[v] = true
-				}
-				// Parse components within this layer.
-				if rawComps, ok := lm["components"].([]any); ok {
-					for _, cAny := range rawComps {
-						cm, ok := cAny.(map[string]any)
-						if !ok {
-							continue
-						}
-						cid, _ := cm["id"].(string)
-						cname, _ := cm["name"].(string)
-						if cid == "" {
-							continue
-						}
-						normalKey := strings.ToLower(strings.ReplaceAll(cid, "-", ""))
-						idx := len(lMeta.comps)
-						lMeta.comps = append(lMeta.comps, compMeta{
-							id:        cid,
-							name:      cname,
-							normalKey: normalKey,
-						})
-						lMeta.compByKey[normalKey] = idx
-					}
-				}
-				// Register all camelCase layer keys → layer index in this VM.
-				lIdx := len(vm.layers)
-				for k := range lMeta.layerKeys {
-					vm.layerIdx[k] = lIdx
-				}
-				vm.layers = append(vm.layers, lMeta)
-			}
-		}
-		vms = append(vms, vm)
 	}
 
 	if len(vms) == 0 {
@@ -791,85 +742,212 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 		Scan(ctx, &featureRows)
 
 	// groups[vmIdx][layerIdx][compIdx] = []FireTrackDefinition
-	type key3 struct{ vm, layer, comp int }
-	buckets := make(map[key3][]ui.FireTrackDefinition)
+	buckets := make(map[productKey3][]ui.FireTrackDefinition)
 	assigned := make(map[string]bool)
 
 	for _, fr := range featureRows {
-		var p map[string]any
-		_ = json.Unmarshal([]byte(fr.Payload), &p)
-		var paths []string
-		if sc, ok := p["strategic_context"].(map[string]any); ok {
-			if ct, ok := sc["contributes_to"].([]any); ok {
-				for _, v := range ct {
-					if sv, ok := v.(string); ok {
-						paths = append(paths, sv)
-					}
-				}
-			}
-		}
-		maturityStage, capCount, implLinks := extractFeatureDefFields([]byte(fr.Payload))
-		name := fr.Name
-		if name == "" {
-			name = fr.ArtifactKey
-		}
-		def := ui.FireTrackDefinition{
-			Key:                   fr.ArtifactKey,
-			Name:                  name,
-			Status:                fr.Status,
-			ViewURL:               defURL(instanceID, fr.ArtifactKey),
-			MaturityStage:         maturityStage,
-			CapabilityCount:       capCount,
-			ImplLinks:             implLinks,
-			MissingValueModelLink: len(paths) == 0,
-		}
-
-		placed := make(map[key3]bool)
-		for _, path := range paths {
-			// path format: "Product.LayerCamelCase.ComponentCamelCase"
-			parts := strings.SplitN(path, ".", 3)
-			if len(parts) < 2 {
-				continue
-			}
-			layerSeg := parts[1] // e.g. "MemoryReasoningEngine"
-			compSeg := ""
-			if len(parts) == 3 {
-				compSeg = strings.ToLower(parts[2]) // e.g. "knowledgegraph"
-			}
-
-			for vi, vm := range vms {
-				lIdx, ok := vm.layerIdx[layerSeg]
-				if !ok {
-					continue
-				}
-				layer := vm.layers[lIdx]
-				// Try to match component.
-				cIdx := -1
-				if compSeg != "" {
-					if ci, ok := layer.compByKey[compSeg]; ok {
-						cIdx = ci
-					}
-				}
-				if cIdx == -1 {
-					// Fallback: place in first component of the layer (or skip if none).
-					if len(layer.comps) > 0 {
-						cIdx = 0
-					} else {
-						continue
-					}
-				}
-				k := key3{vi, lIdx, cIdx}
-				if !placed[k] {
-					placed[k] = true
-					buckets[k] = append(buckets[k], def)
-				}
-				assigned[fr.ArtifactKey] = true
-				break // first VM match wins
-			}
-		}
+		def, paths := buildProductFeatureDef(instanceID, fr.ArtifactKey, fr.Name, fr.Status, fr.Payload, defURL)
+		placeProductFeature(buckets, assigned, vms, def, fr.ArtifactKey, paths)
 	}
 
 	// Build result with full hierarchy.
+	result := assembleProductLineGroups(instanceID, vms, buckets)
+	_ = assigned // used for deduplication tracking
+	return result
+}
+
+// productCompMeta describes a component within a Product value model layer.
+type productCompMeta struct {
+	id        string // kebab-case, e.g. "knowledge-graph"
+	name      string // display name, e.g. "Knowledge Graph"
+	normalKey string // lowercase, no hyphens — for matching
+}
+
+// productLayerMeta describes a Product value model layer plus matching lookups.
+type productLayerMeta struct {
+	id        string
+	name      string          // display name
+	layerKeys map[string]bool // camelCase variants from kebabToCamelCaseVariants
+	comps     []productCompMeta
+	compByKey map[string]int // normalKey → index in comps
+}
+
+// productVMMeta describes a single Product value model and its layer hierarchy.
+type productVMMeta struct {
+	key    string
+	name   string
+	layers []productLayerMeta
+	// fast lookup: camelCase layer key → layer index
+	layerIdx map[string]int
+}
+
+// productKey3 indexes the buckets grid by VM, layer, and component index.
+type productKey3 struct{ vm, layer, comp int }
+
+// buildProductVMMeta parses a single Product value model payload into a
+// productVMMeta hierarchy. Returns false if the payload cannot be parsed.
+func buildProductVMMeta(artifactKey, payloadStr string) (productVMMeta, bool) {
+	var m map[string]any
+	if json.Unmarshal([]byte(payloadStr), &m) != nil {
+		return productVMMeta{}, false
+	}
+	vm := productVMMeta{
+		key:      artifactKey,
+		name:     productLineDisplayName(artifactKey, m),
+		layerIdx: make(map[string]int),
+	}
+	ls, ok := m["layers"].([]any)
+	if !ok {
+		return vm, true
+	}
+	for _, lAny := range ls {
+		lm, ok := lAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		layerID, _ := lm["id"].(string)
+		layerName, _ := lm["name"].(string)
+		if layerID == "" {
+			continue
+		}
+		lMeta := buildProductLayerMeta(layerID, layerName, lm)
+		// Register all camelCase layer keys → layer index in this VM.
+		lIdx := len(vm.layers)
+		for k := range lMeta.layerKeys {
+			vm.layerIdx[k] = lIdx
+		}
+		vm.layers = append(vm.layers, lMeta)
+	}
+	return vm, true
+}
+
+// buildProductLayerMeta builds a single layer's metadata (keys + components).
+func buildProductLayerMeta(layerID, layerName string, lm map[string]any) productLayerMeta {
+	lMeta := productLayerMeta{
+		id:        layerID,
+		name:      toTitleCase(layerName),
+		layerKeys: make(map[string]bool),
+		compByKey: make(map[string]int),
+	}
+	for _, v := range kebabToCamelCaseVariants(layerID) {
+		lMeta.layerKeys[v] = true
+	}
+	// Parse components within this layer.
+	rawComps, ok := lm["components"].([]any)
+	if !ok {
+		return lMeta
+	}
+	for _, cAny := range rawComps {
+		cm, ok := cAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		cid, _ := cm["id"].(string)
+		cname, _ := cm["name"].(string)
+		if cid == "" {
+			continue
+		}
+		normalKey := strings.ToLower(strings.ReplaceAll(cid, "-", ""))
+		idx := len(lMeta.comps)
+		lMeta.comps = append(lMeta.comps, productCompMeta{
+			id:        cid,
+			name:      cname,
+			normalKey: normalKey,
+		})
+		lMeta.compByKey[normalKey] = idx
+	}
+	return lMeta
+}
+
+// buildProductFeatureDef constructs a FireTrackDefinition from a feature row and
+// returns it with the strategic_context.contributes_to paths parsed from payload.
+func buildProductFeatureDef(instanceID, artifactKey, name, status, payloadStr string, defURL func(string, string) string) (ui.FireTrackDefinition, []string) {
+	var p map[string]any
+	_ = json.Unmarshal([]byte(payloadStr), &p)
+	var paths []string
+	if sc, ok := p["strategic_context"].(map[string]any); ok {
+		if ct, ok := sc["contributes_to"].([]any); ok {
+			for _, v := range ct {
+				if sv, ok := v.(string); ok {
+					paths = append(paths, sv)
+				}
+			}
+		}
+	}
+	maturityStage, capCount, implLinks := extractFeatureDefFields([]byte(payloadStr))
+	if name == "" {
+		name = artifactKey
+	}
+	def := ui.FireTrackDefinition{
+		Key:                   artifactKey,
+		Name:                  name,
+		Status:                status,
+		ViewURL:               defURL(instanceID, artifactKey),
+		MaturityStage:         maturityStage,
+		CapabilityCount:       capCount,
+		ImplLinks:             implLinks,
+		MissingValueModelLink: len(paths) == 0,
+	}
+	return def, paths
+}
+
+// placeProductFeature assigns a feature definition into the buckets grid by
+// matching its contributes_to paths against VM layers/components. The first VM
+// match wins for each path.
+func placeProductFeature(buckets map[productKey3][]ui.FireTrackDefinition, assigned map[string]bool, vms []productVMMeta, def ui.FireTrackDefinition, artifactKey string, paths []string) {
+	placed := make(map[productKey3]bool)
+	for _, path := range paths {
+		// path format: "Product.LayerCamelCase.ComponentCamelCase"
+		parts := strings.SplitN(path, ".", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		layerSeg := parts[1] // e.g. "MemoryReasoningEngine"
+		compSeg := ""
+		if len(parts) == 3 {
+			compSeg = strings.ToLower(parts[2]) // e.g. "knowledgegraph"
+		}
+
+		for vi, vm := range vms {
+			lIdx, ok := vm.layerIdx[layerSeg]
+			if !ok {
+				continue
+			}
+			layer := vm.layers[lIdx]
+			cIdx := resolveProductCompIdx(layer, compSeg)
+			if cIdx == -1 {
+				continue
+			}
+			k := productKey3{vi, lIdx, cIdx}
+			if !placed[k] {
+				placed[k] = true
+				buckets[k] = append(buckets[k], def)
+			}
+			assigned[artifactKey] = true
+			break // first VM match wins
+		}
+	}
+}
+
+// resolveProductCompIdx resolves the component index within a layer for a given
+// component path segment, falling back to the first component when unmatched.
+// Returns -1 when the layer has no components to place into.
+func resolveProductCompIdx(layer productLayerMeta, compSeg string) int {
+	if compSeg != "" {
+		if ci, ok := layer.compByKey[compSeg]; ok {
+			return ci
+		}
+	}
+	// Fallback: place in first component of the layer (or skip if none).
+	if len(layer.comps) > 0 {
+		return 0
+	}
+	return -1
+}
+
+// assembleProductLineGroups builds the final FireProductLineGroup slice from the
+// VM metadata and the populated buckets grid.
+func assembleProductLineGroups(instanceID string, vms []productVMMeta, buckets map[productKey3][]ui.FireTrackDefinition) []ui.FireProductLineGroup {
 	result := make([]ui.FireProductLineGroup, 0, len(vms))
 	for vi, vm := range vms {
 		var layerChips []string
@@ -881,7 +959,7 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 				LayerName: layer.name,
 			}
 			for ci, comp := range layer.comps {
-				k := key3{vi, li, ci}
+				k := productKey3{vi, li, ci}
 				lg.Components = append(lg.Components, ui.FireComponentGroup{
 					ComponentID:   comp.id,
 					ComponentName: comp.name,
@@ -898,7 +976,6 @@ func (s *Server) loadProductLineGroups(ctx context.Context, instanceID string, d
 			Layers:     layerGroups,
 		})
 	}
-	_ = assigned // used for deduplication tracking
 	return result
 }
 

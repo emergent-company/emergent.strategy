@@ -104,23 +104,7 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 	data.StrategicInsights = strategicInsights
 
 	// Signal severity breakdown
-	data.ActiveSignals, _ = s.db.NewSelect().
-		TableExpr("ripple_signals").
-		Where("instance_id = ?", instanceID).
-		Where("status = ?", "active").
-		Count(ctx)
-	data.CriticalSignals, _ = s.db.NewSelect().
-		TableExpr("ripple_signals").
-		Where("instance_id = ?", instanceID).
-		Where("status = ?", "active").
-		Where("severity = ?", "critical").
-		Count(ctx)
-	data.WarningSignals, _ = s.db.NewSelect().
-		TableExpr("ripple_signals").
-		Where("instance_id = ?", instanceID).
-		Where("status = ?", "active").
-		Where("severity = ?", "warning").
-		Count(ctx)
+	s.loadExecutionSignalCounts(ctx, instanceID, &data)
 
 	// Build tracks
 	tracks, _ := roadmap["tracks"].(map[string]any)
@@ -157,6 +141,14 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 	// Strategic focus — north star, bets, coherence, evidence, versions
 	s.loadStrategicFocus(ctx, instanceID, &data)
 
+	deps := executionTrackDeps{
+		instanceID:         instanceID,
+		features:           features,
+		assumptions:        assumptions,
+		featureAssumptions: featureAssumptions,
+		krOutcomes:         krOutcomes,
+		trackDefs:          trackDefs,
+	}
 	for _, tm := range trackMeta {
 		trackData, ok := tracks[tm.key].(map[string]any)
 		if !ok {
@@ -168,119 +160,169 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 		}
 
 		track := ui.ExecutionTrack{Name: tm.name, Icon: tm.icon, Definitions: trackDefs[tm.key]}
-
 		for _, okrRaw := range okrsRaw {
 			okrMap, ok := okrRaw.(map[string]any)
 			if !ok {
 				continue
 			}
-
-			okr := ui.ExecutionOKR{
-				ID:        strVal(okrMap, "id"),
-				Objective: strVal(okrMap, "objective"),
-			}
-			data.TotalOKRs++
-
-			krsRaw, _ := okrMap["key_results"].([]any)
-			for _, krRaw := range krsRaw {
-				krMap, ok := krRaw.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				krID := strVal(krMap, "id")
-				kr := ui.ExecutionKR{
-					ID:          krID,
-					Description: strVal(krMap, "description"),
-					Target:      strVal(krMap, "target"),
-					Baseline:    strVal(krMap, "baseline"),
-					TRLStart:    payloadIntAsStr(krMap, "trl_start"),
-					TRLTarget:   payloadIntAsStr(krMap, "trl_target"),
-				}
-				// Attach AIM assessment outcome if available
-				if outcome, ok := krOutcomes[krID]; ok {
-					kr.AssessmentStatus = outcome.status
-					kr.AssessmentActual = outcome.actual
-				}
-				data.TotalKRs++
-
-				// Find features that contribute to this KR's value paths
-				// Features are linked via contributes_to value model paths
-				// and via linked_to_kr relationships
-				krFeatures := s.findFeaturesForKR(ctx, instanceID, krID, features)
-				for _, f := range krFeatures {
-					kr.Features = append(kr.Features, ui.ExecutionFeature{
-						Key:    f.key,
-						Name:   f.name,
-						Status: f.status,
-						Href:   "/strategies/" + instanceID + "/fire/features/" + f.key,
-					})
-					switch f.status {
-					case "in-progress":
-						data.ActiveFeatures++
-					case "draft":
-						data.DraftFeatures++
-					}
-				}
-
-				// Find assumptions linked to this KR
-				if linkedAsm, ok := krMap["linked_to_kr"]; ok {
-					// Some KRs have direct assumption links
-					_ = linkedAsm
-				}
-				// Check assumption map for assumptions that reference this KR
-				for asmID, asm := range assumptions {
-					if linkedKRs, ok := asm["linked_to_kr"].([]any); ok {
-						for _, lkr := range linkedKRs {
-							if lkrStr, ok := lkr.(string); ok && lkrStr == krID {
-								kr.Assumptions = append(kr.Assumptions, ui.ExecutionAssumption{
-									ID:          asmID,
-									Description: strVal(asm, "description"),
-									Confidence:  strVal(asm, "confidence"),
-									Criticality: strVal(asm, "criticality"),
-								})
-								data.Assumptions++
-							}
-						}
-					}
-				}
-
-				// Also find assumptions via feature edges
-				for _, f := range krFeatures {
-					if asmIDs, ok := featureAssumptions[f.key]; ok {
-						for _, asmID := range asmIDs {
-							if asm, ok := assumptions[asmID]; ok {
-								// Avoid duplicates
-								found := false
-								for _, existing := range kr.Assumptions {
-									if existing.ID == asmID {
-										found = true
-										break
-									}
-								}
-								if !found {
-									kr.Assumptions = append(kr.Assumptions, ui.ExecutionAssumption{
-										ID:          asmID,
-										Description: strVal(asm, "description"),
-										Confidence:  strVal(asm, "confidence"),
-										Criticality: strVal(asm, "criticality"),
-									})
-								}
-							}
-						}
-					}
-				}
-
-				okr.KRs = append(okr.KRs, kr)
-			}
-
-			track.OKRs = append(track.OKRs, okr)
+			track.OKRs = append(track.OKRs, s.buildExecutionOKR(ctx, okrMap, deps, &data))
 		}
-
 		data.Tracks = append(data.Tracks, track)
 	}
 
 	return data
+}
+
+// loadExecutionSignalCounts populates active/critical/warning signal counts.
+func (s *Server) loadExecutionSignalCounts(ctx context.Context, instanceID string, data *ui.ExecutionData) {
+	data.ActiveSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Count(ctx)
+	data.CriticalSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Where("severity = ?", "critical").
+		Count(ctx)
+	data.WarningSignals, _ = s.db.NewSelect().
+		TableExpr("ripple_signals").
+		Where("instance_id = ?", instanceID).
+		Where("status = ?", "active").
+		Where("severity = ?", "warning").
+		Count(ctx)
+}
+
+// executionTrackDeps bundles the shared lookups used while assembling OKRs/KRs
+// for the execution dashboard.
+type executionTrackDeps struct {
+	instanceID         string
+	features           map[string]featureInfo
+	assumptions        map[string]map[string]any
+	featureAssumptions map[string][]string
+	krOutcomes         map[string]krOutcome
+	trackDefs          map[string][]ui.ExecutionDefinition
+}
+
+// buildExecutionOKR assembles a single ExecutionOKR (with its KRs) from a raw
+// OKR map, updating running totals on data.
+func (s *Server) buildExecutionOKR(ctx context.Context, okrMap map[string]any, deps executionTrackDeps, data *ui.ExecutionData) ui.ExecutionOKR {
+	okr := ui.ExecutionOKR{
+		ID:        strVal(okrMap, "id"),
+		Objective: strVal(okrMap, "objective"),
+	}
+	data.TotalOKRs++
+
+	krsRaw, _ := okrMap["key_results"].([]any)
+	for _, krRaw := range krsRaw {
+		krMap, ok := krRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		okr.KRs = append(okr.KRs, s.buildExecutionKR(ctx, krMap, deps, data))
+	}
+	return okr
+}
+
+// buildExecutionKR assembles a single ExecutionKR (with linked features and
+// assumptions) from a raw KR map, updating running totals on data.
+func (s *Server) buildExecutionKR(ctx context.Context, krMap map[string]any, deps executionTrackDeps, data *ui.ExecutionData) ui.ExecutionKR {
+	krID := strVal(krMap, "id")
+	kr := ui.ExecutionKR{
+		ID:          krID,
+		Description: strVal(krMap, "description"),
+		Target:      strVal(krMap, "target"),
+		Baseline:    strVal(krMap, "baseline"),
+		TRLStart:    payloadIntAsStr(krMap, "trl_start"),
+		TRLTarget:   payloadIntAsStr(krMap, "trl_target"),
+	}
+	// Attach AIM assessment outcome if available
+	if outcome, ok := deps.krOutcomes[krID]; ok {
+		kr.AssessmentStatus = outcome.status
+		kr.AssessmentActual = outcome.actual
+	}
+	data.TotalKRs++
+
+	// Find features that contribute to this KR's value paths
+	// Features are linked via contributes_to value model paths
+	// and via linked_to_kr relationships
+	krFeatures := s.findFeaturesForKR(ctx, deps.instanceID, krID, deps.features)
+	for _, f := range krFeatures {
+		kr.Features = append(kr.Features, ui.ExecutionFeature{
+			Key:    f.key,
+			Name:   f.name,
+			Status: f.status,
+			Href:   "/strategies/" + deps.instanceID + "/fire/features/" + f.key,
+		})
+		switch f.status {
+		case "in-progress":
+			data.ActiveFeatures++
+		case "draft":
+			data.DraftFeatures++
+		}
+	}
+
+	// Find assumptions linked to this KR
+	if linkedAsm, ok := krMap["linked_to_kr"]; ok {
+		// Some KRs have direct assumption links
+		_ = linkedAsm
+	}
+	// Check assumption map for assumptions that reference this KR
+	for asmID, asm := range deps.assumptions {
+		if linkedKRs, ok := asm["linked_to_kr"].([]any); ok {
+			for _, lkr := range linkedKRs {
+				if lkrStr, ok := lkr.(string); ok && lkrStr == krID {
+					kr.Assumptions = append(kr.Assumptions, ui.ExecutionAssumption{
+						ID:          asmID,
+						Description: strVal(asm, "description"),
+						Confidence:  strVal(asm, "confidence"),
+						Criticality: strVal(asm, "criticality"),
+					})
+					data.Assumptions++
+				}
+			}
+		}
+	}
+
+	// Also find assumptions via feature edges
+	kr.Assumptions = s.appendFeatureEdgeAssumptions(kr.Assumptions, krFeatures, deps)
+
+	return kr
+}
+
+// appendFeatureEdgeAssumptions adds assumptions linked to a KR via feature
+// tests_assumption edges, skipping any already present in the list.
+func (s *Server) appendFeatureEdgeAssumptions(existing []ui.ExecutionAssumption, krFeatures []featureInfo, deps executionTrackDeps) []ui.ExecutionAssumption {
+	for _, f := range krFeatures {
+		asmIDs, ok := deps.featureAssumptions[f.key]
+		if !ok {
+			continue
+		}
+		for _, asmID := range asmIDs {
+			asm, ok := deps.assumptions[asmID]
+			if !ok {
+				continue
+			}
+			// Avoid duplicates
+			found := false
+			for _, e := range existing {
+				if e.ID == asmID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				existing = append(existing, ui.ExecutionAssumption{
+					ID:          asmID,
+					Description: strVal(asm, "description"),
+					Confidence:  strVal(asm, "confidence"),
+					Criticality: strVal(asm, "criticality"),
+				})
+			}
+		}
+	}
+	return existing
 }
 
 type featureInfo struct {

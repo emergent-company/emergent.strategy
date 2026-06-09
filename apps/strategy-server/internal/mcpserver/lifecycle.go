@@ -377,189 +377,225 @@ func maturityAdvice(level string) string {
 func assessMode(s LifecycleSignals, instanceID uuid.UUID) LifecycleMode {
 	// Bootstrap: no real content yet.
 	if s.ArtifactCount == 0 {
-		return LifecycleMode{
-			Mode:        "bootstrap",
-			Description: "Empty instance — no artifacts created yet.",
-			NextSteps: []string{
-				"Step 1: Load your existing material — use ingest_evidence with pitch decks, strategy notes, market research, or competitive analysis.",
-				"Step 2: Once evidence is loaded, use the bootstrap skills to draft all READY artifacts: run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
-				"Step 3: Review and refine the drafts, then use publish_version to create your first strategy snapshot.",
-				"Alternative: Use scaffold_instance for template-based setup (no AI drafting).",
-			},
-			Signals: s,
-		}
+		return assessBootstrapMode(s)
 	}
 
 	// Foundation: has some artifacts but missing key READY-phase pieces.
 	if len(s.MissingFoundation) > 0 || s.FeatureCount == 0 {
-		steps := []string{}
-
-		// When evidence exists, recommend the AI bootstrap flow.
-		hasEvidenceWithMissingArtifacts := s.EvidenceCount > 0 && len(s.MissingFoundation) > 0
-		if hasEvidenceWithMissingArtifacts {
-			steps = append(steps, fmt.Sprintf(
-				"You have %d evidence item(s) loaded — use the AI bootstrap skills to draft missing artifacts: "+
-					"run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), "+
-					"run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
-				s.EvidenceCount))
-		}
-
-		if !s.HasNorthStar {
-			if s.EvidenceCount > 0 {
-				steps = append(steps, "Draft North Star from your evidence — use run_skill('draft-north-star').")
-			} else {
-				steps = append(steps, "Create your North Star — use get_template('READY/00_north_star.yaml') for the structure, then update_north_star.")
-			}
-		}
-		if !s.HasInsightAnalyses {
-			if s.EvidenceCount > 0 {
-				steps = append(steps, "Draft Insight Analyses from your evidence — use run_skill('draft-insights').")
-			} else {
-				steps = append(steps, "Define insight analyses — load market/competitive evidence first, then use run_skill('draft-insights').")
-			}
-		}
-		if !s.HasInsightOpportunity {
-			steps = append(steps, "Draft Insight Opportunity — use run_skill('draft-opportunity') after insight_analyses exists.")
-		}
-		if !s.HasFoundations {
-			if s.EvidenceCount > 0 {
-				steps = append(steps, "Draft Strategy Foundations — use run_skill('draft-foundations') after north_star exists.")
-			} else {
-				steps = append(steps, "Define strategy foundations — use update_strategy_foundations with product vision, value proposition, and sequencing.")
-			}
-		}
-		if !s.HasFormula {
-			if s.EvidenceCount > 0 {
-				steps = append(steps, "Draft Strategy Formula — use run_skill('draft-formula') after north_star and strategy_foundations exist.")
-			} else {
-				steps = append(steps, "Write the strategy formula — use update_strategy_formula with positioning, competitive moat, and success metrics.")
-			}
-		}
-		if !s.HasRoadmap {
-			if s.EvidenceCount > 0 {
-				steps = append(steps, "Draft Roadmap — use run_skill('draft-roadmap') after strategy_formula and strategy_foundations exist.")
-			} else {
-				steps = append(steps, "Create a roadmap — use update_roadmap with tracks, milestones, and execution plan.")
-			}
-		}
-		if !s.HasValueModel {
-			steps = append(steps, "Align value model to roadmap — use run_skill('align-portfolio') after roadmap_recipe exists.")
-		}
-		if s.EvidenceCount == 0 {
-			steps = append(steps, "Load evidence first — use ingest_evidence with pitch decks, market research, or strategy notes to improve draft quality.")
-		}
-		if s.FeatureCount == 0 {
-			steps = append(steps, "Create your first feature — use create_feature with strategic_context.contributes_to linking to your value model.")
-		}
-		if s.VersionCount == 0 && s.ArtifactCount >= 3 {
-			steps = append(steps, "When ready, use publish_version to snapshot your foundation.")
-		}
-
-		return LifecycleMode{
-			Mode:        "foundation",
-			Description: "Building the strategic foundation — some READY-phase artifacts are missing.",
-			NextSteps:   steps,
-			Signals:     s,
-		}
+		return assessFoundationMode(s)
 	}
 
 	// Recalibration needed: structural staleness OR semantic signals showing decay.
-	recalibrationNeeded := false
-	recalibrationReasons := []string{}
+	if mode, ok := assessRecalibrationMode(s); ok {
+		return mode
+	}
+
+	// Building: has foundation, has features, actively evolving.
+	if s.FeatureCount > 0 && s.FeatureCount < 10 && s.VersionCount < 3 {
+		return assessBuildingMode(s)
+	}
+
+	// Operating: mature instance with foundation, features, versions.
+	return assessOperatingMode(s)
+}
+
+// assessBootstrapMode builds the lifecycle assessment for an empty instance.
+func assessBootstrapMode(s LifecycleSignals) LifecycleMode {
+	return LifecycleMode{
+		Mode:        "bootstrap",
+		Description: "Empty instance — no artifacts created yet.",
+		NextSteps: []string{
+			"Step 1: Load your existing material — use ingest_evidence with pitch decks, strategy notes, market research, or competitive analysis.",
+			"Step 2: Once evidence is loaded, use the bootstrap skills to draft all READY artifacts: run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
+			"Step 3: Review and refine the drafts, then use publish_version to create your first strategy snapshot.",
+			"Alternative: Use scaffold_instance for template-based setup (no AI drafting).",
+		},
+		Signals: s,
+	}
+}
+
+// assessFoundationMode builds the lifecycle assessment for an instance that is
+// missing key READY-phase artifacts or has no features yet.
+func assessFoundationMode(s LifecycleSignals) LifecycleMode {
+	steps := foundationSteps(s)
+	return LifecycleMode{
+		Mode:        "foundation",
+		Description: "Building the strategic foundation — some READY-phase artifacts are missing.",
+		NextSteps:   steps,
+		Signals:     s,
+	}
+}
+
+// foundationSteps computes the recommended next steps for foundation mode.
+func foundationSteps(s LifecycleSignals) []string {
+	steps := []string{}
+
+	// When evidence exists, recommend the AI bootstrap flow.
+	hasEvidenceWithMissingArtifacts := s.EvidenceCount > 0 && len(s.MissingFoundation) > 0
+	if hasEvidenceWithMissingArtifacts {
+		steps = append(steps, fmt.Sprintf(
+			"You have %d evidence item(s) loaded — use the AI bootstrap skills to draft missing artifacts: "+
+				"run_skill('draft-north-star'), run_skill('draft-insights'), run_skill('draft-foundations'), "+
+				"run_skill('draft-opportunity'), run_skill('draft-formula'), run_skill('draft-roadmap').",
+			s.EvidenceCount))
+	}
+
+	if !s.HasNorthStar {
+		if s.EvidenceCount > 0 {
+			steps = append(steps, "Draft North Star from your evidence — use run_skill('draft-north-star').")
+		} else {
+			steps = append(steps, "Create your North Star — use get_template('READY/00_north_star.yaml') for the structure, then update_north_star.")
+		}
+	}
+	if !s.HasInsightAnalyses {
+		if s.EvidenceCount > 0 {
+			steps = append(steps, "Draft Insight Analyses from your evidence — use run_skill('draft-insights').")
+		} else {
+			steps = append(steps, "Define insight analyses — load market/competitive evidence first, then use run_skill('draft-insights').")
+		}
+	}
+	if !s.HasInsightOpportunity {
+		steps = append(steps, "Draft Insight Opportunity — use run_skill('draft-opportunity') after insight_analyses exists.")
+	}
+	if !s.HasFoundations {
+		if s.EvidenceCount > 0 {
+			steps = append(steps, "Draft Strategy Foundations — use run_skill('draft-foundations') after north_star exists.")
+		} else {
+			steps = append(steps, "Define strategy foundations — use update_strategy_foundations with product vision, value proposition, and sequencing.")
+		}
+	}
+	if !s.HasFormula {
+		if s.EvidenceCount > 0 {
+			steps = append(steps, "Draft Strategy Formula — use run_skill('draft-formula') after north_star and strategy_foundations exist.")
+		} else {
+			steps = append(steps, "Write the strategy formula — use update_strategy_formula with positioning, competitive moat, and success metrics.")
+		}
+	}
+	if !s.HasRoadmap {
+		if s.EvidenceCount > 0 {
+			steps = append(steps, "Draft Roadmap — use run_skill('draft-roadmap') after strategy_formula and strategy_foundations exist.")
+		} else {
+			steps = append(steps, "Create a roadmap — use update_roadmap with tracks, milestones, and execution plan.")
+		}
+	}
+	if !s.HasValueModel {
+		steps = append(steps, "Align value model to roadmap — use run_skill('align-portfolio') after roadmap_recipe exists.")
+	}
+	if s.EvidenceCount == 0 {
+		steps = append(steps, "Load evidence first — use ingest_evidence with pitch decks, market research, or strategy notes to improve draft quality.")
+	}
+	if s.FeatureCount == 0 {
+		steps = append(steps, "Create your first feature — use create_feature with strategic_context.contributes_to linking to your value model.")
+	}
+	if s.VersionCount == 0 && s.ArtifactCount >= 3 {
+		steps = append(steps, "When ready, use publish_version to snapshot your foundation.")
+	}
+
+	return steps
+}
+
+// assessRecalibrationMode returns a recalibration assessment when structural
+// staleness or semantic decay signals are present. The bool is false when the
+// instance does not need recalibration.
+func assessRecalibrationMode(s LifecycleSignals) (LifecycleMode, bool) {
+	reasons := recalibrationReasons(s)
+	if len(reasons) == 0 {
+		return LifecycleMode{}, false
+	}
+
+	steps := []string{
+		"Use get_agent('synthesizer') for a guided strategic assessment.",
+		"Create a Living Reality Assessment — use create_lra to capture current strategic context.",
+		"Use validate_assumptions to check which assumptions are untested.",
+		"Use get_coverage_analysis to identify value model gaps.",
+		"After assessment, use diff_versions to compare your current state with an earlier version.",
+	}
+	if s.Semantic != nil && s.Semantic.OrphanedNodeCount > 0 {
+		steps = append(steps,
+			"Use suggest_relationships on each feature to find missing connections.")
+	}
+
+	return LifecycleMode{
+		Mode:        "recalibration_needed",
+		Description: reasons[0],
+		NextSteps:   steps,
+		Signals:     s,
+	}, true
+}
+
+// recalibrationReasons collects the reasons an instance needs strategic
+// recalibration. An empty slice means no recalibration is needed.
+func recalibrationReasons(s LifecycleSignals) []string {
+	reasons := []string{}
 
 	// Structural: stale instance with history.
 	if s.DaysSinceUpdate > 30 && s.VersionCount >= 2 {
-		recalibrationNeeded = true
-		recalibrationReasons = append(recalibrationReasons,
+		reasons = append(reasons,
 			"Strategy hasn't been updated in over 30 days despite having multiple versions.")
 	}
 
 	// Semantic: graph shows structural decay.
 	if s.Semantic != nil {
 		if s.Semantic.MaturityScore < 25 && s.FeatureCount >= 3 {
-			recalibrationNeeded = true
-			recalibrationReasons = append(recalibrationReasons,
+			reasons = append(reasons,
 				"Semantic maturity is nascent despite having features — graph connections are weak or missing.")
 		}
 		if s.Semantic.OrphanedNodeCount > 5 {
-			recalibrationNeeded = true
-			recalibrationReasons = append(recalibrationReasons,
+			reasons = append(reasons,
 				fmt.Sprintf("%d orphaned nodes in the knowledge graph — content exists but is disconnected.", s.Semantic.OrphanedNodeCount))
 		}
 		if s.Semantic.VisionConnected && s.Semantic.VisionReachableFeatures == 0 && s.FeatureCount > 0 {
-			recalibrationNeeded = true
-			recalibrationReasons = append(recalibrationReasons,
+			reasons = append(reasons,
 				"Vision exists but no features are reachable from it — strategic alignment is broken.")
 		}
 		if s.Semantic.ContributesToEdges == 0 && s.FeatureCount >= 2 {
-			recalibrationNeeded = true
-			recalibrationReasons = append(recalibrationReasons,
+			reasons = append(reasons,
 				"No features have contributes_to relationships — features are not connected to value model paths.")
 		}
 	}
 
-	if recalibrationNeeded {
-		steps := []string{
-			"Use get_agent('synthesizer') for a guided strategic assessment.",
-			"Create a Living Reality Assessment — use create_lra to capture current strategic context.",
-			"Use validate_assumptions to check which assumptions are untested.",
-			"Use get_coverage_analysis to identify value model gaps.",
-			"After assessment, use diff_versions to compare your current state with an earlier version.",
-		}
-		if s.Semantic != nil && s.Semantic.OrphanedNodeCount > 0 {
-			steps = append(steps,
-				"Use suggest_relationships on each feature to find missing connections.")
-		}
+	return reasons
+}
 
-		desc := "Strategic review recommended."
-		if len(recalibrationReasons) > 0 {
-			desc = recalibrationReasons[0]
+// assessBuildingMode builds the lifecycle assessment for an instance that is
+// actively building features on top of an established foundation.
+func assessBuildingMode(s LifecycleSignals) LifecycleMode {
+	steps := []string{
+		"Continue building features — use create_feature with strategic alignment.",
+		"Use suggest_relationships to find missing cross-artifact connections.",
+		"Use validate_instance to check schema compliance across all artifacts.",
+	}
+	if s.VersionCount == 0 {
+		steps = append(steps, "Publish your first version — use publish_version to create a snapshot.")
+	}
+	if !s.HasRoadmap {
+		steps = append(steps, "Create a roadmap to sequence your features — use update_roadmap.")
+	}
+	// Semantic-specific guidance.
+	if s.Semantic != nil {
+		if s.Semantic.ContributesToEdges == 0 {
+			steps = append(steps, "Critical: No features are linked to value model paths — use add_relationship with 'contributes_to' to connect features to your value model.")
 		}
-
-		return LifecycleMode{
-			Mode:        "recalibration_needed",
-			Description: desc,
-			NextSteps:   steps,
-			Signals:     s,
+		if s.Semantic.OrphanedNodeCount > 3 {
+			steps = append(steps, fmt.Sprintf("Warning: %d orphaned nodes in the graph — use suggest_relationships to find missing connections.", s.Semantic.OrphanedNodeCount))
+		}
+		if s.Semantic.MaturityLevel != "" {
+			steps = append(steps, fmt.Sprintf("Semantic maturity: %s (score: %d/100) — %s",
+				s.Semantic.MaturityLevel, s.Semantic.MaturityScore, maturityAdvice(s.Semantic.MaturityLevel)))
 		}
 	}
 
-	// Building: has foundation, has features, actively evolving.
-	if s.FeatureCount > 0 && s.FeatureCount < 10 && s.VersionCount < 3 {
-		steps := []string{
-			"Continue building features — use create_feature with strategic alignment.",
-			"Use suggest_relationships to find missing cross-artifact connections.",
-			"Use validate_instance to check schema compliance across all artifacts.",
-		}
-		if s.VersionCount == 0 {
-			steps = append(steps, "Publish your first version — use publish_version to create a snapshot.")
-		}
-		if !s.HasRoadmap {
-			steps = append(steps, "Create a roadmap to sequence your features — use update_roadmap.")
-		}
-		// Semantic-specific guidance.
-		if s.Semantic != nil {
-			if s.Semantic.ContributesToEdges == 0 {
-				steps = append(steps, "Critical: No features are linked to value model paths — use add_relationship with 'contributes_to' to connect features to your value model.")
-			}
-			if s.Semantic.OrphanedNodeCount > 3 {
-				steps = append(steps, fmt.Sprintf("Warning: %d orphaned nodes in the graph — use suggest_relationships to find missing connections.", s.Semantic.OrphanedNodeCount))
-			}
-			if s.Semantic.MaturityLevel != "" {
-				steps = append(steps, fmt.Sprintf("Semantic maturity: %s (score: %d/100) — %s",
-					s.Semantic.MaturityLevel, s.Semantic.MaturityScore, maturityAdvice(s.Semantic.MaturityLevel)))
-			}
-		}
-
-		return LifecycleMode{
-			Mode:        "building",
-			Description: "Actively building strategy — foundation is set, features are being defined.",
-			NextSteps:   steps,
-			Signals:     s,
-		}
+	return LifecycleMode{
+		Mode:        "building",
+		Description: "Actively building strategy — foundation is set, features are being defined.",
+		NextSteps:   steps,
+		Signals:     s,
 	}
+}
 
-	// Operating: mature instance with foundation, features, versions.
+// assessOperatingMode builds the lifecycle assessment for a mature instance with
+// foundation, features, and versions established.
+func assessOperatingMode(s LifecycleSignals) LifecycleMode {
 	steps := []string{
 		"Use health_check and validate_instance regularly to maintain quality.",
 		"Use publish_version after significant changes to track evolution.",

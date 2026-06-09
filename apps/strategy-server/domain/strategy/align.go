@@ -452,86 +452,8 @@ func alignTrack(track string, targets []krTarget, payload json.RawMessage) (Trac
 		if layer == nil {
 			continue
 		}
-		l2Active := false
-
-		layerID, _ := layer["id"].(string)
-		if layerID != "" {
-			foundIDs[layerID] = true
-		}
-		_, layerTargeted := targeted[layerID]
-
-		components, _ := layer["components"].([]any)
-		for j, compVal := range components {
-			comp, _ := compVal.(map[string]any)
-			if comp == nil {
-				continue
-			}
-			l3Active := false
-
-			compID, _ := comp["id"].(string)
-			if compID != "" {
-				foundIDs[compID] = true
-			}
-			// A component is targeted directly (L2 hit), or transitively because
-			// its parent layer was targeted (L1 hit). Either activates all of its
-			// sub-components.
-			_, compTargeted := targeted[compID]
-			compTargeted = compTargeted || layerTargeted
-
-			subs, _ := comp["sub_components"].([]any)
-			for k, subVal := range subs {
-				sub, _ := subVal.(map[string]any)
-				if sub == nil {
-					continue
-				}
-				subID, _ := sub["id"].(string)
-				if subID != "" {
-					foundIDs[subID] = true
-				}
-
-				_, subTargeted := targeted[subID]
-				// A sub-component is active when it is targeted directly (L3 hit)
-				// or because an ancestor (L2 or L1) was targeted.
-				wantActive := subTargeted || compTargeted
-				// The activation note belongs to whichever level the KR targeted:
-				// the sub-component (L3), its parent component (L2), or layer (L1).
-				note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
-
-				act := applySubActivation(sub, wantActive, note)
-				if act.changed {
-					changed = true
-					subs[k] = sub
-				}
-				if act.activated {
-					result.Activated++
-				}
-				if act.deactivated {
-					result.Deactivated++
-				}
-				if wantActive {
-					l3Active = true
-				}
-			}
-			comp["sub_components"] = subs
-
-			// Propagate L3 → L2: L2 is active if any child L3 is active.
-			currentCompActive, _ := comp["active"].(bool)
-			if currentCompActive != l3Active {
-				changed = true
-				comp["active"] = l3Active
-			}
-			if l3Active {
-				l2Active = true
-			}
-			components[j] = comp
-		}
-		layer["components"] = components
-
-		// Propagate L2 → L1: L1 is active if any child L2 is active.
-		currentLayerActive, _ := layer["active"].(bool)
-		if currentLayerActive != l2Active {
+		if alignLayer(layer, targeted, activationNotes, foundIDs, &result) {
 			changed = true
-			layer["active"] = l2Active
 		}
 		layers[i] = layer
 	}
@@ -561,6 +483,121 @@ func alignTrack(track string, targets []krTarget, payload json.RawMessage) (Trac
 	}
 
 	return result, json.RawMessage(newPayload), nil
+}
+
+// alignLayer applies activation to one L1 layer and all components beneath it,
+// recording discovered IDs in foundIDs and activation counts in result. It
+// propagates activation upward (active L3 → active L2 → active L1) and returns
+// true when any activation state changed in this layer.
+func alignLayer(
+	layer map[string]any,
+	targeted map[string]struct{},
+	activationNotes map[string]string,
+	foundIDs map[string]bool,
+	result *TrackAlignResult,
+) bool {
+	changed := false
+	l2Active := false
+
+	layerID, _ := layer["id"].(string)
+	if layerID != "" {
+		foundIDs[layerID] = true
+	}
+	_, layerTargeted := targeted[layerID]
+
+	components, _ := layer["components"].([]any)
+	for j, compVal := range components {
+		comp, _ := compVal.(map[string]any)
+		if comp == nil {
+			continue
+		}
+		compActive, compChanged := alignComponent(comp, layerID, layerTargeted, targeted, activationNotes, foundIDs, result)
+		if compChanged {
+			changed = true
+		}
+		if compActive {
+			l2Active = true
+		}
+		components[j] = comp
+	}
+	layer["components"] = components
+
+	// Propagate L2 → L1: L1 is active if any child L2 is active.
+	currentLayerActive, _ := layer["active"].(bool)
+	if currentLayerActive != l2Active {
+		changed = true
+		layer["active"] = l2Active
+	}
+	return changed
+}
+
+// alignComponent applies activation to one L2 component and all sub-components
+// beneath it. It returns whether the component ends up active (any child L3
+// active) and whether any activation state changed.
+func alignComponent(
+	comp map[string]any,
+	layerID string,
+	layerTargeted bool,
+	targeted map[string]struct{},
+	activationNotes map[string]string,
+	foundIDs map[string]bool,
+	result *TrackAlignResult,
+) (active bool, changed bool) {
+	l3Active := false
+
+	compID, _ := comp["id"].(string)
+	if compID != "" {
+		foundIDs[compID] = true
+	}
+	// A component is targeted directly (L2 hit), or transitively because
+	// its parent layer was targeted (L1 hit). Either activates all of its
+	// sub-components.
+	_, compTargeted := targeted[compID]
+	compTargeted = compTargeted || layerTargeted
+
+	subs, _ := comp["sub_components"].([]any)
+	for k, subVal := range subs {
+		sub, _ := subVal.(map[string]any)
+		if sub == nil {
+			continue
+		}
+		subID, _ := sub["id"].(string)
+		if subID != "" {
+			foundIDs[subID] = true
+		}
+
+		_, subTargeted := targeted[subID]
+		// A sub-component is active when it is targeted directly (L3 hit)
+		// or because an ancestor (L2 or L1) was targeted.
+		wantActive := subTargeted || compTargeted
+		// The activation note belongs to whichever level the KR targeted:
+		// the sub-component (L3), its parent component (L2), or layer (L1).
+		note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
+
+		act := applySubActivation(sub, wantActive, note)
+		if act.changed {
+			changed = true
+			subs[k] = sub
+		}
+		if act.activated {
+			result.Activated++
+		}
+		if act.deactivated {
+			result.Deactivated++
+		}
+		if wantActive {
+			l3Active = true
+		}
+	}
+	comp["sub_components"] = subs
+
+	// Propagate L3 → L2: L2 is active if any child L3 is active.
+	currentCompActive, _ := comp["active"].(bool)
+	if currentCompActive != l3Active {
+		changed = true
+		comp["active"] = l3Active
+	}
+	return l3Active, changed
 }
 
 // ── helpers for checking roadmap exists ──────────────────────────────────────

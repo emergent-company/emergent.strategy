@@ -1002,107 +1002,7 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithDescription("USE WHEN the user has confirmed a staged change and you need to commit the batch."),
 		mcp.WithString("batch_id", mcp.Required(), mcp.Description("Batch UUID returned by a write tool")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		batchID, err := parseUUID(argString(req, "batch_id"))
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-
-		// Check access via batch → instance → workspace → org.
-		instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
-		if instanceID != uuid.Nil {
-			if err := assertInstanceAccess(ctx, svc, instanceID); err != nil {
-				return toolErr(ctx, err), nil
-			}
-		}
-
-		n, err := svc.Strategy.CommitBatch(ctx, batchID)
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-
-		// Enqueue async Memory ingestion for the committed batch.
-		if svc.Ingest != nil && instanceID != uuid.Nil {
-			svc.Ingest.EnqueueBatch(instanceID, batchID)
-		}
-
-		// Resume any AIM orchestration run awaiting human review for this batch.
-		// This makes MCP commit_batch equivalent to the web UI commit path.
-		if svc.Orchestration != nil {
-			if run, findErr := svc.Orchestration.FindRunByBatch(ctx, batchID.String()); findErr == nil && run != nil {
-				if resumeErr := svc.Orchestration.Resume(ctx, run.ID, true); resumeErr != nil {
-					slog.WarnContext(ctx, "commit_batch: orchestration resume failed (non-fatal)", "run_id", run.ID, "err", resumeErr)
-				}
-			}
-		}
-
-		// Post-commit ripple analysis: detect misalignments and auto-resolve.
-		// Run the shared post-commit pipeline: ripple analysis, convergence loop,
-		// adapt-foundations enqueue, schema validation warnings.
-		result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
-		if instanceID != uuid.Nil {
-			p := pipeline.PostCommitPipeline{
-				RippleSvc:   svc.Ripple,
-				SemanticSvc: svc.Semantic,
-				StrategySvc: svc.Strategy,
-				VersionSvc:  svc.Version,
-				SkillExec:   svc.SkillExecutor,
-				SchemaSvc:   svc.Schema,
-				Ingest:      svc.Ingest,
-				Resolver:    svc.Resolver,
-			}
-			pResult := p.Run(ctx, instanceID, batchID)
-			if pResult.NewSignals > 0 || pResult.ResolvedSignals > 0 {
-				result["ripple_signals"] = map[string]any{
-					"new_signals":      pResult.NewSignals,
-					"resolved_signals": pResult.ResolvedSignals,
-					"active_total":     pResult.ActiveTotal,
-				}
-			}
-			// Return full ConvergenceSummary for backward compat with existing tests/clients.
-			result["convergence_summary"] = pResult.ConvergenceSummary
-		}
-
-		// Post-commit: run validation on the committed artifacts and include
-		// any schema warnings in the response. This surfaces issues immediately
-		// without blocking the commit.
-		if instanceID != uuid.Nil {
-			mutations, _, _ := svc.Strategy.ListMutations(ctx, instanceID, "", false, 100, "", "")
-			var warnings []string
-			for _, m := range mutations {
-				if m.BatchID != nil && *m.BatchID == batchID {
-					// Build schema source for validation.
-					var source embedded.SchemaSource
-					if svc.Schema != nil {
-						source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, "", "standard")
-					}
-					vr := embedded.ValidateArtifactWithSource(m.ArtifactType, m.Payload, source)
-					if !vr.Valid {
-						for _, e := range vr.Errors {
-							warnings = append(warnings, fmt.Sprintf("%s: %s", m.ArtifactKey, e))
-						}
-					}
-				}
-			}
-			if len(warnings) > 0 {
-				result["validation_warnings"] = warnings
-				result["validation_note"] = "These artifacts were committed but have schema validation issues. Use validate_with_plan for a prioritized fix list."
-			}
-		}
-
-		// Post-commit: mark evidence as processed if this batch contained an assessment report.
-		if svc.Evidence != nil && instanceID != uuid.Nil {
-			evInstID, evKeys := svc.Strategy.AssessmentEvidenceKeys(ctx, batchID)
-			if evInstID != uuid.Nil && len(evKeys) > 0 {
-				if markErr := svc.Evidence.MarkProcessed(ctx, evInstID, evKeys, batchID.String()); markErr != nil {
-					slog.WarnContext(ctx, "commit_batch: failed to mark evidence as processed",
-						"batch_id", batchID, "evidence_keys", evKeys, "error", markErr)
-				} else {
-					result["evidence_marked_processed"] = len(evKeys)
-				}
-			}
-		}
-
-		return mustJSON(result)
+		return commitBatchHandler(ctx, svc, req)
 	})
 
 	s.AddTool(mcp.NewTool("discard_batch",
@@ -1138,6 +1038,114 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 
 		return mustJSON(map[string]any{"discarded": true, "batch_id": batchID, "count": n})
 	})
+}
+
+// commitBatchHandler commits a staged batch and runs the post-commit pipeline
+// (Memory ingestion, orchestration resume, ripple analysis, schema-warning
+// surfacing, evidence processing). Extracted from the commit_batch tool handler.
+func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	batchID, err := parseUUID(argString(req, "batch_id"))
+	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+
+	// Check access via batch → instance → workspace → org.
+	instanceID := svc.Strategy.InstanceIDForBatch(ctx, batchID)
+	if instanceID != uuid.Nil {
+		if err := assertInstanceAccess(ctx, svc, instanceID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+	}
+
+	n, err := svc.Strategy.CommitBatch(ctx, batchID)
+	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+
+	// Enqueue async Memory ingestion for the committed batch.
+	if svc.Ingest != nil && instanceID != uuid.Nil {
+		svc.Ingest.EnqueueBatch(instanceID, batchID)
+	}
+
+	// Resume any AIM orchestration run awaiting human review for this batch.
+	// This makes MCP commit_batch equivalent to the web UI commit path.
+	if svc.Orchestration != nil {
+		if run, findErr := svc.Orchestration.FindRunByBatch(ctx, batchID.String()); findErr == nil && run != nil {
+			if resumeErr := svc.Orchestration.Resume(ctx, run.ID, true); resumeErr != nil {
+				slog.WarnContext(ctx, "commit_batch: orchestration resume failed (non-fatal)", "run_id", run.ID, "err", resumeErr)
+			}
+		}
+	}
+
+	// Post-commit ripple analysis: detect misalignments and auto-resolve.
+	// Run the shared post-commit pipeline: ripple analysis, convergence loop,
+	// adapt-foundations enqueue, schema validation warnings.
+	result := map[string]any{"committed": true, "batch_id": batchID, "count": n}
+	if instanceID != uuid.Nil {
+		p := pipeline.PostCommitPipeline{
+			RippleSvc:   svc.Ripple,
+			SemanticSvc: svc.Semantic,
+			StrategySvc: svc.Strategy,
+			VersionSvc:  svc.Version,
+			SkillExec:   svc.SkillExecutor,
+			SchemaSvc:   svc.Schema,
+			Ingest:      svc.Ingest,
+			Resolver:    svc.Resolver,
+		}
+		pResult := p.Run(ctx, instanceID, batchID)
+		if pResult.NewSignals > 0 || pResult.ResolvedSignals > 0 {
+			result["ripple_signals"] = map[string]any{
+				"new_signals":      pResult.NewSignals,
+				"resolved_signals": pResult.ResolvedSignals,
+				"active_total":     pResult.ActiveTotal,
+			}
+		}
+		// Return full ConvergenceSummary for backward compat with existing tests/clients.
+		result["convergence_summary"] = pResult.ConvergenceSummary
+
+		if warnings := commitBatchValidationWarnings(ctx, svc, instanceID, batchID); len(warnings) > 0 {
+			result["validation_warnings"] = warnings
+			result["validation_note"] = "These artifacts were committed but have schema validation issues. Use validate_with_plan for a prioritized fix list."
+		}
+	}
+
+	// Post-commit: mark evidence as processed if this batch contained an assessment report.
+	if svc.Evidence != nil && instanceID != uuid.Nil {
+		evInstID, evKeys := svc.Strategy.AssessmentEvidenceKeys(ctx, batchID)
+		if evInstID != uuid.Nil && len(evKeys) > 0 {
+			if markErr := svc.Evidence.MarkProcessed(ctx, evInstID, evKeys, batchID.String()); markErr != nil {
+				slog.WarnContext(ctx, "commit_batch: failed to mark evidence as processed",
+					"batch_id", batchID, "evidence_keys", evKeys, "error", markErr)
+			} else {
+				result["evidence_marked_processed"] = len(evKeys)
+			}
+		}
+	}
+
+	return mustJSON(result)
+}
+
+// commitBatchValidationWarnings validates the artifacts committed in a batch and
+// returns human-readable schema warnings (non-blocking).
+func commitBatchValidationWarnings(ctx context.Context, svc Services, instanceID, batchID uuid.UUID) []string {
+	mutations, _, _ := svc.Strategy.ListMutations(ctx, instanceID, "", false, 100, "", "")
+	var warnings []string
+	for _, m := range mutations {
+		if m.BatchID == nil || *m.BatchID != batchID {
+			continue
+		}
+		var source embedded.SchemaSource
+		if svc.Schema != nil {
+			source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, "", "standard")
+		}
+		vr := embedded.ValidateArtifactWithSource(m.ArtifactType, m.Payload, source)
+		if !vr.Valid {
+			for _, e := range vr.Errors {
+				warnings = append(warnings, fmt.Sprintf("%s: %s", m.ArtifactKey, e))
+			}
+		}
+	}
+	return warnings
 }
 
 // ---------------------------------------------------------------------------
@@ -1673,6 +1681,12 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 // ---------------------------------------------------------------------------
 
 func registerValidationTools(s *server.MCPServer, svc Services) {
+	registerArtifactValidationTools(s, svc)
+	registerRelationshipValidationTools(s, svc)
+}
+
+// registerArtifactValidationTools registers payload/instance schema validation tools.
+func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 	// validate_artifact — validate a single JSON payload against its EPF schema.
 	s.AddTool(mcp.NewTool("validate_artifact",
 		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns valid/invalid status plus a list of schema errors."),
@@ -1751,6 +1765,10 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 	})
 
 	// validate_relationships — check cross-artifact reference integrity.
+}
+
+// registerRelationshipValidationTools registers relationship and content-readiness checks.
+func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("validate_relationships",
 		mcp.WithDescription("USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),

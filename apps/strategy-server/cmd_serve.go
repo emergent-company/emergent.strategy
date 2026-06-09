@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
@@ -85,23 +86,7 @@ func runServer(cfg *config.Config) error {
 	instSvc := instance.NewService(db)
 	instSvc.WithPackEnsurer(packSvc) // post-commit standard pack auto-install
 
-	semanticSvc := semantic.NewService(semantic.Config{
-		URL:      cfg.MemoryURL,
-		Project:  cfg.MemoryProject,
-		Token:    cfg.MemoryToken,
-		AuthMode: cfg.MemoryAuthMode,
-	})
-
-	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).
-	if semanticSvc.IsAvailable() {
-		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
-			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
-		}
-	} else {
-		log.Warn("MEMORY NOT CONFIGURED — semantic search, contradiction detection, scenarios, and graph ingestion are disabled. " +
-			"Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, and EPF_MEMORY_TOKEN in .env.local or environment. " +
-			"Run 'task dev-up-full' for a complete local setup.")
-	}
+	semanticSvc := setupSemantic(cfg, log)
 
 	// Ingestion pipeline: converts committed mutations into Memory graph objects.
 	ingestSvc := ingest.NewService(db, semanticSvc.Client())
@@ -125,40 +110,10 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// LLM provider — enables server-orchestrated convergence loop resolution.
-	var llmClient *llm.Client
-	if cfg.LLMConfigured() {
-		llmClient = llm.New(llm.Config{
-			BaseURL: cfg.LLMProviderURL,
-			APIKey:  cfg.LLMAPIKey,
-			Model:   cfg.LLMModel,
-		})
-		if llmClient != nil {
-			log.Info("llm provider enabled for convergence resolution",
-				"url", cfg.LLMProviderURL, "model", cfg.LLMModel)
-		}
-	} else {
-		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
-	}
+	llmClient := setupLLM(cfg, log)
 
 	// GitHub sync — only available when GitHub App is configured.
-	var syncSvc *syncdom.Service
-	if cfg.GithubAppConfigured() {
-		ghClient, ghErr := ghclient.NewClient(ghclient.Config{
-			AppID:          cfg.GithubAppID,
-			PrivateKeyPath: cfg.GithubAppPrivateKeyPath,
-			PrivateKeyPEM:  cfg.GithubAppPrivateKey,
-		})
-		if ghErr != nil {
-			log.Warn("github app client failed to initialize (sync disabled)", "err", ghErr)
-		} else {
-			syncSvc = syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
-			syncSvc.WithReader(ghclient.NewRepoReaderAdapter(ghClient))
-			syncSvc.WithInstanceReimporter(instSvc)
-			log.Info("github sync enabled (read + write)", "app_id", cfg.GithubAppID)
-		}
-	} else {
-		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
-	}
+	syncSvc := setupGitHubSync(cfg, log, db, strategySvc, versionSvc, instSvc)
 
 	wsSvc := workspace.NewService(db)
 
@@ -347,46 +302,7 @@ func runServer(cfg *config.Config) error {
 	// In dev mode, ensure the dev user exists in the DB so FK constraints on
 	// created_by columns don't fail. EnsureUser is idempotent.
 	if !cfg.AuthEnabled {
-		devCtx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
-		devCtx = audit.ContextWithAudit(devCtx, auditWriter)
-		u, devErr := userSvc.EnsureUser(devCtx, web.DevUser.Sub, web.DevUser.Email, web.DevUser.Name)
-		if devErr != nil {
-			log.Warn("failed to seed dev user (non-fatal)", "err", devErr)
-		} else if u.ID != web.DevUser.ID {
-			// Override the auto-generated ID to match the hardcoded DevUser.ID
-			// so that web.UserFromContext returns a user whose ID matches the DB.
-			_, _ = db.NewUpdate().TableExpr("users").
-				Set("id = ?", web.DevUser.ID).
-				Where("sub = ?", web.DevUser.Sub).
-				Exec(devCtx)
-			log.Info("dev user seeded", "id", web.DevUser.ID)
-		}
-
-		// Ensure dev org exists and adopt orphan workspaces from the migration
-		// default org (00000000-...-000000000099).
-		devOrg, devOrgErr := orgSvc.EnsureDevOrg(devCtx, web.DevUser.ID)
-		if devOrgErr != nil {
-			log.Warn("failed to create dev org (non-fatal)", "err", devOrgErr)
-		} else {
-			log.Info("dev org ready", "org_id", devOrg.ID, "slug", devOrg.Slug)
-			defaultOrgID := uuid.MustParse("00000000-0000-0000-0000-000000000099")
-			adopted, adoptErr := wsSvc.AdoptOrphanWorkspaces(devCtx, defaultOrgID, devOrg.ID)
-			if adoptErr != nil {
-				log.Warn("failed to adopt orphan workspaces (non-fatal)", "err", adoptErr)
-			} else if adopted > 0 {
-				log.Info("adopted orphan workspaces to dev org", "count", adopted)
-			}
-
-			// Ensure dev user is a member of every org that exists in the DB.
-			// This covers instances imported under real org IDs (e.g. the
-			// Emergent instance) so they're accessible without extra setup.
-			joined, joinErr := orgSvc.EnsureDevMembershipForAllOrgs(devCtx, web.DevUser.ID)
-			if joinErr != nil {
-				log.Warn("failed to ensure dev memberships (non-fatal)", "err", joinErr)
-			} else if joined > 0 {
-				log.Info("dev user joined additional orgs", "count", joined)
-			}
-		}
+		seedDevIdentity(log, db, auditWriter, userSvc, orgSvc, wsSvc)
 	}
 
 	// Auth middleware — injects User + ActorID.
@@ -400,62 +316,7 @@ func runServer(cfg *config.Config) error {
 
 	// Health endpoint — reports postgres, memory, and LLM subsystem status.
 	// Returns 200 when all required systems are healthy, 503 when degraded.
-	e.GET("/health", func(c echo.Context) error {
-		ctx := c.Request().Context()
-
-		type subsystem struct {
-			Status  string `json:"status"`            // "ok" | "degraded" | "disabled"
-			Message string `json:"message,omitempty"` // human-readable detail
-		}
-		type healthResponse struct {
-			Status  string               `json:"status"` // "ok" | "degraded"
-			Service string               `json:"service"`
-			Systems map[string]subsystem `json:"systems"`
-		}
-
-		systems := make(map[string]subsystem)
-		overallOK := true
-
-		// Postgres — ping via a lightweight DB call.
-		if pingErr := db.PingContext(ctx); pingErr != nil {
-			systems["postgres"] = subsystem{Status: "degraded", Message: pingErr.Error()}
-			overallOK = false
-		} else {
-			systems["postgres"] = subsystem{Status: "ok"}
-		}
-
-		// Memory — check if configured and reachable.
-		if semanticSvc.IsAvailable() {
-			if memErr := semanticSvc.Ping(ctx); memErr != nil {
-				systems["memory"] = subsystem{Status: "degraded", Message: memErr.Error()}
-				// Memory is optional — does not fail overall health.
-			} else {
-				systems["memory"] = subsystem{Status: "ok"}
-			}
-		} else {
-			systems["memory"] = subsystem{Status: "disabled", Message: "EPF_MEMORY_URL not configured"}
-		}
-
-		// LLM — configured or not.
-		if llmClient != nil {
-			systems["llm"] = subsystem{Status: "ok"}
-		} else {
-			systems["llm"] = subsystem{Status: "disabled", Message: "LLM_PROVIDER_URL not configured"}
-		}
-
-		status := "ok"
-		httpStatus := http.StatusOK
-		if !overallOK {
-			status = "degraded"
-			httpStatus = http.StatusServiceUnavailable
-		}
-
-		return c.JSON(httpStatus, healthResponse{
-			Status:  status,
-			Service: "strategy-server",
-			Systems: systems,
-		})
-	})
+	e.GET("/health", healthHandler(db, semanticSvc, llmClient))
 
 	// MCP endpoint — mounted at /mcp.
 	mcpHandler := mcpserver.New(svc)
@@ -537,6 +398,192 @@ func runServer(cfg *config.Config) error {
 
 	log.Info("shutdown complete")
 	return nil
+}
+
+// setupSemantic constructs the semantic service from config and verifies Memory
+// schema availability at startup (non-blocking).
+func setupSemantic(cfg *config.Config, log *slog.Logger) *semantic.Service {
+	semanticSvc := semantic.NewService(semantic.Config{
+		URL:      cfg.MemoryURL,
+		Project:  cfg.MemoryProject,
+		Token:    cfg.MemoryToken,
+		AuthMode: cfg.MemoryAuthMode,
+	})
+
+	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).
+	if semanticSvc.IsAvailable() {
+		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
+			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
+		}
+	} else {
+		log.Warn("MEMORY NOT CONFIGURED — semantic search, contradiction detection, scenarios, and graph ingestion are disabled. " +
+			"Set EPF_MEMORY_URL, EPF_MEMORY_PROJECT, and EPF_MEMORY_TOKEN in .env.local or environment. " +
+			"Run 'task dev-up-full' for a complete local setup.")
+	}
+
+	return semanticSvc
+}
+
+// setupLLM constructs the LLM client when configured. Returns nil when the LLM
+// provider is not configured (convergence then runs in agent-orchestrated mode).
+func setupLLM(cfg *config.Config, log *slog.Logger) *llm.Client {
+	if !cfg.LLMConfigured() {
+		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
+		return nil
+	}
+	llmClient := llm.New(llm.Config{
+		BaseURL: cfg.LLMProviderURL,
+		APIKey:  cfg.LLMAPIKey,
+		Model:   cfg.LLMModel,
+	})
+	if llmClient != nil {
+		log.Info("llm provider enabled for convergence resolution",
+			"url", cfg.LLMProviderURL, "model", cfg.LLMModel)
+	}
+	return llmClient
+}
+
+// setupGitHubSync constructs the GitHub sync service when the GitHub App is
+// configured. Returns nil when sync is disabled or the client fails to init.
+func setupGitHubSync(
+	cfg *config.Config,
+	log *slog.Logger,
+	db *bun.DB,
+	strategySvc *strategy.Service,
+	versionSvc *versiondom.Service,
+	instSvc *instance.Service,
+) *syncdom.Service {
+	if !cfg.GithubAppConfigured() {
+		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
+		return nil
+	}
+	ghClient, ghErr := ghclient.NewClient(ghclient.Config{
+		AppID:          cfg.GithubAppID,
+		PrivateKeyPath: cfg.GithubAppPrivateKeyPath,
+		PrivateKeyPEM:  cfg.GithubAppPrivateKey,
+	})
+	if ghErr != nil {
+		log.Warn("github app client failed to initialize (sync disabled)", "err", ghErr)
+		return nil
+	}
+	syncSvc := syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
+	syncSvc.WithReader(ghclient.NewRepoReaderAdapter(ghClient))
+	syncSvc.WithInstanceReimporter(instSvc)
+	log.Info("github sync enabled (read + write)", "app_id", cfg.GithubAppID)
+	return syncSvc
+}
+
+// seedDevIdentity ensures the dev user, dev org, orphan-workspace adoption, and
+// dev memberships exist when auth is disabled. All failures are non-fatal.
+func seedDevIdentity(
+	log *slog.Logger,
+	db *bun.DB,
+	auditWriter audit.Writer,
+	userSvc *user.Service,
+	orgSvc *org.Service,
+	wsSvc *workspace.Service,
+) {
+	devCtx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+	devCtx = audit.ContextWithAudit(devCtx, auditWriter)
+	u, devErr := userSvc.EnsureUser(devCtx, web.DevUser.Sub, web.DevUser.Email, web.DevUser.Name)
+	if devErr != nil {
+		log.Warn("failed to seed dev user (non-fatal)", "err", devErr)
+	} else if u.ID != web.DevUser.ID {
+		// Override the auto-generated ID to match the hardcoded DevUser.ID
+		// so that web.UserFromContext returns a user whose ID matches the DB.
+		_, _ = db.NewUpdate().TableExpr("users").
+			Set("id = ?", web.DevUser.ID).
+			Where("sub = ?", web.DevUser.Sub).
+			Exec(devCtx)
+		log.Info("dev user seeded", "id", web.DevUser.ID)
+	}
+
+	// Ensure dev org exists and adopt orphan workspaces from the migration
+	// default org (00000000-...-000000000099).
+	devOrg, devOrgErr := orgSvc.EnsureDevOrg(devCtx, web.DevUser.ID)
+	if devOrgErr != nil {
+		log.Warn("failed to create dev org (non-fatal)", "err", devOrgErr)
+		return
+	}
+	log.Info("dev org ready", "org_id", devOrg.ID, "slug", devOrg.Slug)
+	defaultOrgID := uuid.MustParse("00000000-0000-0000-0000-000000000099")
+	adopted, adoptErr := wsSvc.AdoptOrphanWorkspaces(devCtx, defaultOrgID, devOrg.ID)
+	if adoptErr != nil {
+		log.Warn("failed to adopt orphan workspaces (non-fatal)", "err", adoptErr)
+	} else if adopted > 0 {
+		log.Info("adopted orphan workspaces to dev org", "count", adopted)
+	}
+
+	// Ensure dev user is a member of every org that exists in the DB.
+	// This covers instances imported under real org IDs (e.g. the
+	// Emergent instance) so they're accessible without extra setup.
+	joined, joinErr := orgSvc.EnsureDevMembershipForAllOrgs(devCtx, web.DevUser.ID)
+	if joinErr != nil {
+		log.Warn("failed to ensure dev memberships (non-fatal)", "err", joinErr)
+	} else if joined > 0 {
+		log.Info("dev user joined additional orgs", "count", joined)
+	}
+}
+
+// healthHandler returns the /health echo handler reporting postgres, memory, and
+// LLM subsystem status. Returns 200 when required systems are healthy, 503 when degraded.
+func healthHandler(db *bun.DB, semanticSvc *semantic.Service, llmClient *llm.Client) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		ctx := c.Request().Context()
+
+		type subsystem struct {
+			Status  string `json:"status"`            // "ok" | "degraded" | "disabled"
+			Message string `json:"message,omitempty"` // human-readable detail
+		}
+		type healthResponse struct {
+			Status  string               `json:"status"` // "ok" | "degraded"
+			Service string               `json:"service"`
+			Systems map[string]subsystem `json:"systems"`
+		}
+
+		systems := make(map[string]subsystem)
+		overallOK := true
+
+		// Postgres — ping via a lightweight DB call.
+		if pingErr := db.PingContext(ctx); pingErr != nil {
+			systems["postgres"] = subsystem{Status: "degraded", Message: pingErr.Error()}
+			overallOK = false
+		} else {
+			systems["postgres"] = subsystem{Status: "ok"}
+		}
+
+		// Memory — check if configured and reachable.
+		if semanticSvc.IsAvailable() {
+			if memErr := semanticSvc.Ping(ctx); memErr != nil {
+				systems["memory"] = subsystem{Status: "degraded", Message: memErr.Error()}
+				// Memory is optional — does not fail overall health.
+			} else {
+				systems["memory"] = subsystem{Status: "ok"}
+			}
+		} else {
+			systems["memory"] = subsystem{Status: "disabled", Message: "EPF_MEMORY_URL not configured"}
+		}
+
+		// LLM — configured or not.
+		if llmClient != nil {
+			systems["llm"] = subsystem{Status: "ok"}
+		} else {
+			systems["llm"] = subsystem{Status: "disabled", Message: "LLM_PROVIDER_URL not configured"}
+		}
+
+		status := "ok"
+		httpStatus := http.StatusOK
+		if !overallOK {
+			status = "degraded"
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		return c.JSON(httpStatus, healthResponse{
+			Status:  status,
+			Service: "strategy-server",
+			Systems: systems,
+		})
+	}
 }
 
 // strategyExporterAdapter adapts *strategy.Service to the ingest.InstanceExporter interface.
