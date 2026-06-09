@@ -60,4 +60,4 @@
 - [x] 8.2 `task lint` clean of all real findings (104 → 20 advisory-only gocognit/gocyclo on large pre-existing domain funcs, designated non-blocking by config)
 - [x] 8.3 Live check: created → committed → listed (track filter) → footprint correct (KR excluded) → illegal transition rejected → approved → scheduled → cancelled via MCP; `work_package.transitioned` events observed via list_activities (verified against running server, emergent instance)
 - [x] 8.4 `openspec validate add-work-package-server-adoption --strict` passes
-- [ ] 8.5 Close emergent.strategy#47
+- [x] 8.5 Close emergent.strategy#47 (closed COMPLETED via commit b20524af + summary comment)
