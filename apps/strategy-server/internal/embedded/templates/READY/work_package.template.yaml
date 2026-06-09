@@ -1,0 +1,86 @@
+# EPF Work Package Template
+#
+# WHAT THIS IS
+# A work package is the bounded, NON-PERMANENT execution unit that binds stable
+# strategy (Value Model L1-L3 -> Definitions -> Key Results) into a scoped
+# statement of work with a clear outcome and a time-box. It is the tool-agnostic,
+# four-track HANDOVER CONTRACT between strategy authoring and downstream execution
+# (coding agents, strategy-as-code, ecosystem partners).
+#
+# IT IS THIN BY DESIGN
+# - It REFERENCES strategy artifacts (paths/ids); it never copies their content.
+# - It declares OUTCOME + TARGETS only.
+# - Tasks, scheduling, and collision detection are NOT here - the execution
+#   substrate owns decomposition, and the orchestrator owns scheduling.
+#
+# NOT THE OLD "work_packages"
+# The pre-v1.9.6 work_packages (a thick task/ticket object) was removed because it
+# duplicated Linear/Jira. THIS is different: a binding CONTRACT, not a ticket.
+#
+# FOOTPRINT (do not author this)
+# A WP's footprint = union of (value_model_paths + definition_ids). It is the
+# four-track collision key the orchestrator uses to compute parallel-safe waves.
+# It is DERIVED server-side from targets, never written here - so it cannot be
+# under-declared. You only author targets.
+#
+# Related Resources:
+# - Schema:    ../../schemas/work_package_schema.json
+# - Wizard:    ../../wizards/work_package.wizard.md
+# - Validator: ../../scripts/validate-work-package-references.sh
+
+# Unique id. Cross-track 'wp-' prefix BY DESIGN (a WP can span tracks).
+# Immutable - never reuse, even after done/cancelled.
+id: "wp-001"
+
+# Outcome-oriented name. Title case. 3-80 chars.
+title: "Example Work Package Title"
+
+# The OUTCOME this WP commits to deliver - a bounded result, NOT a task list.
+# Answers: what will be true when this is done? Verifiable, substrate-agnostic.
+intent: >-
+  Describe the bounded outcome this work package delivers, stated as a result
+  rather than a list of steps. What becomes true when this WP reaches 'done'?
+
+# Primary track for ownership/routing. One of: product | strategy | org_ops | commercial.
+# (Cross-track VALUE is expressed via targets.value_model_paths below.)
+track: "product"
+
+# WHAT THIS WP ADVANCES. All three arrays are MANY-TO-MANY references into
+# existing strategy artifacts. The validator checks each reference resolves.
+targets:
+  # Value Model L1.L2.L3 paths. Format: {Track}.{L2 Theme}.{l3-capability}
+  # Track is Title case (Product|Strategy|OrgOps|Commercial). L2 allows spaces/&.
+  # L3 is kebab-case. May span multiple tracks. Part of the footprint.
+  value_model_paths:
+    - "Product.Core Platform.csv-import"
+
+  # Track definition ids: fd-* (product), sd-* (strategy), pd-* (org_ops), cd-* (commercial).
+  # Part of the footprint.
+  definition_ids:
+    - "fd-001"
+
+  # Key Result ids: kr-{p|s|o|c}-{number}. Many-to-many. NOT part of the footprint.
+  kr_ids:
+    - "kr-p-001"
+
+# Drives downstream review rigor. low = auto-reviewable, medium = human review,
+# high = strict review + explicit sign-off. Enforcement lives downstream.
+risk_class: "medium"
+
+# Lifecycle status. Flow: proposed -> approved -> scheduled -> executing -> done.
+# 'cancelled' is a terminal state reachable from any non-terminal state
+# (honors the "not forever" property). Transitions are enforced downstream.
+status: "proposed"
+
+# Authoring-tool provenance.
+source:
+  # openspec | custom | partner-native  (categories, not specific products)
+  authoring_tool: "custom"
+  # Optional opaque pointer back to the authoring artifact.
+  # reference: "spec:example-work-package"
+
+# Time-boxing metadata - a WP is non-permanent and expected to close.
+lifecycle:
+  created_at: "2026-01-15T09:00:00Z"   # ISO 8601 timestamp
+  target_close: "2026-02-28"           # optional target close date (the time-box)
+  # closed_at: "2026-02-20T16:30:00Z"  # set by the substrate on done/cancelled

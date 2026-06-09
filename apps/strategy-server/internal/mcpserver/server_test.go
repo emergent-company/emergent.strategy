@@ -352,6 +352,10 @@ func TestMCP_ToolDiscovery(t *testing.T) {
 		// Write — core mutations
 		"update_north_star",
 		"create_feature", "update_feature", "archive_feature",
+		// Work packages (execution handover)
+		"list_work_packages", "get_work_package", "get_work_package_footprint",
+		"create_work_package", "update_work_package",
+		"approve_work_package", "transition_work_package",
 		// Write — expanded READY/FIRE (Phase D)
 		"update_strategy_foundations", "update_insight_analyses",
 		"update_strategy_formula", "update_roadmap",
@@ -4360,4 +4364,141 @@ func TestMCP_SyncTools(t *testing.T) {
 	_ = id
 
 	t.Log("✓ sync MCP tools work correctly")
+}
+
+// ---------------------------------------------------------------------------
+// Work package lifecycle (create → commit → list → transition → footprint)
+// ---------------------------------------------------------------------------
+
+func TestMCP_WorkPackageLifecycle(t *testing.T) {
+	svc := buildSvc(t)
+	c := newMCPClient(t, svc)
+	c.activateAllTools()
+	id := 1
+
+	_, instID := seedInstance(t, svc, "test-org-wp-"+uuid.New().String()[:8], nil)
+	instIDStr := instID.String()
+
+	wpPayload, _ := json.Marshal(map[string]any{
+		"id":         "wp-001",
+		"title":      "CSV Import Hardening",
+		"intent":     "CSV import succeeds for files up to 100MB with recoverable errors.",
+		"track":      "product",
+		"status":     "proposed",
+		"risk_class": "medium",
+		"targets": map[string]any{
+			"value_model_paths": []any{"Product.Core Platform.csv-import"},
+			"definition_ids":    []any{"fd-001"},
+			"kr_ids":            []any{"kr-p-001"},
+		},
+		"source":    map[string]any{"authoring_tool": "openspec"},
+		"lifecycle": map[string]any{"created_at": "2026-06-08T09:00:00Z"},
+	})
+
+	// create
+	var stage struct {
+		Staged  bool   `json:"staged"`
+		BatchID string `json:"batch_id"`
+	}
+	c.call(id, "create_work_package", map[string]any{
+		"instance_id":      instIDStr,
+		"work_package_key": "wp-001",
+		"payload":          string(wpPayload),
+	}).assertOK().decode(&stage)
+	id++
+	if !stage.Staged || stage.BatchID == "" {
+		t.Fatalf("create_work_package: staged=%v batch=%q", stage.Staged, stage.BatchID)
+	}
+
+	// commit
+	c.call(id, "commit_batch", map[string]any{"batch_id": stage.BatchID}).assertOK()
+	id++
+
+	// list — should be visible and filterable by track
+	c.call(id, "list_work_packages", map[string]any{
+		"instance_id": instIDStr,
+		"track":       "product",
+	}).assertOK().contains("wp-001")
+	id++
+
+	// list with non-matching track filter — should NOT contain wp-001
+	var byOtherTrack []map[string]any
+	c.call(id, "list_work_packages", map[string]any{
+		"instance_id": instIDStr,
+		"track":       "commercial",
+	}).assertOK().decode(&byOtherTrack)
+	id++
+	for _, wp := range byOtherTrack {
+		if wp["name"] == "CSV Import Hardening" {
+			t.Error("track=commercial filter returned a product work package")
+		}
+	}
+
+	// footprint = value paths ∪ definitions, KRs excluded
+	var fp struct {
+		Footprint []string `json:"footprint"`
+	}
+	c.call(id, "get_work_package_footprint", map[string]any{
+		"instance_id":      instIDStr,
+		"work_package_key": "wp-001",
+	}).assertOK().decode(&fp)
+	id++
+	wantFP := map[string]bool{"Product.Core Platform.csv-import": true, "fd-001": true}
+	if len(fp.Footprint) != 2 {
+		t.Errorf("footprint = %v, want 2 entries", fp.Footprint)
+	}
+	for _, f := range fp.Footprint {
+		if !wantFP[f] {
+			t.Errorf("unexpected footprint entry %q", f)
+		}
+		if f == "kr-p-001" {
+			t.Error("KR leaked into footprint")
+		}
+	}
+
+	// illegal transition: proposed → scheduled (skips approved) must be rejected
+	var bad struct {
+		Transitioned bool   `json:"transitioned"`
+		Error        string `json:"error"`
+	}
+	c.call(id, "transition_work_package", map[string]any{
+		"instance_id":      instIDStr,
+		"work_package_key": "wp-001",
+		"to_status":        "scheduled",
+	}).assertOK().decode(&bad)
+	id++
+	if bad.Transitioned {
+		t.Error("illegal transition proposed→scheduled was accepted")
+	}
+	if bad.Error == "" {
+		t.Error("illegal transition should report an error")
+	}
+
+	// legal transition: approve (proposed → approved)
+	var ok struct {
+		Transitioned bool   `json:"transitioned"`
+		FromStatus   string `json:"from_status"`
+		ToStatus     string `json:"to_status"`
+		BatchID      string `json:"batch_id"`
+	}
+	c.call(id, "approve_work_package", map[string]any{
+		"instance_id":      instIDStr,
+		"work_package_key": "wp-001",
+	}).assertOK().decode(&ok)
+	id++
+	if !ok.Transitioned || ok.FromStatus != "proposed" || ok.ToStatus != "approved" {
+		t.Fatalf("approve_work_package: %+v", ok)
+	}
+	c.call(id, "commit_batch", map[string]any{"batch_id": ok.BatchID}).assertOK()
+	id++
+
+	// after commit, status is approved → get_work_package reflects it
+	c.call(id, "get_work_package", map[string]any{
+		"instance_id":      instIDStr,
+		"work_package_key": "wp-001",
+	}).assertOK().contains("approved")
+	id++
+
+	_ = id
+	t.Log("✓ work package lifecycle works correctly")
 }

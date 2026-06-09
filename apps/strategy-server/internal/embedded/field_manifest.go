@@ -98,4 +98,20 @@ var DecomposerFieldManifest = []FieldMapping{
 	{"insight_analyses", "insight_analyses_schema.json", "competitive_landscape", "decomposeInsightAnalyses"},
 	{"insight_analyses", "insight_analyses_schema.json", "key_insights", "decomposeInsightAnalyses"},
 	{"insight_analyses", "insight_analyses_schema.json", "market_definition", "decomposeInsightAnalyses"},
+
+	// -----------------------------------------------------------------------
+	// Work package (decomposeWorkPackages)
+	// -----------------------------------------------------------------------
+	{"work_package", "work_package_schema.json", "id", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "title", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "intent", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "track", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "status", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "risk_class", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "targets.value_model_paths", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "targets.definition_ids", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "targets.kr_ids", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "source.authoring_tool", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "lifecycle.created_at", "decomposeWorkPackages"},
+	{"work_package", "work_package_schema.json", "lifecycle.target_close", "decomposeWorkPackages"},
 }

@@ -7,6 +7,7 @@ package index
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 )
 
@@ -113,6 +114,11 @@ func ExtractArtifactFields(artifactType string, payload []byte) ArtifactFields {
 			f.Name = "Product Portfolio"
 		}
 
+	case "work_package":
+		f.Name = coalesceStr(strField(raw, "title"), strField(raw, "id"))
+		f.Status = coalesceStr(strField(raw, "status"), "proposed")
+		f.Track = strField(raw, "track")
+
 	default:
 		// Best-effort: look for common name fields
 		f.Name = coalesceStr(
@@ -167,6 +173,8 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractInsightOpportunityRelationships(artifactKey, raw)
 	case "evidence":
 		return extractEvidenceRelationships(artifactKey, raw)
+	case "work_package":
+		return extractWorkPackageRelationships(artifactKey, raw)
 	}
 	return nil
 }
@@ -630,6 +638,84 @@ func extractLRARelationships(key string, raw map[string]any) []Relationship {
 	}
 
 	return rels
+}
+
+// ---------------------------------------------------------------------------
+// Work package: target edges to value paths, definitions, and key results
+// ---------------------------------------------------------------------------
+
+// extractWorkPackageRelationships derives the target edges of a work package.
+// A WP references value_model_paths, definition_ids, and kr_ids (all
+// many-to-many). The union of value_model_paths + definition_ids is the WP's
+// footprint (see WorkPackageFootprint); kr_ids are targets but NOT footprint.
+func extractWorkPackageRelationships(key string, raw map[string]any) []Relationship {
+	var rels []Relationship
+
+	targets := nestedMap(raw, "targets")
+	if targets == nil {
+		return rels
+	}
+
+	for _, path := range strSlice(targets, "value_model_paths") {
+		rels = append(rels, Relationship{
+			TargetKey:    path,
+			TargetType:   "value_model_path",
+			Relationship: "targets_value_path",
+		})
+	}
+	for _, defID := range strSlice(targets, "definition_ids") {
+		rels = append(rels, Relationship{
+			TargetKey:    defID,
+			TargetType:   "definition",
+			Relationship: "targets_definition",
+		})
+	}
+	for _, krID := range strSlice(targets, "kr_ids") {
+		rels = append(rels, Relationship{
+			TargetKey:    krID,
+			TargetType:   "key_result",
+			Relationship: "targets_kr",
+		})
+	}
+
+	return rels
+}
+
+// WorkPackageFootprint computes a work package's footprint: the de-duplicated,
+// sorted union of targets.value_model_paths and targets.definition_ids. This is
+// the collision key the orchestrator uses to compute parallel-safe waves.
+//
+// kr_ids are deliberately EXCLUDED from the footprint (per the work_package
+// schema): two work packages advancing the same KR may still run in parallel,
+// but two touching the same value path or definition may not.
+//
+// The footprint is DERIVED here server-side from the targets — it is never
+// taken from an authored field, so it cannot be under-declared.
+func WorkPackageFootprint(payload []byte) []string {
+	var raw map[string]any
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		return nil
+	}
+	targets := nestedMap(raw, "targets")
+	if targets == nil {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var footprint []string
+	add := func(items []string) {
+		for _, it := range items {
+			if it != "" && !seen[it] {
+				seen[it] = true
+				footprint = append(footprint, it)
+			}
+		}
+	}
+	add(strSlice(targets, "value_model_paths"))
+	add(strSlice(targets, "definition_ids"))
+
+	sort.Strings(footprint)
+	return footprint
 }
 
 // ---------------------------------------------------------------------------

@@ -136,6 +136,7 @@ func New(svc Services) http.Handler {
 	registerInstanceReadTools(s, svc)
 	registerArtifactContextTools(s, svc)
 	registerArtifactMutationTools(s, svc)
+	registerWorkPackageTools(s, svc)
 	registerSemanticReadTools(s, svc)
 	registerEmbeddedKnowledgeTools(s)
 	registerAgentRuntimeTools(s, svc)
@@ -179,7 +180,9 @@ func registerToolFilterTools(s *server.MCPServer) {
 			categories := buildCategoryList(sessionID)
 			raw, err := json.Marshal(categories)
 			if err != nil {
-				return mcp.NewToolResultError(langs.T(ctx, "error.mcp_marshal_categories")), nil
+				// MCP convention: surface tool-level failures via the result, not
+				// a Go error. A non-nil Go error is a protocol-level failure.
+				return mcp.NewToolResultError(langs.T(ctx, "error.mcp_marshal_categories")), nil //nolint:nilerr
 			}
 			return mcp.NewToolResultText(string(raw)), nil
 		},
@@ -206,10 +209,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 			// "all" expands to every category
 			for _, name := range categoryNames {
 				if name == "all" {
-					categoryNames = categoryNames[:0]
-					for _, cat := range categoryOrder {
-						categoryNames = append(categoryNames, cat)
-					}
+					categoryNames = append(categoryNames[:0], categoryOrder...)
 					break
 				}
 			}

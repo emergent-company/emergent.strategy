@@ -51,6 +51,12 @@ const (
 	EventSkillCompleted   = "skill.completed"
 	EventSkillFailed      = "skill.failed"
 	EventSkillRetrying    = "skill.retrying"
+
+	// Work package lifecycle events — emitted on each committed status
+	// transition. Subscribable via SSE; the orchestrator and ecosystem
+	// partners react to these without polling.
+	EventWorkPackageCreated      = "work_package.created"
+	EventWorkPackageTransitioned = "work_package.transitioned"
 )
 
 // ---------------------------------------------------------------------------

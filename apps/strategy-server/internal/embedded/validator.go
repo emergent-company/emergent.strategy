@@ -39,6 +39,7 @@ var artifactTypeToSchema = map[string]string{
 	"strategy_def":              "strategy_definition_schema.json",
 	"product_portfolio":         "product_portfolio_schema.json",
 	"mappings":                  "mappings_schema.json",
+	"work_package":              "work_package_schema.json",
 }
 
 // SchemaForType returns the embedded schema filename for the given artifact type,
@@ -74,6 +75,7 @@ var payloadSignatures = []struct {
 	{"strategy_def", []string{"strategy_definition"}},
 	{"product_portfolio", []string{"portfolio"}},
 	{"mappings", []string{"mappings"}},
+	{"work_package", []string{"track", "targets", "lifecycle"}},
 }
 
 // DetectArtifactType infers the artifact type from the top-level keys of a JSON

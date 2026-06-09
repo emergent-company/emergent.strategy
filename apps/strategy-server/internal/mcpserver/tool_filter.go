@@ -10,7 +10,6 @@ package mcpserver
 
 import (
 	"context"
-	"sort"
 	"sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -19,51 +18,52 @@ import (
 
 // ToolCategory groups related tools under a human-readable label.
 const (
-	CategoryCore        = "core"        // always visible — routing, instance, batch
-	CategoryStrategy    = "strategy"    // strategy reads: vision, personas, competitive, roadmap
-	CategoryFeatures    = "features"    // feature CRUD, definitions, relationships, dependencies
-	CategoryAIM         = "aim"         // AIM lifecycle: LRA, assessment, calibration, cycles
-	CategoryRipple      = "ripple"      // coherence engine: signals, equilibrium, convergence
-	CategoryEvidence    = "evidence"    // evidence ingestion and management
-	CategorySemantic    = "semantic"    // semantic graph: search, contradictions, scenarios
-	CategoryAuthoring   = "authoring"   // mutation writes: north star, formula, roadmap, value model
-	CategoryValidation  = "validation"  // validation, content readiness, fix plans
-	CategoryAdmin       = "admin"       // workspace/instance/org management, sync, versions
-	CategoryKnowledge   = "knowledge"   // schemas, templates, agents, skills, wizards
-	CategoryPacks       = "packs"       // skill packs, apps, skill authoring
+	CategoryCore          = "core"          // always visible — routing, instance, batch
+	CategoryStrategy      = "strategy"      // strategy reads: vision, personas, competitive, roadmap
+	CategoryFeatures      = "features"      // feature CRUD, definitions, relationships, dependencies
+	CategoryAIM           = "aim"           // AIM lifecycle: LRA, assessment, calibration, cycles
+	CategoryRipple        = "ripple"        // coherence engine: signals, equilibrium, convergence
+	CategoryEvidence      = "evidence"      // evidence ingestion and management
+	CategorySemantic      = "semantic"      // semantic graph: search, contradictions, scenarios
+	CategoryAuthoring     = "authoring"     // mutation writes: north star, formula, roadmap, value model
+	CategoryValidation    = "validation"    // validation, content readiness, fix plans
+	CategoryAdmin         = "admin"         // workspace/instance/org management, sync, versions
+	CategoryKnowledge     = "knowledge"     // schemas, templates, agents, skills, wizards
+	CategoryPacks         = "packs"         // skill packs, apps, skill authoring
 	CategoryObservability = "observability" // activity stream, skill runs, LLM usage, heartbeat
+	CategoryWork          = "work"          // work packages: SOW contracts, footprint, status transitions
 )
 
 // toolCategories maps every tool name to its category.
 var toolCategories = map[string]string{
 	// ── Core (always visible) ───────────────────────────────────────────
-	"get_agent_for_task":    CategoryCore,
-	"list_workspaces":       CategoryCore,
-	"get_workspace":         CategoryCore,
-	"list_instances":        CategoryCore,
-	"get_instance":          CategoryCore,
-	"health_check":          CategoryCore,
-	"commit_batch":          CategoryCore,
-	"discard_batch":         CategoryCore,
-	"list_pending_batches":  CategoryCore,
-	"describe_batch":        CategoryCore,
-	"search_strategy":       CategoryCore,
-	"list_tool_categories":  CategoryCore,
-	"set_tool_filter":       CategoryCore,
+	"get_agent_for_task":   CategoryCore,
+	"list_workspaces":      CategoryCore,
+	"get_workspace":        CategoryCore,
+	"list_instances":       CategoryCore,
+	"get_instance":         CategoryCore,
+	"health_check":         CategoryCore,
+	"commit_batch":         CategoryCore,
+	"discard_batch":        CategoryCore,
+	"list_pending_batches": CategoryCore,
+	"describe_batch":       CategoryCore,
+	"search_strategy":      CategoryCore,
+	"list_tool_categories": CategoryCore,
+	"set_tool_filter":      CategoryCore,
 
 	// ── Strategy reads ──────────────────────────────────────────────────
-	"get_strategy_context":             CategoryStrategy,
-	"get_product_vision":               CategoryStrategy,
-	"get_personas":                     CategoryStrategy,
-	"get_competitive_position":         CategoryStrategy,
-	"get_roadmap":                      CategoryStrategy,
-	"get_persona_details":              CategoryStrategy,
+	"get_strategy_context":              CategoryStrategy,
+	"get_product_vision":                CategoryStrategy,
+	"get_personas":                      CategoryStrategy,
+	"get_competitive_position":          CategoryStrategy,
+	"get_roadmap":                       CategoryStrategy,
+	"get_persona_details":               CategoryStrategy,
 	"get_strategic_context_for_feature": CategoryStrategy,
-	"explain_value_path":               CategoryStrategy,
-	"get_coverage_analysis":            CategoryStrategy,
-	"get_value_propositions":           CategoryStrategy,
-	"get_assumptions":                  CategoryStrategy,
-	"get_feature_dependencies":         CategoryStrategy,
+	"explain_value_path":                CategoryStrategy,
+	"get_coverage_analysis":             CategoryStrategy,
+	"get_value_propositions":            CategoryStrategy,
+	"get_assumptions":                   CategoryStrategy,
+	"get_feature_dependencies":          CategoryStrategy,
 
 	// ── Features & definitions ──────────────────────────────────────────
 	"list_features":          CategoryFeatures,
@@ -84,19 +84,19 @@ var toolCategories = map[string]string{
 	"get_phase_artifacts":    CategoryFeatures,
 
 	// ── AIM lifecycle ───────────────────────────────────────────────────
-	"create_lra":             CategoryAIM,
-	"update_lra":             CategoryAIM,
-	"get_lra":                CategoryAIM,
-	"create_aim_report":      CategoryAIM,
-	"get_aim_summary":        CategoryAIM,
-	"draft_aim_assessment":   CategoryAIM,
-	"draft_aim_calibration":  CategoryAIM,
-	"apply_aim_calibration":  CategoryAIM,
-	"list_aim_cycles":        CategoryAIM,
-	"aim_start_cycle":        CategoryAIM,
-	"aim_get_run":            CategoryAIM,
-	"validate_assumptions":   CategoryAIM,
-	"stage_calibration":      CategoryAIM,
+	"create_lra":            CategoryAIM,
+	"update_lra":            CategoryAIM,
+	"get_lra":               CategoryAIM,
+	"create_aim_report":     CategoryAIM,
+	"get_aim_summary":       CategoryAIM,
+	"draft_aim_assessment":  CategoryAIM,
+	"draft_aim_calibration": CategoryAIM,
+	"apply_aim_calibration": CategoryAIM,
+	"list_aim_cycles":       CategoryAIM,
+	"aim_start_cycle":       CategoryAIM,
+	"aim_get_run":           CategoryAIM,
+	"validate_assumptions":  CategoryAIM,
+	"stage_calibration":     CategoryAIM,
 
 	// ── Ripple coherence ────────────────────────────────────────────────
 	"propose_change":          CategoryRipple,
@@ -111,12 +111,21 @@ var toolCategories = map[string]string{
 	"get_equilibrium_status":  CategoryRipple,
 	"get_convergence_history": CategoryRipple,
 
+	// ── Work packages (execution / orchestration handover) ──────────────
+	"list_work_packages":         CategoryWork,
+	"get_work_package":           CategoryWork,
+	"get_work_package_footprint": CategoryWork,
+	"create_work_package":        CategoryWork,
+	"update_work_package":        CategoryWork,
+	"approve_work_package":       CategoryWork,
+	"transition_work_package":    CategoryWork,
+
 	// ── Evidence ────────────────────────────────────────────────────────
-	"ingest_evidence":  CategoryEvidence,
-	"list_evidence":    CategoryEvidence,
-	"get_evidence":     CategoryEvidence,
-	"link_evidence":    CategoryEvidence,
-	"update_evidence":  CategoryEvidence,
+	"ingest_evidence": CategoryEvidence,
+	"list_evidence":   CategoryEvidence,
+	"get_evidence":    CategoryEvidence,
+	"link_evidence":   CategoryEvidence,
+	"update_evidence": CategoryEvidence,
 
 	// ── Semantic graph ──────────────────────────────────────────────────
 	"detect_contradictions": CategorySemantic,
@@ -145,32 +154,32 @@ var toolCategories = map[string]string{
 	"export_report":           CategoryValidation,
 
 	// ── Admin (workspace/org/instance management) ───────────────────────
-	"create_workspace":         CategoryAdmin,
-	"import_instance":          CategoryAdmin,
-	"scaffold_instance":        CategoryAdmin,
-	"activate_instance":        CategoryAdmin,
-	"archive_instance":         CategoryAdmin,
-	"delete_instance":          CategoryAdmin,
-	"delete_workspace":         CategoryAdmin,
-	"assign_workspace_to_org":  CategoryAdmin,
-	"create_org":               CategoryAdmin,
-	"update_org":               CategoryAdmin,
-	"list_orgs":                CategoryAdmin,
-	"invite_member":            CategoryAdmin,
-	"remove_member":            CategoryAdmin,
-	"list_members":             CategoryAdmin,
-	"publish_version":          CategoryAdmin,
-	"list_versions":            CategoryAdmin,
-	"get_version":              CategoryAdmin,
-	"diff_versions":            CategoryAdmin,
-	"restore_version":          CategoryAdmin,
-	"sync_to_github":              CategoryAdmin,
-	"get_sync_status":             CategoryAdmin,
-	"import_from_github":          CategoryAdmin,
-	"get_sync_state":              CategoryAdmin,
-	"update_instance":             CategoryAdmin,
-	"list_github_installations":   CategoryAdmin,
-	"scan_github_repos":           CategoryAdmin,
+	"create_workspace":          CategoryAdmin,
+	"import_instance":           CategoryAdmin,
+	"scaffold_instance":         CategoryAdmin,
+	"activate_instance":         CategoryAdmin,
+	"archive_instance":          CategoryAdmin,
+	"delete_instance":           CategoryAdmin,
+	"delete_workspace":          CategoryAdmin,
+	"assign_workspace_to_org":   CategoryAdmin,
+	"create_org":                CategoryAdmin,
+	"update_org":                CategoryAdmin,
+	"list_orgs":                 CategoryAdmin,
+	"invite_member":             CategoryAdmin,
+	"remove_member":             CategoryAdmin,
+	"list_members":              CategoryAdmin,
+	"publish_version":           CategoryAdmin,
+	"list_versions":             CategoryAdmin,
+	"get_version":               CategoryAdmin,
+	"diff_versions":             CategoryAdmin,
+	"restore_version":           CategoryAdmin,
+	"sync_to_github":            CategoryAdmin,
+	"get_sync_status":           CategoryAdmin,
+	"import_from_github":        CategoryAdmin,
+	"get_sync_state":            CategoryAdmin,
+	"update_instance":           CategoryAdmin,
+	"list_github_installations": CategoryAdmin,
+	"scan_github_repos":         CategoryAdmin,
 
 	// ── Knowledge base ──────────────────────────────────────────────────
 	"list_schemas":   CategoryKnowledge,
@@ -198,15 +207,15 @@ var toolCategories = map[string]string{
 	"describe_pack_format":  CategoryPacks,
 
 	// ── Observability ───────────────────────────────────────────────────
-	"list_activities":         CategoryObservability,
-	"list_skill_runs":         CategoryObservability,
-	"get_skill_run":           CategoryObservability,
-	"get_llm_usage":           CategoryObservability,
-	"list_heartbeat_signals":  CategoryObservability,
-	"acknowledge_heartbeat":   CategoryObservability,
-	"list_cycle_proposals":    CategoryObservability,
-	"approve_cycle_proposal":  CategoryObservability,
-	"defer_cycle_proposal":    CategoryObservability,
+	"list_activities":        CategoryObservability,
+	"list_skill_runs":        CategoryObservability,
+	"get_skill_run":          CategoryObservability,
+	"get_llm_usage":          CategoryObservability,
+	"list_heartbeat_signals": CategoryObservability,
+	"acknowledge_heartbeat":  CategoryObservability,
+	"list_cycle_proposals":   CategoryObservability,
+	"approve_cycle_proposal": CategoryObservability,
+	"defer_cycle_proposal":   CategoryObservability,
 }
 
 // categoryDescriptions maps category names to human-readable descriptions.
@@ -224,11 +233,13 @@ var categoryDescriptions = map[string]string{
 	CategoryKnowledge:     "EPF knowledge base — schemas, templates, agents, skills, wizards",
 	CategoryPacks:         "Skill packs, apps, skill authoring and execution",
 	CategoryObservability: "Activity stream, skill runs, LLM usage, heartbeat, proposals",
+	CategoryWork:          "Work packages — SOW contracts, footprint, status transitions (execution handover)",
 }
 
 // categoryOrder defines the display order of categories.
 var categoryOrder = []string{
 	CategoryCore, CategoryStrategy, CategoryFeatures, CategoryAuthoring,
+	CategoryWork,
 	CategoryAIM, CategoryRipple, CategoryEvidence, CategorySemantic,
 	CategoryValidation, CategoryAdmin, CategoryKnowledge, CategoryPacks,
 	CategoryObservability,
@@ -265,13 +276,6 @@ func (s *toolFilterState) getCategories(sessionID string) map[string]bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.categories[sessionID]
-}
-
-// clearSession removes filter state for a disconnected session.
-func (s *toolFilterState) clearSession(sessionID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.categories, sessionID)
 }
 
 // ---------------------------------------------------------------------------
@@ -348,16 +352,4 @@ func buildCategoryList(sessionID string) []CategoryInfo {
 		})
 	}
 	return result
-}
-
-// toolsInCategory returns the names of tools in a given category, sorted.
-func toolsInCategory(category string) []string {
-	var names []string
-	for name, cat := range toolCategories {
-		if cat == category {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	return names
 }

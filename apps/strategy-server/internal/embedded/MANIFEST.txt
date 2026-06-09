@@ -1,7 +1,7 @@
 # Strategy-Server Embedded Artifacts Manifest
-# Generated: 2026-05-26T07:48:57Z
+# Generated: 2026-06-08T15:49:32Z
 # Source: /Users/nikolaifasting/code/epf-canonical
-# Version: 2.27.7
+# Version: 2.28.0
 
 ## Schemas
 _epf_anchor_schema.json
@@ -27,6 +27,7 @@ strategy_foundations_schema.json
 track_definition_base_schema.json
 track_health_assessment_schema.json
 value_model_schema.json
+work_package_schema.json
 workflow_schema.json
 
 ## Templates
@@ -185,6 +186,7 @@ READY/03_insight_opportunity.yaml
 READY/04_strategy_formula.yaml
 READY/05_roadmap_recipe.yaml
 READY/product_portfolio.yaml
+READY/work_package.template.yaml
 
 ## Wizards
 01_trend_scout.agent_prompt.md
@@ -205,6 +207,7 @@ start_epf.agent_prompt.md
 strategic_reality_check.agent_prompt.md
 synthesizer.agent_prompt.md
 value_model_review.agent_prompt.md
+work_package.wizard.md
 
 ## Generators
 context-sheet

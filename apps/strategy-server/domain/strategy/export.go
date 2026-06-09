@@ -58,6 +58,10 @@ func artifactTypeToDirPath(artifactType string) string {
 	// mappings is a singleton file at FIRE/mappings.yaml (not inside FIRE/definitions/).
 	case "mappings":
 		return "FIRE"
+	// work packages live in work_packages/ at the instance root, matching the
+	// decomposer's decomposeWorkPackages path.
+	case "work_package":
+		return "work_packages"
 	case "assessment_report":
 		return "AIM"
 	case "living_reality_assessment":
@@ -98,6 +102,14 @@ func artifactKeyToFilename(artifactType, artifactKey string) string {
 		return "mappings.yaml"
 	case "value_model":
 		return artifactKey + ".yaml"
+	case "work_package":
+		// Work package files must be named wp-*.yaml for the decomposer.
+		// Strip any "work_package:" prefix and use just the wp- id.
+		id := base
+		if i := strings.LastIndex(id, ":"); i >= 0 {
+			id = id[i+1:]
+		}
+		return id + ".yaml"
 	default:
 		return base + ".yaml"
 	}

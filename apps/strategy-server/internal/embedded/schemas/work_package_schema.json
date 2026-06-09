@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "work_package_schema.json",
+  "title": "EPF Work Package Schema",
+  "version": "1.0.0",
+  "description": "A work package is the bounded, non-permanent execution unit that binds stable strategy (Value Model L1-L3, Definitions, Key Results) into a scoped statement of work with a clear outcome and bounded time. It is the tool-agnostic, four-track HANDOVER CONTRACT between strategy authoring and downstream execution substrates (coding agents, strategy-as-code, ecosystem partners). It is deliberately THIN: it declares outcome + targets via references, and each execution substrate decomposes it its own way. Tasks, scheduling, and collision detection are intentionally out of scope - they belong to the execution substrate and orchestrator, not to this schema.",
+  "$comment": "WORK PACKAGE ARCHITECTURE: EPF models stable strategy at L1-L3 (Value Model -> Definitions -> Key Results). The work package fills the gap between that stable strategy and disposable execution. DESIGN PRINCIPLES: (1) Thin binding - a work package REFERENCES value model paths, definition ids, and KR ids; it never copies their content. (2) Four-track aware - a single work package may advance multiple tracks. (3) Many-to-many targets - a WP advances multiple KRs and a KR spans multiple WPs (1:1 was rejected because WPs would grow too large and KRs too numerous to stay meaningful). (4) Non-permanent - a WP is time-boxed and disposable, with an explicit lifecycle and a 'cancelled' terminal state honoring the 'not forever' property. (5) Substrate-agnostic - no task model; execution substrates own decomposition. HISTORICAL NOTE: An earlier 'work_packages' concept (removed in EPF v1.9.6) was a THICK task/ticket object that duplicated Linear/Jira. This schema is intentionally different: it is a binding CONTRACT, not a ticket. CONVENTIONS: This schema BORROWS conventions from track_definition_base_schema.json (four-track enum, status lifecycle, value-model path format) but does NOT extend it - a work package is an execution INSTANCE, not a procedural definition with maturity tiers. FOOTPRINT: A WP's footprint (the collision key used by orchestrators to compute parallel-safe waves) is the union of value_model_paths + definition_ids it touches. The footprint is DERIVED server-side from targets, never authored here, so it cannot be under-declared. This schema only models the targets. additionalProperties is set to false to keep the contract thin and prevent accidental task/scheduling fields from leaking in.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "intent", "track", "targets", "risk_class", "status", "source", "lifecycle"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^wp-[0-9]{3,}$",
+      "description": "Unique work package identifier. Format: 'wp-{number}' with at least three zero-padded digits. Unlike track definitions (which use per-track prefixes fd/sd/pd/cd), work packages use a single cross-track 'wp-' prefix BY DESIGN - a work package can span multiple tracks, so a per-track prefix would be misleading. IDs are immutable (never reuse, even after a WP is done or cancelled).",
+      "examples": ["wp-001", "wp-042", "wp-1024"]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "description": "Human-readable name describing the work package's outcome. Title case, outcome-oriented. Good: 'CSV Import Hardening', 'Enterprise SSO Onboarding'. Avoid generic activity phrasing like 'Do the import work'.",
+      "examples": ["CSV Import Hardening", "Enterprise SSO Onboarding", "Pricing Page Redesign"]
+    },
+    "intent": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 600,
+      "description": "The outcome this work package commits to deliver, stated as a bounded result, not a task list. Answers: what will be true when this WP is done? Should be verifiable and substrate-agnostic (no implementation steps - those belong to the execution substrate).",
+      "$comment": "Keep intent focused on OUTCOME, not activity. The WP is a contract about what changes, not how it gets built. If you find yourself listing steps, that is a sign the content belongs in the execution substrate's decomposition, not here.",
+      "examples": [
+        "CSV import succeeds for files up to 100MB with clear, recoverable errors, so that onboarding no longer stalls on data import.",
+        "Enterprise customers can authenticate via SAML SSO with self-serve configuration, removing the manual setup bottleneck."
+      ]
+    },
+    "track": {
+      "type": "string",
+      "enum": ["product", "strategy", "org_ops", "commercial"],
+      "description": "The primary EPF track this work package belongs to. A WP may TARGET value across multiple tracks (see targets), but it has one primary track for ownership and routing. Mirrors the four-track model used across EPF (product, strategy, org_ops, commercial).",
+      "$comment": "The primary track determines default ownership and which value model the WP is most associated with. Cross-track value is expressed through targets.value_model_paths, which can reference any track's value model."
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_model_paths", "definition_ids", "kr_ids"],
+      "description": "What this work package advances. All three target arrays are MANY-TO-MANY: a WP advances multiple KRs and a KR spans multiple WPs. The union of value_model_paths + definition_ids forms the WP's footprint (derived server-side), used as the four-track collision key for computing parallel-safe execution waves. This schema only models the targets - it does not author the footprint.",
+      "$comment": "Targets are pure references into existing strategy artifacts. Relationship validation (each reference resolves to an existing value-model path / definition id / KR id) is enforced by validate-work-package-references.sh, not by this schema (JSON Schema cannot do cross-artifact resolution). At least one of the three arrays should be non-empty in practice; empty arrays are permitted at the schema level to support staged authoring (e.g. a 'proposed' WP whose targets are still being resolved).",
+      "properties": {
+        "value_model_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(Product|Strategy|OrgOps|Commercial)\\.[A-Za-z0-9 &-]+\\.[a-z0-9-]+$"
+          },
+          "description": "Value Model L1.L2.L3 paths this work package advances. Format mirrors track_definition_base_schema.json 'contributes_to': {L1-Pillar}.{L2-Theme}.{L3-Capability}. Track segment is Title case (Product|Strategy|OrgOps|Commercial). L2 may contain spaces and ampersands. L3 is kebab-case. May span multiple tracks. Part of the footprint collision key.",
+          "examples": [
+            ["Product.Core Platform.csv-import"],
+            ["Strategy.Market Expansion.enterprise-gtm", "Commercial.Monetization.enterprise-plan"]
+          ]
+        },
+        "definition_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(fd|sd|pd|cd)-[0-9]{3}$"
+          },
+          "description": "Track definition ids this work package operates against. Uses the canonical per-track definition id format: fd-* (product/feature), sd-* (strategy), pd-* (org_ops/process), cd-* (commercial). Part of the footprint collision key.",
+          "examples": [["fd-001"], ["fd-012", "cd-003"]]
+        },
+        "kr_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^kr-[psoc]-[0-9]{3}$"
+          },
+          "description": "Key Result ids this work package advances. Uses the canonical roadmap KR id format kr-{p|s|o|c}-{number}. Many-to-many: a WP may advance several KRs and a KR may be advanced by several WPs. NOT part of the footprint (footprint is value_model_paths + definition_ids only).",
+          "examples": [["kr-p-001"], ["kr-p-001", "kr-c-002"]]
+        }
+      }
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Risk classification that drives downstream review rigor (e.g. a Tier-3 strict/auto review gate in the execution substrate). low = routine, auto-reviewable; medium = needs human review; high = needs strict review and explicit sign-off. This schema only declares the class; enforcement lives downstream.",
+      "$comment": "risk_class is an authoring-time declaration of how much scrutiny the work needs. The orchestrator/execution substrate maps risk_class to its own review policy - this schema does not encode review behavior."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "approved", "scheduled", "executing", "done", "cancelled"],
+      "description": "Lifecycle status. Normal flow: proposed -> approved -> scheduled -> executing -> done. 'cancelled' is a terminal state reachable from any non-terminal state, honoring the 'not forever' property of work packages (mirrors Shape-Up's 'rejected'). The status state-machine (allowed transitions, side effects, journal events) is enforced downstream in strategy-server; this schema only constrains the set of valid values.",
+      "$comment": "TERMINAL STATES: done and cancelled. 'scheduled' records that the WP has been placed into an execution wave; the actual scheduling/collision logic lives in the orchestrator, not here. This schema deliberately does not model transitions - it only validates the value."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authoring_tool"],
+      "description": "Authoring-tool provenance. Records where this work package was authored so downstream consumers can attribute and route appropriately.",
+      "properties": {
+        "authoring_tool": {
+          "type": "string",
+          "enum": ["openspec", "custom", "partner-native"],
+          "description": "Which kind of tool authored this WP. openspec = authored via an OpenSpec-style spec flow; custom = authored directly (manual/wizard); partner-native = authored in an ecosystem partner's native tooling and handed over.",
+          "$comment": "This enum is intentionally generic and product-neutral per CANONICAL_PURITY_RULES.md - it names CATEGORIES of authoring tool, not specific products or organizations."
+        },
+        "reference": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Optional opaque pointer back to the authoring artifact (e.g. a spec id or external reference). Free-form; not resolved by EPF.",
+          "examples": ["spec:csv-import-hardening", "ext:authoring-tool/wp-001"]
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_at"],
+      "description": "Time-boxing metadata. A work package is non-permanent: it is created at a point in time and is expected to close. This captures the 'not eternal' property.",
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when this work package was created.",
+          "examples": ["2026-01-15T09:00:00Z"]
+        },
+        "target_close": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional target date by which this work package should reach a terminal state (done or cancelled). Expresses the time-box. Omit only if the close date is genuinely unknown at authoring time.",
+          "examples": ["2026-02-28"]
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional ISO 8601 timestamp when this work package reached a terminal state. Set by the execution substrate when status becomes done or cancelled.",
+          "examples": ["2026-02-20T16:30:00Z"]
+        }
+      }
+    }
+  }
+}

@@ -53,14 +53,8 @@ Respond with a single valid JSON object containing ONLY the `new_assumptions` ke
 
 For pull_the_plug, return: `{"new_assumptions": [], "change_summary": "- No new assumptions (pull_the_plug)"}`
 
-Each assumption object must have:
-- `id` — e.g. `asm-p-001` (p=product, s=strategy, o=org_ops, c=commercial)
-- `track` — one of: product, strategy, org_ops, commercial
-- `description` — 50–500 characters, a testable hypothesis
-- `criticality` — one of: high, medium, low
-- `confidence` — one of: high, medium, low
-- `test_method` — how to validate or invalidate this assumption
-
 **Rules:**
-1. Each `description` must state a testable hypothesis.
-2. Respond with ONLY a valid JSON object. No markdown fences, no explanation, no text outside the JSON.
+1. Each `description` must be 50–500 characters and state a testable hypothesis.
+2. Do not include any text outside the JSON object. No markdown fences, no explanation.
+
+{{schemaConstraints "strategy_formula"}}

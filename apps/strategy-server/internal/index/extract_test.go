@@ -460,6 +460,98 @@ func TestExtractRelationships_UnknownType(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Work package
+// ---------------------------------------------------------------------------
+
+func workPackagePayload() []byte {
+	return mustMarshal(map[string]any{
+		"id":         "wp-001",
+		"title":      "CSV Import Hardening",
+		"intent":     "CSV import succeeds for files up to 100MB with recoverable errors.",
+		"track":      "product",
+		"status":     "approved",
+		"risk_class": "medium",
+		"targets": map[string]any{
+			"value_model_paths": []any{"Product.Core Platform.csv-import", "Product.Core Platform.csv-import"}, // dup on purpose
+			"definition_ids":    []any{"fd-001", "cd-003"},
+			"kr_ids":            []any{"kr-p-001", "kr-c-002"},
+		},
+	})
+}
+
+func TestExtractArtifactFields_WorkPackage(t *testing.T) {
+	f := index.ExtractArtifactFields("work_package", workPackagePayload())
+	if f.Name != "CSV Import Hardening" {
+		t.Errorf("Name = %q, want %q", f.Name, "CSV Import Hardening")
+	}
+	if f.Status != "approved" {
+		t.Errorf("Status = %q, want %q", f.Status, "approved")
+	}
+	if f.Track != "product" {
+		t.Errorf("Track = %q, want %q", f.Track, "product")
+	}
+}
+
+func TestExtractArtifactFields_WorkPackageDefaultStatus(t *testing.T) {
+	payload := mustMarshal(map[string]any{"id": "wp-009", "track": "strategy"})
+	f := index.ExtractArtifactFields("work_package", payload)
+	if f.Status != "proposed" {
+		t.Errorf("Status = %q, want %q (default)", f.Status, "proposed")
+	}
+	if f.Name != "wp-009" {
+		t.Errorf("Name = %q, want id fallback %q", f.Name, "wp-009")
+	}
+}
+
+func TestExtractRelationships_WorkPackage(t *testing.T) {
+	rels := index.ExtractRelationships("work_package", "work_package:wp-001", workPackagePayload())
+
+	vps := relsByKind(rels, "targets_value_path")
+	if len(vps) != 2 { // dup collapses? No — relationships keep both refs; footprint dedups.
+		t.Errorf("targets_value_path = %d, want 2", len(vps))
+	}
+	defs := relsByKind(rels, "targets_definition")
+	if len(defs) != 2 {
+		t.Errorf("targets_definition = %d, want 2", len(defs))
+	}
+	krs := relsByKind(rels, "targets_kr")
+	if len(krs) != 2 {
+		t.Errorf("targets_kr = %d, want 2", len(krs))
+	}
+	if defs[0].TargetType != "definition" {
+		t.Errorf("definition TargetType = %q, want %q", defs[0].TargetType, "definition")
+	}
+}
+
+func TestWorkPackageFootprint_UnionExcludesKRs(t *testing.T) {
+	fp := index.WorkPackageFootprint(workPackagePayload())
+
+	// Union of value_model_paths (deduped) + definition_ids; KRs excluded.
+	want := []string{"Product.Core Platform.csv-import", "cd-003", "fd-001"} // sorted
+	if len(fp) != len(want) {
+		t.Fatalf("footprint = %v (len %d), want %v (len %d)", fp, len(fp), want, len(want))
+	}
+	for i := range want {
+		if fp[i] != want[i] {
+			t.Errorf("footprint[%d] = %q, want %q (full: %v)", i, fp[i], want[i], fp)
+		}
+	}
+	// Ensure no KR leaked in.
+	for _, f := range fp {
+		if f == "kr-p-001" || f == "kr-c-002" {
+			t.Errorf("KR %q leaked into footprint", f)
+		}
+	}
+}
+
+func TestWorkPackageFootprint_EmptyTargets(t *testing.T) {
+	payload := mustMarshal(map[string]any{"id": "wp-002", "targets": map[string]any{}})
+	if fp := index.WorkPackageFootprint(payload); len(fp) != 0 {
+		t.Errorf("expected empty footprint, got %v", fp)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

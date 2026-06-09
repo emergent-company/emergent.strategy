@@ -39,9 +39,9 @@ type StrategyInstance struct {
 	Description                 *string    `bun:"description"                        json:"description,omitempty"`
 	GithubRepo                  *string    `bun:"github_repo"                        json:"github_repo,omitempty"`
 	GithubBasePath              *string    `bun:"github_base_path"                   json:"github_base_path,omitempty"`
-	GithubCommitSHA                 *string    `bun:"github_commit_sha"                        json:"github_commit_sha,omitempty"`
-	GithubCommitDate                *time.Time `bun:"github_commit_date"                       json:"github_commit_date,omitempty"`
-	GithubBranch                    *string    `bun:"github_branch"                            json:"github_branch,omitempty"`
+	GithubCommitSHA             *string    `bun:"github_commit_sha"                        json:"github_commit_sha,omitempty"`
+	GithubCommitDate            *time.Time `bun:"github_commit_date"                       json:"github_commit_date,omitempty"`
+	GithubBranch                *string    `bun:"github_branch"                            json:"github_branch,omitempty"`
 	Status                      string     `bun:"status,notnull,default:'draft'"     json:"status"`
 	StandardPackVersion         *string    `bun:"standard_pack_version"              json:"standard_pack_version,omitempty"`
 	SchemaVersion               *string    `bun:"schema_version"                     json:"schema_version,omitempty"`
@@ -143,8 +143,8 @@ const (
 
 // MutationStatus enumerates valid values for StrategyMutation.Status.
 const (
-	MutationStatusStaging   = "staging"   // being built by a chunked skill run — not yet reviewable
-	MutationStatusStaged    = "staged"    // ready for human review
+	MutationStatusStaging   = "staging" // being built by a chunked skill run — not yet reviewable
+	MutationStatusStaged    = "staged"  // ready for human review
 	MutationStatusCommitted = "committed"
 	MutationStatusDiscarded = "discarded"
 )
@@ -183,6 +183,19 @@ const (
 	ArtifactTypeAssessmentReport    = "assessment_report"
 	ArtifactTypeAIMTriggerConfig    = "aim_trigger_config"
 	ArtifactTypeEvidence            = "evidence"
+	ArtifactTypeWorkPackage         = "work_package"
+)
+
+// WorkPackageStatus enumerates the work package lifecycle states.
+// Normal flow: proposed → approved → scheduled → executing → done.
+// cancelled is a terminal state reachable from any non-terminal state.
+const (
+	WorkPackageStatusProposed  = "proposed"
+	WorkPackageStatusApproved  = "approved"
+	WorkPackageStatusScheduled = "scheduled"
+	WorkPackageStatusExecuting = "executing"
+	WorkPackageStatusDone      = "done"
+	WorkPackageStatusCancelled = "cancelled"
 )
 
 // RelationshipType enumerates cross-artifact relationship kinds.
@@ -196,6 +209,10 @@ const (
 	RelLinkedToKR      = "linked_to_kr"
 	RelMapsTo          = "maps_to"
 	RelUsesValueModel  = "uses_value_model"
+	// Work package target edges.
+	RelTargetsValuePath  = "targets_value_path" // WP → value_model_path
+	RelTargetsDefinition = "targets_definition" // WP → definition (fd/sd/pd/cd)
+	RelTargetsKR         = "targets_kr"         // WP → key_result
 )
 
 // ---------------------------------------------------------------------------
