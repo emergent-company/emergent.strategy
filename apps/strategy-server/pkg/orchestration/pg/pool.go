@@ -15,16 +15,16 @@ import (
 
 // pool is a fixed-size goroutine worker pool that executes orchestration runs.
 type pool struct {
-	size       int
-	queue      chan uuid.UUID                    // run IDs waiting for a worker
-	resumeChs  map[uuid.UUID]chan bool           // per-run resume signals
-	cancelFns  map[uuid.UUID]context.CancelFunc  // per-run context cancel for abort
-	mu         sync.Mutex
-	store      *pgStore
-	registry   map[string]orchestration.Workflow
-	engine     Publisher
-	stopCh     chan struct{}
-	wg         sync.WaitGroup
+	size      int
+	queue     chan uuid.UUID                   // run IDs waiting for a worker
+	resumeChs map[uuid.UUID]chan bool          // per-run resume signals
+	cancelFns map[uuid.UUID]context.CancelFunc // per-run context cancel for abort
+	mu        sync.Mutex
+	store     *pgStore
+	registry  map[string]orchestration.Workflow
+	engine    Publisher
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 }
 
 // Publisher is a minimal interface to publish events back to the engine fanout.
@@ -131,6 +131,17 @@ func (p *pool) worker() {
 	for {
 		select {
 		case runID := <-p.queue:
+			// Prioritise shutdown: Go's select picks a ready case at random,
+			// so a worker could start a new run even after stop() was signalled.
+			// Re-check stopCh before executing so no DB work begins once the
+			// pool is stopping (prevents queries racing a closing DB, e.g. in
+			// tests where the database is dropped right after Stop()).
+			select {
+			case <-p.stopCh:
+				slog.Info("orchestration: worker stopping (post-dequeue)", "worker", workerID, "run_id", runID)
+				return
+			default:
+			}
 			slog.Info("orchestration: worker picked up run", "worker", workerID, "run_id", runID)
 			p.executeRun(runID)
 			slog.Info("orchestration: worker finished run", "worker", workerID, "run_id", runID)
