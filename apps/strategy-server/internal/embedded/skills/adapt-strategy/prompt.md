@@ -14,6 +14,21 @@ You are the Emergent Strategy adaptation engine. Your task is to produce a compl
 {{toJSON (index .Artifacts "calibration_memo")}}
 ```
 
+**Reading the calibration memo.** The memo's `decision` is authoritative and
+selects which decision block below you follow. The memo may *also* carry
+human-approved judgment that should drive the rewrite:
+
+- `learnings.validated_assumptions` / `learnings.invalidated_assumptions` / `learnings.surprises`
+- `next_cycle_focus.continue_building` / `next_cycle_focus.stop_building` / `next_cycle_focus.start_exploring`
+
+When present, these fields are the **primary driver** of the rewrite — they encode
+the cycle's human-reviewed conclusions. When absent (a legacy/thin memo or a
+manually drafted memo without these sections), **fall back to the
+assessment-driven behaviour** described in each block: re-derive stop/continue/start
+guidance from the assessment report's `assumption_validations`, `key_result_outcomes`,
+and `strategic_insights`. Either way, the assessment report remains the source of
+raw KR numbers and targets.
+
 ### Assessment Report
 ```json
 {{.AssessmentSummary}}
@@ -43,17 +58,23 @@ You are the Emergent Strategy adaptation engine. Your task is to produce a compl
 
 The assessment evidence shows the current strategy direction is not working. You must:
 
+**Apply the memo judgment first (when present):**
+- `next_cycle_focus.stop_building` + `learnings.invalidated_assumptions` → bets, OKRs, and roadmap items to remove or deprioritise.
+- `next_cycle_focus.continue_building` + `learnings.validated_assumptions` → bets and OKRs to preserve and reinforce.
+- `next_cycle_focus.start_exploring` + `learnings.surprises` → new bets, new roadmap items, and `new_assumptions`.
+- If these memo fields are absent, derive the same stop/continue/start guidance from the assessment report (`assumption_validations` statuses, missed/met `key_result_outcomes`, and `strategic_insights`).
+
 **strategy_formula:**
-- Identify strategic bets that are inconsistent with the assessment evidence
-- Replace those bets with new bets aligned to the direction indicated by the calibration memo reasoning
+- Identify strategic bets that are inconsistent with the memo's `stop_building` / `invalidated_assumptions` (or, absent the memo, with the assessment evidence)
+- Replace those bets with new bets aligned to the memo's `start_exploring` direction (or the direction indicated by the calibration memo reasoning when focus fields are absent)
 - Revise OKRs to reflect the updated bets; adjust targets based on actual hit rates from the assessment
 - Add a `calibration_note` field to each revised OKR explaining the change
-- Preserve bets and OKRs that showed positive evidence
+- Preserve bets and OKRs called out in `continue_building` / `validated_assumptions` (or that showed positive evidence in the assessment)
 
 **roadmap_recipe:**
-- Reprioritise roadmap phases consistent with the new strategic bets
-- Deprioritise or remove work items that supported invalidated assumptions
-- Add new work items for the pivot direction
+- Reprioritise roadmap phases consistent with the new strategic bets and `continue_building`
+- Deprioritise or remove work items tied to `stop_building` / invalidated assumptions
+- Add new work items for the `start_exploring` direction
 - Set `roadmap.status` to `"active"` (valid values: draft, approved, active, completed, cancelled — "pivoted" is not valid)
 
 **lra_evolution_entry:**
@@ -73,17 +94,24 @@ The assessment evidence shows the current strategy direction is not working. You
 
 The assessment evidence supports continuing the current strategic direction. You must:
 
+**Apply the memo judgment first (when present):**
+- `next_cycle_focus.continue_building` + `learnings.validated_assumptions` → bets and OKRs to preserve and reinforce.
+- `next_cycle_focus.stop_building` + `learnings.invalidated_assumptions` → lower-value work to deprioritise even while persevering.
+- `next_cycle_focus.start_exploring` + `learnings.surprises` → new work items and `new_assumptions` to test next cycle.
+- If these memo fields are absent, derive the same guidance from the assessment report (validated/invalidated `assumption_validations`, met/missed `key_result_outcomes`, and `strategic_insights`).
+
 **strategy_formula:**
 - Advance OKR targets incrementally based on achieved progress from the assessment
-- Mark validated bets with a `validated: true` flag and add validation evidence notes
+- Mark validated bets (those in `continue_building` / `validated_assumptions`, or marked validated in the assessment) with a `validated: true` flag and add validation evidence notes
 - Reinforce bets that showed positive evidence with stronger language
 - Add a `calibration_note` to each updated OKR reflecting the evidence
 
 **roadmap_recipe:**
 - Set `roadmap.status` to `"completed"` (valid values: draft, approved, active, completed, cancelled)
-- Propose next cycle priorities based on what worked well
+- Propose next cycle priorities based on `continue_building` and what worked well
+- Deprioritise work items tied to `stop_building` / invalidated assumptions
 - Advance features that are in-progress to the next phase
-- Add 2–4 new work items for the next cycle based on learnings
+- Add 2–4 new work items for the next cycle based on `start_exploring` and learnings
 
 **lra_evolution_entry:**
 - `trigger`: "cycle_transition"
@@ -91,8 +119,8 @@ The assessment evidence supports continuing the current strategic direction. You
 - `changes`: At least one entry documenting track baseline updates (section: "track_baselines")
 
 **new_assumptions:**
-- Retire validated assumptions (those marked "validated" in the assessment)
-- Propose 2–4 new assumptions to replace them — the next set of riskiest bets for the next cycle
+- Retire validated assumptions (those in `validated_assumptions`, or marked "validated" in the assessment)
+- Propose 2–4 new assumptions to replace them — drawn from `start_exploring` / `surprises` and the next set of riskiest bets for the next cycle
 - Focus on the assumptions that are newly unblocked now that the validated ones are resolved
 {{end}}
 
@@ -100,6 +128,11 @@ The assessment evidence supports continuing the current strategic direction. You
 ### PULL THE PLUG Decision
 
 The assessment evidence shows the current strategy is fundamentally unviable. You must:
+
+**Apply the memo judgment first (when present):**
+- `next_cycle_focus.stop_building` + `learnings.invalidated_assumptions` → cite these in the wind-down rationale and `calibration_note` to ground the shutdown.
+- `learnings.surprises` / `next_cycle_focus.start_exploring` may inform the wind-down summary, but do NOT spawn new bets or assumptions here.
+- If these memo fields are absent, ground the shutdown rationale in the assessment report (`assumption_validations`, missed `key_result_outcomes`, `strategic_insights`).
 
 **strategy_formula:**
 - Add `review_flag: true` to the north_star section
