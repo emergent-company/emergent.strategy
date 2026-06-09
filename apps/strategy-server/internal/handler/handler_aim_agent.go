@@ -116,7 +116,14 @@ func (s *Server) handleApplyCalibration(c echo.Context) error {
 			"_trigger":         "aim_cycle",
 			"_trigger_context": map[string]any{"source": "apply_calibration_button"},
 		}
-		result, runErr := s.skillExecutor.RunChunked(ctx, instID, "adapt-strategy", params)
+		// adapt-strategy is a multi-minute, multi-chunk LLM run. Detach from the
+		// request context so a client disconnect (browser nav-away, proxy
+		// timeout) cannot cancel it mid-chunk and orphan a partial staging
+		// batch. WithoutCancel preserves request-scoped values (auth, lang,
+		// audit) while removing cancellation/deadline. The result is fetched on
+		// the draft-review redirect target, not streamed in this response.
+		runCtx := context.WithoutCancel(ctx)
+		result, runErr := s.skillExecutor.RunChunked(runCtx, instID, "adapt-strategy", params)
 		if runErr != nil {
 			s.log.Error("apply calibration (adapt-strategy) failed", "instance_id", instanceID, "err", runErr)
 			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.apply_calibration_failed"))
