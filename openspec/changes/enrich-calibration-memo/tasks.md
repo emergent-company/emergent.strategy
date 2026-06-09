@@ -63,9 +63,24 @@
 
 - [x] 6.1 Run a live AIM cycle; confirm the staged `calibration_memo` now
       contains populated `learnings` + `next_cycle_focus` and still validates.
-- [ ] 6.2 Confirm `adapt-strategy` runs and its rewrite references the memo's
+- [x] 6.2 Confirm `adapt-strategy` runs and its rewrite references the memo's
       stop/continue/start guidance (spot-check the produced strategy_formula /
-      roadmap_recipe changes and new_assumptions).
-- [ ] 6.3 Confirm a legacy/thin memo (or manual draft) still drives
-      adapt-strategy via the assessment fallback without error.
+      roadmap_recipe changes and new_assumptions). Verified live (batch
+      `ea4a6265`): committed enriched memo → ran adapt-strategy → the per-chunk
+      `change_summaries` map line-by-line to the memo's `next_cycle_focus`
+      (paused OrgOps modules + micro-apps = stop_building; prioritized Norwegian
+      cap table + group management = continue_building; codified migration
+      playbooks + AdminControl outbound = start_exploring) and cite 0% hit rate
+      + pivot. Outputs left staged, not committed.
+- [x] 6.3 Confirm a legacy/thin memo (or manual draft) still drives
+      adapt-strategy via the assessment fallback without error. Verified live
+      (batch `f0bd5c4e`): committed thin memo (no `learnings`/`next_cycle_focus`)
+      → adapt-strategy completed all 4 chunks with no error and derived
+      stop/continue/start from the assessment report (cap table fd-020, postpone
+      OrgOps, ECIT playbook), honoring the `pivot` decision.
+- [x] 6.5 Fix latent bug surfaced during 6.2: `handleApplyCalibration` ran the
+      adapt-strategy skill in the request context, so a client disconnect
+      cancelled it mid-chunk and orphaned a partial staging batch. Detached with
+      `context.WithoutCancel` (commit `0aef5e01`); verified the run now survives
+      client disconnect.
 - [x] 6.4 Full suite green: `go test ./...`; lint clean: `task lint`.
