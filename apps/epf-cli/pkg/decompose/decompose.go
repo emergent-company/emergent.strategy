@@ -131,6 +131,7 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 	d.decomposeFeatures(result)
 	d.decomposeMappings(result)         // Phase 1d: value model → implementation mappings
 	d.decomposeTrackDefinitions(result) // Phase 2: strategy, org_ops, commercial definitions
+	d.decomposeWorkPackages(result)     // Execution layer: work packages (SOW contracts)
 	d.decomposeNavigationGraph(result)  // Navigation graph: interaction contexts + transitions
 
 	// AIM phase: evidence library

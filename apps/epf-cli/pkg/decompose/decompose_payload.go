@@ -111,6 +111,18 @@ func DecomposePayload(artifactType string, payload map[string]any) (*Result, err
 		}
 		d.decomposeValueModelRaw(result, &raw, "value_model")
 
+	case "work_package":
+		var raw rawWorkPackage
+		if err := yaml.Unmarshal(yamlBytes, &raw); err != nil {
+			return nil, fmt.Errorf("parse work_package: %w", err)
+		}
+		if raw.ID == "" {
+			return nil, fmt.Errorf("work_package payload missing id field")
+		}
+		// Without full instance context, value-path edges fall back to
+		// best-effort resolution (same limitation as features here).
+		d.decomposeWorkPackageRaw(result, &raw, fmt.Sprintf("work_packages/%s.yaml", raw.ID))
+
 	default:
 		return nil, fmt.Errorf("unsupported artifact type: %s", artifactType)
 	}

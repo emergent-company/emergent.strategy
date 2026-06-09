@@ -1934,13 +1934,13 @@ func TestDecomposePayload_NorthStar(t *testing.T) {
 		"north_star": map[string]any{
 			"organization": "Test Corp",
 			"purpose": map[string]any{
-				"statement":      "We exist to make strategy executable",
+				"statement":        "We exist to make strategy executable",
 				"problem_we_solve": "Strategy documents rot in drawers",
 				"impact_we_seek":   "Every team aligned to living strategy",
 			},
 			"vision": map[string]any{
-				"vision_statement":  "A world where strategy is alive",
-				"timeframe":         "5 years",
+				"vision_statement":   "A world where strategy is alive",
+				"timeframe":          "5 years",
 				"success_looks_like": []any{"Strategy is a verb", "Teams self-align"},
 			},
 			"mission": map[string]any{
@@ -2007,7 +2007,7 @@ func TestDecomposePayload_Feature(t *testing.T) {
 			"assumptions_tested": []any{"asm-p-001"},
 		},
 		"definition": map[string]any{
-			"job_to_be_done":   "Search and discover knowledge",
+			"job_to_be_done":    "Search and discover knowledge",
 			"solution_approach": "Graph-based exploration",
 			"capabilities": []any{
 				map[string]any{
@@ -2101,10 +2101,10 @@ func TestDecomposePayload_Roadmap(t *testing.T) {
 					},
 					"riskiest_assumptions": []any{
 						map[string]any{
-							"id":          "asm-p-001",
-							"description": "Users want graph-based exploration",
-							"type":        "desirability",
-							"criticality": "high",
+							"id":           "asm-p-001",
+							"description":  "Users want graph-based exploration",
+							"type":         "desirability",
+							"criticality":  "high",
 							"linked_to_kr": []any{"kr-p-001"},
 						},
 					},
@@ -2150,5 +2150,80 @@ func TestDecomposePayload_EmptyPayload(t *testing.T) {
 	counts := countByType(result)
 	if counts["Artifact"] != 1 {
 		t.Errorf("Expected 1 Artifact node even for empty payload, got %d", counts["Artifact"])
+	}
+}
+
+// TestDecomposeWorkPackagePayload verifies that a work package payload becomes a
+// WorkPackage node with target edges to value paths, definitions, and KRs.
+func TestDecomposeWorkPackagePayload(t *testing.T) {
+	payload := map[string]any{
+		"id":         "wp-001",
+		"title":      "CSV Import Hardening",
+		"intent":     "CSV import succeeds for files up to 100MB with recoverable errors.",
+		"track":      "product",
+		"status":     "approved",
+		"risk_class": "medium",
+		"targets": map[string]any{
+			"value_model_paths": []any{"Product.Core Platform.csv-import"},
+			"definition_ids":    []any{"fd-001", "cd-003"},
+			"kr_ids":            []any{"kr-p-001"},
+		},
+		"source":    map[string]any{"authoring_tool": "openspec"},
+		"lifecycle": map[string]any{"created_at": "2026-06-08T09:00:00Z"},
+	}
+
+	result, err := DecomposePayload("work_package", payload)
+	if err != nil {
+		t.Fatalf("DecomposePayload(work_package) failed: %v", err)
+	}
+
+	counts := countByType(result)
+	if counts["WorkPackage"] != 1 {
+		t.Fatalf("expected 1 WorkPackage node, got %d", counts["WorkPackage"])
+	}
+
+	var wp *GraphObject
+	for i := range result.Objects {
+		if result.Objects[i].Type == "WorkPackage" {
+			wp = &result.Objects[i]
+		}
+	}
+	if wp.Status != "approved" {
+		t.Errorf("WorkPackage status = %q, want approved", wp.Status)
+	}
+	if wp.Properties["track"] != "product" {
+		t.Errorf("WorkPackage track = %v, want product", wp.Properties["track"])
+	}
+
+	// Target edges: 2 definitions (fd-001 → Feature, cd-003 → TrackDefinition) + 1 KR.
+	// value path edge is best-effort (no VMC lookup in payload mode) so it's skipped.
+	relCount := map[string]int{}
+	for _, r := range result.Relationships {
+		relCount[r.Type]++
+	}
+	if relCount["targets_definition"] != 2 {
+		t.Errorf("targets_definition edges = %d, want 2", relCount["targets_definition"])
+	}
+	if relCount["targets_kr"] != 1 {
+		t.Errorf("targets_kr edges = %d, want 1", relCount["targets_kr"])
+	}
+
+	// fd-001 should resolve to a Feature node; cd-003 to a TrackDefinition.
+	var fdType, cdType string
+	for _, r := range result.Relationships {
+		if r.Type == "targets_definition" {
+			if strings.Contains(r.ToKey, "fd-001") {
+				fdType = r.ToType
+			}
+			if strings.Contains(r.ToKey, "cd-003") {
+				cdType = r.ToType
+			}
+		}
+	}
+	if fdType != "Feature" {
+		t.Errorf("fd-001 target type = %q, want Feature", fdType)
+	}
+	if cdType != "TrackDefinition" {
+		t.Errorf("cd-003 target type = %q, want TrackDefinition", cdType)
 	}
 }
