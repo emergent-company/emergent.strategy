@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -31,6 +32,24 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 )
+
+// nonRetryableLLMError is satisfied by classified LLM errors that must not be
+// retried (e.g. access denied, invalid model, malformed request). The llm
+// package's *APIError implements this. We use a local interface so skillexec
+// doesn't depend on the concrete error type.
+type nonRetryableLLMError interface {
+	error
+	// Retryable reports whether retrying the call could succeed.
+	IsRetryable() bool
+}
+
+// isFatalLLMError reports whether err is a classified LLM error that retrying
+// cannot fix. When true, the executor should abort immediately rather than
+// burning the remaining validation retries on a call that will keep failing.
+func isFatalLLMError(err error) bool {
+	var le nonRetryableLLMError
+	return errors.As(err, &le) && !le.IsRetryable()
+}
 
 // maxTokenBudget is the approximate token ceiling for the rendered prompt
 // context. Each token is ~4 bytes; 28K tokens ≈ 112K bytes.
@@ -747,6 +766,12 @@ func (e *Executor) callWithValidationChunk(
 
 		result, err := e.llm.CompleteJSON(ctx, systemPromptFor(skillName), currentPrompt)
 		if err != nil {
+			if isFatalLLMError(err) {
+				// Provider rejected the call for a reason retrying won't fix
+				// (e.g. access denied, invalid model). Abort immediately and
+				// surface the classified error verbatim so the cause is obvious.
+				return nil, fmt.Errorf("LLM call failed (non-retryable): %w", err)
+			}
 			return nil, fmt.Errorf("LLM call (attempt %d): %w", attempt+1, err)
 		}
 		totalIn += result.InputTokens
@@ -922,6 +947,10 @@ func (e *Executor) callWithValidation(
 
 		result, err := e.llm.CompleteJSON(ctx, systemPromptFor(skillName), currentPrompt)
 		if err != nil {
+			if isFatalLLMError(err) {
+				return &singleCallResult{InputTokens: totalIn, OutputTokens: totalOut},
+					fmt.Errorf("skillexec: LLM call failed (non-retryable): %w", err)
+			}
 			return &singleCallResult{InputTokens: totalIn, OutputTokens: totalOut},
 				fmt.Errorf("skillexec: LLM call (attempt %d): %w", attempt+1, err)
 		}

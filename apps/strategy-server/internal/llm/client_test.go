@@ -3,9 +3,13 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"golang.org/x/oauth2"
 )
 
 func TestChat_Success(t *testing.T) {
@@ -110,7 +114,7 @@ func TestChat_NoAPIKey(t *testing.T) {
 func TestChat_APIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"error": "rate limited"}`))
+		w.Write([]byte(`{"error": {"message": "rate limited"}}`)) //nolint:errcheck
 	}))
 	defer server.Close()
 
@@ -120,6 +124,208 @@ func TestChat_APIError(t *testing.T) {
 	}, 0.0)
 	if err == nil {
 		t.Fatal("expected error for 429 response")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *APIError, got %T: %v", err, err)
+	}
+	if apiErr.Kind != KindRateLimited {
+		t.Errorf("kind=%q, want %q", apiErr.Kind, KindRateLimited)
+	}
+	if !IsRetryable(err) {
+		t.Error("429 should be retryable")
+	}
+}
+
+// TestChat_AccessDenied reproduces the real Google AI Studio 403 that crashed
+// the AIM cycle and asserts the error is classified, non-retryable, and carries
+// an actionable message.
+func TestChat_AccessDenied(t *testing.T) {
+	// Verbatim Google AI Studio body (JSON array envelope).
+	googleBody := `[{
+  "error": {
+    "code": 403,
+    "message": "Your project has been denied access. Please contact support.",
+    "status": "PERMISSION_DENIED"
+  }
+}
+]`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(googleBody)) //nolint:errcheck
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "k", Model: "models/gemini-3.5-flash"})
+	_, err := client.Chat(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}}, 0.0)
+	if err == nil {
+		t.Fatal("expected error for 403 response")
+	}
+
+	if !IsAccessDenied(err) {
+		t.Errorf("expected IsAccessDenied=true for 403, err=%v", err)
+	}
+	if IsRetryable(err) {
+		t.Error("access-denied must not be retryable")
+	}
+
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *APIError, got %T", err)
+	}
+	if apiErr.Message != "Your project has been denied access. Please contact support." {
+		t.Errorf("message=%q, did not extract provider message", apiErr.Message)
+	}
+	// The rendered error must be human/agent readable and mention model + action.
+	msg := apiErr.Error()
+	for _, want := range []string{"access denied", "HTTP 403", "models/gemini-3.5-flash", "Action:"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error message missing %q:\n%s", want, msg)
+		}
+	}
+}
+
+func TestClassifyAPIError_Kinds(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    int
+		body      string
+		wantKind  ErrorKind
+		retryable bool
+	}{
+		{"401 unauthorized", 401, `{"error":{"message":"invalid key"}}`, KindAccessDenied, false},
+		{"403 forbidden", 403, `{"error":{"message":"denied"}}`, KindAccessDenied, false},
+		{"429 rate limit", 429, `{"error":{"message":"slow down"}}`, KindRateLimited, true},
+		{"404 model", 404, `{"error":{"message":"not found"}}`, KindModelNotFound, false},
+		{"400 bad request", 400, `{"error":{"message":"bad"}}`, KindBadRequest, false},
+		{"500 server", 500, `oops`, KindServerError, true},
+		{"418 unknown", 418, `teapot`, KindUnknown, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := classifyAPIError(tc.status, tc.body, "example.com", "m")
+			if e.Kind != tc.wantKind {
+				t.Errorf("kind=%q, want %q", e.Kind, tc.wantKind)
+			}
+			if e.Retryable != tc.retryable {
+				t.Errorf("retryable=%v, want %v", e.Retryable, tc.retryable)
+			}
+		})
+	}
+}
+
+func TestPing_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(chatResponse{ //nolint:errcheck
+			Choices: []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}{{Message: struct {
+				Content string `json:"content"`
+			}{Content: "pong"}}},
+		})
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "k", Model: "m"})
+	if err := client.Ping(context.Background()); err != nil {
+		t.Fatalf("Ping: unexpected error: %v", err)
+	}
+}
+
+func TestPing_AccessDenied(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"error":{"message":"denied"}}`)) //nolint:errcheck
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "k", Model: "m"})
+	err := client.Ping(context.Background())
+	if err == nil {
+		t.Fatal("expected Ping to fail on 403")
+	}
+	if !IsAccessDenied(err) {
+		t.Errorf("expected access-denied classification, got: %v", err)
+	}
+}
+
+// staticTokenSource is a test oauth2.TokenSource returning a fixed token.
+type staticTokenSource struct {
+	tok   string
+	calls int
+}
+
+func (s *staticTokenSource) Token() (*oauth2.Token, error) {
+	s.calls++
+	return &oauth2.Token{AccessToken: s.tok, TokenType: "Bearer"}, nil
+}
+
+// TestVertexStyle_TokenSourceAndPath verifies that when a TokenSource and a
+// custom CompletionsPath are configured (the Vertex AI case), the client uses
+// the OAuth token for Authorization and posts to BaseURL+CompletionsPath.
+func TestVertexStyle_TokenSourceAndPath(t *testing.T) {
+	ts := &staticTokenSource{tok: "vertex-token-abc"}
+	var gotPath, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(chatResponse{ //nolint:errcheck
+			Choices: []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}{{Message: struct {
+				Content string `json:"content"`
+			}{Content: "ok"}}},
+		})
+	}))
+	defer server.Close()
+
+	client := New(Config{
+		BaseURL:         server.URL + "/v1/projects/p/locations/global/endpoints/openapi",
+		TokenSource:     ts,
+		CompletionsPath: "/chat/completions",
+		Model:           "google/gemini-3.5-flash",
+	})
+	if _, err := client.Chat(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}}, 0.0); err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+
+	wantPath := "/v1/projects/p/locations/global/endpoints/openapi/chat/completions"
+	if gotPath != wantPath {
+		t.Errorf("path=%q, want %q", gotPath, wantPath)
+	}
+	if gotAuth != "Bearer vertex-token-abc" {
+		t.Errorf("auth header=%q, want Bearer vertex-token-abc", gotAuth)
+	}
+	if ts.calls == 0 {
+		t.Error("expected TokenSource to be consulted")
+	}
+}
+
+// failingTokenSource always fails to mint a token (e.g. ADC missing).
+type failingTokenSource struct{}
+
+func (failingTokenSource) Token() (*oauth2.Token, error) {
+	return nil, errors.New("no credentials")
+}
+
+func TestTokenSource_FailureClassifiedAsAccessDenied(t *testing.T) {
+	client := New(Config{
+		BaseURL:     "https://aiplatform.googleapis.com/v1/projects/p/locations/global/endpoints/openapi",
+		TokenSource: failingTokenSource{},
+		Model:       "google/gemini-3.5-flash",
+	})
+	err := client.Ping(context.Background())
+	if err == nil {
+		t.Fatal("expected error when token source fails")
+	}
+	if !IsAccessDenied(err) {
+		t.Errorf("token-fetch failure should classify as access-denied, got: %v", err)
 	}
 }
 

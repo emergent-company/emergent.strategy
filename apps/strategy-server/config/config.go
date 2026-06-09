@@ -100,17 +100,51 @@ type Config struct {
 	MemoryAuthMode string `arg:"env:EPF_MEMORY_AUTH_MODE" default:"api-key" help:"Memory auth mode: api-key (standalone) or bearer (production)"`
 
 	// LLM provider (for server-orchestrated convergence loop resolution)
-	LLMProviderURL string `arg:"env:LLM_PROVIDER_URL" help:"LLM API base URL (OpenAI-compatible, e.g. https://api.openai.com or http://localhost:11434 for Ollama)"`
-	LLMAPIKey      string `arg:"env:LLM_API_KEY" help:"LLM API key (Bearer token; empty for Ollama local)"`
-	LLMModel       string `arg:"env:LLM_MODEL" default:"gpt-4o-mini" help:"LLM model name (e.g. gpt-4o-mini, claude-sonnet-4-20250514, llama3.2:8b)"`
+	LLMProviderURL string `arg:"env:LLM_PROVIDER_URL" help:"LLM API base URL (OpenAI-compatible, e.g. https://api.openai.com or http://localhost:11434 for Ollama). Leave empty when using LLM_AUTH_MODE=vertex."`
+	LLMAPIKey      string `arg:"env:LLM_API_KEY" help:"LLM API key (Bearer token; empty for Ollama local or vertex auth mode)"`
+	LLMModel       string `arg:"env:LLM_MODEL" default:"gpt-4o-mini" help:"LLM model name (e.g. gpt-4o-mini, claude-sonnet-4-20250514, llama3.2:8b, google/gemini-3.5-flash for vertex)"`
+
+	// LLM auth mode: "api-key" (default, static Bearer token) or "vertex"
+	// (Google Vertex AI via Application Default Credentials with hourly token
+	// refresh). In vertex mode, LLM_PROVIDER_URL/LLM_API_KEY are ignored and the
+	// endpoint is derived from LLM_VERTEX_PROJECT + LLM_VERTEX_LOCATION.
+	LLMAuthMode       string `arg:"env:LLM_AUTH_MODE" default:"api-key" help:"LLM auth mode: api-key or vertex"`
+	LLMVertexProject  string `arg:"env:LLM_VERTEX_PROJECT" help:"Google Cloud project ID for Vertex AI (LLM_AUTH_MODE=vertex)"`
+	LLMVertexLocation string `arg:"env:LLM_VERTEX_LOCATION" default:"global" help:"Vertex AI location (e.g. global, us-central1)"`
 
 	// Heartbeat (continuous trigger evaluation)
 	HeartbeatInterval int `arg:"env:HEARTBEAT_INTERVAL" default:"300" help:"Seconds between heartbeat trigger evaluations (default: 300 = 5 minutes; 0 disables)"`
 }
 
-// LLMConfigured returns true when LLM provider settings are provided.
+// LLMConfigured returns true when LLM provider settings are provided. This is
+// either a direct provider URL (api-key mode) or Vertex mode with a project.
 func (c *Config) LLMConfigured() bool {
+	if c.IsVertexLLM() {
+		return c.LLMVertexProject != ""
+	}
 	return c.LLMProviderURL != ""
+}
+
+// IsVertexLLM reports whether the LLM is configured to use Google Vertex AI via
+// Application Default Credentials.
+func (c *Config) IsVertexLLM() bool {
+	return c.LLMAuthMode == "vertex"
+}
+
+// VertexBaseURL builds the Vertex AI OpenAI-compatible endpoint base URL for the
+// configured project and location. The "global" location uses the global host;
+// other locations use the regional host.
+func (c *Config) VertexBaseURL() string {
+	host := "aiplatform.googleapis.com"
+	if c.LLMVertexLocation != "global" && c.LLMVertexLocation != "" {
+		host = c.LLMVertexLocation + "-aiplatform.googleapis.com"
+	}
+	loc := c.LLMVertexLocation
+	if loc == "" {
+		loc = "global"
+	}
+	return fmt.Sprintf("https://%s/v1/projects/%s/locations/%s/endpoints/openapi",
+		host, c.LLMVertexProject, loc)
 }
 
 // PostgresDSN returns a valid PostgreSQL DSN from the config.

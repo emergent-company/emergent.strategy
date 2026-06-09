@@ -15,6 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	"github.com/uptrace/bun"
+	"golang.org/x/oauth2/google"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
@@ -157,12 +158,9 @@ func runServer(cfg *config.Config) error {
 	// (full artifact JSON + schema constraints) and routinely exceed 60 seconds.
 	var skillExecutor *skillexec.Executor
 	if llmClient != nil {
-		skillLLMClient := llm.New(llm.Config{
-			BaseURL: cfg.LLMProviderURL,
-			APIKey:  cfg.LLMAPIKey,
-			Model:   cfg.LLMModel,
-			Timeout: 5 * time.Minute,
-		})
+		skillLLMCfg, _ := buildLLMConfig(cfg) // llmClient!=nil ⇒ config already valid
+		skillLLMCfg.Timeout = 5 * time.Minute
+		skillLLMClient := llm.New(skillLLMCfg)
 		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMClient}
 		skillExecutor = skillexec.New(db, packSvc, skillLLMAdapter).
 			WithActivityRecorder(activitySvc).
@@ -424,6 +422,31 @@ func setupSemantic(cfg *config.Config, log *slog.Logger) *semantic.Service {
 	return semanticSvc
 }
 
+// buildLLMConfig translates app config into an llm.Config, resolving Google
+// Vertex AI Application Default Credentials when LLM_AUTH_MODE=vertex. In Vertex
+// mode the endpoint is derived from project+location, auth is an auto-refreshing
+// ADC token source, and the completions path is Vertex's "/chat/completions".
+func buildLLMConfig(cfg *config.Config) (llm.Config, error) {
+	if cfg.IsVertexLLM() {
+		creds, err := google.FindDefaultCredentials(context.Background(),
+			"https://www.googleapis.com/auth/cloud-platform")
+		if err != nil {
+			return llm.Config{}, fmt.Errorf("vertex: load application default credentials: %w", err)
+		}
+		return llm.Config{
+			BaseURL:         cfg.VertexBaseURL(),
+			TokenSource:     creds.TokenSource,
+			CompletionsPath: "/chat/completions",
+			Model:           cfg.LLMModel,
+		}, nil
+	}
+	return llm.Config{
+		BaseURL: cfg.LLMProviderURL,
+		APIKey:  cfg.LLMAPIKey,
+		Model:   cfg.LLMModel,
+	}, nil
+}
+
 // setupLLM constructs the LLM client when configured. Returns nil when the LLM
 // provider is not configured (convergence then runs in agent-orchestrated mode).
 func setupLLM(cfg *config.Config, log *slog.Logger) *llm.Client {
@@ -431,15 +454,45 @@ func setupLLM(cfg *config.Config, log *slog.Logger) *llm.Client {
 		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
 		return nil
 	}
-	llmClient := llm.New(llm.Config{
-		BaseURL: cfg.LLMProviderURL,
-		APIKey:  cfg.LLMAPIKey,
-		Model:   cfg.LLMModel,
-	})
-	if llmClient != nil {
-		log.Info("llm provider enabled for convergence resolution",
-			"url", cfg.LLMProviderURL, "model", cfg.LLMModel)
+	llmCfg, cfgErr := buildLLMConfig(cfg)
+	if cfgErr != nil {
+		log.Error("llm provider configuration failed — LLM-backed features disabled", "err", cfgErr)
+		return nil
 	}
+	llmClient := llm.New(llmCfg)
+	if llmClient == nil {
+		return nil
+	}
+
+	// Preflight: a non-nil client only means the URL was set — it does NOT mean
+	// the provider will accept generation requests (the project may be denied,
+	// suspended, the key revoked, or the model name invalid). Probe once at boot
+	// so the operator sees the real status immediately instead of discovering it
+	// when an AIM cycle crashes mid-run. This never blocks startup: LLM is
+	// optional and the server degrades to agent-orchestrated/formula mode.
+	mode := "api-key"
+	endpoint := cfg.LLMProviderURL
+	if cfg.IsVertexLLM() {
+		mode = "vertex"
+		endpoint = cfg.VertexBaseURL()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if pingErr := llmClient.Ping(ctx); pingErr != nil {
+		if llm.IsAccessDenied(pingErr) {
+			log.Error("llm provider preflight FAILED — access denied. LLM-backed features (AIM adapt-strategy, convergence resolution) will fail until this is fixed",
+				"mode", mode, "endpoint", endpoint, "model", cfg.LLMModel, "err", pingErr)
+		} else {
+			log.Warn("llm provider preflight failed — LLM-backed features may be degraded",
+				"mode", mode, "endpoint", endpoint, "model", cfg.LLMModel, "retryable", llm.IsRetryable(pingErr), "err", pingErr)
+		}
+		// Keep the client: transient failures (rate limit, 5xx) may recover, and
+		// the /health endpoint will report live status on each check.
+		return llmClient
+	}
+
+	log.Info("llm provider enabled and reachable (preflight ok)",
+		"mode", mode, "endpoint", endpoint, "model", cfg.LLMModel)
 	return llmClient
 }
 
@@ -564,9 +617,18 @@ func healthHandler(db *bun.DB, semanticSvc *semantic.Service, llmClient *llm.Cli
 			systems["memory"] = subsystem{Status: "disabled", Message: "EPF_MEMORY_URL not configured"}
 		}
 
-		// LLM — configured or not.
+		// LLM — live probe. A non-nil client does not guarantee the provider
+		// accepts generation (project may be denied/suspended, key revoked, or
+		// model invalid), so actually ping it. LLM is optional: a degraded LLM
+		// does not fail overall health, but it is surfaced clearly here.
 		if llmClient != nil {
-			systems["llm"] = subsystem{Status: "ok"}
+			pingCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+			if llmErr := llmClient.Ping(pingCtx); llmErr != nil {
+				systems["llm"] = subsystem{Status: "degraded", Message: llmErr.Error()}
+			} else {
+				systems["llm"] = subsystem{Status: "ok"}
+			}
+			cancel()
 		} else {
 			systems["llm"] = subsystem{Status: "disabled", Message: "LLM_PROVIDER_URL not configured"}
 		}

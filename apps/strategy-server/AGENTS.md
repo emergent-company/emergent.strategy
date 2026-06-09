@@ -73,6 +73,12 @@ generates a `.env.local` file with sensible defaults. Key variables:
 | `EPF_MEMORY_URL` | `http://localhost:8787` | Memory server URL |
 | `EPF_MEMORY_PROJECT` | — | Memory project ID (set by `setup-memory.sh`) |
 | `EPF_MEMORY_TOKEN` | — | Memory project token |
+| `LLM_AUTH_MODE` | `api-key` | LLM auth mode: `api-key` or `vertex` (see LLM Provider Auth) |
+| `LLM_MODEL` | `gpt-4o-mini` | Model name (`google/gemini-3.5-flash` for vertex) |
+| `LLM_PROVIDER_URL` | — | OpenAI-compatible base URL (`api-key` mode only) |
+| `LLM_API_KEY` | — | Static Bearer token (`api-key` mode only) |
+| `LLM_VERTEX_PROJECT` | — | GCP project for Vertex AI (`vertex` mode) |
+| `LLM_VERTEX_LOCATION` | `global` | Vertex AI location (`vertex` mode) |
 
 ### Docker services
 
@@ -83,6 +89,59 @@ generates a `.env.local` file with sensible defaults. Key variables:
 
 The Memory server image is amd64-only. On Apple Silicon it runs via QEMU
 emulation (`platform: linux/amd64` in docker-compose).
+
+### LLM Provider Auth — READ THIS BEFORE DEPLOYING
+
+The LLM client (`internal/llm/`) drives server-orchestrated convergence and the
+AIM cycle's `adapt_strategy` / `draft_assessment` skills. It is **optional** — if
+unconfigured or unreachable, the server degrades to agent-orchestrated/formula
+mode and never crashes. There are **two auth modes**, selected by `LLM_AUTH_MODE`:
+
+| Mode | Credential | Endpoint | When to use |
+|------|-----------|----------|-------------|
+| `api-key` (default) | Static Bearer token (`LLM_API_KEY`) | `LLM_PROVIDER_URL` + `/v1/chat/completions` | OpenAI, Ollama, AI Studio, any OpenAI-compatible proxy |
+| `vertex` | Google ADC (auto-refreshing OAuth token) | derived from `LLM_VERTEX_PROJECT` + `LLM_VERTEX_LOCATION` | Production Google Cloud / Gemini on Vertex AI |
+
+**These are genuinely different auth systems, not cosmetic variants.** `api-key`
+mode sends one permanent static secret. `vertex` mode mints a short-lived
+(~1h) OAuth token per request from Application Default Credentials, which the
+oauth2 library refreshes transparently — there is **no static key in config**.
+Model naming differs too: `models/gemini-3.5-flash` (AI Studio) vs
+`google/gemini-3.5-flash` (Vertex).
+
+**Why vertex is preferred for the server:** real IAM identity (least-privilege,
+revocable, audited via Cloud Audit Logs) instead of a shared bearer secret, plus
+per-project quotas and blast-radius isolation. A ban/denial on one Google project
+does not affect a different, properly-governed Vertex project.
+
+**Vertex mode requires valid ADC.** ADC is resolved by
+`google.FindDefaultCredentials` with the `cloud-platform` scope. The credential
+source depends on the environment — and this is the part that is easy to get
+wrong:
+
+- **Local dev:** `gcloud auth application-default login` (uses your personal
+  user credentials — fine for dev, **not** acceptable for shared/prod).
+- **Production / CI / Cloud Run:** a **dedicated service account** with the
+  `roles/aiplatform.user` IAM role. On Cloud Run, attach the service account to
+  the service; elsewhere set `GOOGLE_APPLICATION_CREDENTIALS` to its key file or
+  use workload identity. **Never deploy on a developer's personal ADC.**
+
+Config example (vertex):
+
+```bash
+LLM_AUTH_MODE=vertex
+LLM_VERTEX_PROJECT=legalplant-dev
+LLM_VERTEX_LOCATION=global
+LLM_MODEL=google/gemini-3.5-flash
+# No LLM_API_KEY / LLM_PROVIDER_URL needed.
+```
+
+**Boot preflight + health:** on startup `setupLLM` makes one live `Ping` call and
+logs `preflight ok` (or a loud, classified error). `/health` live-probes the LLM
+on each check and reports `llm: ok` / `degraded` (degraded does not fail overall
+health, since LLM is optional). Vertex 403s mean an IAM/ADC problem
+(`roles/aiplatform.user` missing or ADC expired), **not** a project ban — the
+classified error message states the exact remediation.
 
 ## Build & Test
 

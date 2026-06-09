@@ -515,6 +515,38 @@ func TestCallWithValidation_SuccessOnFirstAttempt(t *testing.T) {
 	}
 }
 
+// fatalLLM always returns a non-retryable error (implements nonRetryableLLMError).
+type fatalLLM struct{ calls int }
+
+type fakeFatalErr struct{}
+
+func (fakeFatalErr) Error() string     { return "LLM access denied (HTTP 403): denied" }
+func (fakeFatalErr) IsRetryable() bool { return false }
+
+func (m *fatalLLM) CompleteJSON(_ context.Context, _, _ string) (LLMResult, error) {
+	m.calls++
+	return LLMResult{}, fakeFatalErr{}
+}
+
+// TestCallWithValidation_FailsFastOnNonRetryable ensures a non-retryable LLM
+// error (e.g. access denied / invalid model) aborts on the first attempt rather
+// than burning the validation retries. This is the AIM-cycle crash scenario.
+func TestCallWithValidation_FailsFastOnNonRetryable(t *testing.T) {
+	llm := &fatalLLM{}
+	e := &Executor{llm: llm}
+
+	_, err := e.callWithValidation(context.Background(), "test-skill", "prompt", nil)
+	if err == nil {
+		t.Fatal("expected error from non-retryable LLM failure")
+	}
+	if llm.calls != 1 {
+		t.Errorf("expected exactly 1 LLM call (fail-fast), got %d", llm.calls)
+	}
+	if !strings.Contains(err.Error(), "non-retryable") {
+		t.Errorf("expected error to mention non-retryable, got: %v", err)
+	}
+}
+
 func TestCallWithValidation_RetriesOnInvalidJSON(t *testing.T) {
 	// First response: invalid JSON. Second: valid.
 	sf := validStrategyFormulaJSON()
