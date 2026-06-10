@@ -13,7 +13,10 @@
 
 ### 1.1 Dialect-selectable datastore
 - [ ] 1.1.1 Add `modernc.org/sqlite` (pure-Go, no cgo) and wire bun dialect
-      selection in `internal/database/db.go` by config.
+      selection in `internal/database/db.go`. Dialect is **derived from
+      `STRATEGY_MODE`** (`local`⇒sqlite, `hosted`⇒postgres), not a separate user
+      knob; resolved once at startup. Driver always compiled in (runtime choice,
+      not build flag).
 - [ ] 1.1.2 Audit raw SQL across `domain/*` (esp. `domain/strategy/service.go`
       `deriveIndex` upsert) for Postgres-only constructs; add a dialect shim or
       bun-expression equivalents where needed.

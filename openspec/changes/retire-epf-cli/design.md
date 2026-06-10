@@ -55,7 +55,32 @@ already is the abstraction.
 - LLM via local provider URL (Ollama) or any OpenAI-compatible endpoint.
 
 Config precedence stays env/flag-driven (`alexflint/go-arg`). Mode only changes
-**defaults and wiring**, never the domain logic.
+**defaults and wiring**, never the domain logic. `STRATEGY_MODE` binds as a
+flag/env field exactly like existing config (`--mode`/`STRATEGY_MODE`, default
+`hosted`), resolved once at startup in `cmd_serve.go`.
+
+### Datastore dialect is mode-derived (not a separate user knob)
+
+**Decision.** The database dialect is **derived from the runtime mode**, not
+exposed as an independent setting: `local` ⇒ embedded SQLite, `hosted` ⇒
+PostgreSQL. Users select a *profile* (`--local`), not a *driver*. This keeps the
+user-facing surface to a single switch and bounds the support/test matrix to two
+real configurations (hosted+postgres, local+sqlite) rather than four.
+
+The dialect remains technically separable inside the code (bun dialect selection
+in `internal/database/db.go`), and the pure-Go SQLite driver is always compiled
+in — so this is a **runtime/deployment choice at process startup**, never a build
+flag, a separate binary, or a per-request/per-tenant setting. A process is one
+mode and one datastore for its lifetime.
+
+A power user who wants strategy-server against their own local PostgreSQL uses
+`hosted` with `PGHOST=localhost` — that need is already covered without a new
+knob.
+
+**Deferred escape hatch.** A `STRATEGY_DB_DIALECT` override (to decouple dialect
+from mode, e.g. local-mode defaults pointed at Postgres) is intentionally **not**
+added now. It can be introduced later if a concrete need appears, without
+breaking the mode-derived default.
 
 ## Decision 3: Local repo as source of truth
 
