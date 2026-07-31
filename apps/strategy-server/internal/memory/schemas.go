@@ -8,7 +8,7 @@ import (
 
 // ListInstalledSchemas returns the schemas installed in the current project.
 func (c *Client) ListInstalledSchemas(ctx context.Context) ([]InstalledSchema, error) {
-	path := fmt.Sprintf("/api/template-packs/projects/%s/installed", c.cfg.ProjectID)
+	path := fmt.Sprintf("/api/schemas/projects/%s/installed", c.cfg.ProjectID)
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("list installed schemas: %w", err)
@@ -28,7 +28,7 @@ type InstallSchemaRequest struct {
 // This is a two-step operation: create in registry, then assign to project.
 func (c *Client) InstallSchema(ctx context.Context, req InstallSchemaRequest) error {
 	// Step 1: Create schema in org registry.
-	data, err := c.do(ctx, http.MethodPost, "/api/template-packs", req)
+	data, err := c.do(ctx, http.MethodPost, "/api/schemas", req)
 	if err != nil {
 		return fmt.Errorf("create schema in registry: %w", err)
 	}
@@ -43,9 +43,11 @@ func (c *Client) InstallSchema(ctx context.Context, req InstallSchemaRequest) er
 		return fmt.Errorf("schema creation response missing id")
 	}
 
-	// Step 2: Assign to project with merge=true.
-	assignPath := fmt.Sprintf("/api/template-packs/projects/%s/assign?merge=true", c.cfg.ProjectID)
-	assignReq := map[string]string{"template_pack_id": schemaID}
+	// Step 2: Assign to project with merge=true. The merge flag must be in the
+	// request body: the endpoint binds AssignPackRequest from the POST body and
+	// ignores query parameters.
+	assignPath := fmt.Sprintf("/api/schemas/projects/%s/assign", c.cfg.ProjectID)
+	assignReq := map[string]any{"schema_id": schemaID, "merge": true}
 	_, err = c.do(ctx, http.MethodPost, assignPath, assignReq)
 	if err != nil {
 		return fmt.Errorf("assign schema to project: %w", err)
@@ -56,7 +58,7 @@ func (c *Client) InstallSchema(ctx context.Context, req InstallSchemaRequest) er
 
 // UninstallSchema removes a schema assignment from the project.
 func (c *Client) UninstallSchema(ctx context.Context, assignmentID string) error {
-	path := fmt.Sprintf("/api/template-packs/projects/%s/assignments/%s", c.cfg.ProjectID, assignmentID)
+	path := fmt.Sprintf("/api/schemas/projects/%s/assignments/%s", c.cfg.ProjectID, assignmentID)
 	_, err := c.do(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return fmt.Errorf("uninstall schema %s: %w", assignmentID, err)
