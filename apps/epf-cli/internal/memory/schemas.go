@@ -25,9 +25,9 @@ type SchemaInfo struct {
 	Author  string `json:"author"`
 }
 
-// schemasProjectPath returns the project-scoped template pack API base path.
+// schemasProjectPath returns the project-scoped schema API base path.
 func (c *Client) schemasProjectPath() string {
-	return "/api/template-packs/projects/" + url.PathEscape(c.projectID)
+	return "/api/schemas/projects/" + url.PathEscape(c.projectID)
 }
 
 // ListInstalledSchemas returns schemas installed in the project.
@@ -43,13 +43,13 @@ func (c *Client) ListInstalledSchemas(ctx context.Context) ([]InstalledSchema, e
 // If merge is true, it additively merges types into the project.
 //
 // This is a two-step process:
-//  1. Create the schema in the org registry via POST /api/template-packs
-//  2. Assign it to the project via POST /api/template-packs/projects/{pid}/assign
+//  1. Create the schema in the org registry via POST /api/schemas
+//  2. Assign it to the project via POST /api/schemas/projects/{pid}/assign
 func (c *Client) InstallSchemaFromJSON(ctx context.Context, packJSON []byte, merge bool) error {
 	// Step 1: Create the schema in the org registry.
 	var pack json.RawMessage = packJSON
 	var created SchemaInfo
-	if err := c.do(ctx, "POST", "/api/template-packs", &pack, &created); err != nil {
+	if err := c.do(ctx, "POST", "/api/schemas", &pack, &created); err != nil {
 		return fmt.Errorf("create schema: %w", err)
 	}
 
@@ -57,14 +57,16 @@ func (c *Client) InstallSchemaFromJSON(ctx context.Context, packJSON []byte, mer
 		return fmt.Errorf("create schema: API returned empty schema ID")
 	}
 
-	// Step 2: Assign the schema to the project.
+	// Step 2: Assign the schema to the project. The merge flag must be in the
+	// request body: the endpoint binds AssignPackRequest from the POST body and
+	// ignores query parameters.
 	assignBody := map[string]any{
 		"schema_id": created.ID,
 	}
-	endpoint := c.schemasProjectPath() + "/assign"
 	if merge {
-		endpoint += "?merge=true"
+		assignBody["merge"] = true
 	}
+	endpoint := c.schemasProjectPath() + "/assign"
 	if err := c.do(ctx, "POST", endpoint, assignBody, nil); err != nil {
 		return fmt.Errorf("assign schema %s to project: %w", created.ID, err)
 	}

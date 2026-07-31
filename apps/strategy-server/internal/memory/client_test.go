@@ -327,7 +327,7 @@ func TestCreateRelationship(t *testing.T) {
 func TestListInstalledSchemas(t *testing.T) {
 	want := []InstalledSchema{{ID: "s-1", Name: "epf-core", Version: "1.0"}}
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/template-packs/projects/test-project/installed" {
+		if r.URL.Path != "/api/schemas/projects/test-project/installed" {
 			t.Errorf("path = %s, want project-scoped path", r.URL.Path)
 		}
 		w.WriteHeader(200)
@@ -343,6 +343,42 @@ func TestListInstalledSchemas(t *testing.T) {
 	}
 	if got[0].Name != "epf-core" {
 		t.Errorf("name = %q, want %q", got[0].Name, "epf-core")
+	}
+}
+
+func TestInstallSchema(t *testing.T) {
+	var assignPath string
+	var assignBody map[string]any
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/schemas":
+			w.WriteHeader(201)
+			_, _ = w.Write([]byte(`{"id":"s-1"}`))
+		case "/api/schemas/projects/test-project/assign":
+			assignPath = r.URL.String()
+			_ = json.NewDecoder(r.Body).Decode(&assignBody)
+			w.WriteHeader(201)
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(404)
+		}
+	}))
+
+	err := c.InstallSchema(context.Background(), InstallSchemaRequest{Name: "epf-core", Schema: map[string]any{}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// merge must travel in the request body: the assign endpoint binds
+	// AssignPackRequest from the POST body and ignores query parameters.
+	if assignPath != "/api/schemas/projects/test-project/assign" {
+		t.Errorf("assign path = %q, want no query parameters", assignPath)
+	}
+	if got, ok := assignBody["schema_id"].(string); !ok || got != "s-1" {
+		t.Errorf("assign body schema_id = %v, want %q", assignBody["schema_id"], "s-1")
+	}
+	if got, ok := assignBody["merge"].(bool); !ok || !got {
+		t.Errorf("assign body merge = %v, want true", assignBody["merge"])
 	}
 }
 
