@@ -877,11 +877,14 @@ func (e *Executor) callWithValidationChunk(
 		if artifactType != "" {
 			valMap := map[string]any{outputKey: output[outputKey]}
 			if errs := validateArtifactPayloads(valMap); len(errs) > 0 {
-				// Auto-fix maxItems violations — trim arrays in-place and
-				// re-validate. This avoids burning a retry on a trivially
-				// fixable issue (LLMs commonly overshoot array counts).
-				if fixed := fixMaxItemsViolations(output[outputKey], errs); fixed > 0 {
-					slog.InfoContext(ctx, "skillexec: auto-fixed maxItems violations",
+				// Auto-fix maxItems/maxLength violations — trim arrays and
+				// truncate strings in-place and re-validate. This avoids
+				// burning a retry on a trivially fixable issue (LLMs commonly
+				// overshoot array counts and character caps).
+				fixed := fixMaxItemsViolations(output[outputKey], errs)
+				fixed += fixMaxLengthViolations(output[outputKey], errs)
+				if fixed > 0 {
+					slog.InfoContext(ctx, "skillexec: auto-fixed max-constraint violations",
 						"skill", skillName, "chunk", chunkNum, "output_key", outputKey,
 						"fixed_count", fixed)
 					// Re-validate after fix.
@@ -968,9 +971,11 @@ func (e *Executor) callWithValidation(
 			continue
 		}
 
-		// Validate envelope schema (output_schema.json).
+		// Validate envelope schema (output_schema.json) against the same
+		// cleaned payload that was parsed above — validating the raw content
+		// re-introduces the reasoning blocks / fences cleanJSON removed.
 		if outputSchemaBytes != nil {
-			if errs := validateJSONSchema(result.Content, outputSchemaBytes); len(errs) > 0 {
+			if errs := validateJSONSchema(cleaned, outputSchemaBytes); len(errs) > 0 {
 				lastErrors = errs
 				slog.WarnContext(ctx, "skillexec: envelope schema validation failed",
 					"skill", skillName, "attempt", attempt+1, "errors", errs)
@@ -986,15 +991,18 @@ func (e *Executor) callWithValidation(
 		// Validate each artifact payload against its canonical EPF schema.
 		artifactErrors := validateArtifactPayloads(output)
 		if len(artifactErrors) > 0 {
-			// Auto-fix maxItems violations before burning a retry.
+			// Auto-fix maxItems/maxLength violations before burning a retry.
 			totalFixed := 0
 			for key := range output {
 				if n := fixMaxItemsViolations(output[key], artifactErrors); n > 0 {
 					totalFixed += n
 				}
+				if n := fixMaxLengthViolations(output[key], artifactErrors); n > 0 {
+					totalFixed += n
+				}
 			}
 			if totalFixed > 0 {
-				slog.InfoContext(ctx, "skillexec: auto-fixed maxItems violations",
+				slog.InfoContext(ctx, "skillexec: auto-fixed max-constraint violations",
 					"skill", skillName, "fixed_count", totalFixed)
 				artifactErrors = validateArtifactPayloads(output)
 			}
@@ -1829,6 +1837,127 @@ func fixMaxItemsViolations(artifact any, errs []string) int {
 	return fixed
 }
 
+// fixMaxLengthViolations scans validation errors for maxLength violations and
+// truncates the offending strings in-place. Returns the count of strings fixed.
+// JSON Schema's maxLength counts Unicode code points, so truncation is by
+// runes. Like fixMaxItemsViolations, this avoids burning a full LLM retry on
+// a mechanical overrun; the draft is human-reviewed before commit anyway.
+// Error format: "artifact_type: at '/path/0/field': maxLength: got N, want M"
+func fixMaxLengthViolations(artifact any, errs []string) int {
+	fixed := 0
+	for _, e := range errs {
+		if !strings.Contains(e, "maxLength: got ") {
+			continue
+		}
+		atIdx := strings.Index(e, "at '")
+		if atIdx < 0 {
+			continue
+		}
+		pathStart := atIdx + len("at '")
+		pathEnd := strings.Index(e[pathStart:], "'")
+		if pathEnd < 0 {
+			continue
+		}
+		jsonPath := e[pathStart : pathStart+pathEnd]
+
+		// Extract the "want" value.
+		wantStr := ""
+		if wantIdx := strings.Index(e, "want "); wantIdx >= 0 {
+			wantStr = e[wantIdx+len("want "):]
+			end := 0
+			for end < len(wantStr) && wantStr[end] >= '0' && wantStr[end] <= '9' {
+				end++
+			}
+			wantStr = wantStr[:end]
+		}
+		if wantStr == "" {
+			continue
+		}
+		maxLen := 0
+		for _, c := range wantStr {
+			maxLen = maxLen*10 + int(c-'0')
+		}
+		if maxLen <= 0 {
+			continue
+		}
+
+		// Walk to the parent of the target. Unlike the maxItems walker,
+		// paths here routinely traverse array elements ('/insights/0'),
+		// so both maps and arrays are handled.
+		segments := strings.Split(strings.TrimPrefix(jsonPath, "/"), "/")
+		if len(segments) == 0 {
+			continue
+		}
+		var parent any = artifact
+		for i := 0; i < len(segments)-1 && parent != nil; i++ {
+			parent = jsonChild(parent, segments[i])
+		}
+		if parent == nil {
+			continue
+		}
+		last := segments[len(segments)-1]
+
+		truncate := func(s string) (string, bool) {
+			r := []rune(s)
+			if len(r) <= maxLen {
+				return s, false
+			}
+			return strings.TrimRight(string(r[:maxLen]), " \t\n"), true
+		}
+
+		switch p := parent.(type) {
+		case map[string]any:
+			if s, ok := p[last].(string); ok {
+				if t, changed := truncate(s); changed {
+					p[last] = t
+					fixed++
+				}
+			}
+		case []any:
+			if idx, ok := jsonArrayIndex(last, len(p)); ok {
+				if s, ok := p[idx].(string); ok {
+					if t, changed := truncate(s); changed {
+						p[idx] = t
+						fixed++
+					}
+				}
+			}
+		}
+	}
+	return fixed
+}
+
+// jsonChild resolves one JSON-pointer segment against a map or array node.
+func jsonChild(node any, seg string) any {
+	switch n := node.(type) {
+	case map[string]any:
+		return n[seg]
+	case []any:
+		if idx, ok := jsonArrayIndex(seg, len(n)); ok {
+			return n[idx]
+		}
+	}
+	return nil
+}
+
+// jsonArrayIndex parses seg as a non-negative array index and bounds-checks it.
+func jsonArrayIndex(seg string, length int) (int, bool) {
+	if seg == "" {
+		return 0, false
+	}
+	idx := 0
+	for _, c := range seg {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		idx = idx*10 + int(c-'0')
+	}
+	if idx >= length {
+		return 0, false
+	}
+	return idx, true
+}
+
 // correctionPrompt builds a retry prompt that includes the original prompt
 // followed by a correction section listing the validation errors the LLM
 // must fix. When the previous output is available, it is included (truncated
@@ -1863,6 +1992,12 @@ func correctionPrompt(originalPrompt string, validationErrors []string, previous
 func cleanJSON(s string) string {
 	s = strings.TrimSpace(s)
 
+	// Strip reasoning blocks first: reasoning-family models (gpt-oss via
+	// Bedrock, Qwen) embed <reasoning>...</reasoning> or <think>...</think>
+	// around the actual answer. They must go before the brace extraction
+	// below, which otherwise locks onto a '{' inside the reasoning text.
+	s = stripReasoningBlocks(s)
+
 	// Strip markdown code fences: ```json ... ``` or ``` ... ```
 	if strings.HasPrefix(s, "```json") {
 		s = strings.TrimPrefix(s, "```json")
@@ -1890,6 +2025,37 @@ func cleanJSON(s string) string {
 	s = removeTrailingCommas(s)
 
 	return s
+}
+
+// stripReasoningBlocks removes <reasoning>...</reasoning> and
+// <think>...</think> blocks that reasoning-family models emit inside the
+// content field. Handles well-formed blocks, an unterminated opening tag
+// (tag dropped, text kept), and an orphan closing tag (everything before it
+// is reasoning and is dropped).
+func stripReasoningBlocks(s string) string {
+	for _, tag := range []string{"reasoning", "think"} {
+		open, closing := "<"+tag+">", "</"+tag+">"
+		for {
+			start := strings.Index(s, open)
+			if start < 0 {
+				break
+			}
+			rest := s[start+len(open):]
+			end := strings.Index(rest, closing)
+			if end < 0 {
+				// Unterminated block: drop the tag, keep the text.
+				s = s[:start] + rest
+				break
+			}
+			s = s[:start] + rest[end+len(closing):]
+		}
+		// Orphan closing tag with no opening tag: the model started
+		// reasoning without the opening marker; drop everything before it.
+		if idx := strings.Index(s, closing); idx >= 0 && !strings.Contains(s, open) {
+			s = s[idx+len(closing):]
+		}
+	}
+	return strings.TrimSpace(s)
 }
 
 // removeTrailingCommas removes trailing commas before closing braces/brackets.
