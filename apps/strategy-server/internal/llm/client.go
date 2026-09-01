@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -230,6 +231,14 @@ type Client struct {
 	completionsPath string
 	model           string
 	httpClient      *http.Client
+
+	// Reasoning-family models (gpt-5.x, o-series) reject the legacy
+	// max_tokens parameter and non-default temperature values. These flags
+	// flip on the first such rejection and the request is retried with the
+	// adjusted shape, so older models, Ollama, and Vertex keep their exact
+	// behavior while newer models adapt automatically.
+	useMaxCompletionTokens atomic.Bool
+	defaultTemperatureOnly atomic.Bool
 }
 
 // New creates a new LLM client. Returns nil if baseURL is empty.
@@ -272,11 +281,15 @@ var FormatText = &ResponseFormat{Type: "text"}
 
 // chatRequest is the OpenAI chat completions request format.
 type chatRequest struct {
-	Model          string          `json:"model"`
-	Messages       []ChatMessage   `json:"messages"`
-	Temperature    float64         `json:"temperature,omitempty"`
-	MaxTokens      int             `json:"max_tokens,omitempty"`
-	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
+	Model       string        `json:"model"`
+	Messages    []ChatMessage `json:"messages"`
+	Temperature float64       `json:"temperature,omitempty"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
+	// MaxCompletionTokens replaces MaxTokens for reasoning-family models
+	// (gpt-5.x, o-series). Populated by the client's adaptation logic in
+	// do(); callers should keep setting MaxTokens.
+	MaxCompletionTokens int             `json:"max_completion_tokens,omitempty"`
+	ResponseFormat      *ResponseFormat `json:"response_format,omitempty"`
 }
 
 // ChatMessage represents a single message in a chat conversation.
@@ -332,10 +345,13 @@ func (c *Client) Chat(ctx context.Context, messages []ChatMessage, temperature f
 // provider will accept generation requests (the project may be denied or
 // suspended). Callers should pass a context with a short timeout.
 func (c *Client) Ping(ctx context.Context) error {
+	// 128 rather than 1: reasoning-family models (gpt-5.x, o-series) spend
+	// completion budget on reasoning tokens before any output, and reject
+	// the request outright when the cap is too small to ever produce text.
 	_, err := c.do(ctx, chatRequest{
 		Model:     c.model,
 		Messages:  []ChatMessage{{Role: "user", Content: "ping"}},
-		MaxTokens: 1,
+		MaxTokens: 128,
 	})
 	return err
 }
@@ -366,7 +382,49 @@ func (c *Client) setAuthHeader(req *http.Request) error {
 	return nil
 }
 
+// do executes a chat request, transparently adapting the request shape for
+// reasoning-family models (gpt-5.x, o-series): those reject the legacy
+// max_tokens parameter (HTTP 400 pointing at max_completion_tokens) and any
+// non-default temperature. On the first such rejection the corresponding
+// sticky flag is set and the request is retried once, so subsequent calls
+// send the right shape immediately. Providers that accept the legacy shape
+// (older OpenAI models, Ollama, Vertex) never trigger the adaptation.
 func (c *Client) do(ctx context.Context, req chatRequest) (*ChatResult, error) {
+	for attempt := 0; ; attempt++ {
+		adjusted := req
+		if c.useMaxCompletionTokens.Load() && adjusted.MaxTokens > 0 {
+			adjusted.MaxCompletionTokens = adjusted.MaxTokens
+			adjusted.MaxTokens = 0
+		}
+		if c.defaultTemperatureOnly.Load() {
+			adjusted.Temperature = 0 // omitempty drops it → provider default
+		}
+
+		result, err := c.doOnce(ctx, adjusted)
+		// Allow at most one retry per adaptable parameter.
+		if err == nil || attempt >= 2 {
+			return result, err
+		}
+
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest {
+			return result, err
+		}
+
+		switch {
+		case !c.useMaxCompletionTokens.Load() && adjusted.MaxTokens > 0 &&
+			strings.Contains(apiErr.Message, "max_completion_tokens"):
+			c.useMaxCompletionTokens.Store(true)
+		case !c.defaultTemperatureOnly.Load() && adjusted.Temperature != 0 &&
+			strings.Contains(apiErr.Message, "'temperature'"):
+			c.defaultTemperatureOnly.Store(true)
+		default:
+			return result, err
+		}
+	}
+}
+
+func (c *Client) doOnce(ctx context.Context, req chatRequest) (*ChatResult, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal chat request: %w", err)
