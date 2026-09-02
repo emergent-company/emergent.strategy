@@ -31,6 +31,40 @@ type PortfolioAlignResult struct {
 	NoRoadmap        bool
 }
 
+// ── engine-neutral step shape ─────────────────────────────────────────────────
+//
+// The AIM cycle is driven by two engines during the ADK migration. Rather than
+// implement the steps twice and rely on tests to catch the drift, the bodies
+// live here in a shape neither engine owns, and each engine adapts them.
+
+// StepInput is everything a step is given.
+type StepInput struct {
+	// RunID identifies the cycle. Stable across human gates.
+	RunID string
+	// InstanceID is the EPF instance the cycle runs against.
+	InstanceID uuid.UUID
+	// Params are the caller's run inputs.
+	Params map[string]any
+	// Prior holds the outputs of completed steps, in order. snapshot_cycle
+	// reads it to recover the calibration decision.
+	Prior []StepOutput
+}
+
+// StepOutput is what a step produces. An empty BatchID means the step staged
+// nothing, which lets a human gate auto-advance.
+type StepOutput struct {
+	Step    string
+	BatchID string
+	Meta    map[string]any
+}
+
+// Step is one unit of cycle work, free of any engine's types.
+type Step struct {
+	Name      string
+	HumanGate bool
+	Run       func(ctx context.Context, in StepInput) (StepOutput, error)
+}
+
 // CycleWorkflow implements orchestration.Workflow for the AIM cycle.
 // It delegates each step to the existing aim.Service methods.
 // The Engine knows nothing about AIM; AIM knows about the Engine
@@ -73,55 +107,86 @@ func (w *CycleWorkflow) ConcurrencyKey(run *orchestration.Run) string {
 //  4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
 //  5. align_portfolio   → deterministic value model activation (auto-commits, no human gate)
 //  6. snapshot_cycle    → auto-publishes version snapshot
-func (w *CycleWorkflow) Steps() []orchestration.Step {
-	return []orchestration.Step{
-		{
-			Name:      "draft_assessment",
-			Execute:   w.stepDraftAssessment,
-			HumanGate: true,
-		},
-		{
-			Name:      "draft_calibration",
-			Execute:   w.stepDraftCalibration,
-			HumanGate: true,
-		},
-		{
-			Name:      "adapt_strategy",
-			Execute:   w.stepAdaptStrategy,
-			HumanGate: true,
-		},
-		{
-			Name:      "adapt_foundations",
-			Execute:   w.stepAdaptFoundations,
-			HumanGate: true,
-		},
-		{
-			Name:      "align_portfolio",
-			Execute:   w.stepAlignPortfolio,
-			HumanGate: false, // deterministic, auto-commits — no human review required
-		},
-		{
-			Name:      "snapshot_cycle",
-			Execute:   w.stepSnapshotCycle,
-			HumanGate: false,
-		},
+func (w *CycleWorkflow) CycleSteps() []Step {
+	return []Step{
+		{Name: "draft_assessment", Run: w.stepDraftAssessment, HumanGate: true},
+		{Name: "draft_calibration", Run: w.stepDraftCalibration, HumanGate: true},
+		{Name: "adapt_strategy", Run: w.stepAdaptStrategy, HumanGate: true},
+		{Name: "adapt_foundations", Run: w.stepAdaptFoundations, HumanGate: true},
+		// align_portfolio is deterministic and auto-commits, so no human gate.
+		{Name: "align_portfolio", Run: w.stepAlignPortfolio},
+		{Name: "snapshot_cycle", Run: w.stepSnapshotCycle},
 	}
+}
+
+// Steps adapts the neutral steps to the legacy engine. It exists only while
+// both engines are wired, and goes away with pkg/orchestration.
+func (w *CycleWorkflow) Steps() []orchestration.Step {
+	neutral := w.CycleSteps()
+	steps := make([]orchestration.Step, len(neutral))
+
+	for i, step := range neutral {
+		steps[i] = orchestration.Step{
+			Name:      step.Name,
+			HumanGate: step.HumanGate,
+			Execute:   legacyStepFunc(step),
+		}
+	}
+	return steps
+}
+
+// legacyStepFunc wraps a neutral step so the legacy engine can call it.
+func legacyStepFunc(step Step) orchestration.StepFunc {
+	return func(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
+		in, err := stepInputFromRun(run)
+		if err != nil {
+			return orchestration.StepResult{}, err
+		}
+
+		out, err := step.Run(ctx, in)
+		if err != nil {
+			return orchestration.StepResult{}, err
+		}
+
+		return orchestration.StepResult{BatchID: out.BatchID, Meta: out.Meta}, nil
+	}
+}
+
+// stepInputFromRun projects a legacy run record onto the neutral input.
+func stepInputFromRun(run *orchestration.Run) (StepInput, error) {
+	instanceID, err := runInstanceID(run)
+	if err != nil {
+		return StepInput{}, err
+	}
+
+	prior := make([]StepOutput, 0, len(run.Steps))
+	for _, logged := range run.Steps {
+		prior = append(prior, StepOutput{
+			Step:    logged.Name,
+			BatchID: logged.BatchID,
+			Meta:    logged.Meta,
+		})
+	}
+
+	return StepInput{
+		RunID:      run.ID.String(),
+		InstanceID: instanceID,
+		Params:     run.Input,
+		Prior:      prior,
+	}, nil
 }
 
 // ── step implementations ──────────────────────────────────────────────────────
 
-func (w *CycleWorkflow) stepDraftAssessment(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepDraftAssessment(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	batchID, summary, err := w.svc.DraftAssessment(ctx, instanceID)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("draft assessment: %w", err)
+		return StepOutput{}, fmt.Errorf("draft assessment: %w", err)
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		BatchID: batchID.String(),
 		Meta: map[string]any{
 			"okr_count":        summary.OKRCount,
@@ -131,18 +196,15 @@ func (w *CycleWorkflow) stepDraftAssessment(ctx context.Context, run *orchestrat
 	}, nil
 }
 
-func (w *CycleWorkflow) stepDraftCalibration(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepDraftCalibration(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	batchID, summary, err := w.svc.DraftCalibration(ctx, instanceID)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("draft calibration: %w", err)
+		return StepOutput{}, fmt.Errorf("draft calibration: %w", err)
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		BatchID: batchID.String(),
 		Meta: map[string]any{
 			"suggested_decision": summary.SuggestedDecision,
@@ -153,11 +215,8 @@ func (w *CycleWorkflow) stepDraftCalibration(ctx context.Context, run *orchestra
 	}, nil
 }
 
-func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	// If the unified executor is wired, use the adapt-strategy skill.
 	if w.executor != nil {
@@ -166,20 +225,20 @@ func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestratio
 		params := map[string]any{
 			"_trigger": "aim_cycle",
 			"_trigger_context": map[string]any{
-				"run_id":    run.ID.String(),
+				"run_id":    in.RunID,
 				"step_name": "adapt_strategy",
 			},
 		}
-		if decision, ok := run.Input["decision"].(string); ok && decision != "" {
+		if decision, ok := in.Params["decision"].(string); ok && decision != "" {
 			params["decision"] = decision
 		}
 
 		result, err := w.executor.RunChunked(ctx, instanceID, "adapt-strategy", params)
 		if err != nil {
-			return orchestration.StepResult{}, fmt.Errorf("adapt strategy: %w", err)
+			return StepOutput{}, fmt.Errorf("adapt strategy: %w", err)
 		}
 
-		return orchestration.StepResult{
+		return StepOutput{
 			BatchID: result.BatchID.String(),
 			Meta: map[string]any{
 				"artifact_types":    result.ArtifactTypes,
@@ -194,10 +253,10 @@ func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestratio
 	// Fallback: legacy ApplyCalibration stub (backward compatibility).
 	batchID, result, err := w.svc.ApplyCalibration(ctx, instanceID)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("apply calibration (fallback): %w", err)
+		return StepOutput{}, fmt.Errorf("apply calibration (fallback): %w", err)
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		BatchID: batchID.String(),
 		Meta: map[string]any{
 			"decision":           result.Decision,
@@ -210,21 +269,18 @@ func (w *CycleWorkflow) stepAdaptStrategy(ctx context.Context, run *orchestratio
 // with the execution-layer changes from adapt_strategy. Returns an empty
 // StepResult (no BatchID) when the skill determines no foundation changes are
 // needed — the orchestration engine auto-advances past the human gate in that case.
-func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	if w.executor == nil {
 		// No executor wired — skip this step silently (legacy mode).
-		return orchestration.StepResult{}, nil
+		return StepOutput{}, nil
 	}
 
 	params := map[string]any{
 		"_trigger": "aim_cycle",
 		"_trigger_context": map[string]any{
-			"run_id":    run.ID.String(),
+			"run_id":    in.RunID,
 			"step_name": "adapt_foundations",
 			"source":    "orchestrated_cycle_step4",
 		},
@@ -232,20 +288,20 @@ func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, run *orchestra
 
 	result, err := w.executor.RunChunked(ctx, instanceID, "adapt-foundations", params)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("adapt foundations: %w", err)
+		return StepOutput{}, fmt.Errorf("adapt foundations: %w", err)
 	}
 
 	// If no artifacts were staged (empty batch), return empty BatchID so the
 	// orchestration engine auto-advances without waiting for human review.
 	if result.BatchID == (uuid.UUID{}) {
-		return orchestration.StepResult{
+		return StepOutput{
 			Meta: map[string]any{
 				"auto_advanced_reason": "no_foundation_changes_needed",
 			},
 		}, nil
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		BatchID: result.BatchID.String(),
 		Meta: map[string]any{
 			"artifact_types":    result.ArtifactTypes,
@@ -260,15 +316,12 @@ func (w *CycleWorkflow) stepAdaptFoundations(ctx context.Context, run *orchestra
 // stepAlignPortfolio runs deterministic portfolio alignment after adapt_strategy.
 // It reads committed roadmap KRs and syncs value model active flags to match.
 // All mutations are auto-committed. If no aligner is wired, the step is a no-op.
-func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	if w.aligner == nil {
 		// No aligner wired — skip silently (useful in test and legacy modes).
-		return orchestration.StepResult{
+		return StepOutput{
 			Meta: map[string]any{"skipped": true, "reason": "no aligner configured"},
 		}, nil
 	}
@@ -278,7 +331,7 @@ func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestrati
 		// Alignment failures are non-fatal: log and continue to snapshot_cycle.
 		// The next heartbeat consistency check will correct any drift. The error
 		// is captured in Meta rather than returned, by design.
-		return orchestration.StepResult{ //nolint:nilerr
+		return StepOutput{ //nolint:nilerr
 			Meta: map[string]any{
 				"error":   err.Error(),
 				"skipped": true,
@@ -286,7 +339,7 @@ func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestrati
 		}, nil
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		// No BatchID: this step auto-commits and has no human review gate.
 		Meta: map[string]any{
 			"tracks_processed":  result.TracksProcessed,
@@ -299,24 +352,21 @@ func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, run *orchestrati
 	}, nil
 }
 
-func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return orchestration.StepResult{}, err
-	}
+func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, in StepInput) (StepOutput, error) {
+	instanceID := in.InstanceID
 
 	// Derive the calibration decision from step metadata.
 	// Sources (checked in priority order):
 	//   1. adapt_strategy/apply_calibration "decision" (legacy fallback path)
 	//   2. draft_calibration "suggested_decision" (executor path)
 	decision := ""
-	for _, sl := range run.Steps {
-		if sl.Name == "adapt_strategy" || sl.Name == "apply_calibration" {
+	for _, sl := range in.Prior {
+		if sl.Step == "adapt_strategy" || sl.Step == "apply_calibration" {
 			if d, ok := sl.Meta["decision"].(string); ok && d != "" {
 				decision = d
 			}
 		}
-		if sl.Name == "draft_calibration" && decision == "" {
+		if sl.Step == "draft_calibration" && decision == "" {
 			if d, ok := sl.Meta["suggested_decision"].(string); ok && d != "" {
 				decision = d
 			}
@@ -325,10 +375,10 @@ func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, run *orchestratio
 
 	versionID, err := w.svc.SnapshotCycle(ctx, instanceID, 0, decision)
 	if err != nil {
-		return orchestration.StepResult{}, fmt.Errorf("snapshot cycle: %w", err)
+		return StepOutput{}, fmt.Errorf("snapshot cycle: %w", err)
 	}
 
-	return orchestration.StepResult{
+	return StepOutput{
 		Meta: map[string]any{
 			"version_id": versionID.String(),
 		},

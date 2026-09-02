@@ -72,7 +72,45 @@ before Part B (ADK migration).
 - [x] Post-gate nodes interpret the reply and abort with `ErrCycleDiscarded`. Unparseable replies **fail closed** — guessing "committed" would apply a batch nobody approved.
 - [x] Ungated steps → plain FunctionNodes (covers `align_portfolio`, `snapshot_cycle`).
 - [x] 9 tests + 7 subtests, driven through the real bun session store so pause/resume crosses the database. Full suite green (37 packages), lint 0 issues.
+- [x] Steps receive `AIMStepInput` (RunID, InstanceID, Params, Prior) and the graph accumulates step history, because `snapshot_cycle` recovers the calibration decision from metadata recorded several gates earlier.
+- [x] **`domain/aim` exposes `CycleSteps() []Step`** in an engine-neutral shape; the legacy engine reaches them through a temporary adapter that goes away with `pkg/orchestration`. No test file was touched and all 33 AIM tests still pass — the evidence this changed shape, not behaviour.
 - [ ] Concurrency key = `instance_id` (one active cycle per instance) — enforced at the engine layer, not the graph.
+- [x] Adapter from `[]aim.Step` → `[]adk.AIMStep` in `internal/aimadk`, at the wiring layer so `internal/adk` keeps no `domain/aim` import. `TestSteps_RealCycleFormsAValidGraph` runs the real six-step cycle through the graph builder.
+
+### B4d. Engine swap — scope corrected
+
+The flag was scoped as "config switch plus wiring". A survey of consumers shows
+that is wrong by a wide margin. `*orchestration.Engine` is consumed through **11
+methods at ~30 call sites**, and swapping it means reproducing several things
+ADK does not provide:
+
+| Consumer surface | Why ADK does not cover it |
+|---|---|
+| `FindRunByBatch` | the batch↔run binding all 4 `Resume` sites depend on; ADK has no notion of our batches |
+| `StepLog.Meta`, 18 keys | decoded by `buildRunPanelData` / `buildRunListRow`; **breaking it degrades the run UI silently** |
+| `ErrAlreadyActive` | one-cycle-per-instance, matched with `errors.Is` in 4 places |
+| `ListRuns` / `GetRun` / `ActiveRun` | run listing and status projection for 6 dashboard widgets |
+| `Abort` / `Retry` | no ADK equivalent |
+| raw SQL on `orchestration_runs` | `handler_versions.go:336` bypasses the engine entirely |
+
+ADK supplies durable sessions, graph execution and HITL pause/resume. It supplies
+none of the above. **Replacing the engine means building an engine**, with its own
+run-metadata store, not wiring one.
+
+- [ ] Extract an `Engine` interface from `*orchestration.Engine` (11 methods) and point consumers at it. Pure refactor, legacy satisfies it unchanged — the precondition for any swap.
+- [ ] Decide the run-metadata strategy: project run records from ADK session state, or keep a dedicated table alongside. The `StepLog.Meta` contract and `FindRunByBatch` both need a home.
+- [ ] `ADK_ENGINE` flag once there are two implementations to choose between. Follow the `AuthEnabled` bool pattern in `config/config.go:68`.
+- [ ] Resume handler commits the reviewed batch **before** resuming. All 4 existing sites already order it that way; preserve it.
+
+**Carrying data across a gate — verified by probe, not assumption:**
+
+| Mechanism | Result |
+|---|---|
+| `agent.Context.Actions()` | **nil** inside a workflow node; dereferencing panics |
+| `session.State.Set` | returns no error, then **silently discards** the write |
+| emitted event with `Actions.StateDelta` | **persists** across the pause |
+
+The middle row is the dangerous one: a cycle would keep running and snapshot the wrong decision with nothing in the logs. Work nodes are therefore emitting nodes that record their result as a state delta, pinned by `TestAIMGraph_StepHistorySurvivesGate`.
 
 **Two findings from building it:**
 
