@@ -228,11 +228,14 @@ func (p *pool) executeRun(runID uuid.UUID) {
 			slog.InfoContext(ctx, "orchestration: recovering awaiting_human step after restart",
 				"run_id", run.ID, "step", step.Name)
 
+			// GateOpenedAt is deliberately not re-stamped here. The gate opened
+			// before the restart, and the reviewer's wait includes the downtime.
 			committed, ok := p.waitForResume(runID)
 			if !ok {
 				return // server shutting down
 			}
 			if !committed {
+				recordGateCleared(ctx, run, i, orchestration.GateDiscarded)
 				run.Steps[i].Status = "done"
 				_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAborted, step.Name, "", run.Steps)
 				p.publish(orchestration.Event{
@@ -244,6 +247,7 @@ func (p *pool) executeRun(runID uuid.UUID) {
 				p.cleanupResumeCh(runID)
 				return
 			}
+			recordGateCleared(ctx, run, i, orchestration.GateCommitted)
 			run.Steps[i].Status = "done"
 			p.publish(orchestration.Event{
 				Type:   orchestration.EventStepFinished,
@@ -328,7 +332,12 @@ func (p *pool) executeRun(runID uuid.UUID) {
 				Status: orchestration.StatusRunning,
 			})
 		} else if step.HumanGate {
+			// Stamp and persist the gate opening *before* blocking, so a crash
+			// between the two does not lose the only record of when the wait
+			// started.
+			gateOpenedAt := time.Now().UTC()
 			run.Steps[i].Status = "awaiting_human"
+			run.Steps[i].GateOpenedAt = &gateOpenedAt
 			_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAwaitingHuman, step.Name, "", run.Steps)
 			p.publish(orchestration.Event{
 				Type:    orchestration.EventAwaitingHuman,
@@ -345,6 +354,7 @@ func (p *pool) executeRun(runID uuid.UUID) {
 				return
 			}
 			if !committed {
+				recordGateCleared(ctx, run, i, orchestration.GateDiscarded)
 				run.Steps[i].Status = "done" // mark current step as cancelled
 				_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAborted, step.Name, "", run.Steps)
 				p.publish(orchestration.Event{
@@ -356,6 +366,7 @@ func (p *pool) executeRun(runID uuid.UUID) {
 				p.cleanupResumeCh(runID)
 				return
 			}
+			recordGateCleared(ctx, run, i, orchestration.GateCommitted)
 		}
 
 		run.Steps[i].Status = "done"
@@ -375,6 +386,34 @@ func (p *pool) executeRun(runID uuid.UUID) {
 		Status: orchestration.StatusCompleted,
 	})
 	p.cleanupResumeCh(runID)
+}
+
+// recordGateCleared stamps a gate's resolution on the step and emits how long
+// the reviewer took. The caller persists run.Steps afterwards.
+//
+// The log line is the point: it puts review latency where operations can see
+// it without unpacking JSONB, and that number is what decides whether a gate
+// should keep pausing a cycle or end one.
+func recordGateCleared(ctx context.Context, run *orchestration.Run, i int, outcome string) {
+	now := time.Now().UTC()
+	step := &run.Steps[i]
+	step.GateClearedAt = &now
+	step.GateOutcome = outcome
+
+	attrs := []any{
+		"run_id", run.ID,
+		"step", step.Name,
+		"outcome", outcome,
+	}
+	// Absent on runs that gated before this was recorded. Reporting a duration
+	// derived from a missing start would understate the wait, so report none.
+	if waited, ok := step.GateWait(); ok {
+		attrs = append(attrs, "waited_seconds", waited.Seconds())
+	} else {
+		attrs = append(attrs, "waited_seconds", nil)
+	}
+
+	slog.InfoContext(ctx, "orchestration: human gate cleared", attrs...)
 }
 
 // waitForResume blocks until a resume signal is received or the pool is stopped.
@@ -461,6 +500,11 @@ func (p *pool) retry(ctx context.Context, runID uuid.UUID) error {
 			run.Steps[i].StartedAt = nil
 			run.Steps[i].FinishedAt = nil
 			run.Steps[i].Meta = nil
+			// Clear the previous attempt's gate too, so a retried step does not
+			// report a wait belonging to a run that already failed.
+			run.Steps[i].GateOpenedAt = nil
+			run.Steps[i].GateClearedAt = nil
+			run.Steps[i].GateOutcome = ""
 		}
 	}
 

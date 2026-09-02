@@ -42,6 +42,16 @@ type Run struct {
 	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
+// Gate outcomes. How a human review gate was resolved.
+const (
+	// GateCommitted — a reviewer approved the staged batch.
+	GateCommitted = "committed"
+	// GateDiscarded — a reviewer rejected the staged batch.
+	GateDiscarded = "discarded"
+	// GateAbandoned — nobody responded and the run was released by the sweep.
+	GateAbandoned = "abandoned"
+)
+
 // StepLog records the outcome of a single step execution.
 type StepLog struct {
 	Name       string         `json:"name"`
@@ -51,6 +61,38 @@ type StepLog struct {
 	StartedAt  *time.Time     `json:"started_at,omitempty"`
 	FinishedAt *time.Time     `json:"finished_at,omitempty"`
 	Error      string         `json:"error,omitempty"`
+
+	// Gate lifecycle. These exist because FinishedAt marks the step *body*
+	// returning, not the step completing: for a gated step the body finishes,
+	// then the gate opens and may stay open indefinitely, and on resume the
+	// awaiting_human status is overwritten with "done". Without separate
+	// timestamps a gate a human cleared is indistinguishable afterwards from a
+	// step that never gated, which makes review latency unmeasurable.
+	//
+	// All three are absent on steps that never gated, and on runs written
+	// before this was recorded. Pointers rather than values so absent does not
+	// read as the zero time.
+	GateOpenedAt  *time.Time `json:"gate_opened_at,omitempty"`
+	GateClearedAt *time.Time `json:"gate_cleared_at,omitempty"`
+	GateOutcome   string     `json:"gate_outcome,omitempty"`
+}
+
+// GateWait reports how long this step waited for human review, and whether
+// that is known. It is unknown for steps that never gated, for gates still
+// open, and for runs written before the gate lifecycle was recorded.
+func (s StepLog) GateWait() (time.Duration, bool) {
+	if s.GateOpenedAt == nil || s.GateClearedAt == nil {
+		return 0, false
+	}
+	return s.GateClearedAt.Sub(*s.GateOpenedAt), true
+}
+
+// GateOpenFor reports how long a currently-open gate has been waiting.
+func (s StepLog) GateOpenFor(now time.Time) (time.Duration, bool) {
+	if s.GateOpenedAt == nil || s.GateClearedAt != nil {
+		return 0, false
+	}
+	return now.Sub(*s.GateOpenedAt), true
 }
 
 // StepResult is returned by a StepFunc to communicate what the step produced.
