@@ -19,6 +19,16 @@ jobs:
   test:
     name: Test & Build
     runs-on: ubuntu-latest
+    env:
+      # Build epf-cli in isolation, ignoring the repo's go.work.
+      #
+      # epf-cli is frozen and pins Go 1.25.1, while sibling modules in the
+      # workspace track a newer floor (strategy-server needs 1.26.5 for ADK v2).
+      # Without this, the workspace floor would force this job to download a
+      # newer toolchain it does not need — and would fail outright on a runner
+      # that cannot fetch toolchains. GOWORK=off also matches how epf-cli is
+      # actually consumed: as a standalone module.
+      GOWORK: "off"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

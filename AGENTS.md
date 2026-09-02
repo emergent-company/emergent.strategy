@@ -82,7 +82,22 @@ These tests were failing before the current development session. Do not treat
 them as regressions caused by your changes. Do fix them if your task touches
 the relevant code.
 
-_No pre-existing test failures as of 2026-05-05. All tests pass._
+**`apps/epf-cli/internal/checks`** — 2 failures as of 2026-08-31:
+
+- `TestCheckMetadataConsistency_FreshDate`
+- `TestCheckMetadataConsistency_WrongInstance`
+
+Both are time-bomb tests: they hard-code `last_updated: "2026-02-15"` and assert
+it falls inside a 6-month freshness window. That window elapsed on ~2026-08-15,
+so the fixtures now read as stale and the assertions invert. The failures are
+wall-clock dependent, not caused by any code change, and they will not
+self-recover.
+
+The fix is to make the fixture date relative (e.g.
+`time.Now().AddDate(0, -1, 0)`) rather than absolute. epf-cli is frozen, but
+this qualifies as a bug fix — do it if your task touches `internal/checks`.
+
+_strategy-server: no pre-existing failures. All 36 packages pass._
 
 ---
 

@@ -39,9 +39,15 @@ before Part B (ADK migration).
 ## Part B — ADK Go 2.0 runtime (after A is stable)
 
 ### B1. Dependency + adapter scaffolding
-- [ ] Add `google.golang.org/adk/v2` (Go 1.26 OK).
-- [ ] New `internal/adk/` package.
-- [ ] `provider_model.go`: wrap `llm.Provider` as ADK `model.LLM`; register via model registry (adapt non-streaming `Chat*` → single-yield `GenerateContent`).
+- [x] Add `google.golang.org/adk/v2` — **v2.2.0, which requires Go 1.26.5, not the ">= 1.25" this design assumed.** Only v2.0.0 still accepts 1.25; v2.1.0+ moved the floor.
+- [x] **Toolchain bump:** `go.work` 1.26.1 → 1.26.5 and strategy-server `go.mod` → 1.26.5. epf-cli's own `go.mod` stays at 1.25.1 (frozen, untouched).
+- [x] **Insulated epf-cli CI with `GOWORK: "off"`.** Verified that the workspace floor otherwise breaks `apps/epf-cli` under `GOTOOLCHAIN=local`; `GOWORK=off` also matches how epf-cli is actually consumed (standalone module). strategy-server cannot simply leave the workspace — it imports `epf-cli/pkg/decompose` via a `replace`.
+- [x] Chose v2.2.0 over the zero-bump v2.0.0 deliberately: v2.2.0 carries ~300 changed lines in `workflow/scheduler.go` and `session/session.go`, the exact subsystems Part B's restart-resume exit gate depends on.
+- [x] New `internal/adk/` package.
+- [x] `provider_model.go`: wrap `llm.Provider` as ADK `model.LLM`, adapting the non-streaming `ChatWithFormat` to a single-yield `GenerateContent`.
+- [x] **Model registry not used.** It exists only in v2.2.0 (`model.Register`), but `llmagent.Config.Model` is a plain `model.LLM` field, and exactly one provider is configured at a time — regex name-routing solves a problem we do not have. The spec's actual requirement (ADK nodes use the configured provider with the same classified errors) is met by direct injection.
+- [x] Translation covered by tests (17 cases): genai `model` role → `assistant`, system instruction hoisted to a `system` message, multi-part concatenation, nil/empty content skipping, `application/json` → `llm.FormatJSON`, token/usage mapping, and single-complete-turn semantics under both `stream` values.
+- [x] **Classified errors propagate unwrapped**, so `llm.IsRetryable` / `IsAccessDenied` keep working from inside ADK nodes — pinned by a test, since wrapping here would silently turn a rate-limit into a permanent failure.
 
 ### B2. Session persistence
 - [ ] `session_store.go`: bun/Postgres-backed ADK v2 session store (reference emergent `pkg/adk/session/bunsession`, adapt to v2 + `ReconstructRunState`).
