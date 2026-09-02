@@ -48,7 +48,7 @@ func newEngine(t *testing.T, workflows ...*fakeWorkflow) *aimadk.ADKEngine {
 	db := database.TestDB(t)
 	store := aimadk.NewRunStore(db)
 	sessions := adk.NewSessionStore(db)
-	engine := aimadk.NewADKEngine(store, sessions, "test-app")
+	engine := aimadk.NewADKEngine(store, sessions, aimadk.ADKEngineConfig{AppName: "test-app"})
 
 	for _, w := range workflows {
 		engine.Register(w)
@@ -393,7 +393,7 @@ func TestADKEngine_Register_SkipsWorkflowWithoutCycleSteps(t *testing.T) {
 	db := database.TestDB(t)
 	store := aimadk.NewRunStore(db)
 	sessions := adk.NewSessionStore(db)
-	engine := aimadk.NewADKEngine(store, sessions, "test-app")
+	engine := aimadk.NewADKEngine(store, sessions, aimadk.ADKEngineConfig{AppName: "test-app"})
 
 	engine.Register(&notAIMWorkflow{name: "unsupported"})
 	if err := engine.Start(t.Context()); err != nil {
@@ -416,7 +416,7 @@ func TestADKEngine_Register_AcceptsTheRealAIMCycleWorkflow(t *testing.T) {
 	db := database.TestDB(t)
 	store := aimadk.NewRunStore(db)
 	sessions := adk.NewSessionStore(db)
-	engine := aimadk.NewADKEngine(store, sessions, "test-app")
+	engine := aimadk.NewADKEngine(store, sessions, aimadk.ADKEngineConfig{AppName: "test-app"})
 
 	real := aim.NewCycleWorkflow(nil, nil)
 	engine.Register(real)
@@ -434,4 +434,159 @@ func TestADKEngine_Register_AcceptsTheRealAIMCycleWorkflow(t *testing.T) {
 	}
 
 	awaitEngineStatus(t, engine, run.ID, orchestration.StatusFailed)
+}
+
+// ── abandoned-gate sweep ──────────────────────────────────────────────────────
+
+func newSweepEngine(t *testing.T, cfg aimadk.ADKEngineConfig, workflows ...*fakeWorkflow) *aimadk.ADKEngine {
+	t.Helper()
+
+	db := database.TestDB(t)
+	store := aimadk.NewRunStore(db)
+	sessions := adk.NewSessionStore(db)
+	if cfg.AppName == "" {
+		cfg.AppName = "test-app"
+	}
+	engine := aimadk.NewADKEngine(store, sessions, cfg)
+
+	for _, w := range workflows {
+		engine.Register(w)
+	}
+	if err := engine.Start(t.Context()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	t.Cleanup(func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = engine.Stop(stopCtx)
+	})
+	return engine
+}
+
+func TestADKEngine_Sweep_ReleasesRunParkedPastThreshold(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{fakeStep("draft", true, "batch-1")}}
+	engine := newSweepEngine(t, aimadk.ADKEngineConfig{
+		AbandonGatesAfter: time.Nanosecond, // everything parked is past the threshold
+		SweepInterval:     50 * time.Millisecond,
+	}, wf)
+
+	run, err := engine.StartRun(t.Context(), "wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+
+	released := awaitEngineStatus(t, engine, run.ID, orchestration.StatusFailed)
+	draft := stepIn(t, released, "draft")
+	if draft.GateOutcome != orchestration.GateAbandoned {
+		t.Errorf("GateOutcome = %q, want %q", draft.GateOutcome, orchestration.GateAbandoned)
+	}
+	if draft.GateClearedAt == nil {
+		t.Error("GateClearedAt not recorded when the gate was released")
+	}
+	if released.Error == "" {
+		t.Error("released run carries no error explaining why")
+	}
+}
+
+func TestADKEngine_Sweep_ReleaseIsDistinctFromDiscard(t *testing.T) {
+	// Two steps: a discard is only enforced by the node after the gate, per
+	// aim_graph.go's design, so a single gated step with nothing downstream
+	// would complete regardless of the reviewer's verdict.
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{
+		fakeStep("draft", true, "batch-1"),
+		fakeStep("apply", false, ""),
+	}}
+	engine := newEngine(t, wf) // no sweep configured
+
+	run, err := engine.StartRun(t.Context(), "wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+
+	if err := engine.Resume(t.Context(), run.ID, false); err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	aborted := awaitEngineStatus(t, engine, run.ID, orchestration.StatusAborted)
+	if got := stepIn(t, aborted, "draft").GateOutcome; got != orchestration.GateDiscarded {
+		t.Errorf("GateOutcome = %q, want %q — a reviewer's discard must not read as abandoned", got, orchestration.GateDiscarded)
+	}
+}
+
+func TestADKEngine_Sweep_LeavesRunWithinThresholdAlone(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{fakeStep("draft", true, "batch-1")}}
+	engine := newSweepEngine(t, aimadk.ADKEngineConfig{
+		AbandonGatesAfter: time.Hour,
+		SweepInterval:     50 * time.Millisecond,
+	}, wf)
+
+	run, err := engine.StartRun(t.Context(), "wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+	time.Sleep(200 * time.Millisecond) // several sweep intervals
+
+	still, err := engine.GetRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if still.Status != orchestration.StatusAwaitingHuman {
+		t.Fatalf("run within the threshold was released: status %s", still.Status)
+	}
+
+	if err := engine.Resume(t.Context(), run.ID, true); err != nil {
+		t.Fatalf("resume after sweep interval passed: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusCompleted)
+}
+
+func TestADKEngine_Sweep_DisabledByDefault(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{fakeStep("draft", true, "batch-1")}}
+	engine := newSweepEngine(t, aimadk.ADKEngineConfig{}, wf) // AbandonGatesAfter unset
+
+	run, err := engine.StartRun(t.Context(), "wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+	time.Sleep(200 * time.Millisecond)
+
+	still, err := engine.GetRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if still.Status != orchestration.StatusAwaitingHuman {
+		t.Fatalf("sweep ran while disabled: status %s", still.Status)
+	}
+}
+
+func TestADKEngine_Sweep_FreesTheConcurrencySlot(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{fakeStep("draft", true, "batch-1")}}
+	engine := newSweepEngine(t, aimadk.ADKEngineConfig{
+		AbandonGatesAfter: time.Nanosecond,
+		SweepInterval:     50 * time.Millisecond,
+	}, wf)
+
+	instanceID := uuid.New().String()
+	run, err := engine.StartRun(t.Context(), "wf", instanceID, nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+	awaitEngineStatus(t, engine, run.ID, orchestration.StatusFailed)
+
+	active, err := engine.ActiveRun(t.Context(), "wf", instanceID)
+	if err != nil {
+		t.Fatalf("active run: %v", err)
+	}
+	if active != nil {
+		t.Fatalf("instance still has an active run after release: %s (%s)", active.ID, active.Status)
+	}
+
+	// And a fresh cycle must actually be startable now.
+	if _, err := engine.StartRun(t.Context(), "wf", instanceID, nil); err != nil {
+		t.Fatalf("start after sweep: %v", err)
+	}
 }

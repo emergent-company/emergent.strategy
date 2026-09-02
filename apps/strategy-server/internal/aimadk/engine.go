@@ -38,6 +38,30 @@ type cycleStepsProvider interface {
 	CycleSteps() []aim.Step
 }
 
+// ADKEngineConfig configures an ADKEngine. Mirrors orchpg.Config's shape
+// deliberately, so the two engines read as the same kind of thing at the call
+// site in cmd_serve.go.
+type ADKEngineConfig struct {
+	// AppName scopes ADK sessions in the (appName, userID, sessionID) triple
+	// ADK's session store keys on; userID is the run's concurrency key (the
+	// instance id for AIM), sessionID is the run id.
+	AppName string
+
+	// AbandonGatesAfter releases runs left awaiting human review for longer
+	// than this. Zero disables the sweep.
+	//
+	// Unlike the legacy engine, an abandoned ADK run holds no goroutine
+	// hostage — drive() simply exits once a gate opens, so there is nothing
+	// blocked to free. It still holds the database-level "one active run per
+	// instance" slot indefinitely, which is what this sweep releases.
+	AbandonGatesAfter time.Duration
+
+	// SweepInterval is how often to look for abandoned gates. Defaults to one
+	// hour. Parked runs accumulate during uptime, so a startup-only sweep is
+	// not sufficient.
+	SweepInterval time.Duration
+}
+
 // ADKEngine implements orchestration.EngineAPI by running each workflow as an
 // ADK graph, per openspec/changes/adopt-adk-runtime-and-provider-seam. One ADK
 // session corresponds to one run, seeded at creation and never reused across
@@ -51,7 +75,7 @@ type cycleStepsProvider interface {
 type ADKEngine struct {
 	store    *RunStore
 	sessions adksession.Service
-	appName  string
+	cfg      ADKEngineConfig
 
 	mu      sync.RWMutex
 	runners map[string]*runner.Runner
@@ -59,16 +83,20 @@ type ADKEngine struct {
 	cancelMu sync.Mutex
 	cancels  map[uuid.UUID]context.CancelFunc
 	wg       sync.WaitGroup
+
+	sweepStop chan struct{}
+	sweepDone chan struct{}
 }
 
-// NewADKEngine creates an ADKEngine. appName scopes ADK sessions in the
-// (appName, userID, sessionID) triple ADK's session store keys on; userID is
-// the run's concurrency key (the instance id for AIM), sessionID is the run id.
-func NewADKEngine(store *RunStore, sessions adksession.Service, appName string) *ADKEngine {
+// NewADKEngine creates an ADKEngine.
+func NewADKEngine(store *RunStore, sessions adksession.Service, cfg ADKEngineConfig) *ADKEngine {
+	if cfg.SweepInterval <= 0 {
+		cfg.SweepInterval = time.Hour
+	}
 	return &ADKEngine{
 		store:    store,
 		sessions: sessions,
-		appName:  appName,
+		cfg:      cfg,
 		runners:  make(map[string]*runner.Runner),
 		cancels:  make(map[uuid.UUID]context.CancelFunc),
 	}
@@ -97,7 +125,7 @@ func (e *ADKEngine) Register(w orchestration.Workflow) {
 	}
 
 	r, err := runner.New(runner.Config{
-		AppName:        e.appName,
+		AppName:        e.cfg.AppName,
 		Agent:          graph,
 		SessionService: e.sessions,
 		// Deliberately false: StartRun always pre-creates the session with
@@ -129,13 +157,85 @@ func (e *ADKEngine) Start(ctx context.Context) error {
 	if n > 0 {
 		slog.WarnContext(ctx, "aimadk: marked stale runs as failed on startup", "count", n)
 	}
+
+	e.startGateSweep(ctx)
 	return nil
 }
 
-// Stop cancels every in-flight drive/resume goroutine and waits for them to
-// exit, or for ctx to expire. There is no worker pool to drain — each run's
-// continuation is its own goroutine, cancelled individually.
+// startGateSweep releases abandoned gates now and on an interval. Disabled
+// when AbandonGatesAfter is zero.
+func (e *ADKEngine) startGateSweep(ctx context.Context) {
+	if e.cfg.AbandonGatesAfter <= 0 {
+		return
+	}
+
+	e.sweepAbandonedGates(ctx)
+
+	e.sweepStop = make(chan struct{})
+	e.sweepDone = make(chan struct{})
+
+	go func() {
+		defer close(e.sweepDone)
+		ticker := time.NewTicker(e.cfg.SweepInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				e.sweepAbandonedGates(context.WithoutCancel(ctx))
+			case <-e.sweepStop:
+				return
+			}
+		}
+	}()
+}
+
+// sweepAbandonedGates moves runs parked past the threshold to a terminal
+// state. Unlike the legacy engine's equivalent, there is no worker goroutine
+// to free: an ADK run's drive() has already exited by the time it is sitting
+// at an open gate, so releasing it is a status write, not a signal.
+func (e *ADKEngine) sweepAbandonedGates(ctx context.Context) {
+	now := time.Now().UTC()
+
+	abandoned, err := e.store.FindAbandonedGates(ctx, e.cfg.AbandonGatesAfter, now)
+	if err != nil {
+		slog.WarnContext(ctx, "aimadk: gate sweep failed", "err", err)
+		return
+	}
+
+	for _, gate := range abandoned {
+		run := gate.Run
+		if gate.StepIndex >= 0 {
+			step := &run.Steps[gate.StepIndex]
+			step.GateClearedAt = &now
+			step.GateOutcome = orchestration.GateAbandoned
+			step.Status = "done"
+		}
+
+		const reason = "human review abandoned"
+		if err := e.store.UpdateStatus(ctx, run.ID, orchestration.StatusFailed, run.CurrentStep, reason, run.Steps); err != nil {
+			slog.WarnContext(ctx, "aimadk: releasing abandoned gate failed", "run_id", run.ID, "err", err)
+			continue
+		}
+
+		slog.WarnContext(ctx, "aimadk: released abandoned human gate",
+			"run_id", run.ID,
+			"step", run.CurrentStep,
+			"parked_since", gate.ParkedSince,
+			"parked_seconds", now.Sub(gate.ParkedSince).Seconds(),
+		)
+	}
+}
+
+// Stop cancels every in-flight drive/resume goroutine and the gate sweep, and
+// waits for them to exit, or for ctx to expire. There is no worker pool to
+// drain — each run's continuation is its own goroutine, cancelled
+// individually.
 func (e *ADKEngine) Stop(ctx context.Context) error {
+	if e.sweepStop != nil {
+		close(e.sweepStop)
+	}
+
 	e.cancelMu.Lock()
 	for _, cancel := range e.cancels {
 		cancel()
@@ -145,6 +245,9 @@ func (e *ADKEngine) Stop(ctx context.Context) error {
 	done := make(chan struct{})
 	go func() {
 		e.wg.Wait()
+		if e.sweepDone != nil {
+			<-e.sweepDone
+		}
 		close(done)
 	}()
 
@@ -191,7 +294,7 @@ func (e *ADKEngine) StartRun(ctx context.Context, workflowName, concurrencyKey s
 
 	sessionID := run.ID.String()
 	_, err := e.sessions.Create(ctx, &adksession.CreateRequest{
-		AppName:   e.appName,
+		AppName:   e.cfg.AppName,
 		UserID:    concurrencyKey,
 		SessionID: sessionID,
 		State: map[string]any{
