@@ -134,9 +134,9 @@ func (b *Backend) sweepAbandonedGates(ctx context.Context) {
 	}
 
 	for _, gate := range abandoned {
-		run := gate.run
-		if gate.stepIndex >= 0 {
-			step := &run.Steps[gate.stepIndex]
+		run := gate.Run
+		if gate.StepIndex >= 0 {
+			step := &run.Steps[gate.StepIndex]
 			step.GateClearedAt = &now
 			step.GateOutcome = orchestration.GateAbandoned
 			step.Status = "done"
@@ -156,8 +156,8 @@ func (b *Backend) sweepAbandonedGates(ctx context.Context) {
 		slog.WarnContext(ctx, "orchestration: released abandoned human gate",
 			"run_id", run.ID,
 			"step", run.CurrentStep,
-			"parked_since", gate.parkedSince,
-			"parked_seconds", now.Sub(gate.parkedSince).Seconds(),
+			"parked_since", gate.ParkedSince,
+			"parked_seconds", now.Sub(gate.ParkedSince).Seconds(),
 		)
 	}
 }
