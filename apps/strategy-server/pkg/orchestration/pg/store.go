@@ -223,3 +223,64 @@ func rowToRun(row *runRow) (*orchestration.Run, error) {
 		UpdatedAt:      row.UpdatedAt,
 	}, nil
 }
+
+// abandonedGate describes a run parked at a human gate past the threshold.
+type abandonedGate struct {
+	run         *orchestration.Run
+	stepIndex   int
+	parkedSince time.Time
+}
+
+// findAbandonedGates returns runs awaiting human review for longer than
+// olderThan.
+//
+// The clock starts at the gate's own GateOpenedAt where it is known. Runs
+// written before that was recorded fall back to created_at, which is a
+// conservative lower bound on how long they have been parked — updated_at is
+// unsuitable because unrelated writes touch it, and the run parked since June
+// carries an updated_at from August for exactly that reason.
+func (s *pgStore) findAbandonedGates(ctx context.Context, olderThan time.Duration, now time.Time) ([]abandonedGate, error) {
+	var rows []runRow
+	err := s.db.NewSelect().
+		Model(&rows).
+		Where("status = ?", string(orchestration.StatusAwaitingHuman)).
+		Scan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list awaiting_human runs: %w", err)
+	}
+
+	var abandoned []abandonedGate
+	for i := range rows {
+		run, err := rowToRun(&rows[i])
+		if err != nil {
+			return nil, fmt.Errorf("decode run %s: %w", rows[i].ID, err)
+		}
+
+		stepIndex, parkedSince := openGate(run)
+		if now.Sub(parkedSince) <= olderThan {
+			continue
+		}
+		abandoned = append(abandoned, abandonedGate{
+			run:         run,
+			stepIndex:   stepIndex,
+			parkedSince: parkedSince,
+		})
+	}
+	return abandoned, nil
+}
+
+// openGate locates the step holding the run open and when its wait began.
+// stepIndex is -1 when no step is marked awaiting_human, which can happen for
+// runs whose status and step log disagree.
+func openGate(run *orchestration.Run) (stepIndex int, parkedSince time.Time) {
+	for i := range run.Steps {
+		if run.Steps[i].Status != "awaiting_human" {
+			continue
+		}
+		if opened := run.Steps[i].GateOpenedAt; opened != nil {
+			return i, *opened
+		}
+		return i, run.CreatedAt
+	}
+	return -1, run.CreatedAt
+}

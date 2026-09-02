@@ -17,7 +17,7 @@ import (
 type pool struct {
 	size      int
 	queue     chan uuid.UUID                   // run IDs waiting for a worker
-	resumeChs map[uuid.UUID]chan bool          // per-run resume signals
+	resumeChs map[uuid.UUID]chan string        // per-run gate outcome signals
 	cancelFns map[uuid.UUID]context.CancelFunc // per-run context cancel for abort
 	mu        sync.Mutex
 	store     *pgStore
@@ -40,7 +40,7 @@ func newPool(size int, store *pgStore) *pool {
 	return &pool{
 		size:      size,
 		queue:     make(chan uuid.UUID, size*2),
-		resumeChs: make(map[uuid.UUID]chan bool),
+		resumeChs: make(map[uuid.UUID]chan string),
 		cancelFns: make(map[uuid.UUID]context.CancelFunc),
 		store:     store,
 		stopCh:    make(chan struct{}),
@@ -72,7 +72,7 @@ func (p *pool) stop() {
 // enqueue adds a run ID to the worker queue.
 func (p *pool) enqueue(runID uuid.UUID) {
 	p.mu.Lock()
-	p.resumeChs[runID] = make(chan bool, 1)
+	p.resumeChs[runID] = make(chan string, 1)
 	p.mu.Unlock()
 
 	slog.Info("orchestration: enqueuing run to worker pool",
@@ -94,7 +94,7 @@ func (p *pool) enqueue(runID uuid.UUID) {
 func (p *pool) recoverAwaiting(runIDs []uuid.UUID) {
 	for _, id := range runIDs {
 		p.mu.Lock()
-		p.resumeChs[id] = make(chan bool, 1)
+		p.resumeChs[id] = make(chan string, 1)
 		p.mu.Unlock()
 
 		// Re-enqueue so a worker picks it up and blocks on waitForResume.
@@ -108,6 +108,22 @@ func (p *pool) recoverAwaiting(runIDs []uuid.UUID) {
 
 // resume signals the worker blocked on the given run to continue or abort.
 func (p *pool) resume(runID uuid.UUID, committed bool) error {
+	outcome := orchestration.GateDiscarded
+	if committed {
+		outcome = orchestration.GateCommitted
+	}
+	return p.signalGate(runID, outcome)
+}
+
+// release resolves a gate nobody answered. It exists so the sweep can free the
+// worker goroutine a parked run is holding: recovered runs block in
+// waitForResume, so with a pool of N workers, N abandoned reviews would stall
+// orchestration entirely. Updating the database alone would not unblock them.
+func (p *pool) release(runID uuid.UUID) error {
+	return p.signalGate(runID, orchestration.GateAbandoned)
+}
+
+func (p *pool) signalGate(runID uuid.UUID, outcome string) error {
 	p.mu.Lock()
 	ch, ok := p.resumeChs[runID]
 	p.mu.Unlock()
@@ -117,7 +133,7 @@ func (p *pool) resume(runID uuid.UUID, committed bool) error {
 	}
 
 	select {
-	case ch <- committed:
+	case ch <- outcome:
 	default:
 		return fmt.Errorf("resume channel full for run %s", runID)
 	}
@@ -230,12 +246,20 @@ func (p *pool) executeRun(runID uuid.UUID) {
 
 			// GateOpenedAt is deliberately not re-stamped here. The gate opened
 			// before the restart, and the reviewer's wait includes the downtime.
-			committed, ok := p.waitForResume(runID)
+			outcome, ok := p.waitForResume(runID)
 			if !ok {
 				return // server shutting down
 			}
-			if !committed {
-				recordGateCleared(ctx, run, i, orchestration.GateDiscarded)
+			if outcome != orchestration.GateCommitted {
+				// The sweep that released an abandoned gate has already written
+				// the terminal state and the outcome. Writing again here would
+				// overwrite it with "aborted" and lose the distinction between
+				// a review nobody answered and one a reviewer rejected.
+				if outcome == orchestration.GateAbandoned {
+					p.cleanupResumeCh(runID)
+					return
+				}
+				recordGateCleared(ctx, run, i, outcome)
 				run.Steps[i].Status = "done"
 				_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAborted, step.Name, "", run.Steps)
 				p.publish(orchestration.Event{
@@ -348,13 +372,21 @@ func (p *pool) executeRun(runID uuid.UUID) {
 			})
 
 			// Block until resume signal.
-			committed, ok := p.waitForResume(runID)
+			outcome, ok := p.waitForResume(runID)
 			if !ok {
 				// stopCh was closed — server shutting down.
 				return
 			}
-			if !committed {
-				recordGateCleared(ctx, run, i, orchestration.GateDiscarded)
+			if outcome != orchestration.GateCommitted {
+				// The sweep that released an abandoned gate has already written
+				// the terminal state and the outcome. Writing again here would
+				// overwrite it with "aborted" and lose the distinction between
+				// a review nobody answered and one a reviewer rejected.
+				if outcome == orchestration.GateAbandoned {
+					p.cleanupResumeCh(runID)
+					return
+				}
+				recordGateCleared(ctx, run, i, outcome)
 				run.Steps[i].Status = "done" // mark current step as cancelled
 				_ = p.store.updateStatus(ctx, run.ID, orchestration.StatusAborted, step.Name, "", run.Steps)
 				p.publish(orchestration.Event{
@@ -417,7 +449,9 @@ func recordGateCleared(ctx context.Context, run *orchestration.Run, i int, outco
 }
 
 // waitForResume blocks until a resume signal is received or the pool is stopped.
-func (p *pool) waitForResume(runID uuid.UUID) (committed, ok bool) {
+// waitForResume blocks until the gate is resolved, returning how. ok is false
+// only when the pool is shutting down.
+func (p *pool) waitForResume(runID uuid.UUID) (outcome string, ok bool) {
 	p.mu.Lock()
 	ch := p.resumeChs[runID]
 	p.mu.Unlock()
@@ -426,7 +460,7 @@ func (p *pool) waitForResume(runID uuid.UUID) (committed, ok bool) {
 	case c := <-ch:
 		return c, true
 	case <-p.stopCh:
-		return false, false
+		return "", false
 	}
 }
 
@@ -460,10 +494,11 @@ func (p *pool) abort(ctx context.Context, runID uuid.UUID) error {
 		}
 	}
 
-	// If awaiting human review, send the discard signal.
+	// If awaiting human review, send the discard signal. An explicit abort is
+	// a decision, so it records as discarded rather than abandoned.
 	if resumeCh != nil {
 		select {
-		case resumeCh <- false:
+		case resumeCh <- orchestration.GateDiscarded:
 			// Signal sent — the worker will handle abort.
 		default:
 			// Channel already has a value — worker will process it.

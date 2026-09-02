@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // ServerCmd is the subcommand for running the HTTP/MCP server.
 type ServerCmd struct{}
@@ -67,6 +70,14 @@ type Config struct {
 
 	// Auth
 	AuthEnabled bool `arg:"--auth-enabled,env:AUTH_ENABLED" default:"false" help:"Enable authentication"`
+
+	// Orchestration
+	//
+	// The default is a placeholder, not a considered value: no human gate in
+	// this system has ever been observed clearing, so there is no evidence yet
+	// for what a normal review takes. It is set long enough to be safe and will
+	// be revised once gate durations are actually recorded.
+	AbandonGatesAfter time.Duration `arg:"--abandon-gates-after,env:ABANDON_GATES_AFTER" default:"336h" help:"Release runs left awaiting human review for longer than this (0 disables)"`
 
 	// Zitadel OIDC
 	ZitadelIssuer         string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`

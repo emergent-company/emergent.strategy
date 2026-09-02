@@ -250,3 +250,167 @@ func TestGate_OmittedWhenAbsent(t *testing.T) {
 		}
 	}
 }
+
+// ── abandoned-gate sweep ──────────────────────────────────────────────────────
+
+func newSweepBackend(t *testing.T, wf *mockWorkflow, cfg orchpg.Config) *orchpg.Backend {
+	t.Helper()
+
+	be := orchpg.NewBackend(database.TestDB(t), cfg)
+	if err := be.Start(t.Context(), map[string]orchestration.Workflow{wf.name: wf}); err != nil {
+		t.Fatalf("start backend: %v", err)
+	}
+	t.Cleanup(func() { _ = be.Stop(context.Background()) })
+	return be
+}
+
+// TestSweep_ReleasesRunParkedPastThreshold covers the run that has sat in the
+// dev database since June holding its instance's slot.
+func TestSweep_ReleasesRunParkedPastThreshold(t *testing.T) {
+	wf := gatedWorkflow("sweep_release_wf", "batch-1")
+	be := newSweepBackend(t, wf, orchpg.Config{
+		Workers: 2,
+		// Everything parked is past the threshold, and the sweep runs at Start.
+		AbandonGatesAfter: time.Nanosecond,
+		SweepInterval:     50 * time.Millisecond,
+	})
+	run := startGatedRun(t, be, wf)
+
+	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+	released := awaitStatus(t, be, run.ID, orchestration.StatusFailed)
+
+	gated := stepByName(t, released, "gated")
+	if gated.GateOutcome != orchestration.GateAbandoned {
+		t.Errorf("GateOutcome = %q, want %q", gated.GateOutcome, orchestration.GateAbandoned)
+	}
+	if gated.GateClearedAt == nil {
+		t.Error("GateClearedAt not recorded when the gate was released")
+	}
+	if released.Error == "" {
+		t.Error("released run carries no error explaining why")
+	}
+}
+
+// TestSweep_ReleaseIsDistinctFromDiscard is why the resume channel carries an
+// outcome rather than a bool: an abandoned review and a reviewer's rejection
+// are different facts, and conflating them would corrupt the very measurement
+// this work exists to produce.
+func TestSweep_ReleaseIsDistinctFromDiscard(t *testing.T) {
+	wf := gatedWorkflow("sweep_distinct_wf", "batch-1")
+	be := newGateBackend(t, wf) // no sweep configured
+	run := startGatedRun(t, be, wf)
+
+	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+	if err := be.Resume(t.Context(), run.ID, false); err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+
+	aborted := awaitStatus(t, be, run.ID, orchestration.StatusAborted)
+	if got := stepByName(t, aborted, "gated").GateOutcome; got != orchestration.GateDiscarded {
+		t.Errorf("GateOutcome = %q, want %q — a reviewer's discard must not read as abandoned", got, orchestration.GateDiscarded)
+	}
+}
+
+// TestSweep_FreesTheWorkerGoroutine is the property that matters most.
+//
+// Recovered runs block a worker in waitForResume, so with a pool of N workers,
+// N abandoned reviews stall orchestration for every instance. Updating the
+// database alone would leave the goroutines parked and the pool dead, so this
+// fills the pool with abandoned gates and then requires unrelated work to run.
+func TestSweep_FreesTheWorkerGoroutine(t *testing.T) {
+	const workers = 2
+
+	wf := gatedWorkflow("sweep_worker_wf", "batch-1")
+	be := newSweepBackend(t, wf, orchpg.Config{
+		Workers:           workers,
+		AbandonGatesAfter: time.Nanosecond,
+		SweepInterval:     50 * time.Millisecond,
+	})
+
+	// Park enough runs to occupy every worker.
+	parked := make([]*orchestration.Run, 0, workers)
+	for range workers {
+		run := startGatedRun(t, be, wf)
+		awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+		parked = append(parked, run)
+	}
+	for _, run := range parked {
+		awaitStatus(t, be, run.ID, orchestration.StatusFailed)
+	}
+
+	// If the workers were still blocked, this run would never start.
+	fresh := startGatedRun(t, be, wf)
+	awaitStatus(t, be, fresh.ID, orchestration.StatusAwaitingHuman)
+}
+
+// TestSweep_LeavesRunWithinThresholdAlone guards against a sweep that eats
+// live reviews.
+func TestSweep_LeavesRunWithinThresholdAlone(t *testing.T) {
+	wf := gatedWorkflow("sweep_within_wf", "batch-1")
+	be := newSweepBackend(t, wf, orchpg.Config{
+		Workers:           2,
+		AbandonGatesAfter: time.Hour,
+		SweepInterval:     50 * time.Millisecond,
+	})
+	run := startGatedRun(t, be, wf)
+
+	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+	time.Sleep(200 * time.Millisecond) // several sweep intervals
+
+	still, err := be.GetRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if still.Status != orchestration.StatusAwaitingHuman {
+		t.Fatalf("run within the threshold was released: status %s", still.Status)
+	}
+
+	// And it must still be resumable.
+	if err := be.Resume(t.Context(), run.ID, true); err != nil {
+		t.Fatalf("resume after sweep: %v", err)
+	}
+	awaitStatus(t, be, run.ID, orchestration.StatusCompleted)
+}
+
+// TestSweep_DisabledByDefault — a zero threshold must not release anything,
+// or simply upgrading would destroy in-flight reviews.
+func TestSweep_DisabledByDefault(t *testing.T) {
+	wf := gatedWorkflow("sweep_off_wf", "batch-1")
+	be := newSweepBackend(t, wf, orchpg.Config{Workers: 2}) // AbandonGatesAfter unset
+	run := startGatedRun(t, be, wf)
+
+	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+	time.Sleep(200 * time.Millisecond)
+
+	still, err := be.GetRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if still.Status != orchestration.StatusAwaitingHuman {
+		t.Fatalf("sweep ran while disabled: status %s", still.Status)
+	}
+}
+
+// TestSweep_FreesTheConcurrencySlot — one active cycle is allowed per
+// instance, so an abandoned review blocks every later cycle for that instance
+// until the run reaches a terminal state.
+func TestSweep_FreesTheConcurrencySlot(t *testing.T) {
+	wf := gatedWorkflow("sweep_slot_wf", "batch-1")
+	be := newSweepBackend(t, wf, orchpg.Config{
+		Workers:           2,
+		AbandonGatesAfter: time.Nanosecond,
+		SweepInterval:     50 * time.Millisecond,
+	})
+
+	run := startGatedRun(t, be, wf)
+	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
+	awaitStatus(t, be, run.ID, orchestration.StatusFailed)
+
+	active, err := be.ActiveRun(t.Context(), wf.name, run.ConcurrencyKey)
+	if err != nil {
+		t.Fatalf("active run: %v", err)
+	}
+	if active != nil {
+		t.Fatalf("instance still has an active run after release: %s (%s)", active.ID, active.Status)
+	}
+}

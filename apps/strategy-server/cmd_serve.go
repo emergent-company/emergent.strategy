@@ -147,7 +147,10 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// Orchestration engine — PostgreSQL-backed goroutine pool.
-	orchBackend := orchpg.NewBackend(db, orchpg.Config{Workers: 4})
+	orchBackend := orchpg.NewBackend(db, orchpg.Config{
+		Workers:           4,
+		AbandonGatesAfter: cfg.AbandonGatesAfter,
+	})
 	orchEngine := orchestration.New(orchBackend)
 	// Skill run ledger — tracks all autonomous skill executions.
 	skillRunSvc := skillrundom.NewService(db)
