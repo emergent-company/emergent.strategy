@@ -202,9 +202,16 @@ runs.
     `context.WithoutCancel` derivative.
   - 34 tests, clean under `-race` across 3 repeated runs, including the real
     `domain/aim.CycleWorkflow` (not just a fake) registering successfully.
-- [ ] Feature flag `ADK_ENGINE` (legacy default) so both engines coexist behind
-      `orchpg.Config`-style wiring in `cmd_serve.go` until parity is proven.
-      Follow the `AuthEnabled` bool pattern in `config/config.go`.
+- [x] Feature flag `ADK_ENGINE` (legacy default), `config/config.go`. Both
+      engines satisfy `EngineAPI` and register the identical
+      `*aimdom.CycleWorkflow` value, so the swap in `cmd_serve.go` is one
+      branch. Verified against the real dev database, not just compiled: both
+      startup paths logged and shut down correctly.
+- [x] Abandoned-gate sweep added to `ADKEngine` (not originally scoped for
+      B4d, but skipping it would have regressed the protection
+      `instrument-cycle-gates` just built). Simpler than the legacy version:
+      an ADK run's `drive()` goroutine has already exited by the time a gate
+      is open, so releasing is a status write, not a signal to a worker.
 - [ ] Parity: the 33 existing AIM tests (15 unit, 9 e2e, 9 scenario) pass
       against the ADK engine with the flag flipped.
 - [ ] Restart-resume: kill the process mid-cycle at a gate, confirm the ADK
