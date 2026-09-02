@@ -186,8 +186,11 @@ func TestADKEngine_GatedStep_Discard_AbortsRun(t *testing.T) {
 	if draft.GateOutcome != orchestration.GateDiscarded {
 		t.Errorf("GateOutcome = %q, want %q", draft.GateOutcome, orchestration.GateDiscarded)
 	}
-	if len(aborted.Steps) != 1 {
-		t.Errorf("apply ran after a discard: %+v", aborted.Steps)
+	// "apply" is pre-populated as a pending placeholder from the start (so
+	// the run panel can show the whole pipeline upfront), so its presence in
+	// Steps proves nothing on its own — status is what shows it never ran.
+	if got := stepIn(t, aborted, "apply").Status; got != "pending" {
+		t.Errorf("apply status = %q after a discard, want pending (it must not have run)", got)
 	}
 }
 

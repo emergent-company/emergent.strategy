@@ -77,8 +77,9 @@ type ADKEngine struct {
 	sessions adksession.Service
 	cfg      ADKEngineConfig
 
-	mu      sync.RWMutex
-	runners map[string]*runner.Runner
+	mu        sync.RWMutex
+	runners   map[string]*runner.Runner
+	stepNames map[string][]string
 
 	cancelMu sync.Mutex
 	cancels  map[uuid.UUID]context.CancelFunc
@@ -94,11 +95,12 @@ func NewADKEngine(store *RunStore, sessions adksession.Service, cfg ADKEngineCon
 		cfg.SweepInterval = time.Hour
 	}
 	return &ADKEngine{
-		store:    store,
-		sessions: sessions,
-		cfg:      cfg,
-		runners:  make(map[string]*runner.Runner),
-		cancels:  make(map[uuid.UUID]context.CancelFunc),
+		store:     store,
+		sessions:  sessions,
+		cfg:       cfg,
+		runners:   make(map[string]*runner.Runner),
+		stepNames: make(map[string][]string),
+		cancels:   make(map[uuid.UUID]context.CancelFunc),
 	}
 }
 
@@ -139,8 +141,15 @@ func (e *ADKEngine) Register(w orchestration.Workflow) {
 		return
 	}
 
+	steps := provider.CycleSteps()
+	names := make([]string, len(steps))
+	for i, s := range steps {
+		names[i] = s.Name
+	}
+
 	e.mu.Lock()
 	e.runners[w.Name()] = r
+	e.stepNames[w.Name()] = names
 	e.mu.Unlock()
 }
 
@@ -491,6 +500,25 @@ func (e *ADKEngine) drive(ctx context.Context, r *runner.Runner, run *orchestrat
 			run.Steps[idx].GateOutcome = resumeOutcome
 		} else {
 			slog.ErrorContext(persistCtx, "aimadk: resume but no open gate found to clear", "run_id", run.ID)
+		}
+	}
+
+	// Pre-populate a pending placeholder for every registered step, exactly
+	// as the legacy engine's worker does before its own first "running"
+	// write (pkg/orchestration/pg/pool.go). Without this, the run panel has
+	// nothing to show for a step that has not executed yet — under this
+	// engine specifically, run.Steps starts empty and only grows as steps
+	// complete, so a run paused at the first gate would render only that one
+	// step and omit the rest of the pipeline the legacy engine shows
+	// upfront. Only fires once: a resumed run already has entries.
+	if len(run.Steps) == 0 {
+		e.mu.RLock()
+		names := e.stepNames[run.WorkflowName]
+		e.mu.RUnlock()
+
+		run.Steps = make([]orchestration.StepLog, len(names))
+		for i, name := range names {
+			run.Steps[i] = orchestration.StepLog{Name: name, Status: "pending"}
 		}
 	}
 
