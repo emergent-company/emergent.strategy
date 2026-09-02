@@ -212,11 +212,22 @@ type Config struct {
 	CompletionsPath string
 
 	// Model is the model name (e.g., "llama3.2:8b", "gpt-4o-mini",
-	// "google/gemini-3.5-flash" for Vertex).
+	// "google/gemini-3.5-flash" for Vertex, "eu.anthropic.claude-..." for
+	// Bedrock).
 	Model string
 
 	// Timeout for HTTP requests. Defaults to 60s.
 	Timeout time.Duration
+
+	// BedrockRegion is the AWS region for the Bedrock provider (e.g.
+	// "eu-central-1"). Required by NewBedrock; ignored by the
+	// OpenAI-compatible client.
+	BedrockRegion string
+
+	// MaxTokens bounds the response length. Anthropic requires this on every
+	// request, so the Bedrock provider substitutes a default when unset. The
+	// OpenAI-compatible client leaves it unset (the API treats it as optional).
+	MaxTokens int
 }
 
 // defaultCompletionsPath is the standard OpenAI chat completions path.

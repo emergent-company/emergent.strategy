@@ -157,21 +157,24 @@ func runServer(cfg *config.Config) error {
 	// Uses a separate LLM client with a longer timeout: skill prompts are large
 	// (full artifact JSON + schema constraints) and routinely exceed 60 seconds.
 	var skillExecutor *skillexec.Executor
-	// Nil-check the concrete *llm.Client before it reaches the llm.Provider
-	// field: a typed nil pointer would become a non-nil interface and panic
-	// deep inside skillexec rather than degrading to skeleton mode here.
-	var skillLLMClient *llm.Client
+	// newLLMProvider returns a genuinely nil Provider on failure, so this stays
+	// a meaningful nil check rather than a typed nil hiding in an interface.
+	var skillLLMProvider llm.Provider
 	if llmClient != nil {
-		skillLLMCfg, _ := buildLLMConfig(cfg) // llmClient!=nil ⇒ config already valid
-		skillLLMCfg.Timeout = 5 * time.Minute
-		skillLLMClient = llm.New(skillLLMCfg)
+		var skillErr error
+		skillLLMProvider, skillErr = newLLMProvider(cfg, 5*time.Minute)
+		if skillErr != nil {
+			// llmClient != nil means the same config already built a provider,
+			// so this is unexpected — surface it rather than silently degrading.
+			log.Error("skill executor: provider construction failed despite valid LLM config", "err", skillErr)
+		}
 	}
-	if skillLLMClient != nil {
-		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMClient}
+	if skillLLMProvider != nil {
+		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMProvider}
 		skillExecutor = skillexec.New(db, packSvc, skillLLMAdapter).
 			WithActivityRecorder(activitySvc).
 			WithRunLedger(skillRunLedger).
-			WithModel(skillLLMClient.Model())
+			WithModel(skillLLMProvider.Model())
 		log.Info("skill executor enabled (autonomous mode)")
 	} else {
 		skillExecutor = skillexec.New(db, packSvc, nil). // skeleton mode
@@ -432,7 +435,18 @@ func setupSemantic(cfg *config.Config, log *slog.Logger) *semantic.Service {
 // Vertex AI Application Default Credentials when LLM_AUTH_MODE=vertex. In Vertex
 // mode the endpoint is derived from project+location, auth is an auto-refreshing
 // ADC token source, and the completions path is Vertex's "/chat/completions".
+//
+// In bedrock mode no endpoint or credential is resolved here: the AWS SDK owns
+// endpoint construction, SigV4 signing, and credential refresh, so the config
+// carries only the region, model, and token bound.
 func buildLLMConfig(cfg *config.Config) (llm.Config, error) {
+	if cfg.IsBedrockLLM() {
+		return llm.Config{
+			BedrockRegion: cfg.LLMBedrockRegion,
+			Model:         cfg.LLMModel,
+			MaxTokens:     cfg.LLMMaxTokens,
+		}, nil
+	}
 	if cfg.IsVertexLLM() {
 		creds, err := google.FindDefaultCredentials(context.Background(),
 			"https://www.googleapis.com/auth/cloud-platform")
@@ -453,39 +467,72 @@ func buildLLMConfig(cfg *config.Config) (llm.Config, error) {
 	}, nil
 }
 
+// newLLMProvider constructs the LLM provider for the configured auth mode,
+// optionally overriding the request timeout (used for the skill executor, whose
+// prompts are large and routinely exceed the default).
+//
+// Every path returns a genuinely nil Provider on failure rather than a typed
+// nil pointer: the LLM is optional and callers branch on `provider != nil`, so
+// a typed nil inside a non-nil interface would panic at the call site instead
+// of degrading to skeleton/formula mode.
+//
+// The timeout applies only to the OpenAI-compatible client, which owns its HTTP
+// client. Bedrock request deadlines come from the caller's context, which the
+// AWS SDK honours.
+func newLLMProvider(cfg *config.Config, timeout time.Duration) (llm.Provider, error) {
+	llmCfg, err := buildLLMConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if timeout > 0 {
+		llmCfg.Timeout = timeout
+	}
+
+	if cfg.IsBedrockLLM() {
+		return llm.NewBedrock(context.Background(), llmCfg)
+	}
+
+	c := llm.New(llmCfg)
+	if c == nil {
+		return nil, fmt.Errorf("llm: no provider URL configured (set LLM_PROVIDER_URL, or use LLM_AUTH_MODE=vertex|bedrock)")
+	}
+	return c, nil
+}
+
+// llmModeAndEndpoint renders the configured auth mode and its effective
+// endpoint for operator-facing logs.
+func llmModeAndEndpoint(cfg *config.Config) (mode, endpoint string) {
+	switch {
+	case cfg.IsBedrockLLM():
+		return "bedrock", fmt.Sprintf("bedrock-runtime.%s.amazonaws.com", cfg.LLMBedrockRegion)
+	case cfg.IsVertexLLM():
+		return "vertex", cfg.VertexBaseURL()
+	default:
+		return "api-key", cfg.LLMProviderURL
+	}
+}
+
 // setupLLM constructs the LLM provider when configured. Returns nil when the LLM
 // provider is not configured (convergence then runs in agent-orchestrated mode).
-//
-// The nil check on the concrete *llm.Client below is deliberate: returning a
-// typed nil pointer as a Provider would yield a non-nil interface and defeat
-// every `provider != nil` check downstream.
 func setupLLM(cfg *config.Config, log *slog.Logger) llm.Provider {
 	if !cfg.LLMConfigured() {
 		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
 		return nil
 	}
-	llmCfg, cfgErr := buildLLMConfig(cfg)
-	if cfgErr != nil {
-		log.Error("llm provider configuration failed — LLM-backed features disabled", "err", cfgErr)
+	llmClient, provErr := newLLMProvider(cfg, 0)
+	if provErr != nil {
+		log.Error("llm provider configuration failed — LLM-backed features disabled", "err", provErr)
 		return nil
 	}
-	llmClient := llm.New(llmCfg)
-	if llmClient == nil {
-		return nil
-	}
+	mode, endpoint := llmModeAndEndpoint(cfg)
 
-	// Preflight: a non-nil client only means the URL was set — it does NOT mean
-	// the provider will accept generation requests (the project may be denied,
-	// suspended, the key revoked, or the model name invalid). Probe once at boot
-	// so the operator sees the real status immediately instead of discovering it
-	// when an AIM cycle crashes mid-run. This never blocks startup: LLM is
-	// optional and the server degrades to agent-orchestrated/formula mode.
-	mode := "api-key"
-	endpoint := cfg.LLMProviderURL
-	if cfg.IsVertexLLM() {
-		mode = "vertex"
-		endpoint = cfg.VertexBaseURL()
-	}
+	// Preflight: a non-nil provider only means construction succeeded — it does
+	// NOT mean the provider will accept generation requests (the project may be
+	// denied, suspended, the key revoked, or the model name invalid). Probe once
+	// at boot so the operator sees the real status immediately instead of
+	// discovering it when an AIM cycle crashes mid-run. This never blocks
+	// startup: LLM is optional and the server degrades to
+	// agent-orchestrated/formula mode.
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if pingErr := llmClient.Ping(ctx); pingErr != nil {

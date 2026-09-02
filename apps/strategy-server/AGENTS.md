@@ -73,12 +73,14 @@ generates a `.env.local` file with sensible defaults. Key variables:
 | `EPF_MEMORY_URL` | `http://localhost:8787` | Memory server URL |
 | `EPF_MEMORY_PROJECT` | — | Memory project ID (set by `setup-memory.sh`) |
 | `EPF_MEMORY_TOKEN` | — | Memory project token |
-| `LLM_AUTH_MODE` | `api-key` | LLM auth mode: `api-key` or `vertex` (see LLM Provider Auth) |
-| `LLM_MODEL` | `gpt-4o-mini` | Model name (`google/gemini-3.5-flash` for vertex) |
+| `LLM_AUTH_MODE` | `api-key` | LLM auth mode: `api-key`, `vertex`, or `bedrock` (see LLM Provider Auth) |
+| `LLM_MODEL` | `gpt-4o-mini` | Model name (`google/gemini-3.5-flash` for vertex, `eu.anthropic.claude-…` for bedrock) |
 | `LLM_PROVIDER_URL` | — | OpenAI-compatible base URL (`api-key` mode only) |
 | `LLM_API_KEY` | — | Static Bearer token (`api-key` mode only) |
 | `LLM_VERTEX_PROJECT` | — | GCP project for Vertex AI (`vertex` mode) |
 | `LLM_VERTEX_LOCATION` | `global` | Vertex AI location (`vertex` mode) |
+| `LLM_BEDROCK_REGION` | — | AWS region for Bedrock, governs data residency (`bedrock` mode) |
+| `LLM_MAX_TOKENS` | `8192` (bedrock) | Max response tokens. Required by Anthropic; optional for OpenAI-compatible providers |
 
 ### Docker services
 
@@ -92,22 +94,38 @@ emulation (`platform: linux/amd64` in docker-compose).
 
 ### LLM Provider Auth — READ THIS BEFORE DEPLOYING
 
-The LLM client (`internal/llm/`) drives server-orchestrated convergence and the
+The LLM layer (`internal/llm/`) drives server-orchestrated convergence and the
 AIM cycle's `adapt_strategy` / `draft_assessment` skills. It is **optional** — if
 unconfigured or unreachable, the server degrades to agent-orchestrated/formula
-mode and never crashes. There are **two auth modes**, selected by `LLM_AUTH_MODE`:
+mode and never crashes. There are **three auth modes**, selected by `LLM_AUTH_MODE`:
 
-| Mode | Credential | Endpoint | When to use |
-|------|-----------|----------|-------------|
-| `api-key` (default) | Static Bearer token (`LLM_API_KEY`) | `LLM_PROVIDER_URL` + `/v1/chat/completions` | OpenAI, Ollama, AI Studio, any OpenAI-compatible proxy |
-| `vertex` | Google ADC (auto-refreshing OAuth token) | derived from `LLM_VERTEX_PROJECT` + `LLM_VERTEX_LOCATION` | Production Google Cloud / Gemini on Vertex AI |
+| Mode | Credential | Wire format | Endpoint | When to use |
+|------|-----------|-------------|----------|-------------|
+| `api-key` (default) | Static Bearer token (`LLM_API_KEY`) | OpenAI chat/completions | `LLM_PROVIDER_URL` + `/v1/chat/completions` | OpenAI, Ollama, AI Studio, any OpenAI-compatible proxy |
+| `vertex` | Google ADC (auto-refreshing OAuth token) | OpenAI chat/completions | derived from `LLM_VERTEX_PROJECT` + `LLM_VERTEX_LOCATION` | Production Google Cloud / Gemini on Vertex AI |
+| `bedrock` | AWS SDK default chain (SigV4, auto-refreshing) | Anthropic Messages | derived from `LLM_BEDROCK_REGION` | Claude on AWS Bedrock, incl. EU data residency |
 
 **These are genuinely different auth systems, not cosmetic variants.** `api-key`
 mode sends one permanent static secret. `vertex` mode mints a short-lived
 (~1h) OAuth token per request from Application Default Credentials, which the
-oauth2 library refreshes transparently — there is **no static key in config**.
-Model naming differs too: `models/gemini-3.5-flash` (AI Studio) vs
-`google/gemini-3.5-flash` (Vertex).
+oauth2 library refreshes transparently. `bedrock` mode signs each request with
+SigV4 using credentials the AWS SDK resolves and refreshes — there is **no
+static key in config** for either vertex or bedrock. Model naming differs too:
+`models/gemini-3.5-flash` (AI Studio) vs `google/gemini-3.5-flash` (Vertex) vs
+`eu.anthropic.claude-3-5-sonnet-20241022-v2:0` (Bedrock EU inference profile).
+
+**Architecture — the `Provider` seam.** All three modes sit behind the
+`llm.Provider` interface (`Chat`, `ChatWithFormat`, `Ping`, `Model`). Callers
+depend only on that interface and the classified `*APIError` contract, so
+adding a provider never touches a caller. The interface is deliberately shaped
+to become an ADK `model.LLM` registration in the ADK v2 migration.
+
+**Nil handling is load-bearing.** The LLM is optional, so every caller branches
+on `provider != nil`. Assigning a typed nil pointer (e.g. a nil `*llm.Client`)
+to a `Provider` yields a *non-nil* interface holding a nil pointer, which
+defeats those checks and panics at the call site. Always nil-check the concrete
+type before converting; `newLLMProvider` in `cmd_serve.go` is the single place
+that does this correctly for all three modes.
 
 **Why vertex is preferred for the server:** real IAM identity (least-privilege,
 revocable, audited via Cloud Audit Logs) instead of a shared bearer secret, plus
@@ -136,12 +154,52 @@ LLM_MODEL=google/gemini-3.5-flash
 # No LLM_API_KEY / LLM_PROVIDER_URL needed.
 ```
 
+**Bedrock mode requires an AWS principal entitled to the model.** Credentials
+come from the AWS SDK default chain — instance role / IRSA, `AWS_PROFILE` with a
+live SSO or STS session, or `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`. The
+SDK owns SigV4 signing and credential refresh; there is no static key in app
+config. Two things are easy to miss:
+
+- The principal needs `bedrock:InvokeModel` on the target model ARN.
+- The model must be **enabled for the account** in the Bedrock console under
+  *Model access*. Entitlement is per-account and per-region, and a missing
+  entitlement surfaces as `AccessDeniedException`, not as "model not found".
+
+`LLM_BEDROCK_REGION` governs **data residency** — pick an EU region (e.g.
+`eu-central-1`) when that is a requirement. Cross-region inference profiles are
+prefixed by geography (`eu.anthropic.…`) and keep inference inside that
+geography.
+
+Config example (bedrock, EU residency):
+
+```bash
+LLM_AUTH_MODE=bedrock
+LLM_BEDROCK_REGION=eu-central-1
+LLM_MODEL=eu.anthropic.claude-3-5-sonnet-20241022-v2:0
+# Optional: LLM_MAX_TOKENS=8192 (Anthropic requires a bound; this is the default)
+# No LLM_API_KEY / LLM_PROVIDER_URL needed.
+```
+
+**Structured output on Bedrock is instruction-based.** The Anthropic Messages
+API has no native `response_format`, so `FormatJSON` appends a JSON-only
+instruction to the system prompt. This is an enforcement *hint*, not a
+guarantee — skillexec's existing validation-and-repair retry loop is what makes
+it reliable. Do not assume the first response parses.
+
 **Boot preflight + health:** on startup `setupLLM` makes one live `Ping` call and
 logs `preflight ok` (or a loud, classified error). `/health` live-probes the LLM
 on each check and reports `llm: ok` / `degraded` (degraded does not fail overall
-health, since LLM is optional). Vertex 403s mean an IAM/ADC problem
-(`roles/aiplatform.user` missing or ADC expired), **not** a project ban — the
-classified error message states the exact remediation.
+health, since LLM is optional).
+
+Classified failures state the exact remediation:
+
+- **Vertex 403** — an IAM/ADC problem (`roles/aiplatform.user` missing or ADC
+  expired), **not** a project ban.
+- **Bedrock `AccessDeniedException`** — missing `bedrock:InvokeModel` permission
+  or model access not enabled for the account.
+- **Bedrock credential-resolution failure** — the request never reached AWS.
+  Reported as access-denied (not "unknown") so it is not mistaken for a
+  transient fault; the remediation lists the credential sources to try.
 
 ## Build & Test
 

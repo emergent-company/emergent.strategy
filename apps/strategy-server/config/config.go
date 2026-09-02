@@ -104,31 +104,51 @@ type Config struct {
 	LLMAPIKey      string `arg:"env:LLM_API_KEY" help:"LLM API key (Bearer token; empty for Ollama local or vertex auth mode)"`
 	LLMModel       string `arg:"env:LLM_MODEL" default:"gpt-4o-mini" help:"LLM model name (e.g. gpt-4o-mini, claude-sonnet-4-20250514, llama3.2:8b, google/gemini-3.5-flash for vertex)"`
 
-	// LLM auth mode: "api-key" (default, static Bearer token) or "vertex"
+	// LLM auth mode: "api-key" (default, static Bearer token), "vertex"
 	// (Google Vertex AI via Application Default Credentials with hourly token
-	// refresh). In vertex mode, LLM_PROVIDER_URL/LLM_API_KEY are ignored and the
-	// endpoint is derived from LLM_VERTEX_PROJECT + LLM_VERTEX_LOCATION.
-	LLMAuthMode       string `arg:"env:LLM_AUTH_MODE" default:"api-key" help:"LLM auth mode: api-key or vertex"`
+	// refresh), or "bedrock" (AWS Bedrock via the SDK default credential chain
+	// with SigV4 signing). In vertex mode, LLM_PROVIDER_URL/LLM_API_KEY are
+	// ignored and the endpoint is derived from LLM_VERTEX_PROJECT +
+	// LLM_VERTEX_LOCATION. In bedrock mode they are likewise ignored and the
+	// endpoint is derived from LLM_BEDROCK_REGION.
+	LLMAuthMode       string `arg:"env:LLM_AUTH_MODE" default:"api-key" help:"LLM auth mode: api-key, vertex, or bedrock"`
 	LLMVertexProject  string `arg:"env:LLM_VERTEX_PROJECT" help:"Google Cloud project ID for Vertex AI (LLM_AUTH_MODE=vertex)"`
 	LLMVertexLocation string `arg:"env:LLM_VERTEX_LOCATION" default:"global" help:"Vertex AI location (e.g. global, us-central1)"`
+
+	// Bedrock (LLM_AUTH_MODE=bedrock). Credentials come from the AWS SDK
+	// default chain (instance role / STS / SSO / environment) — there is no
+	// static key in config. The region governs data residency.
+	LLMBedrockRegion string `arg:"env:LLM_BEDROCK_REGION" help:"AWS region for Bedrock (e.g. eu-central-1) (LLM_AUTH_MODE=bedrock)"`
+	LLMMaxTokens     int    `arg:"env:LLM_MAX_TOKENS" help:"Max response tokens. Required by Anthropic/Bedrock (defaults to 8192 there); optional for OpenAI-compatible providers."`
 
 	// Heartbeat (continuous trigger evaluation)
 	HeartbeatInterval int `arg:"env:HEARTBEAT_INTERVAL" default:"300" help:"Seconds between heartbeat trigger evaluations (default: 300 = 5 minutes; 0 disables)"`
 }
 
-// LLMConfigured returns true when LLM provider settings are provided. This is
-// either a direct provider URL (api-key mode) or Vertex mode with a project.
+// LLMConfigured returns true when LLM provider settings are provided: a direct
+// provider URL (api-key mode), Vertex mode with a project, or Bedrock mode with
+// a region.
 func (c *Config) LLMConfigured() bool {
-	if c.IsVertexLLM() {
+	switch {
+	case c.IsVertexLLM():
 		return c.LLMVertexProject != ""
+	case c.IsBedrockLLM():
+		return c.LLMBedrockRegion != ""
+	default:
+		return c.LLMProviderURL != ""
 	}
-	return c.LLMProviderURL != ""
 }
 
 // IsVertexLLM reports whether the LLM is configured to use Google Vertex AI via
 // Application Default Credentials.
 func (c *Config) IsVertexLLM() bool {
 	return c.LLMAuthMode == "vertex"
+}
+
+// IsBedrockLLM reports whether the LLM is configured to use AWS Bedrock via the
+// SDK default credential chain (SigV4).
+func (c *Config) IsBedrockLLM() bool {
+	return c.LLMAuthMode == "bedrock"
 }
 
 // VertexBaseURL builds the Vertex AI OpenAI-compatible endpoint base URL for the
