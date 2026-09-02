@@ -51,7 +51,7 @@ func TestAbandonGatesAfter_SweepIsOnByDefault(t *testing.T) {
 	if cfg.AbandonGatesAfter <= 0 {
 		t.Fatalf("AbandonGatesAfter = %v on a plain start; the sweep would be off and parked runs would rot", cfg.AbandonGatesAfter)
 	}
-	if got, want := cfg.AbandonGatesAfter, 14*24*time.Hour; got != want {
+	if got, want := cfg.AbandonGatesAfter, 60*24*time.Hour; got != want {
 		t.Errorf("default threshold = %v, want %v", got, want)
 	}
 }

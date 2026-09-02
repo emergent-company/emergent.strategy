@@ -75,9 +75,10 @@ type Config struct {
 	//
 	// The default is a placeholder, not a considered value: no human gate in
 	// this system has ever been observed clearing, so there is no evidence yet
-	// for what a normal review takes. It is set long enough to be safe and will
-	// be revised once gate durations are actually recorded.
-	AbandonGatesAfter time.Duration `arg:"--abandon-gates-after,env:ABANDON_GATES_AFTER" default:"336h" help:"Release runs left awaiting human review for longer than this (0 disables)"`
+	// for what a normal review takes. Set generously (60 days) while that data
+	// is collected, favouring a true duration over an early release — revise
+	// once gate durations are actually recorded.
+	AbandonGatesAfter time.Duration `arg:"--abandon-gates-after,env:ABANDON_GATES_AFTER" default:"1440h" help:"Release runs left awaiting human review for longer than this (0 disables)"`
 
 	// Zitadel OIDC
 	ZitadelIssuer         string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
