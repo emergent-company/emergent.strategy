@@ -212,8 +212,33 @@ runs.
       `instrument-cycle-gates` just built). Simpler than the legacy version:
       an ADK run's `drive()` goroutine has already exited by the time a gate
       is open, so releasing is a status write, not a signal to a worker.
-- [ ] Parity: the 33 existing AIM tests (15 unit, 9 e2e, 9 scenario) pass
-      against the ADK engine with the flag flipped.
+- [x] Parity. The "33 tests" figure this task was scoped around was stale:
+      `domain/aim`'s 15 tests construct bare `orchestration.Run` structs, no
+      engine involved, and the 9 `tests/scenario` tests never reference
+      `orchestration` at all (ripple/convergence logic, unrelated to which
+      engine runs AIM). The actual engine-dependent surface was the 9 tests in
+      `tests/e2e/aim_orchestrator_test.go`.
+
+      Converted those 9 into subtests over both engines — one suite whose
+      assertions hold regardless of which engine produced the observed
+      HTTP/SSE behaviour, not two separate suites. Required widening
+      `noopWorkflow` with a `CycleSteps()` alongside its existing `Steps()`,
+      since a fixture built only in the legacy shape cannot register against
+      `ADKEngine` at all.
+
+      **Found a real gap.** `TestGetRun_ReturnsRunPanel/adk` failed: the run
+      panel never mentioned the "snapshot" step. The legacy worker
+      pre-populates a pending placeholder for every step before its first
+      "running" write; `ADKEngine` had no equivalent, so a run paused at the
+      first gate rendered only that one step and silently dropped the rest of
+      the pipeline. Fixed by recording step names at `Register` time and
+      pre-populating the same placeholders. Added
+      `TestServerRestart_MarksStaleRunsFailed_ADK` alongside the existing
+      legacy-only version — a separate test, since the two engines' restart
+      mechanics are genuinely different internally, but the externally
+      observed outcome has to match and now does.
+
+      All 9 e2e tests pass both engine subtests; clean under `-race`.
 - [ ] Restart-resume: kill the process mid-cycle at a gate, confirm the ADK
       engine resumes correctly on the next start, matching
       `TestSessionStore_SurvivesProcessRestart`'s guarantee at the engine
