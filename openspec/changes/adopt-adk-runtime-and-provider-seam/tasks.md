@@ -239,10 +239,31 @@ runs.
       observed outcome has to match and now does.
 
       All 9 e2e tests pass both engine subtests; clean under `-race`.
-- [ ] Restart-resume: kill the process mid-cycle at a gate, confirm the ADK
-      engine resumes correctly on the next start, matching
-      `TestSessionStore_SurvivesProcessRestart`'s guarantee at the engine
-      level.
+- [x] Restart-resume: `internal/aimadk/restart_proof_test.go`, a real process
+      kill, not a simulation. In-process "discard one engine, build another"
+      cannot test this: the old value's `drive()` goroutine keeps running (Go
+      does not garbage-collect live goroutines) and would keep writing to the
+      rows the "recovery" engine reads. Uses Go's standard re-exec-the-test-
+      binary pattern — the parent spawns a helper subprocess via `os.Args[0]`,
+      waits for it to report (via a file) that its run reached a human gate,
+      then calls `Process.Kill()` (SIGKILL: immediate, uncatchable, no
+      deferred cleanup in the helper ever runs). A fresh engine in the parent
+      process — sharing no Go value with the helper, only the database and
+      the workflow's name — then verifies the row is untouched, recovers, and
+      resumes to completion.
+
+      One real bug found before the test could even run meaningfully: the
+      helper's terminal wait used `select{}`, but by the time a run reaches a
+      gate `drive()` has already exited (no goroutine blocks waiting for
+      human input under this engine), so `select{}` with nothing else alive
+      is exactly what Go's deadlock detector looks for — it would have
+      crashed the helper with "fatal error: all goroutines are asleep" before
+      any real signal arrived. Fixed with a scheduled `time.Sleep`.
+
+      Verified not vacuous two ways: asserted `Wait()` reports "signal:
+      killed" rather than a clean exit, and confirmed by deliberate mutation
+      that the test fails when the property it checks is false. Clean across
+      5 sequential runs and 3 repetitions under `-race`.
 
 ### B4. skillexec → SingleTurn nodes — still deferred
 
