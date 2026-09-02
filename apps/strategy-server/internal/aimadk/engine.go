@@ -498,6 +498,17 @@ func (e *ADKEngine) drive(ctx context.Context, r *runner.Runner, run *orchestrat
 			now := time.Now().UTC()
 			run.Steps[idx].GateClearedAt = &now
 			run.Steps[idx].GateOutcome = resumeOutcome
+			// Without this, the step's Status stays "awaiting_human" forever.
+			// openGateIndex finds the FIRST such step, so a workflow with more
+			// than one gate — the real AIM cycle has four — would submit this
+			// stale gate's interrupt id on every later resume instead of the
+			// one actually open, and ADK would reject it with
+			// ErrNothingToResume ("no waiting node matched the supplied
+			// responses"). Found by manual testing, not by any test in this
+			// package: every test fixture here had at most one gate, so two
+			// resolved-but-not-closed entries never coexisted long enough to
+			// collide. See TestADKEngine_TwoSequentialGates_EachResumesCorrectly.
+			run.Steps[idx].Status = "done"
 		} else {
 			slog.ErrorContext(persistCtx, "aimadk: resume but no open gate found to clear", "run_id", run.ID)
 		}

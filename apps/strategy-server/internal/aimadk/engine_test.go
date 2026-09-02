@@ -85,6 +85,31 @@ func awaitEngineStatus(t *testing.T, engine *aimadk.ADKEngine, runID uuid.UUID, 
 	return nil
 }
 
+// awaitEngineStep polls until the run reaches wantStatus AND CurrentStep ==
+// wantStep together, disambiguating a status a run can revisit more than
+// once (awaiting_human, once per gate) from an earlier, now-stale occurrence
+// of the same status.
+func awaitEngineStep(t *testing.T, engine *aimadk.ADKEngine, runID uuid.UUID, wantStatus orchestration.RunStatus, wantStep string) *orchestration.Run {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+	var lastStatus orchestration.RunStatus
+	var lastStep string
+	for time.Now().Before(deadline) {
+		run, err := engine.GetRun(t.Context(), runID)
+		if err == nil {
+			lastStatus, lastStep = run.Status, run.CurrentStep
+			if run.Status == wantStatus && run.CurrentStep == wantStep {
+				return run
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("run %s never reached status=%s step=%q (last status=%q step=%q)",
+		runID, wantStatus, wantStep, lastStatus, lastStep)
+	return nil
+}
+
 func stepIn(t *testing.T, run *orchestration.Run, name string) orchestration.StepLog {
 	t.Helper()
 	for _, s := range run.Steps {
@@ -161,6 +186,79 @@ func TestADKEngine_GatedStep_PausesThenCommits(t *testing.T) {
 	}
 	if stepIn(t, done, "apply").Status != "done" {
 		t.Error("apply did not run after commit")
+	}
+}
+
+// TestADKEngine_TwoSequentialGates_EachResumesCorrectly reproduces a bug
+// found by manual testing against the real AIM cycle (four gates in
+// sequence), not by any test in this package: every other fixture here has
+// at most one gate, so a step whose gate cleared but whose Status stayed
+// "awaiting_human" never had a second gate downstream to collide with.
+//
+// The real symptom, verbatim from the dev database: the run reached
+// draft_calibration correctly, but resuming its gate failed with ADK's
+// "workflow: no waiting node matched the supplied responses" — because
+// openGateIndex found draft_assessment's already-resolved gate (still marked
+// awaiting_human) instead of draft_calibration's actually-open one, and
+// submitted its stale interrupt id.
+func TestADKEngine_TwoSequentialGates_EachResumesCorrectly(t *testing.T) {
+	wf := &fakeWorkflow{name: "two_gate_wf", steps: []aim.Step{
+		fakeStep("first", true, "batch-first"),
+		fakeStep("second", true, "batch-second"),
+		fakeStep("third", false, ""),
+	}}
+	engine := newEngine(t, wf)
+
+	run, err := engine.StartRun(t.Context(), "two_gate_wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start run: %v", err)
+	}
+
+	// First gate: must open on "first" specifically, not drift onto a wrong
+	// step by coincidence of ordering.
+	paused1 := awaitEngineStatus(t, engine, run.ID, orchestration.StatusAwaitingHuman)
+	if stepIn(t, paused1, "first").BatchID != "batch-first" {
+		t.Fatalf("first gate did not open on %q: %+v", "first", paused1.Steps)
+	}
+
+	if err := engine.Resume(t.Context(), run.ID, true); err != nil {
+		t.Fatalf("resume first gate: %v", err)
+	}
+
+	// Second gate: this is exactly the resume that failed in the field. If
+	// the bug is present, this either times out (run stuck "running" forever
+	// with the resume silently rejected) or the run ends up "failed" with
+	// ADK's ErrNothingToResume.
+	//
+	// Polling for status alone would be ambiguous here: the run was already
+	// awaiting_human once, and Resume() returns before drive()'s first write
+	// (status -> running) lands, so a poll landing in that window could catch
+	// the FIRST gate's now-stale status and report false progress. Waiting
+	// for CurrentStep == "second" as well pins it to the second gate
+	// specifically.
+	paused2 := awaitEngineStep(t, engine, run.ID, orchestration.StatusAwaitingHuman, "second")
+	if stepIn(t, paused2, "second").BatchID != "batch-second" {
+		t.Fatalf("second gate did not open on %q: %+v", "second", paused2.Steps)
+	}
+	// The first gate must have been closed out, not left open forever — this
+	// is the exact field the bug leaves wrong.
+	if got := stepIn(t, paused2, "first").Status; got != "done" {
+		t.Fatalf("first gate's Status = %q after it cleared, want done (this is the bug: openGateIndex would keep finding it)", got)
+	}
+
+	if err := engine.Resume(t.Context(), run.ID, true); err != nil {
+		t.Fatalf("resume second gate: %v", err)
+	}
+
+	done := awaitEngineStatus(t, engine, run.ID, orchestration.StatusCompleted)
+	if stepIn(t, done, "first").GateOutcome != orchestration.GateCommitted {
+		t.Errorf("first.GateOutcome = %q, want committed", stepIn(t, done, "first").GateOutcome)
+	}
+	if stepIn(t, done, "second").GateOutcome != orchestration.GateCommitted {
+		t.Errorf("second.GateOutcome = %q, want committed", stepIn(t, done, "second").GateOutcome)
+	}
+	if stepIn(t, done, "third").Status != "done" {
+		t.Errorf("third did not run: %+v", done.Steps)
 	}
 }
 
