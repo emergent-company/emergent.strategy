@@ -145,11 +145,11 @@ cannot: batch↔run binding, cross-run listing, and the gate-duration audit
 duplicates; ADK owns resuming *this* run, the record owns everything that spans
 runs.
 
-- [ ] Extract an `Engine` interface from `*orchestration.Engine`'s 11 methods
-      (`pkg/orchestration/engine.go`). Pure refactor: the legacy engine
-      satisfies it unchanged, and this is the precondition for a second
-      implementation to exist at all. Repoint the ~30 call sites at the
-      interface, not the concrete type.
+- [x] Extract an `Engine` interface from `*orchestration.Engine`'s 11 methods
+      (`pkg/orchestration/engine.go` — named `EngineAPI`). Pure refactor: the
+      legacy engine satisfies it unchanged (`var _ EngineAPI = (*Engine)(nil)`),
+      and all seven consumer sites repointed. `Subscribe`/`Unsubscribe`/`Publish`
+      excluded — no external caller.
 - [ ] Run-metadata store for the ADK engine. Not a copy of `orchestration_runs`
       — cover the same access patterns with fields the ADK engine actually
       needs:
