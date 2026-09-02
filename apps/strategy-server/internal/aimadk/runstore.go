@@ -211,6 +211,30 @@ func (s *RunStore) FindRunByBatch(ctx context.Context, batchID string) (*orchest
 	return nil, nil //nolint:nilnil // nil means "no match"
 }
 
+// MarkStaleFailed marks pending and running runs as failed. Used on startup:
+// unlike the legacy engine, no in-memory recovery is possible for these — a
+// pending/running row with no drive goroutine behind it (because the process
+// that owned it is gone) cannot be resumed, only marked honestly failed.
+// awaiting_human rows are untouched; ADK needs nothing to "reattach" them,
+// Resume works on them whenever it is next called.
+func (s *RunStore) MarkStaleFailed(ctx context.Context) (int, error) {
+	res, err := s.db.NewUpdate().
+		Model((*runRow)(nil)).
+		Set("status = ?", string(orchestration.StatusFailed)).
+		Set("error = ?", "server restart").
+		Set("updated_at = NOW()").
+		Where("status IN (?, ?)",
+			string(orchestration.StatusPending),
+			string(orchestration.StatusRunning),
+		).
+		Exec(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
 // FindAbandonedGates returns runs awaiting human review for longer than
 // olderThan. The clock-fallback logic lives in orchestration.FindAbandonedGates,
 // shared with the legacy engine's store, so it is not reimplemented here.

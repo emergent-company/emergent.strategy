@@ -321,3 +321,44 @@ func TestRunStore_Create_TrueConcurrencyStillEnforcesOne(t *testing.T) {
 		t.Errorf("accounted for %d of %d attempts", succeeded+rejected, attempts)
 	}
 }
+
+func TestRunStore_MarkStaleFailed_MarksPendingAndRunningOnly(t *testing.T) {
+	store := newRunStore(t)
+
+	pending := newRun("aim_cycle", "instance-1", orchestration.StatusPending)
+	running := newRun("aim_cycle", "instance-2", orchestration.StatusRunning)
+	awaiting := newRun("aim_cycle", "instance-3", orchestration.StatusAwaitingHuman)
+	done := newRun("aim_cycle", "instance-4", orchestration.StatusCompleted)
+
+	for _, r := range []*orchestration.Run{pending, running, awaiting, done} {
+		if err := store.Create(t.Context(), r); err != nil {
+			t.Fatalf("create %s: %v", r.ConcurrencyKey, err)
+		}
+	}
+
+	n, err := store.MarkStaleFailed(t.Context())
+	if err != nil {
+		t.Fatalf("mark stale failed: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("marked %d runs, want 2 (pending + running)", n)
+	}
+
+	assertStatus := func(id uuid.UUID, want orchestration.RunStatus) {
+		t.Helper()
+		got, err := store.GetByID(t.Context(), id)
+		if err != nil {
+			t.Fatalf("get: %v", err)
+		}
+		if got.Status != want {
+			t.Errorf("run %s status = %q, want %q", id, got.Status, want)
+		}
+	}
+
+	assertStatus(pending.ID, orchestration.StatusFailed)
+	assertStatus(running.ID, orchestration.StatusFailed)
+	// awaiting_human must survive: ADK needs no in-memory recovery for it,
+	// and marking it failed would destroy a resumable review.
+	assertStatus(awaiting.ID, orchestration.StatusAwaitingHuman)
+	assertStatus(done.ID, orchestration.StatusCompleted)
+}
