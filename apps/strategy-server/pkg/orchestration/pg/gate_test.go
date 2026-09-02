@@ -373,11 +373,12 @@ func TestSweep_LeavesRunWithinThresholdAlone(t *testing.T) {
 	awaitStatus(t, be, run.ID, orchestration.StatusCompleted)
 }
 
-// TestSweep_DisabledByDefault — a zero threshold must not release anything,
-// or simply upgrading would destroy in-flight reviews.
-func TestSweep_DisabledByDefault(t *testing.T) {
+// TestSweep_ZeroThresholdDisablesSweep — a zero threshold must not release
+// anything. This is the explicit opt-out, not the shipped default: config sets
+// 336h, so a plain server start does sweep.
+func TestSweep_ZeroThresholdDisablesSweep(t *testing.T) {
 	wf := gatedWorkflow("sweep_off_wf", "batch-1")
-	be := newSweepBackend(t, wf, orchpg.Config{Workers: 2}) // AbandonGatesAfter unset
+	be := newSweepBackend(t, wf, orchpg.Config{Workers: 2}) // AbandonGatesAfter zero
 	run := startGatedRun(t, be, wf)
 
 	awaitStatus(t, be, run.ID, orchestration.StatusAwaitingHuman)
