@@ -33,8 +33,15 @@ type AimRunStepRow struct {
 	ChunksCompleted int
 	ChunkCount      int
 	TotalTokens     int      // input + output
-	DurationSec     float64  // elapsed wall time
+	DurationSec     float64  // time the step body took to execute
 	ArtifactTypes   []string // artifact types produced by this step
+
+	// Human review, kept separate from DurationSec. The two answer different
+	// questions — how long the machine worked, versus how long we waited for a
+	// person — and conflating them is what made review latency invisible.
+	GateWaitSec float64 // review wait for a gate that has cleared
+	GateOpenSec float64 // elapsed wait for a gate still open
+	GateOutcome string  // committed | discarded | abandoned
 
 	// Artifact links — resolved by the handler for completed steps.
 	ArtifactLinks []ArtifactLink
@@ -329,9 +336,27 @@ templ aimRunStepRow(num int, step AimRunStepRow, instanceID string) {
 						</span>
 					}
 					if step.DurationSec > 0 {
-						<span class="flex items-center gap-1">
-							<span class="iconify lucide--clock size-3"></span>
-							{ formatDuration(step.DurationSec) }
+						<span class="tooltip" data-tip="Time this step spent executing">
+							<span class="flex items-center gap-1">
+								<span class="iconify lucide--clock size-3"></span>
+								{ formatDuration(step.DurationSec) }
+							</span>
+						</span>
+					}
+					if step.GateWaitSec > 0 {
+						<span class="tooltip" data-tip={ "Waited for human review — " + step.GateOutcome }>
+							<span class="flex items-center gap-1">
+								<span class="iconify lucide--user-check size-3"></span>
+								{ formatWait(step.GateWaitSec) } review
+							</span>
+						</span>
+					}
+					if step.GateOpenSec > 0 {
+						<span class="tooltip" data-tip="Awaiting human review since the step finished">
+							<span class="flex items-center gap-1 text-warning">
+								<span class="iconify lucide--hourglass size-3"></span>
+								{ formatWait(step.GateOpenSec) } waiting
+							</span>
 						</span>
 					}
 				</div>
@@ -582,5 +607,31 @@ func runStepDescription(name string) string {
 		return "Publishes a versioned snapshot of the complete strategy state"
 	default:
 		return ""
+	}
+}
+
+// formatWait renders a human review wait. Unlike formatDuration, which tops
+// out at minutes because step execution is short, a review can run for days —
+// and an unbounded wait is precisely what this display exists to make visible.
+func formatWait(sec float64) string {
+	switch {
+	case sec < 60:
+		return fmt.Sprintf("%.0fs", sec)
+	case sec < 3600:
+		return fmt.Sprintf("%dm", int(sec)/60)
+	case sec < 86400:
+		h := int(sec) / 3600
+		m := (int(sec) % 3600) / 60
+		if m == 0 {
+			return fmt.Sprintf("%dh", h)
+		}
+		return fmt.Sprintf("%dh %dm", h, m)
+	default:
+		d := int(sec) / 86400
+		h := (int(sec) % 86400) / 3600
+		if h == 0 {
+			return fmt.Sprintf("%dd", d)
+		}
+		return fmt.Sprintf("%dd %dh", d, h)
 	}
 }

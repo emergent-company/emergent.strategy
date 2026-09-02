@@ -355,10 +355,23 @@ func (s *Server) buildRunPanelData(ctx context.Context, instanceID string, run *
 			}
 		}
 
-		// Compute duration from step timestamps.
+		// Compute duration from step timestamps. This is execution only: for a
+		// gated step FinishedAt marks the body returning, and the review wait
+		// that follows is reported separately below.
 		var durationSec float64
 		if sl.StartedAt != nil && sl.FinishedAt != nil {
 			durationSec = sl.FinishedAt.Sub(*sl.StartedAt).Seconds()
+		}
+
+		// Human review, kept apart from execution time. Both are absent on
+		// steps that never gated and on runs recorded before gate timestamps
+		// existed, in which case neither is rendered.
+		var gateWaitSec, gateOpenSec float64
+		if waited, ok := sl.GateWait(); ok {
+			gateWaitSec = waited.Seconds()
+		}
+		if open, ok := sl.GateOpenFor(time.Now().UTC()); ok {
+			gateOpenSec = open.Seconds()
 		}
 
 		// Extract step-specific metadata.
@@ -400,6 +413,10 @@ func (s *Server) buildRunPanelData(ctx context.Context, instanceID string, run *
 			DurationSec:   durationSec,
 			ArtifactTypes: artifactTypes,
 			ArtifactLinks: artifactLinks,
+
+			GateWaitSec: gateWaitSec,
+			GateOpenSec: gateOpenSec,
+			GateOutcome: sl.GateOutcome,
 
 			AutoAdvanced:       autoAdvanced,
 			AutoAdvancedReason: autoAdvancedReason,
