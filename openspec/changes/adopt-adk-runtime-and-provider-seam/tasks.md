@@ -50,8 +50,14 @@ before Part B (ADK migration).
 - [x] **Classified errors propagate unwrapped**, so `llm.IsRetryable` / `IsAccessDenied` keep working from inside ADK nodes — pinned by a test, since wrapping here would silently turn a rate-limit into a permanent failure.
 
 ### B2. Session persistence
-- [ ] `session_store.go`: bun/Postgres-backed ADK v2 session store (reference emergent `pkg/adk/session/bunsession`, adapt to v2 + `ReconstructRunState`).
-- [ ] Migration for ADK session tables if needed (goose).
+- [x] `session_store.go` + `session_types.go`: bun/Postgres-backed ADK v2 `session.Service`.
+- [x] **Chose bun over ADK's built-in store.** ADK ships `session/database`, but it is GORM-based and self-migrating — adopting it would add a second ORM, a second migration system, and a second connection pool, against the constitution.
+- [x] Migration `034_adk_sessions.sql` (goose): `adk_sessions`, `adk_session_events`, `adk_app_states`, `adk_user_states`, with cascade delete and a replay index.
+- [x] Three-way state scoping implemented per ADK semantics: `app:`/`user:` prefixes stripped on write and routed to shared tables, re-applied when the merged view is read; `temp:` keys never persisted.
+- [x] Events persisted as whole JSONB documents rather than GORM's ~20 decomposed columns — nothing queries an individual event field. `session_event_json_test.go` guards the lossless round-trip this depends on, so an ADK upgrade that breaks it fails loudly instead of corrupting resumed runs.
+- [x] **Validated against ADK's own conformance suite** (`sessiontestsuite.RunServiceTests`), not hand-written expectations. This caught an undocumented semantic on the first run: an empty `UserID` in `ListRequest` means "all users of this app", not "the user whose id is the empty string". Note the in-house emergent `bunsession` precedent this design referenced has a placeholder test asserting `true` — it is effectively unvalidated, so it was not used as a correctness model.
+- [x] Restart durability proven directly: `TestSessionStore_SurvivesProcessRestart` discards the in-memory view, re-reads through a fresh store, and asserts state, the pause marker, and the replay log survive while `temp:` state does not.
+- [x] Event ordering and both read filters (`NumRecentEvents`, `After`) covered — `NumRecentEvents` queries descending and reverses, so a missed reversal would hand ADK the stream backwards.
 
 ### B3. AIM cycle → ADK graph
 - [ ] `aim_graph.go`: six nodes per design table.
