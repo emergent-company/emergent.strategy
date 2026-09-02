@@ -150,17 +150,14 @@ runs.
       legacy engine satisfies it unchanged (`var _ EngineAPI = (*Engine)(nil)`),
       and all seven consumer sites repointed. `Subscribe`/`Unsubscribe`/`Publish`
       excluded — no external caller.
-- [ ] Run-metadata store for the ADK engine. Not a copy of `orchestration_runs`
-      — cover the same access patterns with fields the ADK engine actually
-      needs:
-  - workflow name, concurrency key, status, current step, created/updated —
-    for listing and the `ActiveRun` concurrency guard
-  - batch id per step, for `FindRunByBatch`
-  - `GateOpenedAt` / `GateClearedAt` / `GateOutcome` per step — the exact
-    fields `instrument-cycle-gates` added to `StepLog`, so gate-duration
-    measurement continues uninterrupted across the engine swap
-  - the 18-key `StepLog.Meta`-equivalent the run panel decodes, so
-    `buildRunPanelData` does not have to change shape
+- [x] Run-metadata store for the ADK engine (`internal/aimadk/runstore.go`,
+      migration `035_adk_run_metadata.sql`). Speaks `orchestration.Run` /
+      `StepLog` directly rather than a parallel type, so `buildRunPanelData`
+      and the 18-key `Meta` contract need no changes to accept data from it.
+      One deliberate improvement over `orchestration_runs`: one active run per
+      (workflow, concurrency key) is a partial unique index, not a
+      check-then-insert race — closes the TOCTOU gap the legacy engine has.
+      12 tests including a true-concurrency drive of 8 simultaneous creates.
 - [ ] `ADKEngine` implementing the `Engine` interface:
   - `StartRun`: create an ADK session (one per run, not per instance), seed
     `instance_id`/`run_id`/`params` into session state per
