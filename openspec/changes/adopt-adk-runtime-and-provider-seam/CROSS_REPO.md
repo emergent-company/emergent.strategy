@@ -60,3 +60,35 @@ opencode-harness (factory engine)            ← builds on proven patterns
 Lessons learned from Part B (especially session reconstruction, HITL resume
 after restart, and graph construction patterns) should be documented in
 `internal/adk/` before opencode-harness begins implementation.
+
+---
+
+## Superseding pattern: read this first
+
+**→ `openspec/AGENT_RUNTIME_PATTERN.md`**
+
+The sequencing above assumed strategy-server would validate ADK's session and
+HITL machinery and that opencode-harness would inherit it. Measurement and a
+survey of the sibling repos changed that conclusion.
+
+ADK v2 reloads and rescans a session's **entire event history every turn**.
+There is no compaction in the module, and the `NumRecentEvents` bound has no
+production callers and is unreachable from the `Runner`. Measured against the
+bun store, cost is linear in **total bytes** of history: 1,000 events at
+8KB each costs ~122ms of overhead per turn; at 32KB each, ~530ms. For an agent
+that runs continuously, an ADK session therefore cannot be the unit of work.
+
+`sequence` already ships ADK v2 in production and **refuses the Runner and
+SessionService** for exactly this reason (`ADR-055`, enforced by a
+build-failing import guard). It is the reference implementation, not this repo.
+
+The pattern all four repos should follow — **bounded cycles with Memory as the
+bridge between them**, plus ten invariants covering retrieval budgets,
+write-back curation, and the authority split between Memory and domain tables —
+is in `openspec/AGENT_RUNTIME_PATTERN.md`.
+
+What still holds from this change: the **provider seam** (Part A), the ADK
+`model.LLM` adapter, the engine-neutral step shape, and the run/step audit
+direction. What is under review: whether an ADK session should span an AIM
+cycle's human gates (it should not), and therefore how much of the workflow
+graph earns its place.

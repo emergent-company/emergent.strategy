@@ -14,6 +14,24 @@ import (
 	"google.golang.org/adk/v2/workflow"
 )
 
+// STATUS: dormant, and its central assumption is superseded.
+//
+// This graph assumes a human gate *pauses* a cycle, so an ADK session spans
+// the whole cycle including multi-day reviews. That does not hold. ADK reloads
+// and rescans a session's entire event history every turn, with no compaction
+// and no way to bound the load, so a long-lived session's per-turn cost grows
+// with the life of the cycle (see perf_history_test.go for the numbers).
+//
+// The direction is bounded cycles: a gate *ends* a cycle, approval opens the
+// next, and continuity is carried by Memory and domain state rather than by an
+// event stream. See openspec/AGENT_RUNTIME_PATTERN.md.
+//
+// Nothing references this yet. The work/gate pairing and the cross-gate state
+// carrying below solve a problem that disappears under bounded cycles; the
+// node-construction and step-injection shapes may survive as intra-cycle
+// execution. Kept, tested, and left in place until the cycle state model is
+// designed — do not build on it before then.
+
 // Session-state keys. Run context cannot be threaded through node I/O: a gate
 // returns workflow.ErrNodeInterrupted rather than a value, and on resume the
 // node downstream of it receives the reviewer's reply instead of the gate's

@@ -1,5 +1,40 @@
 # Change: Adopt ADK Go 2.0 runtime and a pluggable LLM Provider seam
 
+> ## Scope correction (read before the Why below)
+>
+> This change now covers the **provider seam and the ADK integration
+> primitives** only. The engine replacement — running the AIM cycle on an ADK
+> graph with ADK-managed human gates — has been **withdrawn** and reshaped into
+> a follow-up change.
+>
+> **Why it changed.** ADK v2 reloads and rescans a session's entire event
+> history on every turn. There is no compaction in the module, and the
+> `NumRecentEvents` bound has no production callers and is unreachable through
+> the `Runner`. Measured against the bun store, cost is linear in *total bytes*
+> of history: 1,000 events at 8KB each costs ~122ms of overhead per turn, at
+> 32KB each ~530ms
+> (`apps/strategy-server/internal/adk/perf_history_test.go`). AIM is moving
+> toward a continuous signal-driven loop, so a session that spans a whole cycle
+> — including multi-day review gates — cannot be the unit of work.
+>
+> `sequence` reached the same conclusion before us and ships ADK v2 in
+> production while refusing the `Runner` and `SessionService` outright
+> (`ADR-055`, enforced by a build-failing import guard). It is the reference
+> implementation, not this repo.
+>
+> **The replacement pattern** — bounded cycles with Memory bridging between
+> them, and ten invariants — is in `openspec/AGENT_RUNTIME_PATTERN.md`.
+>
+> **What still stands from this change:** the `llm.Provider` seam, the Bedrock
+> provider, the ADK `model.LLM` adapter, the ADK session store (reframed as
+> ephemeral per-cycle scratch rather than the system of record), the
+> engine-neutral AIM step shape, and the `aimadk` step adapter. All shipped and
+> tested.
+>
+> **What was withdrawn:** the ADK graph as the AIM workflow runtime, human
+> gates as ADK `RequestInput` pauses, run resume via ADK session
+> reconstruction, and the skillexec migration to SingleTurn nodes.
+
 ## Why
 
 strategy-server has three concentric AI layers that are currently entangled and

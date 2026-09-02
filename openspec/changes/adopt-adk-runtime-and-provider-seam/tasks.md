@@ -116,21 +116,67 @@ The middle row is the dangerous one: a cycle would keep running and snapshot the
 
 - Whether a step must settle a review has to be decided at **build time** from the graph's shape. ADK hands the first node the user message that triggered the run, and it is indistinguishable by type from a reviewer's reply — a first draft that sniffed input types rejected every cycle at its first step.
 - **Committing a reviewed batch stays with the caller**, performed before the run is resumed. The graph only observes the verdict. This keeps `internal/adk` free of the mutation store and leaves exactly one writer for staged batches. The resume handler in B4d must commit first, then resume.
-- [ ] **Parity approach:** expose the six existing step bodies from `domain/aim` in an engine-neutral shape so both engines drive the *same* code, rather than reimplementing the steps against ADK.
-- [ ] Feature flag `ADK_ENGINE` (legacy default) so both engines coexist until parity is proven.
+- [x] **Parity approach:** the six step bodies are exposed from `domain/aim` in an engine-neutral shape (`CycleSteps() []Step`) so any engine drives the *same* code. Shipped; no test file was touched and all 33 AIM tests still pass.
+- [x] Adapter `[]aim.Step` → `[]adk.AIMStep` in `internal/aimadk`, keeping `internal/adk` free of domain imports.
 
-### B4. skillexec → SingleTurn nodes
-- [ ] Port `RunChunked` one-shot generation to ADK `SingleTurn` agent node; move schema constraints to ADK structured output.
+---
 
-### B5. Cutover + cleanup
-- [ ] Feature-flag/config switch: ADK engine vs legacy `pkg/orchestration`.
-- [ ] Keep `pkg/orchestration` as compiling shim during migration.
-- [ ] Delete legacy engine + `pkg/orchestration/pg` in a follow-up once parity is proven.
+## WITHDRAWN — the engine replacement
 
-### B6. Part B exit gate
-- [ ] End-to-end AIM cycle on ADK: all six steps, all four human gates, snapshot — same external HTTP/MCP behaviour.
-- [ ] Restart mid-cycle → resume works (ADK `ReconstructRunState`).
-- [ ] `task test` + `task lint` pass; SSE/HTTP/MCP contracts unchanged.
+Everything below this line was planned and is **no longer being done under this
+change**. It is recorded rather than deleted so the reasoning survives.
+
+### Why withdrawn
+
+ADK v2 reloads and rescans a session's entire event history on every turn.
+There is no compaction in the module; `NumRecentEvents` has no production
+callers and is unreachable through the `Runner`. Measured cost is linear in
+**total bytes** of history — 1,000 events at 8KB each is ~122ms per turn, at
+32KB each ~530ms (`internal/adk/perf_history_test.go`, `ADK_PERF=1`).
+
+AIM is moving toward a continuous, signal-driven loop with review gates that
+can take days. A session spanning a cycle therefore grows without bound, and an
+ADK session cannot be the unit of work. `sequence` reached this conclusion
+first and refuses the `Runner` and `SessionService` in production (`ADR-055`).
+
+Two further findings made the original plan unattractive independently:
+
+- **The engine surface is 11 methods across ~30 call sites**, and swapping it
+  means reproducing things ADK does not provide: the batch↔run binding every
+  `Resume` site needs, an 18-key `StepLog.Meta` contract the run UI decodes
+  (breaking it degrades the UI *silently*), `ErrAlreadyActive`, run listing and
+  status projection, abort/retry, and a raw SQL path in
+  `handler_versions.go:336` that bypasses the engine entirely. Replacing the
+  engine means *building* an engine.
+- **Under gates-end-cycles, AIM's segments are mostly a single step**
+  (`[1] [2] [3] [4] [5,6]`), so an ADK workflow graph earns very little here.
+  It earns its place where intra-cycle complexity is real — `opencode-harness`,
+  not AIM.
+
+### Withdrawn items
+
+- ~~`ADK_ENGINE` feature flag with both engines coexisting~~
+- ~~Extract an `Engine` interface and implement an ADK-backed engine against it~~
+- ~~Run-metadata store shaped like `orchestration_runs`~~
+- ~~Human gates as ADK `RequestInput` pauses; resume handler commits then resumes~~
+- ~~skillexec → ADK `SingleTurn` nodes~~ — ~1,952 lines of domain validation
+  (JSON repair, schema checks, chunk-aware retries) that ADK structured output
+  does not replace. We would keep all of it and swap a thin call wrapper.
+- ~~Cutover: delete `pkg/orchestration` once parity proven~~
+- ~~Part B exit gate: full cycle on ADK with all four gates; restart mid-cycle
+  resumed via ADK `ReconstructRunState`~~
+
+### Superseded by
+
+`openspec/AGENT_RUNTIME_PATTERN.md` — bounded cycles with a Memory bridge, and
+the ten invariants. The follow-up change will design the cycle state model:
+standing state per instance, a signal queue, cycle records, the close rule, and
+idempotency keys.
+
+The AIM graph in `internal/adk/aim_graph.go` remains in the tree, dormant and
+tested. Parts of it may survive as intra-cycle execution; the work/gate pairing
+and cross-gate state carrying will not, because a gate will end a cycle rather
+than pause one.
 
 ## Cross-cutting
 - [ ] `openspec validate adopt-adk-runtime-and-provider-seam --strict` passes.
