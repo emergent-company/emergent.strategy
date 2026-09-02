@@ -157,10 +157,16 @@ func runServer(cfg *config.Config) error {
 	// Uses a separate LLM client with a longer timeout: skill prompts are large
 	// (full artifact JSON + schema constraints) and routinely exceed 60 seconds.
 	var skillExecutor *skillexec.Executor
+	// Nil-check the concrete *llm.Client before it reaches the llm.Provider
+	// field: a typed nil pointer would become a non-nil interface and panic
+	// deep inside skillexec rather than degrading to skeleton mode here.
+	var skillLLMClient *llm.Client
 	if llmClient != nil {
 		skillLLMCfg, _ := buildLLMConfig(cfg) // llmClient!=nil ⇒ config already valid
 		skillLLMCfg.Timeout = 5 * time.Minute
-		skillLLMClient := llm.New(skillLLMCfg)
+		skillLLMClient = llm.New(skillLLMCfg)
+	}
+	if skillLLMClient != nil {
 		skillLLMAdapter := &skillexecLLMAdapter{client: skillLLMClient}
 		skillExecutor = skillexec.New(db, packSvc, skillLLMAdapter).
 			WithActivityRecorder(activitySvc).
@@ -447,9 +453,13 @@ func buildLLMConfig(cfg *config.Config) (llm.Config, error) {
 	}, nil
 }
 
-// setupLLM constructs the LLM client when configured. Returns nil when the LLM
+// setupLLM constructs the LLM provider when configured. Returns nil when the LLM
 // provider is not configured (convergence then runs in agent-orchestrated mode).
-func setupLLM(cfg *config.Config, log *slog.Logger) *llm.Client {
+//
+// The nil check on the concrete *llm.Client below is deliberate: returning a
+// typed nil pointer as a Provider would yield a non-nil interface and defeat
+// every `provider != nil` check downstream.
+func setupLLM(cfg *config.Config, log *slog.Logger) llm.Provider {
 	if !cfg.LLMConfigured() {
 		log.Info("llm provider not configured — convergence runs in agent-orchestrated mode (detection only)")
 		return nil
@@ -580,7 +590,7 @@ func seedDevIdentity(
 
 // healthHandler returns the /health echo handler reporting postgres, memory, and
 // LLM subsystem status. Returns 200 when required systems are healthy, 503 when degraded.
-func healthHandler(db *bun.DB, semanticSvc *semantic.Service, llmClient *llm.Client) echo.HandlerFunc {
+func healthHandler(db *bun.DB, semanticSvc *semantic.Service, llmClient llm.Provider) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ctx := c.Request().Context()
 
@@ -685,10 +695,10 @@ func (a *aimHeartbeatAdapter) EvaluateTriggers(ctx context.Context, instanceID u
 	}
 }
 
-// skillexecLLMAdapter adapts *llm.Client to the skillexec.LLMClient interface,
-// propagating token usage from llm.ChatResult.
+// skillexecLLMAdapter adapts an llm.Provider to the skillexec.LLMClient
+// interface, propagating token usage from llm.ChatResult.
 type skillexecLLMAdapter struct {
-	client *llm.Client
+	client llm.Provider
 }
 
 func (a *skillexecLLMAdapter) CompleteJSON(ctx context.Context, systemPrompt, userPrompt string) (skillexec.LLMResult, error) {

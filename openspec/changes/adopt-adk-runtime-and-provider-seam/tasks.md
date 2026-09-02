@@ -6,10 +6,12 @@ before Part B (ADK migration).
 ## Part A — Provider seam (ship first)
 
 ### A1. Extract the Provider interface (behaviour-preserving)
-- [ ] Define `llm.Provider` (`Chat`, `ChatWithFormat`, `Ping`, `Model`) in `internal/llm`.
-- [ ] Confirm existing `*llm.Client` satisfies `Provider` (no logic change).
-- [ ] Change callers to depend on `llm.Provider`: `domain/skillexec`, `domain/aim`, `domain/ripple`, `ModelSelector.SelectModel` return path.
-- [ ] `go build` + `task test` green (baseline unchanged). Record baseline first.
+- [x] Define `llm.Provider` (`Chat`, `ChatWithFormat`, `Ping`, `Model`) in `internal/llm`.
+- [x] Confirm existing `*llm.Client` satisfies `Provider` (no logic change) — compile-time assertion `var _ Provider = (*Client)(nil)`.
+- [x] Change callers to depend on `llm.Provider`: `domain/ripple` (`LLMResolver`), `cmd_serve.go` (`setupLLM` return, `healthHandler` param, `skillexecLLMAdapter` field). `domain/skillexec` and `domain/aim` already depend on their own narrow interfaces (`skillexec.LLMClient`, `aim.SkillRunner`) and needed no change.
+- [x] Guard the nil-interface trap: nil-check the concrete `*Client` before converting to `Provider` (a typed nil would become a non-nil interface and defeat every `provider != nil` check). Added explicit guard in the skill-executor wiring.
+- [x] Tests: `provider_test.go` pins the interface surface and the nil-guard contract.
+- [x] `go build` + `go test ./...` green — 35 packages pass, identical to baseline. `task lint` 0 issues.
 
 ### A2. Bedrock / Anthropic-Messages provider
 - [ ] Add AWS SDK v2 deps (`config`, `bedrockruntime`).

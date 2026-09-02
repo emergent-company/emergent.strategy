@@ -19,12 +19,12 @@ import (
 // 2. Calling the LLM to produce an updated payload
 // 3. Parsing the JSON payload from the response
 type LLMResolver struct {
-	client *llm.Client
+	client llm.Provider
 	db     *bun.DB // optional — used to load upstream artifact for context enrichment
 }
 
 // NewLLMResolver creates a new LLM-backed resolver. Returns nil if client is nil.
-func NewLLMResolver(client *llm.Client, db *bun.DB) *LLMResolver {
+func NewLLMResolver(client llm.Provider, db *bun.DB) *LLMResolver {
 	if client == nil {
 		return nil
 	}
