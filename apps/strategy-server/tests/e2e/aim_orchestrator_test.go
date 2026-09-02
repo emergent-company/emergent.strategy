@@ -79,8 +79,16 @@ func (w *noopWorkflow) CycleSteps() []aim.Step                     { return w.cy
 
 // newNoopWorkflow creates a workflow with steps that complete instantly.
 // The first step has a human gate (produces a batch ID to pause on).
+// newNoopWorkflow creates a workflow with steps that complete instantly.
+// Two human gates in sequence, not one: a real AIM cycle has four, and a
+// fixture with only one gate cannot exercise a step correctly identifying
+// which gate is currently open once more than one has been opened and
+// cleared. That gap let a real bug through this exact test file's coverage —
+// found only by clicking through the browser, because every fixture here had
+// at most one gate. See TestMultiGateRun_BothGatesResumeCorrectly, the test
+// this shape exists to support.
 func newNoopWorkflow(name string) *noopWorkflow {
-	batchID := uuid.New().String()
+	batch1, batch2 := uuid.New().String(), uuid.New().String()
 	return &noopWorkflow{
 		name: name,
 		steps: []orchestration.Step{
@@ -88,7 +96,17 @@ func newNoopWorkflow(name string) *noopWorkflow {
 				Name: "draft_assessment",
 				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
 					return orchestration.StepResult{
-						BatchID: batchID,
+						BatchID: batch1,
+						Meta:    map[string]any{"llm_used": false},
+					}, nil
+				},
+				HumanGate: true,
+			},
+			{
+				Name: "draft_calibration",
+				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
+					return orchestration.StepResult{
+						BatchID: batch2,
 						Meta:    map[string]any{"llm_used": false},
 					}, nil
 				},
@@ -109,7 +127,18 @@ func newNoopWorkflow(name string) *noopWorkflow {
 				Run: func(_ context.Context, _ aim.StepInput) (aim.StepOutput, error) {
 					return aim.StepOutput{
 						Step:    "draft_assessment",
-						BatchID: batchID,
+						BatchID: batch1,
+						Meta:    map[string]any{"llm_used": false},
+					}, nil
+				},
+			},
+			{
+				Name:      "draft_calibration",
+				HumanGate: true,
+				Run: func(_ context.Context, _ aim.StepInput) (aim.StepOutput, error) {
+					return aim.StepOutput{
+						Step:    "draft_calibration",
+						BatchID: batch2,
 						Meta:    map[string]any{"llm_used": false},
 					}, nil
 				},
@@ -407,12 +436,21 @@ func TestGetRun_ReturnsRunPanel(t *testing.T) {
 			body, _ := io.ReadAll(panelResp.Body)
 			html := string(body)
 
-			// The run panel should contain the step names from our noop workflow.
-			if !strings.Contains(html, "draft_assessment") && !strings.Contains(html, "Draft Assessment") {
-				t.Errorf("run panel HTML should mention draft_assessment step")
-			}
-			if !strings.Contains(html, "snapshot") && !strings.Contains(html, "Snapshot") {
-				t.Errorf("run panel HTML should mention snapshot step")
+			// The run panel should contain every step name from our noop
+			// workflow, including draft_calibration — which has not executed
+			// yet at this point (the run is paused at draft_assessment's
+			// gate). This is the exact placeholder-pre-population behaviour
+			// fixed earlier: a not-yet-run step must still render, or a run
+			// paused at the first of several gates would silently hide the
+			// rest of the pipeline from the reviewer.
+			for _, want := range []struct{ raw, human string }{
+				{"draft_assessment", "Draft Assessment"},
+				{"draft_calibration", "Draft Calibration"},
+				{"snapshot", "Snapshot"},
+			} {
+				if !strings.Contains(html, want.raw) && !strings.Contains(html, want.human) {
+					t.Errorf("run panel HTML should mention %s step", want.raw)
+				}
 			}
 
 			// The stream URL should be present for SSE.
@@ -520,6 +558,131 @@ func TestSSEStream_ContentType(t *testing.T) {
 			t.Logf("SSE endpoint OK — Content-Type: %s", ct)
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Test: resuming two sequential human gates
+// ---------------------------------------------------------------------------
+
+// TestMultiGateRun_BothGatesResumeCorrectly exists because none of the tests
+// above — nor any other test in this file, before this one — ever call
+// Resume at all. A run being resumable was simply never covered at this
+// layer, at any gate count.
+//
+// It also pins the exact bug found by manual testing: on the ADK engine, a
+// gate that cleared did not have its Status flipped away from
+// "awaiting_human", so once a second gate opened, the code that finds "the
+// currently open gate" kept finding the first, already-resolved one instead
+// — and resumed it with a stale interrupt id, which ADK correctly rejected.
+// One gate could never reveal this; it needs two, resumed in sequence,
+// through the same engine instance the HTTP handlers in this test file's
+// setupTestEnv actually construct — not a synthetic engine built just for a
+// unit test.
+func TestMultiGateRun_BothGatesResumeCorrectly(t *testing.T) {
+	for _, kind := range allEngineKinds {
+		t.Run(string(kind), func(t *testing.T) {
+			env := setupTestEnv(t, kind)
+			ctx := context.Background()
+
+			resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+			if resp.StatusCode != http.StatusSeeOther {
+				t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+			}
+			loc := resp.Header.Get("Location")
+			runID, err := uuid.Parse(loc[strings.LastIndex(loc, "/")+1:])
+			if err != nil {
+				t.Fatalf("redirect location contains invalid run ID %q: %v", loc, err)
+			}
+
+			// First gate.
+			run := awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_assessment")
+			batch1 := run.Steps[0].BatchID
+			if batch1 == "" {
+				t.Fatal("first gate opened with no batch id")
+			}
+
+			if err := env.Engine.Resume(ctx, runID, true); err != nil {
+				t.Fatalf("resume first gate: %v", err)
+			}
+
+			// Second gate. Polling for status alone would be ambiguous: the
+			// run was already awaiting_human once, and Resume returns before
+			// the engine's first post-resume write lands, so a poll landing
+			// in that window could catch the FIRST gate's now-stale status.
+			// Waiting for CurrentStep too pins it to the second gate
+			// specifically — see awaitRunStep.
+			run = awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_calibration")
+			batch2 := run.Steps[1].BatchID
+			if batch2 == "" {
+				t.Fatal("second gate opened with no batch id")
+			}
+			if batch2 == batch1 {
+				t.Fatal("second gate has the same batch id as the first — steps are not being distinguished")
+			}
+			// The exact field the real bug leaves wrong: the first gate must
+			// have been closed out, not left open forever.
+			if got := run.Steps[0].Status; got != "done" {
+				t.Fatalf("first gate's Status = %q after it cleared, want done", got)
+			}
+
+			if err := env.Engine.Resume(ctx, runID, true); err != nil {
+				t.Fatalf("resume second gate: %v", err)
+			}
+
+			run = awaitRunStatus(t, env, runID, orchestration.StatusCompleted)
+			for _, name := range []string{"draft_assessment", "draft_calibration", "snapshot"} {
+				found := false
+				for _, s := range run.Steps {
+					if s.Name == name {
+						found = true
+						if s.Status != "done" {
+							t.Errorf("%s.Status = %q, want done", name, s.Status)
+						}
+					}
+				}
+				if !found {
+					t.Errorf("step %q missing from completed run", name)
+				}
+			}
+			if run.Steps[0].GateOutcome != orchestration.GateCommitted {
+				t.Errorf("draft_assessment.GateOutcome = %q, want committed", run.Steps[0].GateOutcome)
+			}
+			if run.Steps[1].GateOutcome != orchestration.GateCommitted {
+				t.Errorf("draft_calibration.GateOutcome = %q, want committed", run.Steps[1].GateOutcome)
+			}
+		})
+	}
+}
+
+// awaitRunStatus polls until the run reaches want.
+func awaitRunStatus(t *testing.T, env *testEnv, runID uuid.UUID, want orchestration.RunStatus) *orchestration.Run {
+	t.Helper()
+	return awaitRunStep(t, env, runID, want, "")
+}
+
+// awaitRunStep polls until the run reaches wantStatus, and — when wantStep is
+// non-empty — CurrentStep == wantStep too. The combined check disambiguates a
+// status the run can revisit more than once (awaiting_human, once per gate)
+// from an earlier, now-stale occurrence of the same status.
+func awaitRunStep(t *testing.T, env *testEnv, runID uuid.UUID, wantStatus orchestration.RunStatus, wantStep string) *orchestration.Run {
+	t.Helper()
+
+	deadline := time.Now().Add(10 * time.Second)
+	var lastStatus orchestration.RunStatus
+	var lastStep string
+	for time.Now().Before(deadline) {
+		run, err := env.Engine.GetRun(context.Background(), runID)
+		if err == nil {
+			lastStatus, lastStep = run.Status, run.CurrentStep
+			if run.Status == wantStatus && (wantStep == "" || run.CurrentStep == wantStep) {
+				return run
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("run %s never reached status=%s step=%q (last status=%q step=%q)",
+		runID, wantStatus, wantStep, lastStatus, lastStep)
+	return nil
 }
 
 // ---------------------------------------------------------------------------
