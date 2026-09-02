@@ -158,21 +158,31 @@ runs.
       (workflow, concurrency key) is a partial unique index, not a
       check-then-insert race — closes the TOCTOU gap the legacy engine has.
       12 tests including a true-concurrency drive of 8 simultaneous creates.
-- [ ] `ADKEngine` implementing the `Engine` interface:
-  - `StartRun`: create an ADK session (one per run, not per instance), seed
-    `instance_id`/`run_id`/`params` into session state per
-    `adk.AIMStepInput`, drive it with `runner.Run` against
-    `internal/adk/aim_graph.go`, write the initial run-metadata row.
-  - `Resume(runID, committed)`: locate the run's pending `RequestInput` and
-    submit a `FunctionResponse` with `{"result": committed}`; project the
-    graph's step-completion events into the run-metadata row as they occur.
-  - `GetRun` / `ListRuns` / `ActiveRun` / `FindRunByBatch`: read the
-    run-metadata store — never replay ADK session events for these.
-  - `Abort`: mark the run-metadata row terminal and resolve any pending gate
-    as discarded; ADK's session is not consulted to determine this is safe.
-  - `Retry`: scope after the above land — legacy retry only applies to failed
-    runs and resets step state; decide whether that maps to a fresh ADK
-    session or resuming the existing one before implementing.
+- [x] `ADKEngine` implementing `EngineAPI` (`internal/aimadk/engine.go`).
+  - `StartRun`/`Resume` drive the graph in a background goroutine via
+    `runner.Run`, returning once recorded/handed-off — not once the run
+    reaches its next pause, which can involve an LLM call taking minutes.
+  - Step-log projection reconstructs `StepLog` from the ADK event stream.
+    Two facts needed confirming by direct probe, not assumption: `Event.Author`
+    is always the *workflow's* name, never the node's; the node name comes
+    from `NodeInfo.Path`'s last segment stripped of its `@n` suffix, and an
+    event counts as a node's terminal output only when `NodeInfo.OutputFor`
+    is non-empty.
+  - `GetRun`/`ListRuns`/`ActiveRun`/`FindRunByBatch` read `RunStore` only.
+  - `Abort` cancels the in-flight drive goroutine (context registry) or
+    resolves an open gate as discarded; a terminal run is a no-op.
+  - `Retry` is explicitly unimplemented and says why: a fresh ADK invocation
+    starts from `workflow.Start` and would redo every completed step
+    (including LLM calls) rather than continuing from the failure the way
+    legacy retry does. Returns an error rather than doing it wrong quietly.
+  - Two real bugs found by the test suite, not by review: gate clearance was
+    never recorded on resume (nothing set `GateClearedAt`/`GateOutcome`), and
+    aborting a running step could cancel it correctly and still leave the run
+    reporting "running" forever, because the final status write reused the
+    just-cancelled context. Every write inside `drive()` now uses a
+    `context.WithoutCancel` derivative.
+  - 34 tests, clean under `-race` across 3 repeated runs, including the real
+    `domain/aim.CycleWorkflow` (not just a fake) registering successfully.
 - [ ] Feature flag `ADK_ENGINE` (legacy default) so both engines coexist behind
       `orchpg.Config`-style wiring in `cmd_serve.go` until parity is proven.
       Follow the `AuthEnabled` bool pattern in `config/config.go`.
