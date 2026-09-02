@@ -1,17 +1,90 @@
 # agent-runtime
 
-> **Scope corrected.** Three requirements originally in this delta — the ADK
-> graph as the AIM workflow runtime, human gates as ADK `RequestInput` pauses,
-> and run resume via ADK session reconstruction — have been **withdrawn**. They
-> assumed an ADK session could span an AIM cycle including its multi-day review
-> gates. Measurement showed ADK reloads and rescans a session's whole event
-> history every turn, with no way to bound it, so cost grows with the life of
-> the cycle. See `openspec/AGENT_RUNTIME_PATTERN.md` and the scope correction in
-> `proposal.md`.
+> **Scope history.** Three requirements below — the ADK graph as the AIM
+> workflow runtime, human gates as ADK `RequestInput` pauses, and run resume
+> via ADK session reconstruction — were briefly withdrawn on the reasoning that
+> ADK's unbounded per-turn session reload made a session unsafe as the unit of
+> work for an AIM cycle. That reasoning over-generalised: it applies to a
+> session whose events *are* accumulating LLM/tool content, which is not AIM's
+> shape. AIM's steps are plain `FunctionNode`s that call into `domain/aim` and
+> return a compact result; the LLM work never becomes session content. A
+> complete cycle's session would hold on the order of 10-20 small events
+> regardless of gate duration. See the scope history in `proposal.md` and
+> `openspec/AGENT_RUNTIME_PATTERN.md`.
 >
-> What remains below is what shipped and what we still believe.
+> The three requirements are restored. One requirement below — session as
+> system of record — is revised rather than restored verbatim: ADK session
+> reconstruction is the correct mechanism for recovering *execution state*
+> within a cycle (which node is paused, what is pending), which is exactly why
+> ADK's HITL machinery is worth adopting instead of hand-rolling it. A separate,
+> lightweight run-metadata record still exists for what ADK does not provide:
+> binding a staged batch to its run, listing and querying across runs, and the
+> gate-duration audit this project needed real data for before it could answer
+> whether a gate should pause a cycle or end one. See
+> `openspec/changes/instrument-cycle-gates/`.
 
 ## ADDED Requirements
+
+### Requirement: ADK graph engine as the AIM cycle runtime
+
+The system SHALL run the AIM cycle on ADK's workflow graph engine, representing
+each cycle step as a graph node, so orchestration and human-in-the-loop use one
+production-grade runtime instead of a bespoke engine.
+
+One ADK session corresponds to one AIM cycle, not to an instance's entire
+lifetime. This is what keeps the session bounded: a cycle's session accumulates
+a step's compact result and its gate events, never the LLM content a step
+produces internally, so the per-turn cost stays a few KB regardless of how many
+steps a gate is open.
+
+#### Scenario: AIM cycle runs on ADK
+
+- **WHEN** an AIM cycle is started for an instance
+- **THEN** the cycle executes as an ADK graph of its ordered steps
+- **AND** the external HTTP/SSE and MCP behaviour is unchanged from the bespoke
+  engine
+
+#### Scenario: One active cycle per instance
+
+- **WHEN** a second AIM cycle is requested for an instance that already has an
+  active cycle
+- **THEN** the runtime enforces a single active cycle per instance
+  (concurrency key = instance id)
+
+#### Scenario: A step body does not become session content
+
+- **WHEN** a step performs an LLM generation as part of its work
+- **THEN** the prompt and completion are not recorded as ADK session events
+- **AND** only the step's compact result (name, staged batch id, metadata) is
+  recorded
+
+### Requirement: Human-in-the-loop gates via ADK RequestInput
+
+The system SHALL implement AIM human-review gates using ADK's
+`RequestInput`/Resume, so a step pauses for human review and resumes on the
+user's approval without a bespoke gate mechanism.
+
+A gate's wait adds no session events — only the instant it opens and the
+instant it clears do — so a review that takes minutes and a review that takes
+weeks cost the same to the session, which is what makes ADK's native pause
+mechanism safe to use here even though a review's duration is unbounded.
+
+#### Scenario: Step pauses for review
+
+- **WHEN** a human-gated step produces a staged batch
+- **THEN** the run pauses emitting `RequestInput`
+- **AND** the existing approve/commit action resumes the run
+
+#### Scenario: Empty gated step auto-advances
+
+- **WHEN** a gated step produces no staged changes
+- **THEN** the node completes without requesting input and the run auto-advances
+
+#### Scenario: A long-open gate does not grow the session
+
+- **WHEN** a gate has been open for an extended period
+- **THEN** the session's event count and byte size are unchanged from the
+  instant the gate opened
 
 ### Requirement: Providers registered as ADK models
 
@@ -25,61 +98,56 @@ nodes use the same providers and classified error contract as direct callers.
 - **THEN** it uses the configured `llm.Provider` (api-key, vertex, or bedrock)
 - **AND** provider errors surface with the same classified `ErrorKind`
 
-### Requirement: ADK sessions are ephemeral per-unit scratch, not the system of record
+### Requirement: Execution state resumes from the ADK session; cross-run concerns live in a run-metadata record
 
-The system SHALL treat an ADK session as scratch for one bounded unit of work.
-Authoritative state SHALL live in domain tables, and operator-facing history
-SHALL live in the run/step audit. A session SHALL NOT be the mechanism by which
-a cycle's progress is recovered.
+The system SHALL recover a paused cycle's execution state — which node is
+waiting, what input it is waiting on — from ADK's own session reconstruction
+after a restart. The system SHALL additionally maintain a run-metadata record
+for what a single session cannot provide: binding a staged batch to the run
+that produced it, listing and querying runs across an instance, and auditing
+how long a gate was open.
 
-This bounds every session's event stream to one unit of work, which is what
-keeps ADK's per-turn full-history reload from growing with the life of a cycle.
+This is a division of responsibility, not a duplication. ADK's session is the
+right tool for resuming *this run's* paused position, because that is what its
+HITL/session-reconstruction machinery is built for. It is the wrong tool for
+"find the run that staged this batch" or "how many runs has this instance had,"
+because those questions span runs and a session's lifetime is one run.
 
-#### Scenario: Session is not consulted for cycle progress
+#### Scenario: Restart after a gate opened
 
-- **WHEN** a cycle's position or outcome is read
-- **THEN** it is read from domain tables
-- **AND** no ADK event history is replayed to derive it
+- **WHEN** the server restarts while an AIM cycle is paused at a human gate
+- **THEN** ADK session reconstruction recovers the paused node
+- **AND** the pending human approval resumes the same run (idempotent — a
+  duplicate approval is a no-op)
 
-#### Scenario: A completed unit of work releases its session
+#### Scenario: Finding the run for a batch
 
-- **WHEN** a bounded unit of work completes
-- **THEN** its ADK session is eligible for expiry
-- **AND** no later unit of work depends on that session's events
+- **WHEN** a staged batch is committed or discarded
+- **THEN** the run awaiting that batch is found from the run-metadata record,
+  not by scanning ADK sessions
 
-### Requirement: Session persistence survives restart within a unit of work
+#### Scenario: Gate duration is measurable
 
-The system SHALL persist ADK session state so that a unit of work interrupted
-by a server restart is not corrupted, and SHALL satisfy ADK's own
-`session.Service` conformance suite so behaviour matches the reference
-implementation.
-
-#### Scenario: Conformance with ADK semantics
-
-- **WHEN** the session store is exercised by ADK's `sessiontestsuite`
-- **THEN** all conformance tests pass, including state scoping, event ordering,
-  and `NumRecentEvents`/`After` filtering
-
-#### Scenario: Restart during a unit of work
-
-- **WHEN** the server restarts while a unit of work is in flight
-- **THEN** the session and its events are readable after restart
-- **AND** recovery of the enclosing cycle is driven by domain state, not by
-  replaying those events
+- **WHEN** a gate opens and later clears
+- **THEN** the run-metadata record carries when it opened, when it cleared, and
+  how — independent of whether the ADK session itself is later expired
 
 ### Requirement: Tool results are not persisted as session events by default
 
 The system SHALL NOT write tool results into ADK session history by default.
 Large payloads SHALL be stored externally with a reference retained in the
-run/step audit.
+run-metadata record.
 
 Tool results are the largest payloads in an agent system, and ADK's per-turn
 cost tracks total bytes of history rather than event count. Persisting them by
-default is what converts a small session into a multi-megabyte one.
+default is what converts a small session into a multi-megabyte one — this is
+the property that keeps a workflow-graph session (AIM's shape) cheap and would
+make a chat-style agent session (a harness coding session) expensive if adopted
+the same way. See `openspec/AGENT_RUNTIME_PATTERN.md`.
 
 #### Scenario: A tool returns a large payload
 
 - **WHEN** a tool produces output above the configured size cap
 - **THEN** the payload is stored externally
-- **AND** the audit record retains a reference, not the payload
+- **AND** the run-metadata record retains a reference, not the payload
 - **AND** the session event stream does not grow by the payload size

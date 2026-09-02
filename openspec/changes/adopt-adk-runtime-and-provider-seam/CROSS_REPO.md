@@ -63,29 +63,41 @@ after restart, and graph construction patterns) should be documented in
 
 ---
 
-## Superseding pattern: read this first
+## Read this before assuming strategy-server's approach transfers directly
 
 **→ `openspec/AGENT_RUNTIME_PATTERN.md`**
 
-The sequencing above assumed strategy-server would validate ADK's session and
-HITL machinery and that opencode-harness would inherit it. Measurement and a
-survey of the sibling repos changed that conclusion.
+ADK v2 reloads and rescans a session's **entire event history every turn**,
+with no compaction in the module, and cost is linear in **total bytes** of
+history: 1,000 events at 8KB each costs ~122ms of overhead per turn; at 32KB
+each, ~530ms. This is real, and it rules out a session whose events accumulate
+LLM/tool content for as long as the agent runs — a chat-style loop, which is
+this harness's likely shape once it drives tool calls with real file content,
+diffs, and command output.
 
-ADK v2 reloads and rescans a session's **entire event history every turn**.
-There is no compaction in the module, and the `NumRecentEvents` bound has no
-production callers and is unreachable from the `Runner`. Measured against the
-bun store, cost is linear in **total bytes** of history: 1,000 events at
-8KB each costs ~122ms of overhead per turn; at 32KB each, ~530ms. For an agent
-that runs continuously, an ADK session therefore cannot be the unit of work.
+**It does not rule out ADK's Runner/session for a workflow graph of thin
+nodes**, which is strategy-server's actual shape: AIM's step bodies do their
+LLM work directly and hand the graph a compact result, so a whole six-step
+cycle's session — gates included — holds on the order of 10-20 events
+regardless of gate duration. strategy-server resumed using ADK's Runner,
+graph, and `RequestInput`/resume for exactly this reason; see the scope
+history in `proposal.md`.
 
-`sequence` already ships ADK v2 in production and **refuses the Runner and
-SessionService** for exactly this reason (`ADR-055`, enforced by a
-build-failing import guard). It is the reference implementation, not this repo.
+**The distinction that decides which case you are in** — "Workflow graphs vs
+chat-style agents" in `openspec/AGENT_RUNTIME_PATTERN.md` — is what to apply
+here, not a blanket rule either way. `sequence` is worth reading regardless:
+it ships ADK v2 in production while refusing the Runner and SessionService
+entirely (`ADR-055`, enforced by a build-failing import guard), because its
+shape — arbitrary-length transcripts and tool payloads — is close to what this
+harness will have. If the harness's units of work turn out closer to
+`sequence`'s shape than to AIM's, its answer should look more like theirs than
+like strategy-server's.
 
-The pattern all four repos should follow — **bounded cycles with Memory as the
-bridge between them**, plus ten invariants covering retrieval budgets,
-write-back curation, and the authority split between Memory and domain tables —
-is in `openspec/AGENT_RUNTIME_PATTERN.md`.
+The rest of the pattern — bounded cycles with Memory as the bridge between
+them, and ten invariants covering retrieval budgets, write-back curation, and
+the authority split between Memory and domain tables — applies regardless of
+which side of that distinction any given harness workload falls on, and is in
+`openspec/AGENT_RUNTIME_PATTERN.md`.
 
 What still holds from this change: the **provider seam** (Part A), the ADK
 `model.LLM` adapter, the engine-neutral step shape, and the run/step audit

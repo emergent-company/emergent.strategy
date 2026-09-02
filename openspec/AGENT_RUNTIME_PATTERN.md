@@ -77,6 +77,15 @@ For a loop that does not terminate, an ADK session cannot be the unit of work.
 History grows with time, cost grows with history, and the agent asymptotically
 spends all its effort re-reading its own past.
 
+This bites specifically when a session's **events accumulate content with
+usage** — a chat-style agent where every prompt, completion, and tool result
+becomes a session event, so the event stream grows with every turn for as long
+as the conversation runs. It does not automatically apply to a session scoped
+to a fixed, bounded sequence of steps whose bodies do their own work and return
+a compact result. See "Workflow graphs vs chat-style agents" below — the
+distinction determines whether a session can safely span a whole unit of work,
+including its human gates, or must end at each one.
+
 ---
 
 ## The pattern
@@ -108,9 +117,52 @@ loop has been running.
 
 ### Human gates and long waits
 
-A human gate ends a cycle. It does not pause one. The staged proposal and the
-loop position live in our tables; approval opens a new cycle. This is what
-keeps sessions short when a review takes days.
+Whether a human gate ends a cycle or safely pauses one depends on the
+distinction below. A gate's *wait* never adds session events either way — only
+the instant it opens and the instant it clears do — so a review that takes
+days costs a session nothing while it is open. What matters is whether that
+session was already accumulating content before the gate, and will keep doing
+so after it.
+
+Where a session is not safe to keep open across a gate (a chat-style loop, see
+below), the gate ends the cycle: the staged proposal and the loop position live
+in our tables, and approval opens a new cycle rather than resuming the old
+session. Where a session's steps stay compact regardless of how many gates they
+contain (a workflow graph, see below), the gate can pause the session using
+ADK's own `RequestInput`/resume — this is the discrete-cycle case, and it is
+what strategy-server's AIM cycle does.
+
+### Workflow graphs vs chat-style agents
+
+This is the distinction "Human gates and long waits" depends on, and the one
+place this document's earlier drafts got AIM's own case wrong: a graph of
+`FunctionNode`s whose bodies do their own LLM work and return a compact result
+does not accumulate the way a chat agent does, and treating it as if it did
+would import a chat-style constraint the workload never has.
+
+| | Workflow graph (AIM) | Chat-style agent (a coding session, a conversation) |
+|---|---|---|
+| **What becomes a session event** | one compact result per node | every prompt, completion, tool call and result |
+| **Event count over the unit's life** | fixed — one per step, known at design time | open-ended — grows with every turn |
+| **A gate's cost to the session** | its open/close instants only; the wait is free | the same, but the session was already growing before it and keeps growing after |
+| **Safe unit of work** | the whole graph run, gates included | a bounded slice of the conversation — a task, not the conversation |
+| **What ends a unit** | the graph completing | a chosen boundary: a task done, a context budget reached, a human gate |
+
+AIM confirms the left column empirically: a complete six-step cycle's session
+would hold on the order of 10-20 events regardless of gate duration, because
+`domain/aim` does its LLM work directly and hands the graph a result, not a
+transcript (`openspec/changes/instrument-cycle-gates/proposal.md` measured the
+equivalent legacy bookkeeping at 1.8KB per cycle). The 127K-230K LLM tokens per
+step are real cost, but they are a side effect of the step body under either
+engine, not session content ADK reloads.
+
+`opencode-harness` is the right column: a coding agent's tool results are file
+contents, diffs, and command output, large and unpredictable in count. Nothing
+about AIM's graph case implies that workload is also safe to run on one
+long-lived session — invariant 4 (tool results are not session history) is
+precisely the discipline that keeps it from becoming the left column's problem
+by accident, and it has to be enforced deliberately there in a way AIM gets for
+free from its shape.
 
 ---
 
@@ -162,6 +214,11 @@ does not have it.**
 Large payloads go to object storage; the step carries a URI reference. See
 `sequence`'s `internal/adkadapter/artifacts.go:15`.
 
+**Confirmed, not just argued.** This is exactly the invariant that makes a
+workflow-graph session (AIM) cheap regardless of gate duration — its LLM
+prompts and completions never become events in the first place. See "Workflow
+graphs vs chat-style agents" above.
+
 ### 5. Audit is write-only from the model's perspective
 
 Run/step records exist for operators, cost accounting and provenance. They are
@@ -175,11 +232,21 @@ never fed back into a prompt. `sequence` states this as
 `content_original_bytes` (`domain/agentrun/service.go:19`). Silent acceptance
 of unbounded blobs is how audit tables become the bottleneck.
 
-### 7. Checkpoints live in domain rows, not engine history
+### 7. Cross-cycle checkpoints live in domain rows; within-cycle resume may use the session
 
-Resume by reading domain state, not by replaying events. `sequence` resumes
-onboarding enrichment by inspecting `doc1_md` / `doc2_md`
-(`domain/onboarding/enrichment.go:77`).
+Resume *the enclosing loop's position* — which cycle it's on, what a prior
+cycle decided — by reading domain state, never by replaying an old session's
+events. `sequence` resumes onboarding enrichment by inspecting `doc1_md` /
+`doc2_md` (`domain/onboarding/enrichment.go:77`).
+
+This does not forbid using ADK's own session reconstruction to resume *one
+run's* paused position within a single cycle — a graph node waiting on
+`RequestInput` is exactly what that machinery is for, and strategy-server's AIM
+cycle uses it after a restart. The distinction is scope: one session's
+reconstruction recovers that session's run; it must never be asked to answer a
+question spanning runs, such as which run is active for an instance, or what a
+previous run staged. Those are run-metadata questions — see
+`openspec/changes/adopt-adk-runtime-and-provider-seam/specs/agent-runtime/spec.md`.
 
 ### 8. Cycles are idempotent, keyed deterministically
 
@@ -208,7 +275,7 @@ Define the degraded mode: authoritative reads still work, recall is reduced.
 | | strategy-server | opencode-harness | sequence | 21st-bot |
 |---|---|---|---|---|
 | **Agent runtime** | ADK v2.2.0 | ADK (planned) | ADK v2.0.0 **pinned** | hand-rolled |
-| **Uses ADK Runner/SessionService** | yes (under review) | TBD | **no — refused by test** | n/a |
+| **Uses ADK Runner/SessionService** | yes — one session per AIM cycle | TBD | **no — refused by test** | n/a |
 | **Durable orchestration** | `pkg/orchestration` (being replaced) | TBD | DBOS | none |
 | **Audit store** | `orchestration_runs` | TBD | `agent_run`/`agent_step` | none |
 | **Memory integration** | semantic engine (search, contradictions, impact) | **context compaction — core to design** | ADR-054/060, dual-graph | optional derived index |
@@ -269,10 +336,15 @@ multi-instance store would unblock its main deployment constraint.
   needs single-turn with cross-request form resume; `strategy-server` needs
   gated cycles over a signal stream; `opencode-harness` needs swarms with
   reusable skills. Four different machines.
-- Whether to use an ADK **workflow graph**. This is decided by *intra-cycle*
-  complexity. AIM's cycles are mostly a single step between gates, so a graph
-  earns little there. A harness cycle — one task, many tool calls, sub-agents,
-  skills — earns it fully.
+- Whether an ADK **workflow graph is safe as the unit of work**. This is
+  decided by "Workflow graphs vs chat-style agents" above, not by picking a
+  side once for every repo. AIM's six steps and four gates fit inside one
+  session because the steps are compact by construction — the graph is used as
+  designed, spanning the whole cycle. A harness task doing many tool calls with
+  real payloads does not get this for free; invariant 4 has to be enforced
+  deliberately there, and whether a graph node or a gate should end a session
+  is a harness-specific design decision, not something AIM's case answers for
+  it.
 
 ---
 
@@ -302,8 +374,9 @@ must compile on the older toolchain, or `sequence` must move first.
    convergence, or human gate reached — and what opens the next one.
 4. **Who owns the write-back curation policy?** It is the compaction, and it is
    domain-specific.
-5. **Retention for high-churn ADK sessions.** Segment-scoped sessions are
-   disposable and numerous; `adk_sessions` needs a cleanup policy.
+5. **Retention for ADK sessions.** One per AIM cycle is disposable once the
+   cycle terminates; `adk_sessions` needs a cleanup policy now that the ADK
+   engine is in active development, not deferred to a future reconciler.
 
 ---
 

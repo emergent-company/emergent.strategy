@@ -14,23 +14,30 @@ import (
 	"google.golang.org/adk/v2/workflow"
 )
 
-// STATUS: dormant, and its central assumption is superseded.
+// This graph assumes a human gate *pauses* a cycle, so one ADK session spans
+// an entire AIM run including its human gates. That assumption was briefly
+// thought unsafe on the reasoning that ADK reloads and rescans a session's
+// entire event history every turn with no compaction, so a long-lived session
+// would grow unbounded. It is safe here, and the reasoning is worth keeping:
+// every node below is a plain FunctionNode whose body calls into domain/aim
+// and returns a compact AIMStepResult — the LLM prompts and completions this
+// produces are never recorded as session content. A gate's wait adds no
+// events, only its open and close instants do, so a whole six-step cycle's
+// session holds on the order of 10-20 events regardless of how long a gate
+// stays open (measured legacy-engine equivalent: 1.8KB per cycle, see
+// openspec/changes/instrument-cycle-gates/proposal.md).
 //
-// This graph assumes a human gate *pauses* a cycle, so an ADK session spans
-// the whole cycle including multi-day reviews. That does not hold. ADK reloads
-// and rescans a session's entire event history every turn, with no compaction
-// and no way to bound the load, so a long-lived session's per-turn cost grows
-// with the life of the cycle (see perf_history_test.go for the numbers).
+// This does not generalise to every ADK workload — see "Workflow graphs vs
+// chat-style agents" in openspec/AGENT_RUNTIME_PATTERN.md. A session whose
+// events *are* the accumulating record of a chat-style agent (tool output,
+// file contents, diffs) does not get this for free and needs the discipline
+// applied deliberately, or a different session-lifetime boundary entirely.
 //
-// The direction is bounded cycles: a gate *ends* a cycle, approval opens the
-// next, and continuity is carried by Memory and domain state rather than by an
-// event stream. See openspec/AGENT_RUNTIME_PATTERN.md.
-//
-// Nothing references this yet. The work/gate pairing and the cross-gate state
-// carrying below solve a problem that disappears under bounded cycles; the
-// node-construction and step-injection shapes may survive as intra-cycle
-// execution. Kept, tested, and left in place until the cycle state model is
-// designed — do not build on it before then.
+// This is the designated execution engine for the AIM cycle, to be wired
+// behind an ADK_ENGINE flag alongside the legacy engine until parity is
+// proven (see openspec/changes/adopt-adk-runtime-and-provider-seam/tasks.md,
+// "B4d. Engine interface + ADK-backed engine"). Not yet referenced by
+// cmd_serve.go.
 
 // Session-state keys. Run context cannot be threaded through node I/O: a gate
 // returns workflow.ErrNodeInterrupted rather than a value, and on resume the

@@ -1,39 +1,61 @@
 # Change: Adopt ADK Go 2.0 runtime and a pluggable LLM Provider seam
 
-> ## Scope correction (read before the Why below)
+> ## Scope history (read before the Why below)
 >
-> This change now covers the **provider seam and the ADK integration
-> primitives** only. The engine replacement — running the AIM cycle on an ADK
-> graph with ADK-managed human gates — has been **withdrawn** and reshaped into
-> a follow-up change.
+> This change was briefly narrowed to the provider seam only, on the reasoning
+> that ADK v2's unbounded per-turn session reload made an ADK session unsafe as
+> the unit of work for an AIM cycle. That reasoning does not hold for AIM's
+> actual shape, and the engine replacement is **back in scope**.
 >
-> **Why it changed.** ADK v2 reloads and rescans a session's entire event
-> history on every turn. There is no compaction in the module, and the
-> `NumRecentEvents` bound has no production callers and is unreachable through
-> the `Runner`. Measured against the bun store, cost is linear in *total bytes*
-> of history: 1,000 events at 8KB each costs ~122ms of overhead per turn, at
-> 32KB each ~530ms
-> (`apps/strategy-server/internal/adk/perf_history_test.go`). AIM is moving
-> toward a continuous signal-driven loop, so a session that spans a whole cycle
-> — including multi-day review gates — cannot be the unit of work.
+> **The constraint is real, but it is about accumulating LLM/tool content in
+> session events, not about workflow-graph orchestration as such.** ADK v2
+> reloads and rescans a session's entire event history every turn, with no
+> compaction, and cost is linear in *total bytes* of history
+> (`apps/strategy-server/internal/adk/perf_history_test.go`): 1,000 events at
+> 8KB each costs ~122ms per turn, at 32KB each ~530ms. That bites hard for a
+> chat-style agent whose session events *are* the conversation — every prompt,
+> completion, and tool result becomes an event ADK reloads and rebuilds on
+> every step.
 >
-> `sequence` reached the same conclusion before us and ships ADK v2 in
-> production while refusing the `Runner` and `SessionService` outright
-> (`ADR-055`, enforced by a build-failing import guard). It is the reference
-> implementation, not this repo.
+> AIM's steps are not that shape. Each is a plain `workflow.FunctionNode` that
+> calls into `domain/aim`, which does the LLM work directly and returns a
+> compact `AIMStepResult` — the LLM prompts and completions are never recorded
+> as ADK session content. Measured against the dev database
+> (`openspec/changes/instrument-cycle-gates/proposal.md`), a complete six-step
+> AIM cycle's entire step log is **1.8KB**. An ADK session holding the
+> equivalent — one event per step, one pair per human gate — would be a few KB
+> regardless of how long a gate stays open, because a gate's wait adds no
+> events, only its open and close do. The real cost of a cycle, 127K–230K LLM
+> tokens per step, is a side effect of the step body and is identical under
+> either engine; no orchestration choice moves it.
 >
-> **The replacement pattern** — bounded cycles with Memory bridging between
-> them, and ten invariants — is in `openspec/AGENT_RUNTIME_PATTERN.md`.
+> The corrected principle, and the one that generalises: **a session must not
+> accumulate raw content or run forever — it does not follow that workflow
+> nodes can't call an ADK graph, or that a gate can't pause a session.** One
+> ADK session per AIM cycle (not per instance's lifetime) was already the
+> original design's shape and satisfies this. See the "Workflow graphs vs
+> chat-style agents" section added to `openspec/AGENT_RUNTIME_PATTERN.md` for
+> the general form of this distinction — it is what opencode-harness and
+> `sequence` need to weigh for their own, differently-shaped workloads, not a
+> reason to avoid ADK's runtime here.
 >
-> **What still stands from this change:** the `llm.Provider` seam, the Bedrock
-> provider, the ADK `model.LLM` adapter, the ADK session store (reframed as
-> ephemeral per-cycle scratch rather than the system of record), the
-> engine-neutral AIM step shape, and the `aimadk` step adapter. All shipped and
-> tested.
+> **What stands, unchanged:** the `llm.Provider` seam, the Bedrock provider,
+> the ADK `model.LLM` adapter, the ADK session store, the engine-neutral AIM
+> step shape (`domain/aim.CycleSteps()`), the `aimadk` step adapter, and the
+> ADK workflow graph itself (`internal/adk/aim_graph.go`) — all shipped,
+> tested, and now resumed rather than withdrawn.
 >
-> **What was withdrawn:** the ADK graph as the AIM workflow runtime, human
-> gates as ADK `RequestInput` pauses, run resume via ADK session
-> reconstruction, and the skillexec migration to SingleTurn nodes.
+> **What remains genuinely open, and is not blocking this change:** if AIM
+> later becomes a continuous reconciler with no discrete cycle boundary, the
+> "one session per cycle" unit will need redefining. That is a future design
+> problem for AIM's shape, not a property of ADK that rules out today's
+> discrete six-step cycle.
+>
+> **`instrument-cycle-gates`** — built on the legacy engine while this was
+> withdrawn — is not wasted. It measured the 1.8KB figure above, and its
+> gate-lifecycle fields (`GateOpenedAt`/`GateClearedAt`/`GateOutcome`) and
+> abandoned-gate sweep describe exactly the behaviour the ADK-backed engine
+> must also provide.
 
 ## Why
 
