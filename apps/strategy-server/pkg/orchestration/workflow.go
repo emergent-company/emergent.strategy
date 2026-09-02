@@ -1,17 +1,17 @@
 package orchestration
 
-// Workflow defines a named, ordered sequence of steps to be executed by the Engine.
-// Callers implement this interface to register a workflow; the Engine knows nothing
-// about the domain logic inside each step.
+// Workflow identifies a registrable unit of orchestration. This is the whole
+// contract: an engine recovers whatever else it actually needs (e.g.
+// ADKEngine needs CycleSteps() []aim.Step) via a structural cast — see
+// internal/aimadk.cycleStepsProvider — rather than through a larger shared
+// interface here.
+//
+// That split is deliberate, not a relic of having once supported two engines:
+// this package stays free of any domain dependency (no import of domain/aim,
+// ever), while internal/aimadk — which already couples ADK and AIM by design
+// — recovers the AIM-specific shape it needs at the point that actually uses
+// it.
 type Workflow interface {
 	// Name uniquely identifies this workflow type, e.g. "aim_cycle".
 	Name() string
-
-	// Steps returns the ordered list of steps to execute.
-	Steps() []Step
-
-	// ConcurrencyKey returns the key used to enforce the one-active-run lock.
-	// For AIM this is the instance UUID. Two runs with the same (Name, ConcurrencyKey)
-	// pair cannot be active simultaneously.
-	ConcurrencyKey(run *Run) string
 }

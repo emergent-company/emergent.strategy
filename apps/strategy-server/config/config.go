@@ -80,17 +80,6 @@ type Config struct {
 	// once gate durations are actually recorded.
 	AbandonGatesAfter time.Duration `arg:"--abandon-gates-after,env:ABANDON_GATES_AFTER" default:"1440h" help:"Release runs left awaiting human review for longer than this (0 disables)"`
 
-	// ADKEngine selects the AIM cycle's execution engine. false (default)
-	// runs the legacy pkg/orchestration engine, unchanged. true runs the same
-	// cycle on internal/aimadk.ADKEngine instead, per
-	// openspec/changes/adopt-adk-runtime-and-provider-seam.
-	//
-	// Both engines satisfy the same orchestration.EngineAPI and are wired
-	// against the identical *aim.CycleWorkflow value in cmd_serve.go, so
-	// flipping this is a swap, not a rewrite, and flipping it back is just as
-	// cheap while parity is still being proven.
-	ADKEngine bool `arg:"--adk-engine,env:ADK_ENGINE" default:"false" help:"Run the AIM cycle on the ADK-backed engine instead of the legacy orchestration engine"`
-
 	// Zitadel OIDC
 	ZitadelIssuer         string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
 	ZitadelClientID       string `arg:"env:ZITADEL_CLIENT_ID" help:"Zitadel service account client ID"`

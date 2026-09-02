@@ -84,13 +84,11 @@ func TestMain(m *testing.M) {
 
 // restartProofWorkflow is a two-step workflow — one human gate, one step
 // after it — registrable against ADKEngine via CycleSteps() and satisfying
-// orchestration.Workflow for the interface's sake, exactly like the e2e
-// suite's noopWorkflow.
+// orchestration.Workflow (just Name()), exactly like the e2e suite's
+// noopWorkflow.
 type restartProofWorkflow struct{}
 
-func (restartProofWorkflow) Name() string                             { return restartProofWorkflowName }
-func (restartProofWorkflow) Steps() []orchestration.Step              { return nil }
-func (restartProofWorkflow) ConcurrencyKey(*orchestration.Run) string { return "" }
+func (restartProofWorkflow) Name() string { return restartProofWorkflowName }
 func (restartProofWorkflow) CycleSteps() []aim.Step {
 	return []aim.Step{
 		{

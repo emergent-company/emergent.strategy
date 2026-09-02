@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
 // WorkflowName is the canonical identifier for the AIM cycle workflow.
@@ -33,9 +32,12 @@ type PortfolioAlignResult struct {
 
 // ── engine-neutral step shape ─────────────────────────────────────────────────
 //
-// The AIM cycle is driven by two engines during the ADK migration. Rather than
-// implement the steps twice and rely on tests to catch the drift, the bodies
-// live here in a shape neither engine owns, and each engine adapts them.
+// These bodies belong to no engine. internal/aimadk adapts them for the ADK
+// graph (see aimadk.Steps); this package imports no engine package at all,
+// including pkg/orchestration — Name() is the only thing an engine needs from
+// a *CycleWorkflow, recovered structurally by internal/aimadk.Register rather
+// than through a shared interface, so this decoupling has no cost even if a
+// second engine implementation ever returns.
 
 // StepInput is everything a step is given.
 type StepInput struct {
@@ -90,16 +92,7 @@ func (w *CycleWorkflow) WithPortfolioAligner(a PortfolioAligner) *CycleWorkflow 
 // Name returns the unique workflow name.
 func (w *CycleWorkflow) Name() string { return WorkflowName }
 
-// ConcurrencyKey extracts the instance_id from the run input.
-// One active AIM cycle per instance is allowed.
-func (w *CycleWorkflow) ConcurrencyKey(run *orchestration.Run) string {
-	if id, ok := run.Input["instance_id"].(string); ok {
-		return id
-	}
-	return ""
-}
-
-// Steps returns the six ordered steps of an AIM cycle.
+// CycleSteps returns the six ordered steps of an AIM cycle.
 //
 //  1. draft_assessment  → human reviews assessment report
 //  2. draft_calibration → human reviews calibration memo + decision
@@ -117,63 +110,6 @@ func (w *CycleWorkflow) CycleSteps() []Step {
 		{Name: "align_portfolio", Run: w.stepAlignPortfolio},
 		{Name: "snapshot_cycle", Run: w.stepSnapshotCycle},
 	}
-}
-
-// Steps adapts the neutral steps to the legacy engine. It exists only while
-// both engines are wired, and goes away with pkg/orchestration.
-func (w *CycleWorkflow) Steps() []orchestration.Step {
-	neutral := w.CycleSteps()
-	steps := make([]orchestration.Step, len(neutral))
-
-	for i, step := range neutral {
-		steps[i] = orchestration.Step{
-			Name:      step.Name,
-			HumanGate: step.HumanGate,
-			Execute:   legacyStepFunc(step),
-		}
-	}
-	return steps
-}
-
-// legacyStepFunc wraps a neutral step so the legacy engine can call it.
-func legacyStepFunc(step Step) orchestration.StepFunc {
-	return func(ctx context.Context, run *orchestration.Run) (orchestration.StepResult, error) {
-		in, err := stepInputFromRun(run)
-		if err != nil {
-			return orchestration.StepResult{}, err
-		}
-
-		out, err := step.Run(ctx, in)
-		if err != nil {
-			return orchestration.StepResult{}, err
-		}
-
-		return orchestration.StepResult{BatchID: out.BatchID, Meta: out.Meta}, nil
-	}
-}
-
-// stepInputFromRun projects a legacy run record onto the neutral input.
-func stepInputFromRun(run *orchestration.Run) (StepInput, error) {
-	instanceID, err := runInstanceID(run)
-	if err != nil {
-		return StepInput{}, err
-	}
-
-	prior := make([]StepOutput, 0, len(run.Steps))
-	for _, logged := range run.Steps {
-		prior = append(prior, StepOutput{
-			Step:    logged.Name,
-			BatchID: logged.BatchID,
-			Meta:    logged.Meta,
-		})
-	}
-
-	return StepInput{
-		RunID:      run.ID.String(),
-		InstanceID: instanceID,
-		Params:     run.Input,
-		Prior:      prior,
-	}, nil
 }
 
 // ── step implementations ──────────────────────────────────────────────────────
@@ -383,18 +319,4 @@ func (w *CycleWorkflow) stepSnapshotCycle(ctx context.Context, in StepInput) (St
 			"version_id": versionID.String(),
 		},
 	}, nil
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-func runInstanceID(run *orchestration.Run) (uuid.UUID, error) {
-	raw, ok := run.Input["instance_id"].(string)
-	if !ok || raw == "" {
-		return uuid.Nil, fmt.Errorf("aim workflow: missing instance_id in run input")
-	}
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("aim workflow: invalid instance_id %q: %w", raw, err)
-	}
-	return id, nil
 }

@@ -1,14 +1,15 @@
 package aim
 
-import (
-	"testing"
-
-	"github.com/google/uuid"
-
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
-)
+import "testing"
 
 // TestCycleWorkflow_Name verifies the canonical workflow name.
+//
+// The step list, HumanGate layout, ConcurrencyKey, and instance-id parsing
+// this file used to test here belonged to the legacy engine adapter (Steps(),
+// ConcurrencyKey(), runInstanceID), deleted along with pkg/orchestration's
+// concrete engine. The step list and gate layout are covered, as a superset —
+// it also proves the real cycle builds a valid ADK graph — by
+// internal/aimadk's TestSteps_RealCycleFormsAValidGraph.
 func TestCycleWorkflow_Name(t *testing.T) {
 	wf := NewCycleWorkflow(nil, nil) // nil svc — not called in this test
 	if got := wf.Name(); got != WorkflowName {
@@ -16,94 +17,5 @@ func TestCycleWorkflow_Name(t *testing.T) {
 	}
 	if WorkflowName != "aim_cycle" {
 		t.Errorf("WorkflowName must be 'aim_cycle', got %q", WorkflowName)
-	}
-}
-
-// TestCycleWorkflow_Steps verifies the six steps and their HumanGate settings.
-// The adapt_foundations step (step 4) auto-advances when no mutations are produced.
-// The align_portfolio step (step 5) is deterministic and auto-commits — no human gate.
-func TestCycleWorkflow_Steps(t *testing.T) {
-	wf := NewCycleWorkflow(nil, nil)
-	steps := wf.Steps()
-
-	if len(steps) != 6 {
-		t.Fatalf("want 6 steps, got %d", len(steps))
-	}
-
-	expected := []struct {
-		name      string
-		humanGate bool
-	}{
-		{"draft_assessment", true},
-		{"draft_calibration", true},
-		{"adapt_strategy", true},
-		{"adapt_foundations", true},
-		{"align_portfolio", false},
-		{"snapshot_cycle", false},
-	}
-
-	for i, e := range expected {
-		if steps[i].Name != e.name {
-			t.Errorf("step %d: want name %q, got %q", i, e.name, steps[i].Name)
-		}
-		if steps[i].HumanGate != e.humanGate {
-			t.Errorf("step %q: want HumanGate=%v, got %v", e.name, e.humanGate, steps[i].HumanGate)
-		}
-		if steps[i].Execute == nil {
-			t.Errorf("step %q: Execute must not be nil", e.name)
-		}
-	}
-}
-
-// TestCycleWorkflow_ConcurrencyKey verifies instance_id extraction from run input.
-func TestCycleWorkflow_ConcurrencyKey(t *testing.T) {
-	wf := NewCycleWorkflow(nil, nil)
-	id := uuid.New()
-
-	run := &orchestration.Run{
-		Input: map[string]any{"instance_id": id.String()},
-	}
-	got := wf.ConcurrencyKey(run)
-	if got != id.String() {
-		t.Errorf("want %q, got %q", id.String(), got)
-	}
-}
-
-// TestCycleWorkflow_ConcurrencyKey_missing verifies graceful handling of missing instance_id.
-func TestCycleWorkflow_ConcurrencyKey_missing(t *testing.T) {
-	wf := NewCycleWorkflow(nil, nil)
-	run := &orchestration.Run{Input: map[string]any{}}
-	got := wf.ConcurrencyKey(run)
-	if got != "" {
-		t.Errorf("want empty string for missing instance_id, got %q", got)
-	}
-}
-
-// TestRunInstanceID verifies the runInstanceID helper parses UUIDs correctly.
-func TestRunInstanceID_valid(t *testing.T) {
-	id := uuid.New()
-	run := &orchestration.Run{Input: map[string]any{"instance_id": id.String()}}
-	got, err := runInstanceID(run)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != id {
-		t.Errorf("want %s, got %s", id, got)
-	}
-}
-
-func TestRunInstanceID_missing(t *testing.T) {
-	run := &orchestration.Run{Input: map[string]any{}}
-	_, err := runInstanceID(run)
-	if err == nil {
-		t.Fatal("want error for missing instance_id")
-	}
-}
-
-func TestRunInstanceID_invalid_uuid(t *testing.T) {
-	run := &orchestration.Run{Input: map[string]any{"instance_id": "not-a-uuid"}}
-	_, err := runInstanceID(run)
-	if err == nil {
-		t.Fatal("want error for invalid UUID")
 	}
 }

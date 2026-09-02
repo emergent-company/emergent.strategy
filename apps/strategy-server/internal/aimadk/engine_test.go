@@ -15,19 +15,15 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
-// fakeWorkflow satisfies orchestration.Workflow — the parameter type
-// ADKEngine.Register shares with the legacy engine — plus CycleSteps(),
-// which is what ADKEngine actually uses. Steps()/ConcurrencyKey() are never
-// called by ADKEngine; they exist only to satisfy the interface.
+// fakeWorkflow satisfies orchestration.Workflow (just Name()) plus
+// CycleSteps(), which is what ADKEngine's structural cast actually looks for.
 type fakeWorkflow struct {
 	name  string
 	steps []aim.Step
 }
 
-func (w *fakeWorkflow) Name() string                             { return w.name }
-func (w *fakeWorkflow) Steps() []orchestration.Step              { return nil }
-func (w *fakeWorkflow) ConcurrencyKey(*orchestration.Run) string { return "" }
-func (w *fakeWorkflow) CycleSteps() []aim.Step                   { return w.steps }
+func (w *fakeWorkflow) Name() string           { return w.name }
+func (w *fakeWorkflow) CycleSteps() []aim.Step { return w.steps }
 
 // fakeStep builds a step that stages batchID by default. runs is optional
 // (variadic so most call sites can omit it) and overrides the body entirely
@@ -486,9 +482,7 @@ func TestADKEngine_ListRuns_ReturnsAllRunsForInstance(t *testing.T) {
 // fallback path.
 type notAIMWorkflow struct{ name string }
 
-func (w *notAIMWorkflow) Name() string                             { return w.name }
-func (w *notAIMWorkflow) Steps() []orchestration.Step              { return nil }
-func (w *notAIMWorkflow) ConcurrencyKey(*orchestration.Run) string { return "" }
+func (w *notAIMWorkflow) Name() string { return w.name }
 
 func TestADKEngine_Register_SkipsWorkflowWithoutCycleSteps(t *testing.T) {
 	db := database.TestDB(t)

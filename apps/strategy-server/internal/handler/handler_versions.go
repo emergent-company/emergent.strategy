@@ -334,7 +334,7 @@ func (s *Server) enrichVersionDetailFromSnapshot(ctx context.Context, ver *domai
 	if s.orchestrationEngine != nil {
 		var runID string
 		_ = s.db.NewSelect().
-			TableExpr("orchestration_runs").
+			TableExpr("adk_run_metadata").
 			ColumnExpr("id::text").
 			Where("workflow_name = ?", "aim_cycle").
 			Where("concurrency_key = ?", ver.InstanceID.String()).

@@ -28,19 +28,16 @@ import (
 // parameters (_trigger, _trigger_context) — not for display.
 const interruptIDMetaKey = "_adk_interrupt_id"
 
-// cycleStepsProvider is satisfied by domain/aim.CycleWorkflow. ADKEngine.Register
-// takes an orchestration.Workflow — the same parameter type the legacy engine
-// takes, so cmd_serve.go can register one workflow value against either engine
-// unchanged — but the legacy-shaped Steps() it returns wraps step bodies for
-// *orchestration.Run, which this engine cannot call. This structural check
-// recovers the engine-neutral step list the legacy shape was adapted from.
+// cycleStepsProvider is satisfied by domain/aim.CycleWorkflow.
+// ADKEngine.Register takes an orchestration.Workflow — a one-method contract
+// requiring only Name() — precisely so this package stays free of any domain
+// dependency. This structural cast is where that gap is closed: it recovers
+// the AIM-specific step list a plain Workflow does not carry.
 type cycleStepsProvider interface {
 	CycleSteps() []aim.Step
 }
 
-// ADKEngineConfig configures an ADKEngine. Mirrors orchpg.Config's shape
-// deliberately, so the two engines read as the same kind of thing at the call
-// site in cmd_serve.go.
+// ADKEngineConfig configures an ADKEngine.
 type ADKEngineConfig struct {
 	// AppName scopes ADK sessions in the (appName, userID, sessionID) triple
 	// ADK's session store keys on; userID is the run's concurrency key (the

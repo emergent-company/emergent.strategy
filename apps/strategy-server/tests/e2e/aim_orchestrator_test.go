@@ -29,22 +29,7 @@ import (
 	internaldom "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
-	orchpg "github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration/pg"
 )
-
-// engineKind selects which orchestration.EngineAPI implementation setupTestEnv
-// builds. The same test bodies run against both — that is what "parity"
-// means here: not a separate suite per engine, but one suite whose
-// assertions hold regardless of which engine produced the observed HTTP/SSE
-// behaviour.
-type engineKind string
-
-const (
-	engineLegacy engineKind = "legacy"
-	engineADK    engineKind = "adk"
-)
-
-var allEngineKinds = []engineKind{engineLegacy, engineADK}
 
 // ---------------------------------------------------------------------------
 // Test infrastructure
@@ -61,24 +46,16 @@ type testEnv struct {
 }
 
 // noopWorkflow is a workflow whose steps complete instantly without doing any
-// real work, registrable against either engine: Steps() is the legacy-shaped
-// adapter the pg-backed engine calls, CycleSteps() is the engine-neutral form
-// ADKEngine uses. Both describe the same two steps — this is the whole
-// mechanism that makes "the same test runs against both engines" meaningful
-// rather than coincidental.
+// real work. It satisfies orchestration.Workflow (Name()) and ADKEngine's
+// structural cast (CycleSteps()).
 type noopWorkflow struct {
 	name  string
-	steps []orchestration.Step
 	cycle []aim.Step
 }
 
-func (w *noopWorkflow) Name() string                               { return w.name }
-func (w *noopWorkflow) Steps() []orchestration.Step                { return w.steps }
-func (w *noopWorkflow) ConcurrencyKey(r *orchestration.Run) string { return r.ConcurrencyKey }
-func (w *noopWorkflow) CycleSteps() []aim.Step                     { return w.cycle }
+func (w *noopWorkflow) Name() string           { return w.name }
+func (w *noopWorkflow) CycleSteps() []aim.Step { return w.cycle }
 
-// newNoopWorkflow creates a workflow with steps that complete instantly.
-// The first step has a human gate (produces a batch ID to pause on).
 // newNoopWorkflow creates a workflow with steps that complete instantly.
 // Two human gates in sequence, not one: a real AIM cycle has four, and a
 // fixture with only one gate cannot exercise a step correctly identifying
@@ -91,35 +68,6 @@ func newNoopWorkflow(name string) *noopWorkflow {
 	batch1, batch2 := uuid.New().String(), uuid.New().String()
 	return &noopWorkflow{
 		name: name,
-		steps: []orchestration.Step{
-			{
-				Name: "draft_assessment",
-				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
-					return orchestration.StepResult{
-						BatchID: batch1,
-						Meta:    map[string]any{"llm_used": false},
-					}, nil
-				},
-				HumanGate: true,
-			},
-			{
-				Name: "draft_calibration",
-				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
-					return orchestration.StepResult{
-						BatchID: batch2,
-						Meta:    map[string]any{"llm_used": false},
-					}, nil
-				},
-				HumanGate: true,
-			},
-			{
-				Name: "snapshot",
-				Execute: func(_ context.Context, _ *orchestration.Run) (orchestration.StepResult, error) {
-					return orchestration.StepResult{}, nil
-				},
-				HumanGate: false,
-			},
-		},
 		cycle: []aim.Step{
 			{
 				Name:      "draft_assessment",
@@ -155,7 +103,7 @@ func newNoopWorkflow(name string) *noopWorkflow {
 
 // setupTestEnv creates a test environment with database, Echo server, handler,
 // and orchestration engine. The engine runs a noop workflow named "aim_cycle".
-func setupTestEnv(t *testing.T, kind engineKind) *testEnv {
+func setupTestEnv(t *testing.T) *testEnv {
 	t.Helper()
 
 	db := database.TestDB(t)
@@ -192,25 +140,16 @@ func setupTestEnv(t *testing.T, kind engineKind) *testEnv {
 		t.Fatalf("seed instance: %v", err)
 	}
 
-	// Build the orchestration engine — legacy or ADK-backed per kind — and
-	// register the same noopWorkflow value against it. This is the entire
-	// swap: nothing downstream (routes, handlers, the HTML assertions below)
-	// changes based on which engine produced the run.
+	// Build the orchestration engine and register the noop workflow against
+	// it — the same construction cmd_serve.go does.
 	wf := newNoopWorkflow("aim_cycle")
-	var engine orchestration.EngineAPI
-	switch kind {
-	case engineADK:
-		runStore := aimadk.NewRunStore(db)
-		sessionStore := adk.NewSessionStore(db)
-		engine = aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{AppName: "e2e-test"})
-	default:
-		backend := orchpg.NewBackend(db, orchpg.Config{Workers: 2})
-		engine = orchestration.New(backend)
-	}
+	runStore := aimadk.NewRunStore(db)
+	sessionStore := adk.NewSessionStore(db)
+	var engine orchestration.EngineAPI = aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{AppName: "e2e-test"})
 	engine.Register(wf)
 
 	if err := engine.Start(ctx); err != nil {
-		t.Fatalf("engine start (%s): %v", kind, err)
+		t.Fatalf("engine start: %v", err)
 	}
 	t.Cleanup(func() {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -314,36 +253,32 @@ func (r *responseRecorder) Result() *http.Response {
 // ---------------------------------------------------------------------------
 
 func TestStartRun_RedirectsToRunPanel(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
 
-			if resp.StatusCode != http.StatusSeeOther {
-				t.Fatalf("expected 303 redirect, got %d", resp.StatusCode)
-			}
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect, got %d", resp.StatusCode)
+	}
 
-			loc := resp.Header.Get("Location")
-			if !strings.Contains(loc, "/aim/runs/") {
-				t.Errorf("redirect should point to /aim/runs/:runID, got Location: %s", loc)
-			}
+	loc := resp.Header.Get("Location")
+	if !strings.Contains(loc, "/aim/runs/") {
+		t.Errorf("redirect should point to /aim/runs/:runID, got Location: %s", loc)
+	}
 
-			// Verify the run exists in the engine.
-			runID := loc[strings.LastIndex(loc, "/")+1:]
-			parsedID, err := uuid.Parse(runID)
-			if err != nil {
-				t.Fatalf("redirect location contains invalid run ID %q: %v", runID, err)
-			}
+	// Verify the run exists in the engine.
+	runID := loc[strings.LastIndex(loc, "/")+1:]
+	parsedID, err := uuid.Parse(runID)
+	if err != nil {
+		t.Fatalf("redirect location contains invalid run ID %q: %v", runID, err)
+	}
 
-			run, err := env.Engine.GetRun(context.Background(), parsedID)
-			if err != nil {
-				t.Fatalf("GetRun: %v", err)
-			}
-			if run.WorkflowName != "aim_cycle" {
-				t.Errorf("expected workflow aim_cycle, got %s", run.WorkflowName)
-			}
-		})
+	run, err := env.Engine.GetRun(context.Background(), parsedID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if run.WorkflowName != "aim_cycle" {
+		t.Errorf("expected workflow aim_cycle, got %s", run.WorkflowName)
 	}
 }
 
@@ -352,58 +287,50 @@ func TestStartRun_RedirectsToRunPanel(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDuplicateRun_HTMX_Returns409(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			// Start first run.
-			resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
-			if resp1.StatusCode != http.StatusSeeOther {
-				t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
-			}
+	// Start first run.
+	resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp1.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
+	}
 
-			// Wait for the run to be picked up by the worker.
-			time.Sleep(100 * time.Millisecond)
+	// Wait for the run to be picked up by the worker.
+	time.Sleep(100 * time.Millisecond)
 
-			// Second run with HX-Request header — should get 409.
-			resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", map[string]string{
-				"HX-Request": "true",
-			})
+	// Second run with HX-Request header — should get 409.
+	resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", map[string]string{
+		"HX-Request": "true",
+	})
 
-			if resp2.StatusCode != http.StatusConflict {
-				t.Errorf("HTMX duplicate POST: expected 409 Conflict, got %d", resp2.StatusCode)
-			}
-		})
+	if resp2.StatusCode != http.StatusConflict {
+		t.Errorf("HTMX duplicate POST: expected 409 Conflict, got %d", resp2.StatusCode)
 	}
 }
 
 func TestDuplicateRun_Browser_RedirectsToAIM(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			// Start first run.
-			resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
-			if resp1.StatusCode != http.StatusSeeOther {
-				t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
-			}
+	// Start first run.
+	resp1 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp1.StatusCode != http.StatusSeeOther {
+		t.Fatalf("first POST: expected 303, got %d", resp1.StatusCode)
+	}
 
-			// Wait for the run to be picked up by the worker.
-			time.Sleep(100 * time.Millisecond)
+	// Wait for the run to be picked up by the worker.
+	time.Sleep(100 * time.Millisecond)
 
-			// Second run without HX-Request header — should redirect to /aim.
-			resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	// Second run without HX-Request header — should redirect to /aim.
+	resp2 := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
 
-			if resp2.StatusCode != http.StatusSeeOther {
-				t.Fatalf("browser duplicate POST: expected 303, got %d", resp2.StatusCode)
-			}
+	if resp2.StatusCode != http.StatusSeeOther {
+		t.Fatalf("browser duplicate POST: expected 303, got %d", resp2.StatusCode)
+	}
 
-			loc := resp2.Header.Get("Location")
-			expectedRedirect := "/strategies/" + env.InstanceID.String() + "/aim"
-			if loc != expectedRedirect {
-				t.Errorf("expected redirect to %s, got %s", expectedRedirect, loc)
-			}
-		})
+	loc := resp2.Header.Get("Location")
+	expectedRedirect := "/strategies/" + env.InstanceID.String() + "/aim"
+	if loc != expectedRedirect {
+		t.Errorf("expected redirect to %s, got %s", expectedRedirect, loc)
 	}
 }
 
@@ -412,53 +339,48 @@ func TestDuplicateRun_Browser_RedirectsToAIM(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetRun_ReturnsRunPanel(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			// Start a run.
-			resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
-			if resp.StatusCode != http.StatusSeeOther {
-				t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
-			}
-			loc := resp.Header.Get("Location")
-			runID := loc[strings.LastIndex(loc, "/")+1:]
+	// Start a run.
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	runID := loc[strings.LastIndex(loc, "/")+1:]
 
-			// Wait for the worker to pick up the run and execute the first step.
-			time.Sleep(500 * time.Millisecond)
+	// Wait for the worker to pick up the run and execute the first step.
+	time.Sleep(500 * time.Millisecond)
 
-			// GET the run panel.
-			panelResp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+runID, nil)
-			if panelResp.StatusCode != http.StatusOK {
-				t.Fatalf("GET run panel: expected 200, got %d", panelResp.StatusCode)
-			}
+	// GET the run panel.
+	panelResp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+runID, nil)
+	if panelResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET run panel: expected 200, got %d", panelResp.StatusCode)
+	}
 
-			body, _ := io.ReadAll(panelResp.Body)
-			html := string(body)
+	body, _ := io.ReadAll(panelResp.Body)
+	html := string(body)
 
-			// The run panel should contain every step name from our noop
-			// workflow, including draft_calibration — which has not executed
-			// yet at this point (the run is paused at draft_assessment's
-			// gate). This is the exact placeholder-pre-population behaviour
-			// fixed earlier: a not-yet-run step must still render, or a run
-			// paused at the first of several gates would silently hide the
-			// rest of the pipeline from the reviewer.
-			for _, want := range []struct{ raw, human string }{
-				{"draft_assessment", "Draft Assessment"},
-				{"draft_calibration", "Draft Calibration"},
-				{"snapshot", "Snapshot"},
-			} {
-				if !strings.Contains(html, want.raw) && !strings.Contains(html, want.human) {
-					t.Errorf("run panel HTML should mention %s step", want.raw)
-				}
-			}
+	// The run panel should contain every step name from our noop workflow,
+	// including draft_calibration — which has not executed yet at this point
+	// (the run is paused at draft_assessment's gate). This is the exact
+	// placeholder-pre-population behaviour fixed earlier: a not-yet-run step
+	// must still render, or a run paused at the first of several gates would
+	// silently hide the rest of the pipeline from the reviewer.
+	for _, want := range []struct{ raw, human string }{
+		{"draft_assessment", "Draft Assessment"},
+		{"draft_calibration", "Draft Calibration"},
+		{"snapshot", "Snapshot"},
+	} {
+		if !strings.Contains(html, want.raw) && !strings.Contains(html, want.human) {
+			t.Errorf("run panel HTML should mention %s step", want.raw)
+		}
+	}
 
-			// The stream URL should be present for SSE.
-			expectedStreamURL := fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", env.InstanceID, runID)
-			if !strings.Contains(html, expectedStreamURL) {
-				t.Errorf("run panel should contain stream URL %s", expectedStreamURL)
-			}
-		})
+	// The stream URL should be present for SSE.
+	expectedStreamURL := fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", env.InstanceID, runID)
+	if !strings.Contains(html, expectedStreamURL) {
+		t.Errorf("run panel should contain stream URL %s", expectedStreamURL)
 	}
 }
 
@@ -467,15 +389,11 @@ func TestGetRun_ReturnsRunPanel(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetRun_InvalidID_Returns400(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			resp := env.request(t, "GET", env.BaseURL+"/aim/runs/not-a-uuid", nil)
-			if resp.StatusCode != http.StatusBadRequest {
-				t.Errorf("expected 400 for invalid run ID, got %d", resp.StatusCode)
-			}
-		})
+	resp := env.request(t, "GET", env.BaseURL+"/aim/runs/not-a-uuid", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid run ID, got %d", resp.StatusCode)
 	}
 }
 
@@ -484,16 +402,12 @@ func TestGetRun_InvalidID_Returns400(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestGetRun_NotFound_Returns404(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			fakeID := uuid.New().String()
-			resp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+fakeID, nil)
-			if resp.StatusCode != http.StatusNotFound {
-				t.Errorf("expected 404 for nonexistent run, got %d", resp.StatusCode)
-			}
-		})
+	fakeID := uuid.New().String()
+	resp := env.request(t, "GET", env.BaseURL+"/aim/runs/"+fakeID, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for nonexistent run, got %d", resp.StatusCode)
 	}
 }
 
@@ -502,155 +416,144 @@ func TestGetRun_NotFound_Returns404(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSSEStream_ContentType(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
+	env := setupTestEnv(t)
 
-			// Start a run so we have a valid runID.
-			resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
-			if resp.StatusCode != http.StatusSeeOther {
-				t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
-			}
-			loc := resp.Header.Get("Location")
-			runID := loc[strings.LastIndex(loc, "/")+1:]
-
-			// Wait for worker to pick up the run.
-			time.Sleep(200 * time.Millisecond)
-
-			// The SSE handler enters an infinite polling loop, so we can't call it via
-			// ServeHTTP synchronously. Instead, use an httptest.Server and a short-timeout
-			// HTTP client that reads only the headers + first bytes.
-			ts := env.startHTTPServer(t)
-
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-
-			req, err := http.NewRequestWithContext(ctx, "GET", ts.URL+env.BaseURL+"/aim/runs/"+runID+"/stream", nil)
-			if err != nil {
-				t.Fatalf("new request: %v", err)
-			}
-			req.Header.Set("Accept", "text/event-stream")
-
-			client := &http.Client{}
-			sseResp, err := client.Do(req)
-			if err != nil {
-				// Context timeout is expected — the SSE stream runs forever.
-				// We should have gotten the headers before the timeout.
-				t.Logf("SSE request ended (expected for stream): %v", err)
-				return
-			}
-			defer sseResp.Body.Close()
-
-			ct := sseResp.Header.Get("Content-Type")
-			if !strings.Contains(ct, "text/event-stream") {
-				t.Errorf("SSE endpoint should return Content-Type: text/event-stream, got %q", ct)
-			}
-			if sseResp.StatusCode != http.StatusOK {
-				t.Errorf("SSE endpoint should return 200, got %d", sseResp.StatusCode)
-			}
-
-			// Read a few bytes to confirm the server is sending data.
-			buf := make([]byte, 64)
-			n, _ := io.ReadAtLeast(sseResp.Body, buf, 1)
-			if n > 0 {
-				t.Logf("SSE stream sent %d bytes: %q", n, string(buf[:n]))
-			}
-			t.Logf("SSE endpoint OK — Content-Type: %s", ct)
-		})
+	// Start a run so we have a valid runID.
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
 	}
+	loc := resp.Header.Get("Location")
+	runID := loc[strings.LastIndex(loc, "/")+1:]
+
+	// Wait for worker to pick up the run.
+	time.Sleep(200 * time.Millisecond)
+
+	// The SSE handler enters an infinite polling loop, so we can't call it via
+	// ServeHTTP synchronously. Instead, use an httptest.Server and a short-timeout
+	// HTTP client that reads only the headers + first bytes.
+	ts := env.startHTTPServer(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ts.URL+env.BaseURL+"/aim/runs/"+runID+"/stream", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+
+	client := &http.Client{}
+	sseResp, err := client.Do(req)
+	if err != nil {
+		// Context timeout is expected — the SSE stream runs forever.
+		// We should have gotten the headers before the timeout.
+		t.Logf("SSE request ended (expected for stream): %v", err)
+		return
+	}
+	defer sseResp.Body.Close()
+
+	ct := sseResp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/event-stream") {
+		t.Errorf("SSE endpoint should return Content-Type: text/event-stream, got %q", ct)
+	}
+	if sseResp.StatusCode != http.StatusOK {
+		t.Errorf("SSE endpoint should return 200, got %d", sseResp.StatusCode)
+	}
+
+	// Read a few bytes to confirm the server is sending data.
+	buf := make([]byte, 64)
+	n, _ := io.ReadAtLeast(sseResp.Body, buf, 1)
+	if n > 0 {
+		t.Logf("SSE stream sent %d bytes: %q", n, string(buf[:n]))
+	}
+	t.Logf("SSE endpoint OK — Content-Type: %s", ct)
 }
 
 // ---------------------------------------------------------------------------
 // Test: resuming two sequential human gates
 // ---------------------------------------------------------------------------
 
-// TestMultiGateRun_BothGatesResumeCorrectly exists because none of the tests
-// above — nor any other test in this file, before this one — ever call
-// Resume at all. A run being resumable was simply never covered at this
-// layer, at any gate count.
+// TestMultiGateRun_BothGatesResumeCorrectly exists because no other test in
+// this file ever calls Resume at all, at any gate count. A run being
+// resumable was simply never covered at this layer.
 //
-// It also pins the exact bug found by manual testing: on the ADK engine, a
-// gate that cleared did not have its Status flipped away from
-// "awaiting_human", so once a second gate opened, the code that finds "the
-// currently open gate" kept finding the first, already-resolved one instead
-// — and resumed it with a stale interrupt id, which ADK correctly rejected.
-// One gate could never reveal this; it needs two, resumed in sequence,
-// through the same engine instance the HTTP handlers in this test file's
-// setupTestEnv actually construct — not a synthetic engine built just for a
-// unit test.
+// It also pins the exact bug found by manual testing: a gate that cleared did
+// not have its Status flipped away from "awaiting_human", so once a second
+// gate opened, the code that finds "the currently open gate" kept finding the
+// first, already-resolved one instead — and resumed it with a stale interrupt
+// id, which ADK correctly rejected. One gate could never reveal this; it
+// needs two, resumed in sequence, through the same engine construction
+// setupTestEnv gives the real HTTP handlers — not a synthetic engine built
+// just for a unit test.
 func TestMultiGateRun_BothGatesResumeCorrectly(t *testing.T) {
-	for _, kind := range allEngineKinds {
-		t.Run(string(kind), func(t *testing.T) {
-			env := setupTestEnv(t, kind)
-			ctx := context.Background()
+	env := setupTestEnv(t)
+	ctx := context.Background()
 
-			resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
-			if resp.StatusCode != http.StatusSeeOther {
-				t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
-			}
-			loc := resp.Header.Get("Location")
-			runID, err := uuid.Parse(loc[strings.LastIndex(loc, "/")+1:])
-			if err != nil {
-				t.Fatalf("redirect location contains invalid run ID %q: %v", loc, err)
-			}
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	runID, err := uuid.Parse(loc[strings.LastIndex(loc, "/")+1:])
+	if err != nil {
+		t.Fatalf("redirect location contains invalid run ID %q: %v", loc, err)
+	}
 
-			// First gate.
-			run := awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_assessment")
-			batch1 := run.Steps[0].BatchID
-			if batch1 == "" {
-				t.Fatal("first gate opened with no batch id")
-			}
+	// First gate.
+	run := awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_assessment")
+	batch1 := run.Steps[0].BatchID
+	if batch1 == "" {
+		t.Fatal("first gate opened with no batch id")
+	}
 
-			if err := env.Engine.Resume(ctx, runID, true); err != nil {
-				t.Fatalf("resume first gate: %v", err)
-			}
+	if err := env.Engine.Resume(ctx, runID, true); err != nil {
+		t.Fatalf("resume first gate: %v", err)
+	}
 
-			// Second gate. Polling for status alone would be ambiguous: the
-			// run was already awaiting_human once, and Resume returns before
-			// the engine's first post-resume write lands, so a poll landing
-			// in that window could catch the FIRST gate's now-stale status.
-			// Waiting for CurrentStep too pins it to the second gate
-			// specifically — see awaitRunStep.
-			run = awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_calibration")
-			batch2 := run.Steps[1].BatchID
-			if batch2 == "" {
-				t.Fatal("second gate opened with no batch id")
-			}
-			if batch2 == batch1 {
-				t.Fatal("second gate has the same batch id as the first — steps are not being distinguished")
-			}
-			// The exact field the real bug leaves wrong: the first gate must
-			// have been closed out, not left open forever.
-			if got := run.Steps[0].Status; got != "done" {
-				t.Fatalf("first gate's Status = %q after it cleared, want done", got)
-			}
+	// Second gate. Polling for status alone would be ambiguous: the run was
+	// already awaiting_human once, and Resume returns before the engine's
+	// first post-resume write lands, so a poll landing in that window could
+	// catch the FIRST gate's now-stale status. Waiting for CurrentStep too
+	// pins it to the second gate specifically — see awaitRunStep.
+	run = awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_calibration")
+	batch2 := run.Steps[1].BatchID
+	if batch2 == "" {
+		t.Fatal("second gate opened with no batch id")
+	}
+	if batch2 == batch1 {
+		t.Fatal("second gate has the same batch id as the first — steps are not being distinguished")
+	}
+	// The exact field the real bug leaves wrong: the first gate must have
+	// been closed out, not left open forever.
+	if got := run.Steps[0].Status; got != "done" {
+		t.Fatalf("first gate's Status = %q after it cleared, want done", got)
+	}
 
-			if err := env.Engine.Resume(ctx, runID, true); err != nil {
-				t.Fatalf("resume second gate: %v", err)
-			}
+	if err := env.Engine.Resume(ctx, runID, true); err != nil {
+		t.Fatalf("resume second gate: %v", err)
+	}
 
-			run = awaitRunStatus(t, env, runID, orchestration.StatusCompleted)
-			for _, name := range []string{"draft_assessment", "draft_calibration", "snapshot"} {
-				found := false
-				for _, s := range run.Steps {
-					if s.Name == name {
-						found = true
-						if s.Status != "done" {
-							t.Errorf("%s.Status = %q, want done", name, s.Status)
-						}
-					}
-				}
-				if !found {
-					t.Errorf("step %q missing from completed run", name)
+	run = awaitRunStatus(t, env, runID, orchestration.StatusCompleted)
+	for _, name := range []string{"draft_assessment", "draft_calibration", "snapshot"} {
+		found := false
+		for _, s := range run.Steps {
+			if s.Name == name {
+				found = true
+				if s.Status != "done" {
+					t.Errorf("%s.Status = %q, want done", name, s.Status)
 				}
 			}
-			if run.Steps[0].GateOutcome != orchestration.GateCommitted {
-				t.Errorf("draft_assessment.GateOutcome = %q, want committed", run.Steps[0].GateOutcome)
-			}
-			if run.Steps[1].GateOutcome != orchestration.GateCommitted {
-				t.Errorf("draft_calibration.GateOutcome = %q, want committed", run.Steps[1].GateOutcome)
-			}
-		})
+		}
+		if !found {
+			t.Errorf("step %q missing from completed run", name)
+		}
+	}
+	if run.Steps[0].GateOutcome != orchestration.GateCommitted {
+		t.Errorf("draft_assessment.GateOutcome = %q, want committed", run.Steps[0].GateOutcome)
+	}
+	if run.Steps[1].GateOutcome != orchestration.GateCommitted {
+		t.Errorf("draft_calibration.GateOutcome = %q, want committed", run.Steps[1].GateOutcome)
 	}
 }
 
@@ -749,70 +652,17 @@ func TestStartRun_NoEngine_Returns503(t *testing.T) {
 // Test: server restart marks stale runs as failed
 // ---------------------------------------------------------------------------
 
+// TestServerRestart_MarksStaleRunsFailed simulates a run left mid-flight by a
+// crashed process — written directly to the store, with no engine ever
+// having driven it — and confirms a fresh engine's Start() marks it failed
+// with "server restart" rather than leaving it stuck non-terminal forever.
 func TestServerRestart_MarksStaleRunsFailed(t *testing.T) {
-	db := database.TestDB(t)
-	ctx := context.Background()
-
-	wf := newNoopWorkflow("aim_cycle")
-
-	// Insert a pending run using a backend that has NOT been started.
-	// No workers are running, so the run stays pending in the DB.
-	be1 := orchpg.NewBackend(db, orchpg.Config{Workers: 1})
-	run := &orchestration.Run{
-		ID:             uuid.New(),
-		WorkflowName:   "aim_cycle",
-		ConcurrencyKey: "stale-instance",
-		Input:          map[string]any{"instance_id": "stale-instance"},
-		Status:         orchestration.StatusPending,
-		Steps:          []orchestration.StepLog{},
-	}
-	if err := be1.Enqueue(ctx, run); err != nil {
-		t.Fatalf("Enqueue: %v", err)
-	}
-	t.Logf("Run enqueued (no workers): %s", run.ID)
-
-	// Start a fresh backend simulating a server restart.
-	// Start() must mark the pending run as failed before launching new workers.
-	be2 := orchpg.NewBackend(db, orchpg.Config{Workers: 1})
-	eng2 := orchestration.New(be2)
-	eng2.Register(wf)
-
-	if err := eng2.Start(ctx); err != nil {
-		t.Fatalf("eng2 start: %v", err)
-	}
-	defer func() { _ = eng2.Stop(ctx) }()
-
-	// The stale run should now be marked as failed.
-	got, err := eng2.GetRun(ctx, run.ID)
-	if err != nil {
-		t.Fatalf("GetRun after restart: %v", err)
-	}
-
-	if got.Status != orchestration.StatusFailed {
-		t.Errorf("expected run status 'failed' after restart, got %q", got.Status)
-	}
-	if got.Error != "server restart" {
-		t.Errorf("expected error 'server restart', got %q", got.Error)
-	}
-}
-
-// TestServerRestart_MarksStaleRunsFailed_ADK is the ADK engine's counterpart
-// to the legacy test above. It is a separate test rather than a shared
-// subtest body because the two engines' restart-recovery mechanics are
-// genuinely different — a two-backend-instance simulation for the legacy
-// worker pool versus a direct RunStore write for the ADK engine's stateless
-// drive() goroutines — but the externally-observed outcome must be the same:
-// a run left non-terminal by a crashed process reads back as failed with
-// "server restart" once a new engine starts.
-func TestServerRestart_MarksStaleRunsFailed_ADK(t *testing.T) {
 	db := database.TestDB(t)
 	ctx := context.Background()
 
 	wf := newNoopWorkflow("aim_cycle")
 	runStore := aimadk.NewRunStore(db)
 
-	// Simulate a run left mid-flight by a crashed process: written directly to
-	// the store, with no engine ever having started to drive it.
 	run := &orchestration.Run{
 		ID:             uuid.New(),
 		WorkflowName:   "aim_cycle",
