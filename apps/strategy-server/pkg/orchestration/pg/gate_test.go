@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
@@ -413,4 +414,114 @@ func TestSweep_FreesTheConcurrencySlot(t *testing.T) {
 	if active != nil {
 		t.Fatalf("instance still has an active run after release: %s (%s)", active.ID, active.Status)
 	}
+}
+
+// ── rows that already exist in production databases ───────────────────────────
+
+// legacyRunRow mirrors the stored shape so tests can plant rows the running
+// system would never write today.
+type legacyRunRow struct {
+	bun.BaseModel `bun:"table:orchestration_runs"`
+
+	ID             uuid.UUID       `bun:"id,pk"`
+	WorkflowName   string          `bun:"workflow_name"`
+	ConcurrencyKey string          `bun:"concurrency_key"`
+	Input          json.RawMessage `bun:"input,type:jsonb"`
+	Status         string          `bun:"status"`
+	CurrentStep    string          `bun:"current_step"`
+	Steps          json.RawMessage `bun:"steps,type:jsonb"`
+	Error          string          `bun:"error"`
+	CreatedAt      time.Time       `bun:"created_at"`
+	UpdatedAt      time.Time       `bun:"updated_at"`
+}
+
+func plantRun(t *testing.T, db *bun.DB, row legacyRunRow) {
+	t.Helper()
+	if _, err := db.NewInsert().Model(&row).Exec(t.Context()); err != nil {
+		t.Fatalf("plant run: %v", err)
+	}
+}
+
+func sweepBackendWithDB(t *testing.T, wf *mockWorkflow, cfg orchpg.Config) (*orchpg.Backend, *bun.DB) {
+	t.Helper()
+
+	db := database.TestDB(t)
+	be := orchpg.NewBackend(db, cfg)
+	if err := be.Start(t.Context(), map[string]orchestration.Workflow{wf.name: wf}); err != nil {
+		t.Fatalf("start backend: %v", err)
+	}
+	t.Cleanup(func() { _ = be.Stop(context.Background()) })
+	return be, db
+}
+
+// TestSweep_LegacyRunFallsBackToCreatedAt reproduces the run parked in the dev
+// database since June, which predates gate timestamps.
+//
+// The clock choice is decisive rather than cosmetic. That row's updated_at was
+// touched in August by something unrelated to the workflow — its step log shows
+// no progress after June — so by updated_at it looks 1.8 days old, and by
+// created_at 91.9 days. A sweep keyed on updated_at would skip the very run it
+// exists to release.
+func TestSweep_LegacyRunFallsBackToCreatedAt(t *testing.T) {
+	wf := gatedWorkflow("sweep_legacy_wf", "batch-1")
+
+	// Threshold of 30 days: comfortably past created_at, nowhere near
+	// updated_at. Only the correct clock releases this run.
+	be, db := sweepBackendWithDB(t, wf, orchpg.Config{
+		Workers:           2,
+		AbandonGatesAfter: 30 * 24 * time.Hour,
+		SweepInterval:     50 * time.Millisecond,
+	})
+
+	runID := uuid.New()
+	plantRun(t, db, legacyRunRow{
+		ID:             runID,
+		WorkflowName:   wf.name,
+		ConcurrencyKey: "legacy-instance",
+		Input:          json.RawMessage(`{"instance_id":"legacy-instance"}`),
+		Status:         string(orchestration.StatusAwaitingHuman),
+		CurrentStep:    "adapt_strategy",
+		// No gate_opened_at — the field did not exist when this was written.
+		Steps: json.RawMessage(`[
+			{"name":"draft_assessment","status":"done"},
+			{"name":"adapt_strategy","status":"awaiting_human","batch_id":"b-legacy"}
+		]`),
+		CreatedAt: time.Now().UTC().Add(-91 * 24 * time.Hour),
+		UpdatedAt: time.Now().UTC().Add(-2 * 24 * time.Hour), // the phantom touch
+	})
+
+	released := awaitStatus(t, be, runID, orchestration.StatusFailed)
+	gated := stepByName(t, released, "adapt_strategy")
+	if gated.GateOutcome != orchestration.GateAbandoned {
+		t.Errorf("GateOutcome = %q, want %q", gated.GateOutcome, orchestration.GateAbandoned)
+	}
+}
+
+// TestSweep_ToleratesRunWithNullSteps covers the 7 rows in the dev database
+// whose steps column is JSON null rather than an array. Decoding happens in Go
+// rather than through jsonb_array_elements, which would error on a scalar.
+func TestSweep_ToleratesRunWithNullSteps(t *testing.T) {
+	wf := gatedWorkflow("sweep_nullsteps_wf", "batch-1")
+	be, db := sweepBackendWithDB(t, wf, orchpg.Config{
+		Workers:           2,
+		AbandonGatesAfter: time.Nanosecond,
+		SweepInterval:     50 * time.Millisecond,
+	})
+
+	runID := uuid.New()
+	plantRun(t, db, legacyRunRow{
+		ID:             runID,
+		WorkflowName:   wf.name,
+		ConcurrencyKey: "nullsteps-instance",
+		Input:          json.RawMessage(`{}`),
+		Status:         string(orchestration.StatusAwaitingHuman),
+		CurrentStep:    "adapt_strategy",
+		Steps:          json.RawMessage(`null`),
+		CreatedAt:      time.Now().UTC().Add(-time.Hour),
+		UpdatedAt:      time.Now().UTC().Add(-time.Hour),
+	})
+
+	// A run whose status and step log disagree still has to be released, and
+	// must not take the sweep down with it.
+	awaitStatus(t, be, runID, orchestration.StatusFailed)
 }
