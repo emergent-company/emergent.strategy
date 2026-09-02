@@ -60,11 +60,26 @@ before Part B (ADK migration).
 - [x] Event ordering and both read filters (`NumRecentEvents`, `After`) covered — `NumRecentEvents` queries descending and reverses, so a missed reversal would hand ADK the stream backwards.
 
 ### B3. AIM cycle → ADK graph
-- [ ] `aim_graph.go`: six nodes per design table.
-- [ ] Human gates → ADK `RequestInput`; wire existing approve/commit HTTP action to `runner.Run(...)` resume.
-- [ ] Empty adapt_foundations → auto-advance (no RequestInput).
-- [ ] align_portfolio + snapshot_cycle → FunctionNodes (deterministic).
-- [ ] Concurrency key = `instance_id` (one active cycle per instance).
+
+- [x] **API research complete.** Read the shipped ADK v2.2.0 workflow package and both HITL examples; findings recorded in `design.md` under "Verified against the ADK v2.2.0 API". Four constraints change the plan:
+  - The `RerunOnResume` HITL pattern re-runs the node body after the human answers, which would repeat each AIM step's LLM call and stage a **second mutation batch** per approval. The two-node handoff pattern is mandatory.
+  - Topology is **10 nodes, not 6** — each gated step splits into work + gate.
+  - Data flow breaks at every gate (the post-gate node receives the human's reply, not the gate's output), so run context must live in session state rather than node I/O.
+  - Abort-on-discard has no ADK equivalent and must be re-implemented in the post-gate node.
+- [x] `aim_graph.go` in `internal/adk`: work+gate node pairs, built from an **injected step list** so the package stays free of `domain/aim` imports and is testable with fakes.
+- [x] Human gates → `NewRequestInputEvent` + `ErrNodeInterrupted`; the staged `AIMStepResult` rides on `RequestInput.Payload` so a reviewer UI renders the batch rather than parsing prose.
+- [x] Empty batch → the gate declines to emit a `RequestInput` and passes `autoAdvanced` through (covers `adapt_foundations`).
+- [x] Post-gate nodes interpret the reply and abort with `ErrCycleDiscarded`. Unparseable replies **fail closed** — guessing "committed" would apply a batch nobody approved.
+- [x] Ungated steps → plain FunctionNodes (covers `align_portfolio`, `snapshot_cycle`).
+- [x] 9 tests + 7 subtests, driven through the real bun session store so pause/resume crosses the database. Full suite green (37 packages), lint 0 issues.
+- [ ] Concurrency key = `instance_id` (one active cycle per instance) — enforced at the engine layer, not the graph.
+
+**Two findings from building it:**
+
+- Whether a step must settle a review has to be decided at **build time** from the graph's shape. ADK hands the first node the user message that triggered the run, and it is indistinguishable by type from a reviewer's reply — a first draft that sniffed input types rejected every cycle at its first step.
+- **Committing a reviewed batch stays with the caller**, performed before the run is resumed. The graph only observes the verdict. This keeps `internal/adk` free of the mutation store and leaves exactly one writer for staged batches. The resume handler in B4d must commit first, then resume.
+- [ ] **Parity approach:** expose the six existing step bodies from `domain/aim` in an engine-neutral shape so both engines drive the *same* code, rather than reimplementing the steps against ADK.
+- [ ] Feature flag `ADK_ENGINE` (legacy default) so both engines coexist until parity is proven.
 
 ### B4. skillexec → SingleTurn nodes
 - [ ] Port `RunChunked` one-shot generation to ADK `SingleTurn` agent node; move schema constraints to ADK structured output.

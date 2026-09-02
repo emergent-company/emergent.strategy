@@ -102,7 +102,75 @@ stone, not a detour.
 
 ### AIM cycle → ADK graph
 
-Today (`domain/aim/workflow.go`): six ordered steps, four with `HumanGate:true`.
+#### Verified against the ADK v2.2.0 API (supersedes the sketch below)
+
+Four constraints found by reading the shipped API and ADK's own HITL examples.
+They change the node topology from the six-node table below.
+
+**1. There are two HITL patterns, and the obvious one is wrong for AIM.**
+
+- `hitl_rerun`: one node with `NodeConfig.RerunOnResume`, using
+  `workflow.ResumeOrRequestInput`. The node body **re-runs from scratch** after
+  the human answers.
+- `hitl_simple`: two nodes. The first emits `NewRequestInputEvent` and returns
+  `workflow.ErrNodeInterrupted`; it is not re-run.
+
+AIM steps do expensive LLM work and stage a mutation batch *before* pausing, so
+`RerunOnResume` would repeat the LLM call and stage a **second batch** on every
+approval. The two-node handoff is therefore mandatory, not stylistic.
+
+**2. Topology is 10 nodes, not 6.** Each gated step becomes a work node plus a
+gate node:
+
+```
+Start → draft_assessment → gate_assessment
+      → draft_calibration → gate_calibration
+      → adapt_strategy    → gate_strategy
+      → adapt_foundations → gate_foundations
+      → align_portfolio   → snapshot_cycle
+```
+
+`align_portfolio` and `snapshot_cycle` keep no gate. The conditional
+auto-advance for an empty `adapt_foundations` batch belongs in
+`gate_foundations`: the gate receives the work node's output, so it can decline
+to emit a `RequestInput` when the batch id is empty and simply pass through.
+
+**3. Data flow breaks at every gate.** A gate returns `ErrNodeInterrupted`
+rather than a value, and on resume the *human's reply* — not the gate's output —
+is delivered as the next node's input. Run context therefore cannot be threaded
+through node I/O. It must live in session state (`agent.Context.State()`),
+seeded once when the run is created and read by each work node. Node I/O carries
+only the work→gate handoff and the resumed reply.
+
+**4. Commit vs discard is now the post-gate node's job.** The legacy engine
+aborts the run when `Engine.Resume(..., committed=false)` is called. ADK has no
+equivalent: the reply is just a value handed to the next node, so that node must
+inspect it and abort. This is behaviour that must be re-implemented, not
+inherited.
+
+#### API surface confirmed
+
+| Need | ADK v2.2.0 |
+|---|---|
+| Graph construction | `workflow.Chain(Start, n1, …) []Edge`; `workflowagent.New(Config{Name, Edges})` |
+| Deterministic step | `workflow.NewFunctionNode[IN,OUT](name, fn, cfg)` |
+| Step that pauses | `workflow.NewEmittingFunctionNode[IN,OUT]` + `workflow.NewRequestInputEvent` + `workflow.ErrNodeInterrupted` |
+| Driving / resuming | `runner.New(Config{AppName, Agent, SessionService})`, `runner.Run(ctx, userID, sessionID, msg, cfg)`; resume by submitting a `FunctionResponse` targeting the `InterruptID` |
+| Run context | `agent.Context.State()` / `Actions().StateDelta` |
+
+#### Consequences for the rest of Part B
+
+- The graph builder should live in `internal/adk` and take an injected step
+  list, keeping that package free of `domain/aim` imports and testable with
+  fakes.
+- Guaranteeing parity is best served by both engines driving the *same* step
+  bodies. That means exposing the six step functions from `domain/aim` in an
+  engine-neutral shape, rather than reimplementing them against ADK.
+
+---
+
+Original sketch (retained for context) — today
+(`domain/aim/workflow.go`): six ordered steps, four with `HumanGate:true`.
 
 | AIM step | ADK node | HITL |
 |---|---|---|
