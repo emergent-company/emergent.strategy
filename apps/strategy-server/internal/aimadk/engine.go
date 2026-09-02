@@ -328,11 +328,34 @@ func (e *ADKEngine) Abort(ctx context.Context, runID uuid.UUID) error {
 // already marked done. ADK has no equivalent at the session level: a fresh
 // invocation starts from workflow.Start, so it would re-run every step from
 // the beginning, including expensive already-completed LLM calls, rather than
-// continuing from the failure. Resolving this needs a deliberate design (a
-// new session seeded to skip completed steps, most likely) rather than a
-// quick mapping, so it is deferred rather than shipped wrong.
+// continuing from the failure.
+//
+// Not urgent: retry has zero test coverage at any layer in this codebase
+// (engine, backend, or e2e), and the dev database's own history argues
+// against it mattering in practice — 72% of reruns started within 5 minutes
+// of the previous one dying, the kill-and-start-fresh pattern, not
+// retry-in-place. This is not a reason to leave it broken forever, just a
+// reason it does not block B4e/B4f/B5.
+//
+// Two candidate designs for whoever picks this up, in the order to try them:
+//
+//  1. Call runner.Run again on the *same* session with a fresh plain message,
+//     not a resume. Check first whether ADK's own reconstruction
+//     (collectNodeOutputs/scanHistory) already skips nodes that have a
+//     recorded output somewhere in the session's history, regardless of
+//     which invocation produced it — in which case the failed step (which
+//     never produced output) naturally re-runs and the completed ones do
+//     not, for free, no bespoke logic needed. This has not been verified
+//     either way and should be checked with a direct probe before writing
+//     any code, the same way nodeNameFromPath's behaviour was confirmed
+//     empirically rather than assumed.
+//  2. If ADK does not skip on that basis, seed a *new* session's
+//     adk.StateKeyStepResults with the completed steps from the failed run's
+//     RunStore record. The graph's existing "is this step already in Prior?"
+//     path (the same one snapshot_cycle uses to read earlier decisions)
+//     would then skip re-running them.
 func (e *ADKEngine) Retry(_ context.Context, runID uuid.UUID) error {
-	return fmt.Errorf("aimadk: retry is not implemented for the ADK engine (run %s)", runID)
+	return fmt.Errorf("aimadk: run %s cannot be retried in place on this engine — start a new cycle instead", runID)
 }
 
 // drive runs the workflow forward — from the start, or from a resume when

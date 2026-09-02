@@ -174,7 +174,26 @@ runs.
   - `Retry` is explicitly unimplemented and says why: a fresh ADK invocation
     starts from `workflow.Start` and would redo every completed step
     (including LLM calls) rather than continuing from the failure the way
-    legacy retry does. Returns an error rather than doing it wrong quietly.
+    legacy retry does. Returns an actionable error ("start a new cycle
+    instead") rather than doing it wrong quietly.
+
+    **Not blocking B4e/B4f/B5.** `Retry` has zero test coverage anywhere in
+    this codebase — engine, backend, or e2e — and the dev database's own
+    history argues against it mattering in practice: 72% of reruns started
+    within 5 minutes of the previous one dying, i.e. kill-and-start-fresh, not
+    retry-in-place. Worth fixing properly, not worth blocking on.
+
+    Two candidate designs, in the order to try them, recorded in
+    `internal/aimadk/engine.go`'s doc comment on `Retry`:
+    1. Call `runner.Run` again on the *same* session with a fresh plain
+       message (not a resume). Check first — by direct probe, not assumption —
+       whether ADK's own reconstruction already skips nodes with a recorded
+       output anywhere in session history regardless of which invocation
+       produced it. If so, the failed step re-runs and completed ones do not,
+       for free.
+    2. If not, seed a *new* session's `adk.StateKeyStepResults` with the
+       completed steps from the failed run's `RunStore` record, reusing the
+       same "is this step already in Prior?" path `snapshot_cycle` uses.
   - Two real bugs found by the test suite, not by review: gate clearance was
     never recorded on resume (nothing set `GateClearedAt`/`GateOutcome`), and
     aborting a running step could cancel it correctly and still leave the run
