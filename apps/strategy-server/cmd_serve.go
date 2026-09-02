@@ -38,6 +38,8 @@ import (
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/adk"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimadk"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
@@ -146,12 +148,27 @@ func runServer(cfg *config.Config) error {
 		log.Info("heartbeat disabled (HEARTBEAT_INTERVAL=0)")
 	}
 
-	// Orchestration engine — PostgreSQL-backed goroutine pool.
-	orchBackend := orchpg.NewBackend(db, orchpg.Config{
-		Workers:           4,
-		AbandonGatesAfter: cfg.AbandonGatesAfter,
-	})
-	orchEngine := orchestration.New(orchBackend)
+	// Orchestration engine for the AIM cycle. Both engines satisfy the same
+	// orchestration.EngineAPI and get registered against the identical
+	// *aimdom.CycleWorkflow value below, so this branch is the entire swap —
+	// nothing downstream (handlers, MCP tools, heartbeat) needs to know which
+	// one is running.
+	var orchEngine orchestration.EngineAPI
+	if cfg.ADKEngine {
+		runStore := aimadk.NewRunStore(db)
+		sessionStore := adk.NewSessionStore(db)
+		orchEngine = aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{
+			AppName:           "strategy-server",
+			AbandonGatesAfter: cfg.AbandonGatesAfter,
+		})
+		log.Info("orchestration: using the ADK-backed engine (ADK_ENGINE=true)")
+	} else {
+		orchBackend := orchpg.NewBackend(db, orchpg.Config{
+			Workers:           4,
+			AbandonGatesAfter: cfg.AbandonGatesAfter,
+		})
+		orchEngine = orchestration.New(orchBackend)
+	}
 	// Skill run ledger — tracks all autonomous skill executions.
 	skillRunSvc := skillrundom.NewService(db)
 	skillRunLedger := skillrundom.NewAdapter(skillRunSvc)

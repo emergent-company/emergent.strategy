@@ -15,7 +15,7 @@ import (
 func parseDefaults(t *testing.T) config.Config {
 	t.Helper()
 
-	for _, key := range []string{"ABANDON_GATES_AFTER"} {
+	for _, key := range []string{"ABANDON_GATES_AFTER", "ADK_ENGINE"} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
 			t.Fatalf("unset %s: %v", key, err)
@@ -88,5 +88,37 @@ func TestAbandonGatesAfter_CanBeDisabled(t *testing.T) {
 
 	if cfg.AbandonGatesAfter != 0 {
 		t.Errorf("ABANDON_GATES_AFTER=0s produced %v, want 0 (sweep disabled)", cfg.AbandonGatesAfter)
+	}
+}
+
+// TestADKEngine_LegacyIsTheDefault pins the behaviour of a plain server
+// start, the same way TestAbandonGatesAfter_SweepIsOnByDefault does — a
+// zero-value struct proves nothing about what main actually gets, and this
+// project has already been burned once by conflating the two.
+func TestADKEngine_LegacyIsTheDefault(t *testing.T) {
+	cfg := parseDefaults(t)
+	if cfg.ADKEngine {
+		t.Error("ADKEngine = true on a plain start; the legacy engine must be the default until parity is proven")
+	}
+}
+
+func TestADKEngine_CanBeEnabled(t *testing.T) {
+	t.Setenv("ADK_ENGINE", "true")
+
+	saved := os.Args
+	t.Cleanup(func() { os.Args = saved })
+	os.Args = []string{"strategy-server"}
+
+	var cfg config.Config
+	parser, err := arg.NewParser(arg.Config{}, &cfg)
+	if err != nil {
+		t.Fatalf("new parser: %v", err)
+	}
+	if err := parser.Parse(nil); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if !cfg.ADKEngine {
+		t.Error("ADK_ENGINE=true did not enable the flag")
 	}
 }
