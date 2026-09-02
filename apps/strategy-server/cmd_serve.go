@@ -822,9 +822,9 @@ func (a *strategyPortfolioAlignerAdapter) AlignPortfolio(ctx context.Context, in
 	}, nil
 }
 
-// heartbeatActiveRunAdapter adapts *orchestration.Engine to heartbeat.ActiveRunChecker.
+// heartbeatActiveRunAdapter adapts orchestration.EngineAPI to heartbeat.ActiveRunChecker.
 type heartbeatActiveRunAdapter struct {
-	engine *orchestration.Engine
+	engine orchestration.EngineAPI
 }
 
 func (a *heartbeatActiveRunAdapter) HasActiveRun(ctx context.Context, instanceID string) bool {

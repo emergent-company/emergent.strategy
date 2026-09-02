@@ -85,7 +85,7 @@ type Services struct {
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
 	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
-	Orchestration *orchestration.Engine    // optional — nil disables orchestrator MCP tools
+	Orchestration orchestration.EngineAPI  // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check

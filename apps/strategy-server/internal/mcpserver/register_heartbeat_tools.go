@@ -18,7 +18,7 @@ import (
 
 // orchestrationCycleStarter adapts orchestration.Engine to heartbeat.CycleStarter.
 type orchestrationCycleStarter struct {
-	engine *orchestration.Engine
+	engine orchestration.EngineAPI
 }
 
 func (a *orchestrationCycleStarter) StartRun(ctx context.Context, workflowName, concurrencyKey string, input map[string]any) (heartbeat.CycleRun, error) {

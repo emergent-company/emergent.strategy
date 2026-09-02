@@ -236,7 +236,7 @@ func proposalToRow(p *heartbeat.Proposal) ui.AimProposalRow {
 // for use from web handlers. The equivalent exists in mcpserver but can't
 // be imported from here (would create a handler→mcpserver import cycle).
 type webCycleStarter struct {
-	engine *orchestration.Engine
+	engine orchestration.EngineAPI
 }
 
 func (w *webCycleStarter) StartRun(ctx context.Context, workflowName, concurrencyKey string, input map[string]any) (heartbeat.CycleRun, error) {

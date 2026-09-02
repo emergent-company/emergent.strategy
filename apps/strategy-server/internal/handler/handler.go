@@ -43,20 +43,20 @@ type Server struct {
 	rippleSvc           *ripple.Service
 	strategySvc         *strategydom.Service // required for index derivation on batch commit
 	versionSvc          *version.Service
-	syncSvc             *syncdom.Service      // nil when GitHub App not configured
-	userSvc             *userdom.Service      // for GitHub token storage
-	aimSvc              *aimdom.Service       // nil when AIM service not configured
-	heartbeatSvc        *heartbeat.Service    // nil when heartbeat not configured
-	orchestrationEngine *orchestration.Engine // nil when orchestration not configured
-	activitySvc         *activitydom.Service  // nil when activity stream not configured
-	skillRunSvc         *skillrun.Service     // nil when skill run ledger not configured
-	skillExecutor       *skillexec.Executor   // nil when no LLM provider is wired
-	schemaSvc           *schemadom.Service    // nil when schema registry is not configured
-	evidenceSvc         *evidencedom.Service  // nil when evidence service not configured
-	postCommitPipeline  *PostCommitPipeline   // nil when ripple is not configured
-	llmEnabled          bool                  // true when an LLM provider is wired
-	githubAppInstallURL string                // set when GITHUB_APP_SLUG is configured
-	githubOAuth         *ghclient.OAuthConfig // nil when OAuth App not configured
+	syncSvc             *syncdom.Service        // nil when GitHub App not configured
+	userSvc             *userdom.Service        // for GitHub token storage
+	aimSvc              *aimdom.Service         // nil when AIM service not configured
+	heartbeatSvc        *heartbeat.Service      // nil when heartbeat not configured
+	orchestrationEngine orchestration.EngineAPI // nil when orchestration not configured
+	activitySvc         *activitydom.Service    // nil when activity stream not configured
+	skillRunSvc         *skillrun.Service       // nil when skill run ledger not configured
+	skillExecutor       *skillexec.Executor     // nil when no LLM provider is wired
+	schemaSvc           *schemadom.Service      // nil when schema registry is not configured
+	evidenceSvc         *evidencedom.Service    // nil when evidence service not configured
+	postCommitPipeline  *PostCommitPipeline     // nil when ripple is not configured
+	llmEnabled          bool                    // true when an LLM provider is wired
+	githubAppInstallURL string                  // set when GITHUB_APP_SLUG is configured
+	githubOAuth         *ghclient.OAuthConfig   // nil when OAuth App not configured
 }
 
 // New creates a new web handler Server.
@@ -128,7 +128,7 @@ func (s *Server) WithHeartbeat(svc *heartbeat.Service) *Server {
 }
 
 // WithOrchestration wires the orchestration engine into the handler server (optional).
-func (s *Server) WithOrchestration(eng *orchestration.Engine) *Server {
+func (s *Server) WithOrchestration(eng orchestration.EngineAPI) *Server {
 	s.orchestrationEngine = eng
 	return s
 }
