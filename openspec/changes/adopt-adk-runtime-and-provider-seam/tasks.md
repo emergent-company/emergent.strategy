@@ -274,19 +274,63 @@ surfaces.
 
 ### B5. Cutover + cleanup
 
-- [ ] Flip the default once B4d's parity and restart-resume tasks are done.
-- [ ] Keep `pkg/orchestration` as a compiling shim during the flip.
-- [ ] Delete `pkg/orchestration` and `pkg/orchestration/pg`, including the
-      `orchestration_runs` table and the raw SQL read of it in
-      `handler_versions.go:336`, once nothing depends on the legacy path.
+- [x] ADK is the only engine. `cmd_serve.go` constructs `ADKEngine`
+      unconditionally; the `ADK_ENGINE` flag is removed from `config.go`
+      entirely rather than kept as a dead toggle with nothing to select
+      between.
+- [x] **Scope correction:** "delete `pkg/orchestration`" turned out not to
+      mean deleting the package. `ADKEngine`/`RunStore` deliberately reuse
+      `orchestration.Run`/`StepLog` rather than a parallel shape (a B4d
+      decision, made before this task's wording), so those types are
+      load-bearing for the ADK path too. What was deleted:
+      `pkg/orchestration/pg` (goroutine pool, Postgres backend) and
+      `pkg/orchestration`'s own concrete `Engine` + `PublisherSetter` +
+      `BatchFinder` + `Backend` + the SSE fanout (confirmed zero external
+      callers of `Subscribe`/`Unsubscribe`/`Publish` before deleting).
+      What stayed: `EngineAPI`, `Run`, `StepLog`, the gate helpers — the
+      genuinely engine-agnostic contract, now with `ADKEngine` as its only
+      implementer. Package doc rewritten to describe a contract, not a
+      concrete engine.
+- [x] `Workflow` slimmed to `Name() string` — confirmed by grep that
+      `ConcurrencyKey` was never called anywhere and `Steps()` only by the
+      legacy engine being deleted. This let `domain/aim` drop its entire
+      legacy adapter (`Steps()`, `ConcurrencyKey()`, `legacyStepFunc`,
+      `stepInputFromRun`, `runInstanceID`) and stop importing any engine
+      package at all — the decoupling the adapter's own comment promised
+      ("goes away with `pkg/orchestration`") is now real.
+- [x] `orchestration_runs` table dropped, migration `036_drop_orchestration_runs.sql`.
+      Confirmed empty on the dev database before dropping. The raw SQL read
+      in `handler_versions.go` is repointed at `adk_run_metadata` — same
+      shape, same query, table name only.
+- [x] Verified beyond the test suite: booted the rebuilt binary against the
+      real dev database, confirmed the migration applies and drops the
+      table, started a real AIM cycle (real LLM call), watched it reach its
+      first gate, aborted it cleanly. `--adk-engine` no longer appears in
+      `--help`.
+- [x] `tests/e2e/aim_orchestrator_test.go` loses the dual-engine subtest
+      abstraction entirely — one engine, no `t.Run` selection needed. The
+      legacy-specific restart test is deleted; its ADK counterpart is
+      renamed to the plain name.
+- [x] 38 packages, 0 failures. `-race` clean (`pkg/orchestration`,
+      `internal/aimadk`, `tests/e2e`, `domain/aim`, 2x repeated). Lint 0
+      issues.
 
 ### B6. Part B exit gate
 
-- [ ] End-to-end AIM cycle on ADK: all six steps, all four human gates,
-      snapshot — same external HTTP/MCP behaviour as the legacy engine.
-- [ ] `task test` + `task lint` pass; SSE/HTTP/MCP contracts unchanged.
+- [x] End-to-end AIM cycle on ADK: all six steps, all four human gates,
+      snapshot — verified against the real dev database with real LLM calls,
+      not a synthetic fixture. Two full cycles completed cleanly; a real bug
+      (a cleared gate's Status never flipping away from `awaiting_human`,
+      corrupting which gate a second resume targets) was found by this exact
+      manual testing, fixed, and pinned by regression tests at both the
+      engine layer and the e2e/HTTP layer.
+- [x] `task test` + `task lint` pass; SSE/HTTP/MCP contracts unchanged (the
+      run panel, built from `orchestration.Run`/`StepLog`, needed no changes
+      across the whole migration because `ADKEngine` was built to produce
+      that exact shape from the start).
 
 ## Cross-cutting
-- [ ] `openspec validate adopt-adk-runtime-and-provider-seam --strict` passes.
-- [ ] Record test baseline before starting; fix any regression before done.
-- [ ] Do NOT introduce cross-repo shared modules in this change.
+- [x] `openspec validate adopt-adk-runtime-and-provider-seam --strict` passes.
+- [x] Test baseline recorded before each session's work; every regression
+      found along the way was fixed before moving on, not deferred.
+- [x] No cross-repo shared modules introduced.
