@@ -180,6 +180,25 @@ LLM_MODEL=eu.anthropic.claude-3-5-sonnet-20241022-v2:0
 # No LLM_API_KEY / LLM_PROVIDER_URL needed.
 ```
 
+**To verify Bedrock access without running the full server**, use the live
+smoke test in `internal/llm/bedrock_live_test.go`. It needs only AWS
+credentials — no Postgres, no Memory server, no migrations:
+
+```bash
+export LLM_BEDROCK_LIVE_TEST=1
+export LLM_BEDROCK_REGION=eu-central-1
+export LLM_MODEL=eu.anthropic.claude-3-5-sonnet-20241022-v2:0
+go test ./internal/llm/ -run TestBedrock_LiveSmokeTest -v
+```
+
+It runs `Ping` (cheap, isolates entitlement from generation) followed by a
+real `Chat` call, and classifies a failure as either an entitlement problem
+(missing `bedrock:InvokeModel`, or the model not enabled for the account
+under *Model access* — both surface as the same `AccessDeniedException`) or a
+credential-resolution failure (the request never reached AWS). Skipped by
+default; every other Bedrock test in that package runs against a fake
+invoker and has never made a real network call.
+
 **Structured output on Bedrock is instruction-based.** The Anthropic Messages
 API has no native `response_format`, so `FormatJSON` appends a JSON-only
 instruction to the system prompt. This is an enforcement *hint*, not a
