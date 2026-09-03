@@ -78,24 +78,17 @@ in the skill and CONSTITUTION.md):
 
 ## 5. Known Pre-Existing Test Failures
 
-These tests were failing before the current development session. Do not treat
-them as regressions caused by your changes. Do fix them if your task touches
-the relevant code.
+None currently known. `go test ./...` passes cleanly in both `apps/epf-cli`
+and `apps/strategy-server` as of 2026-09-03.
 
-**`apps/epf-cli/internal/checks`** — 2 failures as of 2026-08-31:
-
-- `TestCheckMetadataConsistency_FreshDate`
-- `TestCheckMetadataConsistency_WrongInstance`
-
-Both are time-bomb tests: they hard-code `last_updated: "2026-02-15"` and assert
-it falls inside a 6-month freshness window. That window elapsed on ~2026-08-15,
-so the fixtures now read as stale and the assertions invert. The failures are
-wall-clock dependent, not caused by any code change, and they will not
-self-recover.
-
-The fix is to make the fixture date relative (e.g.
-`time.Now().AddDate(0, -1, 0)`) rather than absolute. epf-cli is frozen, but
-this qualifies as a bug fix — do it if your task touches `internal/checks`.
+(Fixed 2026-09-03, commit `33fcfc34`: `apps/epf-cli/internal/checks` had two
+time-bomb tests — `TestCheckMetadataConsistency_FreshDate` and
+`_WrongInstance` — that hard-coded an absolute `last_updated` date and
+asserted it fell inside a 6-month freshness window. The window elapsed
+~2026-08-15, inverting both assertions. Fixed by deriving the date from
+`time.Now().AddDate(0, -1, 0)` instead of a hard-coded value. If a similar
+wall-clock-dependent test failure shows up elsewhere, this is the pattern to
+look for and fix the same way, regardless of which app is "frozen.")
 
 _strategy-server: no pre-existing failures. All 36 packages pass._
 
