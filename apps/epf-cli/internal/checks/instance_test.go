@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestCheckSummary tests the CheckSummary type
@@ -483,9 +484,15 @@ func TestCheckMetadataConsistency_WrongInstance(t *testing.T) {
 	readyDir := filepath.Join(dir, "READY")
 	os.MkdirAll(readyDir, 0755)
 
+	// last_updated is deliberately omitted: this test exercises the
+	// instance-mismatch check only. Including a fixed date here previously
+	// made this test a time bomb — once the date crossed the staleness
+	// threshold, checkMetadataDate started emitting a second "stale_date"
+	// issue alongside the intended "wrong_instance" one, breaking the
+	// len(result.Issues) == 1 assertion below. See TestCheckMetadataConsistency_StaleDate
+	// and TestCheckMetadataConsistency_FreshDate for date-focused coverage.
 	content := `meta:
   instance: "WrongProduct"
-  last_updated: "2026-01-01"
 purpose:
   statement: "Test"
 `
@@ -554,9 +561,14 @@ func TestCheckMetadataConsistency_FreshDate(t *testing.T) {
 	readyDir := filepath.Join(dir, "READY")
 	os.MkdirAll(readyDir, 0755)
 
+	// Relative to time.Now() rather than a hard-coded date: a fixed date
+	// eventually crosses the 6-month staleness threshold this check tests
+	// against, flipping this test's assertion without any code change. One
+	// month ago is always well within a 6-month freshness window.
+	freshDate := time.Now().AddDate(0, -1, 0).Format("2006-01-02")
 	content := `meta:
   instance: "MyProduct"
-  last_updated: "2026-02-15"
+  last_updated: "` + freshDate + `"
 `
 	os.WriteFile(filepath.Join(readyDir, "00_north_star.yaml"), []byte(content), 0644)
 
