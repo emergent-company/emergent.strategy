@@ -1,5 +1,32 @@
 # Change: Add context-aware artifact assistant bot and granular sub-object editing
 
+> **Revised 2026-09-04 against `docs/UNIFIED_AGENT_ARCHITECTURE.md`.** This change
+> was written 31 May, before the baseline existed. Its design principles survive
+> intact and were, in retrospect, right: *one staging path*, *prepare don't commit*,
+> *payload is the unit of storage, patches are the unit of authoring*, DB-backed
+> user-scoped conversations. Its hand-rolled bounded tool loop is also still the
+> defensible default — see baseline open question 6.
+>
+> Three things it did not address, added below as section 5:
+>
+> 1. **Session discipline.** It has no session boundary, no compaction, and no
+>    position on invariant 4 (tool results are not session history). An authoring
+>    bot's tool results are artifact payloads and diffs — the largest objects in
+>    the system. Unaddressed, this is the failure mode `AGENT_RUNTIME_PATTERN.md`
+>    exists to prevent.
+> 2. **Retrieval budget** (invariant 2). `BuildArtifactContext` as specified
+>    assembles "the current artifact, its sub-objects, related artifacts, linked
+>    evidence, and open signals" with no ceiling.
+> 3. **It is an agent, not a special case.** Under the baseline there is one agent
+>    type; this bot and AIM differ only in who plans the chain. It should share the
+>    agent contract, not invent an "assistant" concept beside it.
+>
+> One reference correction: the proposal models itself on captable's orchestrator.
+> Captable remains the right reference for the **UX surface** — chat drawer,
+> progressive tool discovery, review-link enforcement. For the **runtime** —
+> compaction, park/wake, declarative write gating — `emergent.memory` is the better
+> reference and the only working implementation in the estate.
+
 ## Why
 
 Today the strategy-server web UI is read-only for artifacts. The only way to change
@@ -89,6 +116,48 @@ the same primitive so AI edits and human edits flow through one staging/review p
 - **ADD** an MCP tool surface for the sub-object patch primitive
   (`patch_artifact`) so external agents get the same granular-edit capability,
   staged for human review like all other authoring tools.
+
+### 5. Runtime discipline (added 2026-09-04)
+
+Required by `openspec/AGENT_RUNTIME_PATTERN.md`; absent from the original scope.
+
+- **ADD** an explicit **unit of work** and what ends it. Candidates: task complete,
+  context budget reached, or a human gate. This must be decided before
+  implementation, not discovered (baseline open question 6). The unit is what bounds
+  the conversation; without one, the session grows for as long as the user keeps the
+  drawer open.
+- **ADD** invariant 4 compliance: **tool results are not session history by
+  default.** Artifact payloads, diffs and search results are the largest objects
+  this bot will handle. Persist a reference and a summary; keep the payload out of
+  the conversation record. This is the single highest-leverage decision in the
+  change — `21st-bot` is accidentally immune because it never persists tool results,
+  and this bot must be deliberately immune.
+- **ADD** a **retrieval budget** for `BuildArtifactContext`: a top-k and a token
+  ceiling enforced at the boundary, not "everything relevant". Reuse
+  `skillexec`'s existing precedent — it already has a 112,000-byte budget and drops
+  feature definitions on overflow (`executor.go:1468-1497`).
+- **ADD** compaction **only if** the chosen unit of work does not already bound the
+  session. If it is needed, follow `emergent.memory`'s two-phase shape: token-aware
+  trim first, LLM summarisation only if the trim was destructive, with an
+  anti-thrash guard (`session_compressor.go:75-286`). Compaction **must be
+  inspectable** — recorded as an event, never silent (invariant 5).
+- **MODIFY** the write-gating approach: prefer a **declarative per-tool policy**
+  (`{confirm, disabled}` per tool) over a hardcoded allowlist, following
+  `emergent.memory`'s `ToolPolicy` (`entity.go:313-323`). Same guarantee, but data
+  rather than a Go slice, and it composes with the staging spine. Keep the
+  defence-in-depth double enforcement the original proposal specifies.
+- **ADD** run/step audit rows for assistant turns, consistent with what AIM records,
+  so a bot-originated change is as traceable as a cycle-originated one. Byte-capped
+  with truncation recorded (invariant 6).
+
+### 6. Agent contract alignment
+
+- The bot SHALL be modelled as an **agent** under `docs/UNIFIED_AGENT_ARCHITECTURE.md`
+  §1, not as a bespoke "assistant" subsystem. Concretely: it and AIM differ in who
+  plans the chain, and in nothing else that should appear in the type system.
+- Where `establish-agent-contract` lands first, adopt its card/self-description
+  shape. Where this change lands first, do not invent a competing one — leave the
+  seam and let that change fill it.
 
 ## Impact
 
