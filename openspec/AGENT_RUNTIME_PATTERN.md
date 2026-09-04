@@ -2,12 +2,15 @@
 
 Cross-repo architectural pattern for long-running, partly autonomous agents.
 
-**Applies to:** `strategy-server`, `opencode-harness`, `sequence`, `21st-bot`
+**Applies to:** `strategy-server`, `opencode-harness`, `sequence`, `21st-bot`,
+`emergent.memory`
 **Status:** Proposed — derived from measurement and from prior art already
-shipped in `sequence`
+shipped in `sequence` and `emergent.memory`
 **Supersedes (in intent):** the assumption in
 `openspec/changes/adopt-adk-runtime-and-provider-seam/` that an ADK session can
-span a full AIM cycle
+span a full AIM cycle. Note this line predates the "Workflow graphs vs
+chat-style agents" section below, which walks it back for AIM specifically:
+the session *does* span the cycle's gates, and shipped that way.
 
 ---
 
@@ -35,6 +38,15 @@ misconfiguration.
   path sets them**. They are an affordance for external callers only.
 - There is **no compaction anywhere in the module**. `session.Service` has five
   methods and none could express it.
+- **But the affordance above is usable, and `emergent.memory` uses it.** Running
+  ADK v1.2.0 in production as a chat-style runtime, it bounds the load itself:
+  a token-aware sliding trim that re-fetches with `NumRecentEvents`, backed by
+  LLM summarisation that deletes and recreates the session under the same ID
+  (`apps/server/domain/agents/executor.go:1834-1984`,
+  `session_compressor.go:75-286`). So the constraint is "ADK will not bound this
+  for you", not "this cannot be bounded". Compaction is a thing you build on top
+  — and per invariant 5 and `sequence`'s `agent-harness` spec, it must be
+  **inspectable** when you do.
 - The workflow layer walks the full list repeatedly. `ReconstructRunState`
   alone is three passes and runs whether or not the turn is a resume.
   `ContentsRequestProcessor` rebuilds history **per LLM step**, not per turn.
@@ -272,20 +284,77 @@ Define the degraded mode: authoritative reads still work, recall is reduced.
 
 ## Repo status
 
-| | strategy-server | opencode-harness | sequence | 21st-bot |
-|---|---|---|---|---|
-| **Agent runtime** | ADK v2.2.0 | ADK (planned) | ADK v2.0.0 **pinned** | hand-rolled |
-| **Uses ADK Runner/SessionService** | yes — one session per AIM cycle | TBD | **no — refused by test** | n/a |
-| **Durable orchestration** | `pkg/orchestration` (being replaced) | TBD | DBOS | none |
-| **Audit store** | `orchestration_runs` | TBD | `agent_run`/`agent_step` | none |
-| **Memory integration** | semantic engine (search, contradictions, impact) | **context compaction — core to design** | ADR-054/060, dual-graph | optional derived index |
-| **Cross-cycle continuity** | to build | Memory | domain rows | none (2h TTL) |
-| **Longest human pause** | AIM review gates | TBD | **7 days** (DBOS park) | single request |
-| **Trajectory** | continuous signal-driven loop | long-running swarms + skills | ambient agents + proposals | continuous governance loop |
+| | strategy-server | emergent.memory | opencode-harness | sequence | 21st-bot |
+|---|---|---|---|---|---|
+| **Agent runtime** | ADK v2.2.0 | **ADK v1.2.0** | ADK (planned) | ADK v2.0.0 **pinned** | hand-rolled |
+| **Uses ADK Runner/SessionService** | yes — one session per AIM cycle | **yes — `LlmAgent` + Runner + custom Bun session store** | TBD | **no — refused by test** | n/a |
+| **Session shape** | workflow graph, thin nodes | **chat-style, accumulating** | chat-style (likely) | n/a | chat-style, in-memory |
+| **Compaction** | not needed (shape) | **built: token-aware trim + LLM summarise** | core to design | spec'd, unexercised | n/a (100-msg cap) |
+| **Durable orchestration** | `EngineAPI` + ADK graph | Postgres job ledger, `FOR UPDATE SKIP LOCKED` | TBD | DBOS | none |
+| **Audit store** | `adk_run_metadata` + `skill_runs` | `agent_runs` + `agent_run_messages` + `agent_run_tool_calls` | TBD | `agent_run`/`agent_step` | none |
+| **Memory integration** | semantic engine (search, contradictions, impact) | **is** Memory | context compaction — core to design | ADR-054/060, dual-graph | optional derived index |
+| **Cross-cycle continuity** | to build | graph + branches | Memory | domain rows | none (2h TTL) |
+| **Longest human pause** | AIM review gates | **unbounded** (`input-required` + `suspend_context`) | TBD | **7 days** (DBOS park) | single request |
+| **Go / toolchain** | 1.26.5 | 1.25.0 | TBD | 1.25.7 | 1.26.2 |
+| **Trajectory** | continuous signal-driven loop | multi-agent orchestration + sandboxes | long-running swarms + skills | ambient agents + proposals | continuous governance loop |
 
-### sequence is the reference implementation
+Three ADK majors are live across the estate simultaneously (v1.2.0, v2.0.0,
+v2.2.0) on three Go toolchains. This is the concrete reason a shared Go module
+must not depend on ADK — see "Shared vs not shared" below.
 
-`sequence` runs ADK v2 in production and **deliberately refuses the Runner and
+### emergent.memory is the reference implementation for the chat-style case
+
+It is the one codebase in the estate running **ADK as a chat-style agent
+runtime in production** — precisely the shape this document warns about — and
+it has built, rather than avoided, the missing pieces. Anything here that plans
+a conversational agent (the strategy-server authoring bot, `opencode-harness`)
+should read it before `sequence`.
+
+What it solved, all in `apps/server/domain/agents/`:
+
+- **Compaction** (`executor.go:1834-1984`, `session_compressor.go:75-286`) —
+  see "The constraint that forces the pattern" above. Two-phase, with an
+  anti-thrash guard that bails if the summary would exceed 30% of the window.
+- **Park/wake with history fidelity.** `SuspendSignal` →
+  `agent_runs.suspend_context` JSONB carrying `PendingToolCallID`. On wake,
+  `injectToolResponse` (`executor.go:898-995`) appends a real
+  `genai.FunctionResponse` keyed to the *original* `FunctionCallID`, so the
+  model sees a normal tool result rather than a discontinuity. This is the
+  highest-fidelity resume mechanism in the estate and directly satisfies
+  invariant 7's "within-cycle resume may use the session".
+- **Declarative HITL.** `ToolPolicy{Confirm, Message, Disabled}` per tool per
+  agent definition (`entity.go:313-323`), enforced in ADK's `beforeToolCb`:
+  `Confirm` creates an approval question and returns a synthetic result
+  **without calling the tool**; `Disabled` hard-blocks. A data-driven
+  generalisation of `21st-captable`'s hardcoded chat allowlist.
+- **Agent-initiated questions.** `ask_user` with four interaction types,
+  surfacing as a notification + SSE event. Run status `input-required` is
+  unified with ACP (migration `00113`), making "waiting on a human" a protocol
+  state rather than an internal flag.
+- **Tool access enforced in Go, not by prompt.** `toolpool.go:296-297`: the ADK
+  pipeline only ever receives resolved tools, so the model cannot call outside
+  the whitelist. An empty whitelist means deny-all, not allow-all.
+
+**The cautionary half.** `docs/investigation-agent-queue-explosion-2026-03-18.md`
+records **29,369 pending jobs** produced by three compounding causes: cron
+creating runs regardless of queue depth, children re-enqueuing parents on both
+success *and* failure, and retries stacking on top. The safety layer that now
+exists — kill switch, budget pre-flight, queue-depth cap, consecutive-failure
+auto-disable, minimum cron interval, two doom-loop detectors, step cap 500,
+spawn depth cap 6 — is the remediation, not foresight. **Any repo moving toward
+signal-driven long-running agents should treat that post-mortem as a
+prerequisite read**, because it is the exact failure mode a naive reconciler
+produces, and it is what invariant 9 is defending against.
+
+Known debt worth not copying: `flowType` is dead metadata across three
+mutually-inconsistent vocabularies that the executor never reads; `runPipeline`
+is a 1,255-line function; and the flagship `blueprints/multi-agent/` references
+tools (`human_checkpoint`, `graph_query`, `agent_trigger`) that do not exist and
+silently resolve to nothing.
+
+### sequence is the reference implementation for refusing the runtime
+
+`sequence` ships ADK v2 and **deliberately refuses the Runner and
 SessionService**. ADK's entire footprint is five import lines in one package,
 enforced by a build-failing import guard
 (`internal/adkadapter/import_guard_test.go:47`). Every LLM call is one flat
@@ -294,6 +363,16 @@ enforced by a build-failing import guard
 It handles 72KB transcripts, multi-page research documents, 90-minute jobs and
 7-day human parks, and pays **zero** history-reload cost. It arrived at this by
 architecture, not by having small workloads.
+
+**Correction to an earlier reading of this repo:** "runs ADK v2 in production"
+overstates it. The adapter compiles and is tested, but has **zero production
+consumers** — a second build-failing test, `undesignated_agent_test.go`, blocks
+any package from importing `internal/adkadapter` until an operator designates
+it. Everything shipping in `sequence` is hand-rolled: a plain retry loop, DBOS
+for durability, and an LLM gateway that writes its own `agent_step` rows. So
+`sequence` is the reference for **audit, durability and refusing a runtime you
+do not need** — not for running ADK. For ADK in production, read
+`emergent.memory` above.
 
 Its `agent-harness` spec already reserves the slot this pattern fills:
 
@@ -320,14 +399,26 @@ multi-instance store would unblock its main deployment constraint.
 
 ## What is shared, and what is not
 
-**Shared (all four):**
+**Shared (all five):**
 
 - LLM provider seam — one interface, multiple providers. Currently duplicated
-  three ways: `strategy-server/internal/llm.Provider`,
-  `sequence/internal/llm.Gateway`, `21st-bot/internal/agent.AgentOrchestrator`.
+  **four** ways: `strategy-server/internal/llm.Provider`,
+  `sequence/internal/llm.Gateway`, `21st-bot/internal/agent.AgentOrchestrator`,
+  and `emergent.memory/pkg/adk.ModelFactory`. The last is the only one with a
+  credential hierarchy (project → org → env) and a usage-tracking wrapper; the
+  first is the only one with a full error taxonomy and Bedrock. A merged seam
+  wants both. Critically, the seam has **no ADK dependency** in any repo, so it
+  is the one thing extractable across three ADK majors and three Go toolchains.
 - Run/step audit with byte caps, cost and latency per step.
 - Bounded session store: TTL, trim, owner binding, multi-instance.
 - Proposal/approval primitive with evidence traceable to the producing step.
+  Five independent implementations now: staged mutation batches
+  (`strategy-server`), `proposal` (`sequence`), `staging_batches`
+  (`21st-captable`), in-memory export batch (`21st-bot`), and
+  `ToolPolicy.Confirm` + `ask_user` (`emergent.memory`) — the last being the
+  only *declarative* one.
+- **Compaction, once anyone else needs it.** `emergent.memory` has the only
+  working implementation. It must be inspectable (invariant 5).
 - This pattern: bounded cycles, Memory bridge, the ten invariants.
 
 **Not shared — deliberately per-repo:**
@@ -335,7 +426,12 @@ multi-instance store would unblock its main deployment constraint.
 - The orchestration engine. `sequence` needs 7-day durable parks; `21st-bot`
   needs single-turn with cross-request form resume; `strategy-server` needs
   gated cycles over a signal stream; `opencode-harness` needs swarms with
-  reusable skills. Four different machines.
+  reusable skills; `emergent.memory` needs recursive multi-agent spawn with
+  sandboxes. Five different machines.
+- **ADK itself.** Three majors are live (v1.2.0 / v2.0.0 / v2.2.0) on three Go
+  toolchains, and `sequence` has explicitly rejected moving. Any shared module
+  that imports ADK forces a coordinated upgrade across three orgs. Share the
+  pattern, not the dependency.
 - Whether an ADK **workflow graph is safe as the unit of work**. This is
   decided by "Workflow graphs vs chat-style agents" above, not by picking a
   side once for every repo. AIM's six steps and four gates fit inside one
@@ -368,8 +464,13 @@ must compile on the older toolchain, or `sequence` must move first.
    cycles governed by a rule set, with Memory bridging — but the state model
    differs. A reconciler wants standing-state-per-instance plus a work queue,
    with runs demoted to history. `orchestration_runs` is shaped for the latter.
-2. **Build park/wake, or adopt DBOS?** `sequence` has it in production with
-   7-day parks and deterministic IDs. Unevaluated for `strategy-server`.
+2. **Build park/wake, or adopt DBOS?** Now a three-way choice, not two.
+   `sequence` runs DBOS with 7-day parks and deterministic IDs.
+   `emergent.memory` hand-rolled it on Postgres (`FOR UPDATE SKIP LOCKED` job
+   ledger + `suspend_context` JSONB + orphan recovery on boot + stale reaper)
+   and has unbounded parks — but is also the codebase that produced a 29k-job
+   queue explosion. Both are proven; they fail differently. Unevaluated for
+   `strategy-server`.
 3. **What closes a cycle?** All steps done, signal budget, time box,
    convergence, or human gate reached — and what opens the next one.
 4. **Who owns the write-back curation policy?** It is the compaction, and it is
@@ -377,6 +478,14 @@ must compile on the older toolchain, or `sequence` must move first.
 5. **Retention for ADK sessions.** One per AIM cycle is disposable once the
    cycle terminates; `adk_sessions` needs a cleanup policy now that the ADK
    engine is in active development, not deferred to a future reconciler.
+6. **Does the compaction policy belong in the shared layer or per repo?**
+   `emergent.memory` has the only implementation and it is tuned to its own
+   thresholds (80% trigger, 75% target, 30% anti-thrash). Whether those numbers
+   generalise, or only the two-phase *shape* does, is untested.
+7. **Do we adopt `ToolPolicy` as the estate-wide write-gating primitive?**
+   It subsumes `21st-captable`'s allowlist and would give the strategy-server
+   authoring bot its gate for free, but it is currently ADK-callback-coupled in
+   `emergent.memory`. The concept is portable; the implementation is not.
 
 ---
 
@@ -394,6 +503,15 @@ must compile on the older toolchain, or `sequence` must move first.
 
 **21st-bot:** `openspec/project.md:150` (single-instance constraint),
 `internal/agent/session.go` (history cap), `openspec/changes/add-identity-domain-guardrails/`
+
+**emergent.memory:** `apps/server/domain/agents/executor.go` (runtime,
+callbacks, compaction, resilience), `session_compressor.go` (compaction),
+`suspend_signal.go` + `executor.go:898-995` (park/wake),
+`entity.go:313-323` (`ToolPolicy`), `ask_user_tool.go` (agent-initiated
+questions), `toolpool.go` (tool resolution and filtering),
+`pkg/adk/model.go` (provider seam),
+`docs/investigation-agent-queue-explosion-2026-03-18.md` (**the cautionary
+post-mortem**), `docs/multi-agent-work-concept.md` (HITL philosophy)
 
 **opencode-harness:** `openspec/CROSS_REPO.md`,
 `openspec/changes/memory-context-and-experts/`

@@ -1,7 +1,10 @@
 # AIM AI Architecture and Cross-Repo Reuse
 
 > **Status:** Review — analysis of shipped code as of 2026-09-04
-> **Applies to:** `strategy-server`, `sequence`, `21st-bot`, `21st-captable`, `opencode-harness`
+> **Applies to:** `strategy-server`, `emergent.memory`, `sequence`, `21st-bot`, `21st-captable`,
+> `opencode-harness`
+> **Revision:** 2026-09-04 — `emergent.memory` reviewed and folded in. This
+> materially changed §3.2 and §5; see §10 for what was corrected and why.
 > **Companions:**
 > - `openspec/AGENT_RUNTIME_PATTERN.md` — the bounded-cycle pattern and its ten invariants (normative)
 > - `docs/AI_RUNTIME_CONSOLIDATION.md` — cross-org coordination record and locked decisions (normative)
@@ -23,10 +26,17 @@ human commits*. ADK is an implementation detail of one shape of one product's co
 Optimising reuse around ADK would share the least valuable and most version-fragile layer,
 while leaving the actually-convergent concept unshared.
 
-A second finding that matters for planning: **`sequence` is not an ADK reference implementation.**
-Its ADK adapter has zero production consumers, enforced by a build-failing test. Its real
-production pattern is DBOS + a gateway that writes its own audit steps. Cite `sequence` for
-durability and audit, not for ADK.
+Two findings that matter for planning:
+
+**`sequence` is not an ADK reference implementation.** Its ADK adapter has zero production
+consumers, enforced by a build-failing test. Its real production pattern is DBOS + a gateway
+that writes its own audit steps. Cite `sequence` for durability and audit, not for ADK.
+
+**`emergent.memory` is.** It runs ADK v1.2.0 in production as a *chat-style* agent runtime —
+the exact shape `AGENT_RUNTIME_PATTERN.md` warns about — and has built the missing pieces
+rather than avoided them: context compaction, high-fidelity park/wake, and declarative
+per-tool approval gates. For the inline authoring bot, it is the closest prior art in the
+estate, closer than either `sequence` or `21st-captable`.
 
 ---
 
@@ -217,9 +227,51 @@ An authoring bot that shows users artifact payloads and diffs will carry exactly
 in tool results. It must **not** run on one long-lived ADK session. AIM earns its safety entirely
 from its node shape, and that property is not inherited.
 
-### 3.2 The reference implementation is `21st-captable`
+### 3.2 Two reference implementations, at different layers
 
-It has shipped this exact pattern in production:
+**For the runtime: `emergent.memory`.** It is the only codebase in the estate running ADK as a
+chat-style agent runtime in production, and it solved the three problems the authoring bot will
+hit. All in `apps/server/domain/agents/`:
+
+- **Context compaction** (`executor.go:1834-1984`, `session_compressor.go:75-286`). Two-phase:
+  a token-aware sliding trim that reads `UsageMetadata.PromptTokenCount` and re-fetches with
+  `NumRecentEvents` when history exceeds 80% of the model's input limit, targeting 75%; then LLM
+  summarisation if the trim dropped more than half the history — deleting and recreating the
+  session under the same ID with a `[CONTEXT SUMMARY]` turn plus a verbatim tail. Anti-thrash
+  guard bails if the summary would exceed 30% of the window.
+
+  This is the direct answer to `AGENT_RUNTIME_PATTERN.md`'s "no compaction anywhere in the
+  module". ADK ships none and sets `NumRecentEvents` nowhere — but the affordance is usable by
+  external callers, and this is a working proof.
+
+- **Park/wake with history fidelity** (`suspend_signal.go`, `executor.go:898-995`).
+  `SuspendSignal` persists to `agent_runs.suspend_context` JSONB carrying the LLM's
+  `PendingToolCallID`. On wake, `injectToolResponse` appends a real `genai.FunctionResponse`
+  keyed to the **original `FunctionCallID`**, so the model sees a normal tool result rather than
+  a discontinuity. A park spanning hours or days leaves the conversation coherent. This is
+  strictly better than resuming with a plain message and is the highest-fidelity resume
+  mechanism in the estate.
+
+- **`ToolPolicy` — declarative HITL** (`entity.go:313-323`):
+  ```go
+  type ToolPolicy struct {
+      Confirm  bool   // create approval question, skip tool.Run() entirely
+      Message  string // supports {tool_name}, {args_json}
+      Disabled bool   // hard-block, returns an error to the agent
+  }
+  ```
+  Per-tool, per-agent-definition, stored as JSONB, enforced in ADK's `beforeToolCb`. This is a
+  **better primitive than `21st-captable`'s hardcoded `webChatAllowlist`** — same guarantee,
+  but data-driven rather than a Go slice, and it composes with `ask_user` so the approval
+  surfaces through one question mechanism.
+
+Also worth taking: tool access is enforced **in Go, not by prompt** (`toolpool.go:296-297` — the
+ADK pipeline only ever receives resolved tools, and an empty whitelist means deny-all), and run
+status `input-required` is unified with ACP so "waiting on a human" is a protocol state rather
+than an internal flag.
+
+**For the UX surface: `21st-captable`.** It has shipped this exact interaction pattern in
+production:
 
 - Bounded tool loop, max 20 rounds — `internal/agent/orchestrator.go:337-469`
 - **Progressive tool discovery** (`search_tools` / `get_tool_details` / `call_tool`) so 321 tools
@@ -236,6 +288,16 @@ It has shipped this exact pattern in production:
 Two things not to copy: sessions are in-memory and single-instance (`SessionStore.Cleanup()` is
 defined but **never called** outside tests, so sessions accumulate for the process lifetime),
 and they are company-keyed rather than user-isolated.
+
+**Which to take from where:**
+
+| Layer | Take from | Why |
+|-------|-----------|-----|
+| Session lifecycle, compaction, park/wake | `emergent.memory` | only working implementation on ADK |
+| Write gating | `emergent.memory` (`ToolPolicy`) | declarative; subsumes captable's allowlist |
+| Chat drawer, progressive tool discovery, review links | `21st-captable` | shipped UX, 321 tools without context blowout |
+| Audit rows, byte caps, durable park | `sequence` | most mature `agent_run`/`agent_step` + DBOS |
+| Staging spine and the AIM trigger path | `strategy-server` | already wired end to end (§3.4) |
 
 ### 3.3 Status of the existing proposal
 
@@ -276,28 +338,66 @@ one of those integrations rebuilt.
 
 ## 4. Estate inventory — what is actually duplicated
 
-| Concern | strategy-server | sequence | 21st-captable | 21st-bot |
-|---------|-----------------|----------|---------------|----------|
-| **LLM access** | `Provider` seam, 2 impls, error taxonomy, `Ping` | `Gateway`, genai SDK, writes audit steps itself | hand-rolled if/else | hand-rolled if/else (fork of captable) |
-| **Agent shape** | ADK workflow graph | hand-rolled loop | chat loop, 20 rounds | chat loop, 10 rounds |
-| **HITL primitive** | staged mutation batch | `proposal` + `proposal_evidence` | `staging_batches` / `staging_items` | in-memory batch, exported doc |
-| **Durability** | ADK session + gate sweep | **DBOS, 7-day parks** | **River** | none |
-| **Audit** | `adk_run_metadata` + `skill_runs` | **`agent_run`/`agent_step`, 64KB cap** | `audit_log` | none |
-| **Session store** | ADK sessions (Postgres) | n/a | in-memory, leaks | in-memory, 2h TTL |
-| **Go / ADK** | 1.26.5 / v2.2.0 | 1.25.7 / v2.0.0 pinned | 1.26.2 / none | 1.26.2 / none |
+| Concern | strategy-server | emergent.memory | sequence | 21st-captable | 21st-bot |
+|---------|-----------------|-----------------|----------|---------------|----------|
+| **LLM access** | `Provider` seam, 2 impls, error taxonomy, `Ping` | `ModelFactory`, 4 providers, credential hierarchy, usage wrapper | `Gateway`, genai SDK, writes audit steps itself | hand-rolled if/else | hand-rolled if/else (fork of captable) |
+| **Agent shape** | ADK workflow graph | **ADK `LlmAgent`, chat-style** | hand-rolled loop | chat loop, 20 rounds | chat loop, 10 rounds |
+| **Compaction** | not needed (shape) | **built, two-phase** | spec'd, unexercised | none | none (100-msg cap) |
+| **HITL primitive** | staged mutation batch | **`ToolPolicy` + `ask_user`** | `proposal` + `proposal_evidence` | `staging_batches` / `staging_items` | in-memory batch, exported doc |
+| **Durability** | ADK session + gate sweep | Postgres job ledger, `SKIP LOCKED` | **DBOS, 7-day parks** | **River** | none |
+| **Audit** | `adk_run_metadata` + `skill_runs` | `agent_runs` + messages + tool_calls | **`agent_run`/`agent_step`, 64KB cap** | `audit_log` | none |
+| **Session store** | ADK sessions (Postgres) | ADK sessions (Bun, custom) | n/a | in-memory, leaks | in-memory, 2h TTL |
+| **Go / ADK** | 1.26.5 / v2.2.0 | **1.25.0 / v1.2.0** | 1.25.7 / v2.0.0 pinned | 1.26.2 / none | 1.26.2 / none |
 
-Four Go modules across three GitHub orgs, **zero shared code**. Concretely: three independent
-hand-rolled Anthropic clients, three independent Vertex OpenAI-compat clients, four staging
-implementations. `21st-bot/internal/agent/mcp.go:1-5` states outright that it mirrors captable's
-agent package minus the DB coupling; the two `identity_guard.go` regexes are character-identical.
+Five Go modules across three GitHub orgs, **zero shared code**. Concretely: three independent
+hand-rolled Anthropic clients, three independent Vertex OpenAI-compat clients, **four** provider
+abstractions, five staging/approval implementations. `21st-bot/internal/agent/mcp.go:1-5` states
+outright that it mirrors captable's agent package minus the DB coupling; the two
+`identity_guard.go` regexes are character-identical.
+
+**Three ADK majors are live simultaneously** — v1.2.0, v2.0.0, v2.2.0 — on three Go toolchains
+(1.25.0, 1.25.7, 1.26.5). This is the concrete reason a shared module must not import ADK.
 
 ### 4.1 Correction to a likely assumption
 
-`sequence` runs ADK v2.0.0 in production **but its adapter has no production consumers**. Two
-build-failing tests enforce this: `import_guard_test.go` (nobody outside `internal/adkadapter`
-may import ADK) and `undesignated_agent_test.go` (nobody may import the adapter at all until an
-operator adds a designation). Everything shipping there is hand-rolled. ADR-055 also explicitly
-**rejected** bumping past v2.0.0 because it forces Go 1.26.
+`sequence` ships ADK v2.0.0 **but its adapter has no production consumers**. Two build-failing
+tests enforce this: `import_guard_test.go` (nobody outside `internal/adkadapter` may import ADK)
+and `undesignated_agent_test.go` (nobody may import the adapter at all until an operator adds a
+designation). Everything shipping there is hand-rolled. ADR-055 also explicitly **rejected**
+bumping past v2.0.0 because it forces Go 1.26.
+
+`emergent.memory` is the ADK-in-production case, and it uses only the `LlmAgent` slice —
+`llmagent.New` + `runner.New` + `session.Service` + `functiontool`. ADK's workflow-graph agents
+(`sequentialagent`, `loopagent`) appear only in a separate document-extraction pipeline, not in
+the agent runtime.
+
+### 4.2 The cautionary post-mortem
+
+`emergent.memory/docs/investigation-agent-queue-explosion-2026-03-18.md` records **29,369
+pending jobs**, produced by three compounding causes:
+
+1. cron creating runs regardless of queue depth,
+2. children re-enqueuing parents on both success *and* failure,
+3. retries stacking on top of both.
+
+The safety layer that now exists — kill switch, budget pre-flight, queue-depth cap,
+consecutive-failure auto-disable, minimum cron interval, two doom-loop detectors (identical
+tool+args, stop at 10; tool-only steps with no assistant text, stop at 20), step cap 500, spawn
+depth cap 6 — is the remediation, not foresight.
+
+**This is required reading before building signal-driven long-running agents.** It is precisely
+the failure mode a naive reconciler produces, and it is what `AGENT_RUNTIME_PATTERN.md`
+invariant 9 is defending against.
+
+### 4.3 Debt in emergent.memory not worth copying
+
+`flowType` is dead metadata across three mutually-inconsistent vocabularies (Go enum: `single`
+/ `sequential` / `loop`; CLI validator: `reactive` / `workflow` / `sequential`; shipped YAML:
+`agentic`) that the executor never reads — every agent runs as a single `llmagent`.
+`ExecutionMode` and `AgentCapabilities` appear similarly unenforced. `runPipeline` is a
+1,255-line function inside a 3,138-line file. The flagship `blueprints/multi-agent/` references
+tools (`human_checkpoint`, `graph_query`, `agent_trigger`) that **do not exist** and silently
+resolve to nothing.
 
 ---
 
@@ -305,16 +405,20 @@ operator adds a designation). Everything shipping there is hand-rolled. ADR-055 
 
 ### Tier 1 — share as actual code
 
-**The LLM provider seam.** Four implementations exist, one is clearly best, and critically it
-has **no ADK dependency**, so it compiles on Go 1.25.7 and sidesteps the toolchain fork entirely.
-It is the only genuinely extractable module today.
+**The LLM provider seam.** Four implementations exist and critically **none of them depends on
+ADK**, so a merged seam compiles on Go 1.25.0 and sidesteps both the toolchain fork and the
+three-way ADK version split. It is the only genuinely extractable module today.
 
-- Include: `Chat` / `ChatWithFormat` / `Ping` / `Model`; the `ErrorKind` taxonomy with
-  `Retryable` and the operator-facing `Action` string; both provider implementations; the
-  typed-nil trap handling (`llm.New` returning a nil `*Client` assigned to a `Provider`
-  interface defeats every `!= nil` check).
-- Exclude: `ModelSelector` — it defines four task types but the only implementation returns the
-  same config for all of them. Aspirational, not load-bearing.
+Two of the four are worth merging rather than picking one:
+
+| Take from | What |
+|-----------|------|
+| `strategy-server/internal/llm` | the interface shape (`Chat` / `ChatWithFormat` / `Ping` / `Model`), the `ErrorKind` taxonomy with `Retryable` and the operator-facing `Action` string, the Bedrock/SigV4 provider, and the typed-nil trap handling |
+| `emergent.memory/pkg/adk/model.go` | the credential hierarchy (project → org → env) via `CredentialResolver`, the usage/cost tracking `ModelWrapper`, and provider-prefixed model names (`google/…`, `openai/…`) which make routing explicit |
+
+Exclude `strategy-server`'s `ModelSelector` — it defines four task types but the only
+implementation returns the same config for all of them. Aspirational, not load-bearing.
+`emergent.memory`'s `ModelResolver` is the working version of that idea.
 
 Payoff: Bedrock/EU-residency, retry classification, and boot preflight land in all four repos at
 once. Consistent with `AI_RUNTIME_CONSOLIDATION.md` decision 3 (provider seam, interface-first)
@@ -344,6 +448,19 @@ write-only from the model's perspective (invariant 5).
 
 **The bounded session store contract.** TTL, message cap, byte cap, owner binding,
 multi-instance-safe. Both 21st repos need this; both are single-instance today.
+`emergent.memory`'s Bun-backed ADK session store (`pkg/adk/session/bunsession/`) is the
+reference for the persistent case.
+
+**The compaction shape.** Two-phase — token-aware trim first, LLM summarisation only if the trim
+was destructive — with an anti-thrash guard. `emergent.memory` has the only working
+implementation. Note the requirement carried over from `sequence`'s `agent-harness` spec and
+invariant 5: **compaction must be inspectable.** A runtime that silently drops history and then
+answers confidently on a partial view is invariant 1's failure mode, one layer down.
+
+**`ToolPolicy` as the write-gating primitive.** `{Confirm, Message, Disabled}` per tool. It
+subsumes `21st-captable`'s hardcoded allowlist and would give the authoring bot its approval
+gate declaratively. Portable as a concept; the current implementation is coupled to ADK's
+`beforeToolCb` and would need re-hosting.
 
 ### Tier 3 — share as written pattern only
 
@@ -358,12 +475,14 @@ in a codebase that does not have it**.
 
 ## 6. What not to share
 
-- **The orchestration engine.** Four different machines for four genuinely different shapes:
-  AIM is a fixed six-step graph; captable is provisioning jobs on River; sequence is DBOS
-  workflows with 7-day parks; 21st-bot is a single request. Forcing one engine fights every grain.
-- **ADK itself, across repos.** `sequence` pinned v2.0.0 and rejected v2.2+ because it forces
-  Go 1.26; strategy-server is on 1.26.5 / v2.2.0. Any shared module touching ADK requires
-  `sequence` to move first. The value is in the pattern, not the dependency.
+- **The orchestration engine.** Five different machines for five genuinely different shapes:
+  AIM is a fixed six-step graph; emergent.memory is recursive multi-agent spawn with sandboxes;
+  captable is provisioning jobs on River; sequence is DBOS workflows with 7-day parks; 21st-bot
+  is a single request. Forcing one engine fights every grain.
+- **ADK itself, across repos.** Three majors are live (v1.2.0 / v2.0.0 / v2.2.0) on three Go
+  toolchains, and `sequence` explicitly rejected moving past v2.0.0 because it forces Go 1.26.
+  Any shared module touching ADK would force a coordinated upgrade across three GitHub orgs.
+  The value is in the pattern, not the dependency.
 - **Tools and domain knowledge (Ring 2).** Correctly per-product. Already decided in
   `AI_RUNTIME_CONSOLIDATION.md`.
 
@@ -408,13 +527,21 @@ discovered.
 
 ## 8. Recommended sequencing
 
-1. **Extract the provider seam.** Highest value, lowest risk, no ADK dependency, unblocks
-   Bedrock everywhere.
-2. **Build the authoring bot on the captable pattern** — bounded tool loop, DB-backed
-   user-scoped sessions, progressive tool discovery, allowlist enforced twice, writes only via
-   `propose_patch` into a staged batch. Explicitly *not* an ADK session.
-3. **Update `add-artifact-assistant-bot`** to reconcile with `AGENT_RUNTIME_PATTERN.md`.
-4. **Converge the staging schema shape** opportunistically, as each repo touches it.
+1. **Extract the provider seam**, merging `strategy-server`'s interface + error taxonomy with
+   `emergent.memory`'s credential hierarchy and usage tracking. Highest value, lowest risk, no
+   ADK dependency, unblocks Bedrock everywhere.
+2. **Read `emergent.memory`'s agent runtime before designing the authoring bot** — specifically
+   `executor.go`'s callback structure, `session_compressor.go`, and `injectToolResponse`. It has
+   already paid for the lessons.
+3. **Build the authoring bot** with: a bounded tool loop, DB-backed user-scoped sessions,
+   progressive tool discovery (captable), two-phase compaction (emergent.memory), `ToolPolicy`-
+   style declarative write gating, and writes only via `propose_patch` into a staged batch.
+   Whether it uses ADK's `LlmAgent` or a hand-rolled loop is now a genuine choice rather than a
+   foregone one — `emergent.memory` proves the ADK path works for this shape, at the cost of
+   inheriting a version pin.
+4. **Update `add-artifact-assistant-bot`** to reconcile with `AGENT_RUNTIME_PATTERN.md` and with
+   §3.2 here.
+5. **Converge the staging schema shape** opportunistically, as each repo touches it.
 
 The constraint to protect above all others: **every write path — AI, human, inline bot, MCP
 agent — goes through one staging gate.** That single constraint is what makes AIM triggering,
@@ -436,3 +563,29 @@ Recorded so it can be fixed; none of it affects behaviour.
 | `openspec/AGENT_RUNTIME_PATTERN.md` header | "Supersedes (in intent)" line is stale relative to its own body after the workflow-graph correction. |
 | `.../adopt-adk-runtime-and-provider-seam/CROSS_REPO.md` closing | "whether an ADK session should span an AIM cycle's human gates (it should not)" is a leftover from the withdrawal period and contradicts the rest of the file, `proposal.md`, and the shipped code. |
 | `apps/strategy-server/go.mod` | ADK v2.2.0, genai, and the AWS Bedrock SDK are marked `// indirect` despite being directly imported. Stale bookkeeping only. |
+| `emergent.memory/apps/server/domain/mcp/README.md:9` | Says "~50+" MCP tools; actual is ~120. |
+
+---
+
+## 10. Revision log
+
+**2026-09-04 — `emergent.memory` folded in.** Two conclusions in the original draft were wrong
+or incomplete and are corrected above:
+
+1. **"`sequence` is not an ADK reference, and there isn't one"** — half right. `sequence` indeed
+   is not, but `emergent.memory` is: ADK v1.2.0 in production as a chat-style runtime. §0 and
+   §4.1 corrected.
+
+2. **"The authoring bot's reference implementation is `21st-captable`"** — incomplete. Captable
+   is the right reference for the *UX surface*, but `emergent.memory` is the right reference for
+   the *runtime*: it is the only codebase that has solved compaction, park/wake fidelity, and
+   declarative write gating on ADK. §3.2 rewritten to split the two.
+
+Consequential additions: the estate is five repos not four; three ADK majors are live
+simultaneously, which hardens the "no shared module may import ADK" conclusion from a preference
+into a constraint; and the provider seam recommendation now merges two implementations rather
+than adopting one.
+
+`openspec/AGENT_RUNTIME_PATTERN.md` was updated in the same pass — repo status table, the
+compaction claim (ADK ships none, but the `NumRecentEvents` affordance is usable and
+`emergent.memory` uses it), shared-vs-not-shared, and two new open questions.

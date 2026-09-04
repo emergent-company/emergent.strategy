@@ -16,8 +16,8 @@ the intake checklist at the bottom first.**
 
 | Repo | Org | Role today |
 |------|-----|-----------|
-| `emergent-company/emergent.strategy` (strategy-server) | emergent-company | **Pilot** for ADK 2.0 + Provider seam. AI *runner* (AIM cycle workflow). |
-| `emergent-company/emergent` (apps/server) | emergent-company | Already runs **ADK Go v1.2.0**. Multi-agent framework. |
+| `emergent-company/emergent.strategy` (strategy-server) | emergent-company | **Pilot** for ADK 2.0 + Provider seam. AI *runner* (AIM cycle workflow), now shipped on ADK v2.2.0. |
+| `emergent-company/emergent` (apps/server) — emergent.memory | emergent-company | Runs **ADK Go v1.2.0** in production as a *chat-style* runtime. **The reference implementation for the bot side of Ring 3** — see §7. |
 | `CouplerAgency/sequence` (sequence-core) | CouplerAgency | New AI consumer: `intelscanner` runner + greenfield `chatbot`. |
 | `eyedea-io/21st-bot` | eyedea-io | Conversational **bot** hub (21st Assistant) + manifest network. |
 | `eyedea-io/21st-captable` | eyedea-io | Conversational **bot** (fork lineage of 21st-bot). |
@@ -125,7 +125,44 @@ back here; bodies are self-contained):
 | `eyedea-io/21st-captable` | https://github.com/eyedea-io/21st-captable/issues/52 |
 | `emergent-company/emergent` | https://github.com/emergent-company/emergent.memory/issues/315 |
 
-## 7. How to raise input / changes
+## 7. Reference implementations — read these before building
+
+Added 2026-09-04 after a code-level review of all five repos. Full findings:
+`docs/AIM_ARCHITECTURE_AND_CROSS_REPO_REUSE.md`; runtime pattern and invariants:
+`openspec/AGENT_RUNTIME_PATTERN.md`.
+
+**Do not assume the pilot repo is the reference for everything.** The two rings
+have different best-in-estate implementations:
+
+| If you are building… | Read | Why |
+|---|---|---|
+| A **bot** (Ring 3 conversational) | `emergent.memory` `apps/server/domain/agents/` | Only ADK-in-production chat runtime. Has solved context compaction (`session_compressor.go`), park/wake that preserves history fidelity (`executor.go:898-995` injects a real `genai.FunctionResponse` keyed to the original `FunctionCallID`), and declarative per-tool approval (`ToolPolicy{Confirm,Disabled}`). |
+| A **bot UX surface** | `21st-captable` `internal/agent/` | Chat drawer, progressive tool discovery across 321 tools, review-link enforcement, two-layer write allowlist. |
+| A **runner** (Ring 3 workflow) | `strategy-server` `internal/adk/` + `internal/aimadk/` | ADK graph with human gates, bounded session, restart-resume proven under SIGKILL. |
+| **Audit / durability** | `sequence` `domain/agentrun/` + `internal/durability/` | `agent_run`/`agent_step` with 64KB caps, DBOS 7-day parks, deterministic workflow IDs. |
+
+Two corrections to earlier assumptions in this doc's orbit:
+
+1. **`sequence` is not an ADK reference.** It ships ADK v2.0.0 but the adapter has
+   **zero production consumers**, enforced by two build-failing tests. Everything
+   shipping there is hand-rolled.
+2. **Three ADK majors are live simultaneously** — v1.2.0 (emergent.memory, Go
+   1.25.0), v2.0.0 (sequence, Go 1.25.7, explicitly pinned per ADR-055), v2.2.0
+   (strategy-server, Go 1.26.5). This hardens decision 5: any shared Go module
+   **must not import ADK**, or it forces a coordinated upgrade across three orgs.
+   The provider seam (Ring 1) is unaffected — no implementation of it depends on
+   ADK, which is what makes it the one extractable piece today.
+
+**Cautionary read before building signal-driven long-running agents:**
+`emergent.memory/docs/investigation-agent-queue-explosion-2026-03-18.md` — 29,369
+pending jobs from cron ignoring queue depth + children re-enqueuing parents on
+both success and failure + retries stacking. Its safety layer (queue-depth cap,
+consecutive-failure auto-disable, minimum cron interval, two doom-loop detectors)
+is remediation, not foresight.
+
+---
+
+## 8. How to raise input / changes
 
 - Comment on your repo's tracking issue (linked from this doc's rollout), or
 - Open a PR against this doc for decisions, or
