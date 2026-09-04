@@ -5,6 +5,32 @@
 > `opencode-harness`
 > **Revision:** 2026-09-04 — `emergent.memory` reviewed and folded in. This
 > materially changed §3.2 and §5; see §10 for what was corrected and why.
+>
+> ⚠️ **PARTIALLY SUPERSEDED — read `docs/UNIFIED_AGENT_ARCHITECTURE.md` first.**
+> This document remains accurate and useful as the **AIM implementation
+> reference** (§1 how the cycle works, §2 the four non-obvious ADK decisions,
+> §9 documentation drift). Its **cross-repo conclusions are superseded** by the
+> baseline, which corrects three errors originating here:
+>
+> 1. **"Five different machines, don't share the orchestration engine"** (§6) —
+>    overstated. The chain *planner* differs; the runtime need not. There is one
+>    agent type, with knowledge-only and code-planned variants as degenerate
+>    cases. See baseline §1.
+> 2. **Bots and runners treated as different species** (§3.1) — they are two
+>    independent knobs (who plans the chain; whether the session accumulates raw
+>    content), not two kinds of system. See baseline §1.1.
+> 3. **ADK framed as orchestration plumbing** (§0, §6) — it also ships tool
+>    calling, RAG, sub-agents, agent cards, remote agents and HITL confirmation,
+>    most of which the estate hand-rolls. See baseline §4.
+>
+> Two things this document missed entirely, both material: **service
+> self-awareness** (a published machine-readable service self-model, of which
+> `21st-captable`'s nav graph + feature KB is the estate's best) and **agent
+> federation** (four parallel agent-card mechanisms; `emergent.memory`'s ACP is
+> shipped and working). See baseline §1.2 and §3.
+>
+> The baseline's §9 drift log records the reasoning errors that produced these,
+> so they are not repeated.
 > **Companions:**
 > - `openspec/AGENT_RUNTIME_PATTERN.md` — the bounded-cycle pattern and its ten invariants (normative)
 > - `docs/AI_RUNTIME_CONSOLIDATION.md` — cross-org coordination record and locked decisions (normative)

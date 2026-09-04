@@ -3,9 +3,14 @@
 Cross-repo architectural pattern for long-running, partly autonomous agents.
 
 **Applies to:** `strategy-server`, `opencode-harness`, `sequence`, `21st-bot`,
-`emergent.memory`
+`21st-captable`, `emergent.memory`
 **Status:** Proposed — derived from measurement and from prior art already
 shipped in `sequence` and `emergent.memory`
+**Baseline:** `docs/UNIFIED_AGENT_ARCHITECTURE.md` is the architectural baseline
+(one agent type, three execution layers, federation). This document is narrower:
+it governs **session and cycle discipline** — how a unit of work is bounded and
+what must not leak between units. Read the baseline first. Where the two
+conflict, the baseline wins and this document is to be corrected.
 **Supersedes (in intent):** the assumption in
 `openspec/changes/adopt-adk-runtime-and-provider-seam/` that an ADK session can
 span a full AIM cycle. Note this line predates the "Workflow graphs vs
@@ -146,13 +151,30 @@ what strategy-server's AIM cycle does.
 
 ### Workflow graphs vs chat-style agents
 
+> **Scope correction (2026-09-04).** The table below is about **session
+> accumulation cost only**. It is *not* a taxonomy of agents, and it must not be
+> used to argue that a workflow agent and a conversational agent are different
+> kinds of system. They are not — see `docs/UNIFIED_AGENT_ARCHITECTURE.md` §1.
+>
+> There are two independent knobs:
+>
+> - **Who plans the chain** — code-planned (AIM) through model-planned (a bot).
+>   A continuum, and AIM may move along it.
+> - **Does the session accumulate raw content** — a **design choice** governed by
+>   invariant 4, not a property of the product.
+>
+> A model-planned agent can have compact sessions by keeping tool results out of
+> session history. A code-planned graph can accumulate if its nodes are LLM
+> agents. The columns below name the two *ends* of the second knob as they
+> happen to appear in this estate today; they do not name two species.
+
 This is the distinction "Human gates and long waits" depends on, and the one
 place this document's earlier drafts got AIM's own case wrong: a graph of
 `FunctionNode`s whose bodies do their own LLM work and return a compact result
 does not accumulate the way a chat agent does, and treating it as if it did
 would import a chat-style constraint the workload never has.
 
-| | Workflow graph (AIM) | Chat-style agent (a coding session, a conversation) |
+| | Compact-session end (AIM today) | Accumulating end (an unconstrained coding session) |
 |---|---|---|
 | **What becomes a session event** | one compact result per node | every prompt, completion, tool call and result |
 | **Event count over the unit's life** | fixed — one per step, known at design time | open-ended — grows with every turn |
@@ -168,13 +190,19 @@ equivalent legacy bookkeeping at 1.8KB per cycle). The 127K-230K LLM tokens per
 step are real cost, but they are a side effect of the step body under either
 engine, not session content ADK reloads.
 
-`opencode-harness` is the right column: a coding agent's tool results are file
-contents, diffs, and command output, large and unpredictable in count. Nothing
-about AIM's graph case implies that workload is also safe to run on one
+`opencode-harness` starts at the right-hand end: a coding agent's tool results
+are file contents, diffs, and command output, large and unpredictable in count.
+Nothing about AIM's graph case implies that workload is also safe to run on one
 long-lived session — invariant 4 (tool results are not session history) is
-precisely the discipline that keeps it from becoming the left column's problem
-by accident, and it has to be enforced deliberately there in a way AIM gets for
-free from its shape.
+precisely the discipline that keeps it from drifting to that end, and it has to
+be enforced deliberately there in a way AIM gets for free from its shape.
+
+**But the right-hand end is not a fate.** `emergent.memory` runs a model-planned
+agent on ADK and stays viable by *building* what the shape does not give it —
+two-phase compaction (`session_compressor.go:75-286`) plus token-aware trimming.
+So the design question for any new agent is not "which column am I in" but
+"which mechanisms do I need to stay compact": keep tool results out of session
+history, compact deliberately and inspectably, or bound the unit of work.
 
 ---
 

@@ -127,9 +127,19 @@ back here; bodies are self-contained):
 
 ## 7. Reference implementations — read these before building
 
-Added 2026-09-04 after a code-level review of all five repos. Full findings:
-`docs/AIM_ARCHITECTURE_AND_CROSS_REPO_REUSE.md`; runtime pattern and invariants:
-`openspec/AGENT_RUNTIME_PATTERN.md`.
+Added 2026-09-04 after a code-level review of all five repos.
+
+> **Architectural baseline: `docs/UNIFIED_AGENT_ARCHITECTURE.md`.** It extends
+> this doc's three-ring model with: one agent type (knowledge-only and
+> code-planned agents are degenerate cases of the same thing — this doc's
+> "same machinery, different knob" made concrete); **three execution layers**
+> (queue / durable execution / agent runtime) which resolve the River-vs-DBOS-vs-ADK
+> confusion; **agent federation**, where the estate is independently building four
+> agent-card mechanisms; and a **drift log** of reasoning errors to avoid.
+>
+> Supporting: `openspec/AGENT_RUNTIME_PATTERN.md` (session and cycle discipline,
+> ten invariants), `docs/AIM_ARCHITECTURE_AND_CROSS_REPO_REUSE.md` (AIM
+> implementation detail; cross-repo conclusions superseded by the baseline).
 
 **Do not assume the pilot repo is the reference for everything.** The two rings
 have different best-in-estate implementations:
