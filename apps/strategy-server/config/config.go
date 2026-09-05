@@ -80,6 +80,31 @@ type Config struct {
 	// once gate durations are actually recorded.
 	AbandonGatesAfter time.Duration `arg:"--abandon-gates-after,env:ABANDON_GATES_AFTER" default:"1440h" help:"Release runs left awaiting human review for longer than this (0 disables)"`
 
+	// AIMApplicationVersion identifies the AIM cycle's own step *shape* to
+	// DBOS — see internal/aimdbos.DBOSEngineConfig.ApplicationVersion's doc
+	// comment for why this must be a stable, explicit string and never left
+	// to DBOS's own default (which hashes the entire compiled binary and
+	// would strand every open gate on any deploy of anything, confirmed by
+	// direct probe — openspec/changes/adopt-dbos-dynamic-aim/design.md).
+	// Bump this only when domain/aim's step sequence or gate positions
+	// actually change, and only after confirming no run is currently
+	// parked at a gate.
+	AIMApplicationVersion string `arg:"--aim-application-version,env:AIM_APPLICATION_VERSION" default:"aim-cycle-v1" help:"Stable identifier for the AIM cycle's step shape, used to key DBOS workflow recovery — do not change casually"`
+
+	// AIMDBOSRetention bounds how long a completed DBOS workflow record is
+	// kept before internal/aimdbos.DBOSEngine.RunRetentionSweep deletes it.
+	// Resolves the Part C5 open question: DBOS provides no built-in
+	// retention/GC (confirmed directly against its Go API — ListWorkflows
+	// and DeleteWorkflows are manual primitives) so this engine needs its
+	// own sweep, the same way ADK's ADK_SESSION_RETENTION (
+	// harden-aim-execution, Part A3) did for adk_sessions — but this is a
+	// genuinely different table (DBOS's own workflow_status, not
+	// aim_cycle_runs, which does not need retention of its own; see
+	// DBOSEngineConfig.WorkflowRetention's doc comment). 30 days by
+	// default: generous, revise once real cycle frequency is observed, the
+	// same reasoning AbandonGatesAfter's default above documents.
+	AIMDBOSRetention time.Duration `arg:"--aim-dbos-retention,env:AIM_DBOS_RETENTION" default:"720h" help:"How long to keep completed DBOS workflow records before reaping them (0 disables the sweep)"`
+
 	// Zitadel OIDC
 	ZitadelIssuer         string `arg:"env:ZITADEL_ISSUER" help:"Zitadel issuer URL (e.g. https://auth.example.com)"`
 	ZitadelClientID       string `arg:"env:ZITADEL_CLIENT_ID" help:"Zitadel service account client ID"`

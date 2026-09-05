@@ -7,17 +7,19 @@ import (
 )
 
 // EngineAPI is the surface HTTP handlers and MCP tools drive an orchestration
-// engine through. internal/aimadk.ADKEngine is its only implementation.
+// engine through. internal/aimdbos.DBOSEngine is its current implementation.
 //
 // A prior implementation — a Postgres-backed goroutine pool wrapping this
 // package's own Engine type — was extracted into exactly this interface so
-// ADKEngine could be substituted without touching any of the ~30 call sites
-// across internal/handler and internal/mcpserver, then deleted once ADKEngine
-// reached parity with it. Deliberately excluded from the start: Subscribe,
-// Unsubscribe, and Publish. The SSE fanout they backed had no external
-// caller — the run panel polls GetRun on a timer instead, see
-// handler_aim_orchestrator.go — so no implementation is obligated to
-// replicate that mechanism.
+// it could be substituted without touching any of the ~30 call sites across
+// internal/handler and internal/mcpserver. It was replaced by
+// internal/aimadk.ADKEngine, then that in turn by DBOSEngine
+// (openspec/changes/adopt-dbos-dynamic-aim) — the interface has now
+// outlived two concrete engines without changing, which is the property it
+// exists for. Deliberately excluded from the start: Subscribe, Unsubscribe,
+// and Publish. The SSE fanout they backed had no external caller — the run
+// panel polls GetRun on a timer instead, see handler_aim_orchestrator.go —
+// so no implementation is obligated to replicate that mechanism.
 type EngineAPI interface {
 	// Register adds a Workflow to the engine's registry. Must be called before
 	// Start.
@@ -46,4 +48,9 @@ type EngineAPI interface {
 	// FindRunByBatch looks up the run awaiting review of the given batch.
 	// Returns nil, nil when no run holds that batch.
 	FindRunByBatch(ctx context.Context, batchID string) (*Run, error)
+	// Replan asks a running cycle to reconsider what steps remain, at the
+	// next step boundary it reaches — added by
+	// openspec/changes/adopt-dbos-dynamic-aim, Part C4. Never interrupts a
+	// step already in flight.
+	Replan(ctx context.Context, runID uuid.UUID) error
 }

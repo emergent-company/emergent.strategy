@@ -70,6 +70,18 @@ type TriggerConfig struct {
 	DaysBetweenAssessments  int              `json:"days_between_assessments"`     // default 90
 	CriticalSignalThreshold int              `json:"critical_signal_threshold"`    // default 3
 	EvidenceThreshold       *EvidenceTrigger `json:"evidence_threshold,omitempty"` // optional
+
+	// SkipFoundations, when true, removes adapt_foundations from this
+	// instance's AIM cycle plan entirely — a genuine step-SET difference,
+	// not just the existing empty-batch auto-advance
+	// (CycleWorkflow.stepAdaptFoundations already auto-advances when the
+	// skill finds nothing to change; this is for instances that never want
+	// the step attempted at all, e.g. one whose READY-layer artifacts are
+	// intentionally maintained outside the AIM loop). Read by
+	// CycleWorkflow.Plan — see openspec/changes/adopt-dbos-dynamic-aim,
+	// Part C4. Default false: every instance without this artifact, or
+	// without this field set, keeps today's fixed six-step order.
+	SkipFoundations bool `json:"skip_foundations,omitempty"`
 }
 
 // EvidenceTrigger configures the evidence-count trigger.

@@ -497,15 +497,53 @@ must compile on the older toolchain, or `sequence` must move first.
    `emergent.memory` hand-rolled it on Postgres (`FOR UPDATE SKIP LOCKED` job
    ledger + `suspend_context` JSONB + orphan recovery on boot + stale reaper)
    and has unbounded parks — but is also the codebase that produced a 29k-job
-   queue explosion. Both are proven; they fail differently. Unevaluated for
-   `strategy-server`.
+   queue explosion. Both are proven; they fail differently.
+
+   **Evaluated for `strategy-server` (2026-09-04):** AIM already has park/wake
+   for free — a parked gate holds nothing in memory, so this specific question
+   reduces to whether to *also* adopt DBOS for the step-memoization and
+   durable-timer gaps it doesn't have. Decision: **not now**
+   (`openspec/changes/harden-aim-execution/decision.md`). AIM's gates run
+   multi-week (60-day default abandon threshold), which is exactly the park
+   duration `sequence`'s own DBOS adoption still lists as unproven (Railway
+   redeploy mid-workflow, 21-day HITL park/wake, kill-criteria pass/fail —
+   all open as of `ADR-057`'s most recent record). Build the missing pieces
+   (retry, durable timers) on ADK instead; revisit if `sequence`'s criteria
+   resolve or AIM needs mid-cycle re-planning. This does not answer the
+   question for `opencode-harness`, `21st-bot`, or any other repo's own park
+   durations and failure tolerance — it is a strategy-server-specific
+   application of the pattern, not a cross-repo resolution.
+
+   **CLOSED, superseded the same day** (`openspec/changes/adopt-dbos-dynamic-aim`).
+   DBOS adopted after all — not because the above evaluation was wrong about
+   the risk, but because two of its premises changed within hours:
+   strategy-server has no production deployment yet, so the
+   blue-green/redeploy risk is a validation cost paid in dev, not a
+   production incident; and AIM's mid-cycle re-planning need (question 1's
+   own escape hatch) was confirmed as real, not speculative. DBOS's Go SDK
+   also reached v1.0 stable that same month, retiring the "young SDK" part
+   of the risk independent of the other two. `internal/aimdbos.DBOSEngine`
+   is now the live engine; `internal/aimadk` was deleted once it reached
+   parity. Full reasoning: `harden-aim-execution/decision.md`'s SUPERSEDED
+   note.
 3. **What closes a cycle?** All steps done, signal budget, time box,
    convergence, or human gate reached — and what opens the next one.
 4. **Who owns the write-back curation policy?** It is the compaction, and it is
    domain-specific.
-5. **Retention for ADK sessions.** One per AIM cycle is disposable once the
-   cycle terminates; `adk_sessions` needs a cleanup policy now that the ADK
-   engine is in active development, not deferred to a future reconciler.
+5. **CLOSED for `strategy-server` (2026-09-04) — Retention for ADK sessions.**
+   Shipped in `harden-aim-execution` Part A3: `ADK_SESSION_RETENTION`
+   (default 30 days) deletes a terminal run's session — never an
+   `awaiting_human` one — on the existing gate-sweep ticker. Other repos
+   running ADK sessions (`emergent.memory`) have their own retention story and
+   are not affected by this.
+
+   **Superseded for `strategy-server`, same day, by question 2's reversal.**
+   No ADK sessions remain to retain — `internal/aimadk` and `adk_sessions`
+   were deleted in `adopt-dbos-dynamic-aim`'s cutover. The equivalent for
+   DBOS is `DBOSEngineConfig.WorkflowRetention` (env `AIM_DBOS_RETENTION`),
+   Part C5 of that change: DBOS provides no built-in retention of its own
+   (confirmed directly against its Go API), so this is a bespoke sweep
+   again, same shape, different backing table.
 6. **Does the compaction policy belong in the shared layer or per repo?**
    `emergent.memory` has the only implementation and it is tuned to its own
    thresholds (80% trigger, 75% target, 30% anti-thrash). Whether those numbers

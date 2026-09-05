@@ -445,6 +445,7 @@ func (s *Server) buildRunPanelData(ctx context.Context, instanceID string, run *
 		WorkflowName: run.WorkflowName,
 		Status:       string(run.Status),
 		CurrentStep:  run.CurrentStep,
+		Error:        run.Error,
 		Steps:        stepRows,
 		CreatedAt:    run.CreatedAt.Format(time.RFC3339),
 		StreamURL:    fmt.Sprintf("/strategies/%s/aim/runs/%s/stream", instanceID, run.ID),

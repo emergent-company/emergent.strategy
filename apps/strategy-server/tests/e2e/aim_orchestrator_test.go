@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,8 +24,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	strategydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/adk"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimadk"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimdbos"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	internaldom "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
@@ -101,12 +101,61 @@ func newNoopWorkflow(name string) *noopWorkflow {
 	}
 }
 
+// newFlakySnapshotWorkflow is newNoopWorkflow's shape, except its final
+// ungated step fails on its first invocation and succeeds on every one
+// after — the scenario retry exists for. count lets a test assert directly
+// on how many times each step actually ran, including the gated ones ahead
+// of it, which retry must never re-execute.
+func newFlakySnapshotWorkflow(name string, gate1Runs, gate2Runs, snapshotRuns *atomic.Int32) *noopWorkflow {
+	batch1, batch2 := uuid.New().String(), uuid.New().String()
+	return &noopWorkflow{
+		name: name,
+		cycle: []aim.Step{
+			{
+				Name:      "draft_assessment",
+				HumanGate: true,
+				Run: func(_ context.Context, _ aim.StepInput) (aim.StepOutput, error) {
+					gate1Runs.Add(1)
+					return aim.StepOutput{Step: "draft_assessment", BatchID: batch1}, nil
+				},
+			},
+			{
+				Name:      "draft_calibration",
+				HumanGate: true,
+				Run: func(_ context.Context, _ aim.StepInput) (aim.StepOutput, error) {
+					gate2Runs.Add(1)
+					return aim.StepOutput{Step: "draft_calibration", BatchID: batch2}, nil
+				},
+			},
+			{
+				Name: "snapshot",
+				Run: func(_ context.Context, _ aim.StepInput) (aim.StepOutput, error) {
+					if snapshotRuns.Add(1) == 1 {
+						return aim.StepOutput{}, errE2ESnapshotFailure
+					}
+					return aim.StepOutput{Step: "snapshot"}, nil
+				},
+			},
+		},
+	}
+}
+
+var errE2ESnapshotFailure = fmt.Errorf("snapshot: transient e2e test failure")
+
 // setupTestEnv creates a test environment with database, Echo server, handler,
 // and orchestration engine. The engine runs a noop workflow named "aim_cycle".
 func setupTestEnv(t *testing.T) *testEnv {
 	t.Helper()
+	return setupTestEnvWithWorkflow(t, newNoopWorkflow("aim_cycle"))
+}
 
-	db := database.TestDB(t)
+// setupTestEnvWithWorkflow is setupTestEnv parameterised on the workflow, so
+// tests that need non-default step behaviour (e.g. a step that fails once,
+// for retry coverage) do not have to duplicate the database/handler wiring.
+func setupTestEnvWithWorkflow(t *testing.T, wf *noopWorkflow) *testEnv {
+	t.Helper()
+
+	db, dsn := database.TestDBWithDSN(t)
 	ctx := context.Background()
 	log := slog.Default()
 
@@ -140,12 +189,19 @@ func setupTestEnv(t *testing.T) *testEnv {
 		t.Fatalf("seed instance: %v", err)
 	}
 
-	// Build the orchestration engine and register the noop workflow against
-	// it — the same construction cmd_serve.go does.
-	wf := newNoopWorkflow("aim_cycle")
-	runStore := aimadk.NewRunStore(db)
-	sessionStore := adk.NewSessionStore(db)
-	var engine orchestration.EngineAPI = aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{AppName: "e2e-test"})
+	// Build the orchestration engine and register the workflow against it —
+	// the same construction cmd_serve.go does.
+	runStore := aimdbos.NewRunStore(db)
+	engineImpl, err := aimdbos.NewDBOSEngine(runStore, aimdbos.DBOSEngineConfig{
+		AppName:            "e2e-test",
+		DatabaseURL:        dsn,
+		ApplicationVersion: "e2e-test-v1",
+		AbandonGatesAfter:  time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("new engine: %v", err)
+	}
+	var engine orchestration.EngineAPI = engineImpl
 	engine.Register(wf)
 
 	if err := engine.Start(ctx); err != nil {
@@ -589,6 +645,116 @@ func awaitRunStep(t *testing.T, env *testEnv, runID uuid.UUID, wantStatus orches
 }
 
 // ---------------------------------------------------------------------------
+// Test: POST /aim/runs/:runID/retry — through the real handler path
+// ---------------------------------------------------------------------------
+
+// TestRetryRun_HandlerPath_SkipsCompletedGatedStepsAndSucceeds exists because
+// prior to harden-aim-execution Part A2, retry had zero coverage at any
+// layer — this file never called the retry endpoint at all. It exercises the
+// actual HTTP route (handler_aim_orchestrator.go's handleRetryAIMRun), not
+// just the engine method underneath it, and specifically covers the case the
+// engine-level tests in internal/aimadk cannot: that a real request through
+// Echo's routing and redirect handling reaches Retry and the run resumes
+// correctly on the other side.
+func TestRetryRun_HandlerPath_SkipsCompletedGatedStepsAndSucceeds(t *testing.T) {
+	var gate1Runs, gate2Runs, snapshotRuns atomic.Int32
+	wf := newFlakySnapshotWorkflow("aim_cycle", &gate1Runs, &gate2Runs, &snapshotRuns)
+	env := setupTestEnvWithWorkflow(t, wf)
+	ctx := context.Background()
+
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	runID, err := uuid.Parse(loc[strings.LastIndex(loc, "/")+1:])
+	if err != nil {
+		t.Fatalf("redirect location contains invalid run ID %q: %v", loc, err)
+	}
+
+	awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_assessment")
+	if err := env.Engine.Resume(ctx, runID, true); err != nil {
+		t.Fatalf("resume gate one: %v", err)
+	}
+
+	awaitRunStep(t, env, runID, orchestration.StatusAwaitingHuman, "draft_calibration")
+	if err := env.Engine.Resume(ctx, runID, true); err != nil {
+		t.Fatalf("resume gate two: %v", err)
+	}
+
+	awaitRunStatus(t, env, runID, orchestration.StatusFailed)
+	if got := gate1Runs.Load(); got != 1 {
+		t.Fatalf("draft_assessment ran %d times before the failure, want 1", got)
+	}
+	if got := gate2Runs.Load(); got != 1 {
+		t.Fatalf("draft_calibration ran %d times before the failure, want 1", got)
+	}
+	if got := snapshotRuns.Load(); got != 1 {
+		t.Fatalf("snapshot ran %d times before the failure, want 1", got)
+	}
+
+	// The actual thing under test: POST the real retry route, not
+	// env.Engine.Retry directly.
+	retryResp := env.request(t, "POST", env.BaseURL+"/aim/runs/"+runID.String()+"/retry", nil)
+	if retryResp.StatusCode != http.StatusSeeOther {
+		body, _ := io.ReadAll(retryResp.Body)
+		t.Fatalf("retry: expected 303, got %d: %s", retryResp.StatusCode, body)
+	}
+	retryLoc := retryResp.Header.Get("Location")
+	wantLoc := fmt.Sprintf("/strategies/%s/aim/runs/%s", env.InstanceID, runID)
+	if retryLoc != wantLoc {
+		t.Errorf("retry redirect Location = %q, want %q", retryLoc, wantLoc)
+	}
+
+	awaitRunStatus(t, env, runID, orchestration.StatusCompleted)
+
+	if got := gate1Runs.Load(); got != 1 {
+		t.Errorf("draft_assessment ran %d times after retry through the HTTP handler, want still 1", got)
+	}
+	if got := gate2Runs.Load(); got != 1 {
+		t.Errorf("draft_calibration ran %d times after retry through the HTTP handler, want still 1", got)
+	}
+	if got := snapshotRuns.Load(); got != 2 {
+		t.Errorf("snapshot ran %d times total, want 2 (the original failure plus the retry)", got)
+	}
+}
+
+// TestRetryRun_HandlerPath_NonFailedRun_ReturnsConflict pins the handler's
+// error translation for the one Retry precondition that is easy to hit by
+// accident: retrying a run that is not (or no longer) failed. The handler
+// must surface this as 409, not a raw 500 — matching handleStartAIMRun's own
+// conflict handling for the equivalent "already active" case.
+func TestRetryRun_HandlerPath_NonFailedRun_ReturnsConflict(t *testing.T) {
+	env := setupTestEnv(t) // default noop workflow — completes without failing
+
+	resp := env.request(t, "POST", env.BaseURL+"/aim/runs", nil)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("start run: expected 303, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	runID := loc[strings.LastIndex(loc, "/")+1:]
+
+	awaitRunStep(t, env, mustParseUUID(t, runID), orchestration.StatusAwaitingHuman, "draft_assessment")
+
+	// The run is awaiting_human, not failed — retry must be refused.
+	retryResp := env.request(t, "POST", env.BaseURL+"/aim/runs/"+runID+"/retry", map[string]string{
+		"HX-Request": "true",
+	})
+	if retryResp.StatusCode != http.StatusConflict {
+		t.Errorf("retry on a non-failed run: expected 409, got %d", retryResp.StatusCode)
+	}
+}
+
+func mustParseUUID(t *testing.T, s string) uuid.UUID {
+	t.Helper()
+	id, err := uuid.Parse(s)
+	if err != nil {
+		t.Fatalf("invalid uuid %q: %v", s, err)
+	}
+	return id
+}
+
+// ---------------------------------------------------------------------------
 // Test: POST /aim/runs without orchestration engine — returns 503
 // ---------------------------------------------------------------------------
 
@@ -652,47 +818,20 @@ func TestStartRun_NoEngine_Returns503(t *testing.T) {
 // Test: server restart marks stale runs as failed
 // ---------------------------------------------------------------------------
 
-// TestServerRestart_MarksStaleRunsFailed simulates a run left mid-flight by a
-// crashed process — written directly to the store, with no engine ever
-// having driven it — and confirms a fresh engine's Start() marks it failed
-// with "server restart" rather than leaving it stuck non-terminal forever.
-func TestServerRestart_MarksStaleRunsFailed(t *testing.T) {
-	db := database.TestDB(t)
-	ctx := context.Background()
-
-	wf := newNoopWorkflow("aim_cycle")
-	runStore := aimadk.NewRunStore(db)
-
-	run := &orchestration.Run{
-		ID:             uuid.New(),
-		WorkflowName:   "aim_cycle",
-		ConcurrencyKey: uuid.New().String(),
-		Input:          map[string]any{},
-		Status:         orchestration.StatusRunning,
-		Steps:          []orchestration.StepLog{},
-	}
-	if err := runStore.Create(ctx, run); err != nil {
-		t.Fatalf("create stale run: %v", err)
-	}
-	t.Logf("stale run created (no engine driving it): %s", run.ID)
-
-	sessionStore := adk.NewSessionStore(db)
-	engine := aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{AppName: "e2e-restart-test"})
-	engine.Register(wf)
-
-	if err := engine.Start(ctx); err != nil {
-		t.Fatalf("engine start: %v", err)
-	}
-	defer func() { _ = engine.Stop(context.Background()) }()
-
-	got, err := engine.GetRun(ctx, run.ID)
-	if err != nil {
-		t.Fatalf("GetRun after restart: %v", err)
-	}
-	if got.Status != orchestration.StatusFailed {
-		t.Errorf("expected run status 'failed' after restart, got %q", got.Status)
-	}
-	if got.Error != "server restart" {
-		t.Errorf("expected error 'server restart', got %q", got.Error)
-	}
-}
+// Server-restart recovery is intentionally NOT tested here the way it was
+// for the ADK engine (a fabricated stale row + in-process Start() call).
+// DBOSEngine's recovery model is categorically different — see its Start()
+// doc comment: DBOS actually resumes a genuinely-interrupted workflow on
+// Launch, rather than marking a stale row failed, so there is nothing
+// analogous to assert against a *fabricated* row that no real DBOS
+// workflow ever backed. Constructing two DBOSEngine instances against the
+// same database within one test process (to simulate "a fresh engine after
+// a crash") does not prove anything either — unlike a real process
+// restart, the "crashed" engine's own DBOS context is still alive in the
+// same process and can race with the "recovery" one.
+//
+// The real proof is internal/aimdbos/restart_proof_test.go's
+// TestDBOSEngine_SurvivesRealProcessKill, which spawns a genuine subprocess
+// and sends it SIGKILL — the same reasoning internal/aimadk's equivalent
+// test documented for why an in-process simulation cannot substitute for
+// an actual crash.

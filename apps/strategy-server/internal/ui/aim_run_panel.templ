@@ -14,6 +14,7 @@ type AimRunPanelData struct {
 	WorkflowName string
 	Status       string // pending | running | awaiting_human | completed | aborted | failed
 	CurrentStep  string
+	Error        string // the run-level failure reason; only meaningful when Status == "failed"
 	Steps        []AimRunStepRow
 	CreatedAt    string
 	StreamURL    string // SSE endpoint URL
@@ -93,7 +94,9 @@ templ AimRunPanelContent(data AimRunPanelData) {
 					<div>
 						<p class="text-xs font-semibold uppercase tracking-widest text-base-content/65">{ langs.T(ctx, "page.aim_cycle_run") }</p>
 					<p class="text-sm font-medium text-base-content mt-0.5">
-						if data.CurrentStep != "" {
+						if data.Status == "failed" && data.CurrentStep != "" {
+							Failed at: { runStepLabel(data.CurrentStep) }
+						} else if data.CurrentStep != "" {
 							Running: { runStepLabel(data.CurrentStep) }
 						} else {
 							{ runStatusLabelI18n(ctx, data.Status) }
@@ -139,6 +142,12 @@ templ AimRunPanelContent(data AimRunPanelData) {
 				</a>
 				</div>
 			</div>
+			if data.Status == "failed" && data.Error != "" {
+				<div class="mt-3 rounded-lg border border-error/20 bg-error/5 px-3 py-2">
+					<p class="text-xs font-semibold text-error/80 uppercase tracking-wide">Failure reason</p>
+					<p class="text-xs text-error/70 mt-0.5 whitespace-pre-wrap break-words">{ data.Error }</p>
+				</div>
+			}
 		</div>
 
 		// ── Step timeline (live-updated via SSE) ──

@@ -22,6 +22,15 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 )
 
+// testAppName and testUserID were shared with aim_graph_test.go before the
+// AIM-specific graph moved to internal/aimdbos
+// (openspec/changes/adopt-dbos-dynamic-aim); this is their only remaining
+// consumer.
+const (
+	testAppName = "strategy-server"
+	testUserID  = "user-1"
+)
+
 // TestPerf_SessionHistoryGrowth measures what a growing event stream costs.
 //
 // ADK reloads and rescans a session's entire event history on every turn:

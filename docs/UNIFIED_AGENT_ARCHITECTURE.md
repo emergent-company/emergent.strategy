@@ -334,11 +334,62 @@ Design constraints that hold throughout:
 
 Numbered so they can be cited and closed individually.
 
-1. **Does AIM adopt a layer-2 engine (DBOS or other), and on what kill criteria?**
-   Blocking issue: `Retry` is unimplementable today. Do not evaluate against the
-   current six fixed steps.
-2. **Does AIM stay a statically-built graph?** If steps become dynamic or
-   signal-driven, `BuildAIMGraph`-at-`Register` is a structural constraint.
+1. **CLOSED (2026-09-04) — Does AIM adopt a layer-2 engine (DBOS or other), and
+   on what kill criteria?** `openspec/changes/harden-aim-execution/decision.md`:
+   **stay on ADK**, build retry and durable timers as a small named internal
+   module rather than adopt DBOS or Temporal now. Reasoning in brief: AIM's
+   gates are documented as multi-week (60-day `AbandonGatesAfter` default),
+   and that is precisely the scenario DBOS's own recorded adoption
+   (`sequence`, `ADR-057`) still lists as unproven — Railway-redeploy-mid-workflow,
+   21-day HITL park/wake, and kill-criteria pass/fail are all still open there
+   as of the most recent record. This is not "AIM's six steps cope today" —
+   see the decision record's own drift-log defence. Revisit when `sequence`'s
+   criteria resolve, when AIM needs actual mid-cycle re-planning (question 2,
+   below), or when strategy-server needs more than one replica.
+
+   **SUPERSEDED, same day.** Reversed within hours, not by new evidence
+   contradicting the above but by three things it under-weighted: (a)
+   strategy-server has no production deployment yet, so DBOS's
+   blue-green/redeploy-mid-workflow risk is a validation cost to pay in
+   dev, not an incident to avoid in prod; (b) mid-cycle re-planning
+   (question 2) was confirmed as real near-term intent, not the
+   speculative trigger treated above as a reason to wait; (c) DBOS's Go SDK
+   reached v1.0 stable in August 2026, retiring the "young SDK, kill
+   criteria still open at `sequence`" risk this closure leaned on. Full
+   reasoning: `openspec/changes/harden-aim-execution/decision.md`'s
+   SUPERSEDED note. **Shipped, not just decided**:
+   `openspec/changes/adopt-dbos-dynamic-aim` —
+   `internal/aimdbos.DBOSEngine` is the live orchestration engine;
+   `internal/aimadk` (this question's original answer, above) was deleted
+   once parity was proven. Two real findings from building it, not
+   assumed: DBOS's `ApplicationVersion` defaults to a hash of the entire
+   binary and must be pinned explicitly, or any unrelated deploy silently
+   strands every open gate forever
+   (`DBOSEngineConfig.ApplicationVersion`'s doc comment); an unrecovered
+   panic inside a step crashes the whole process, not just one workflow
+   (fixed with an explicit `recover()`).
+2. **CLOSED (2026-09-04), partially — Does AIM stay a statically-built graph?**
+   `openspec/changes/harden-aim-execution/dynamic-graph-readiness.md`
+   distinguishes two capabilities bundled under "dynamic": instance-dependent
+   step selection (cheap under any candidate, including staying on ADK — a
+   per-run `BuildAIMGraph` call) and mid-cycle re-planning (the sharp gap: ADK
+   has no clean model for it, since a running graph's node sequence is fixed
+   once `runner.Run` starts, whereas DBOS/Temporal workflows are plain Go
+   functions that can branch natively). Not implemented — design only, per the
+   note's own scope. If mid-cycle re-planning becomes an actual requirement,
+   that — not park/wake or step memoization — is what should reopen question 1.
+
+   **Fully CLOSED, same day as question 1's reversal.** Both capabilities
+   shipped in `adopt-dbos-dynamic-aim`: `domain/aim.Planner`
+   (instance-dependent step selection, via a real per-instance config
+   field — `TriggerConfig.SkipFoundations` — not a synthetic one added
+   only to exercise the mechanism) and a mid-cycle re-plan signal
+   (`DBOSEngine.Replan`, a `dbos.Send`/`Recv` pair checked only at step
+   boundaries, never mid-step). Confirmed by test, not just by
+   construction, that re-planning never interrupts a step already in
+   flight — only influences what runs after it —
+   `TestDBOSEngine_Replan_DoesNotInterruptAStepAlreadyInFlight`,
+   `internal/aimdbos/planner_test.go`.
 3. **Which agent-card contract wins** — ACP (working), `ManifestBot` (specified), or
    ADK `agentregistry` (free, unused)? Reconcile to one shape.
 4. **Delegation transport.** MCP-over-HTTP is the obvious candidate — everyone speaks
@@ -355,7 +406,23 @@ Numbered so they can be cited and closed individually.
 9. **Reconciler or discrete cycles for AIM** (carried from
    `AGENT_RUNTIME_PATTERN.md`). The heartbeat + `CycleProposal` + active-run guard is
    arguably a reconciler in embryo.
-10. **`adk_sessions` retention** — no cleanup policy exists; this is a live leak.
+10. **CLOSED (2026-09-04) — `adk_sessions` retention.** Shipped in
+    `harden-aim-execution` Part A3: a terminal run's session (never an
+    `awaiting_human` one, however old) is deleted after `ADK_SESSION_RETENTION`
+    (default 30 days), swept on the existing gate-sweep ticker. The
+    run-metadata row is retained; only the session and its events are
+    reclaimed.
+
+    **Superseded, same day, by question 1's reversal.** `adk_sessions` and
+    `internal/aimadk` no longer exist — `ADK_SESSION_RETENTION` went with
+    them. The equivalent concern for DBOS is
+    `DBOSEngineConfig.WorkflowRetention` (env `AIM_DBOS_RETENTION`,
+    `adopt-dbos-dynamic-aim` Part C5): same shape (configurable window,
+    active/parked records never touched), different backing store (DBOS's
+    own `workflow_status`, not a bespoke session table) and a different
+    granularity concern — DBOS generates more step-records per AIM cycle
+    than ADK's sessions did, since every gate-lifecycle write is now its
+    own memoized step, not just an event in one session's stream.
 
 ---
 

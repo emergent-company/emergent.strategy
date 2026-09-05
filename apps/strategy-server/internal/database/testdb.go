@@ -37,6 +37,18 @@ func testMaintenanceDSN() string {
 // Override with TEST_DATABASE_URL env var.
 func TestDB(t *testing.T) *bun.DB {
 	t.Helper()
+	db, _ := TestDBWithDSN(t)
+	return db
+}
+
+// TestDBWithDSN is TestDB, plus the isolated test database's own connection
+// string. Needed by anything that must connect to the same test database
+// through a *different* client than bun — internal/aimdbos's tests, for
+// example, hand this DSN to dbos.Config.DatabaseURL so DBOS's own schema
+// lives in the same throwaway database bun's migrations just created,
+// rather than a second, unmigrated one.
+func TestDBWithDSN(t *testing.T) (*bun.DB, string) {
+	t.Helper()
 
 	// Use a unique database name per test to achieve isolation.
 	// The random suffix ensures -count=N reruns don't share the same DB.
@@ -74,7 +86,7 @@ func TestDB(t *testing.T) *bun.DB {
 		t.Fatalf("testdb: migrate %q: %v", dbName, err)
 	}
 
-	return db
+	return db, testDSN
 }
 
 // sanitizeTestName converts a test name to a valid PostgreSQL identifier segment.

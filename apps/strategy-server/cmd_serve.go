@@ -38,8 +38,7 @@ import (
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/adk"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimadk"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimdbos"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
@@ -147,16 +146,24 @@ func runServer(cfg *config.Config) error {
 		log.Info("heartbeat disabled (HEARTBEAT_INTERVAL=0)")
 	}
 
-	// Orchestration engine for the AIM cycle. ADKEngine satisfies
+	// Orchestration engine for the AIM cycle. DBOSEngine satisfies
 	// orchestration.EngineAPI and is registered against *aimdom.CycleWorkflow
 	// below like any workflow would be — nothing downstream (handlers, MCP
 	// tools, heartbeat) depends on the concrete type, only the interface.
-	runStore := aimadk.NewRunStore(db)
-	sessionStore := adk.NewSessionStore(db)
-	var orchEngine orchestration.EngineAPI = aimadk.NewADKEngine(runStore, sessionStore, aimadk.ADKEngineConfig{
-		AppName:           "strategy-server",
-		AbandonGatesAfter: cfg.AbandonGatesAfter,
+	// Replaces the ADK-backed engine per
+	// openspec/changes/adopt-dbos-dynamic-aim.
+	runStore := aimdbos.NewRunStore(db)
+	orchEngineImpl, err := aimdbos.NewDBOSEngine(runStore, aimdbos.DBOSEngineConfig{
+		AppName:            "strategy-server",
+		DatabaseURL:        cfg.PostgresDSN(),
+		ApplicationVersion: cfg.AIMApplicationVersion,
+		AbandonGatesAfter:  cfg.AbandonGatesAfter,
+		WorkflowRetention:  cfg.AIMDBOSRetention,
 	})
+	if err != nil {
+		return fmt.Errorf("create aim orchestration engine: %w", err)
+	}
+	var orchEngine orchestration.EngineAPI = orchEngineImpl
 	// Skill run ledger — tracks all autonomous skill executions.
 	skillRunSvc := skillrundom.NewService(db)
 	skillRunLedger := skillrundom.NewAdapter(skillRunSvc)
@@ -199,6 +206,22 @@ func runServer(cfg *config.Config) error {
 		WithPortfolioAligner(&strategyPortfolioAlignerAdapter{svc: strategySvc}))
 	if err := orchEngine.Start(context.Background()); err != nil {
 		return fmt.Errorf("start orchestration engine: %w", err)
+	}
+
+	// Retention sweep for DBOS's own completed workflow records — DBOS has
+	// no built-in retention/GC (confirmed directly against its Go API), so
+	// this engine runs its own, matching heartbeatSvc.RunTicker's
+	// goroutine-per-ticker convention above. RunRetentionSweep is not part
+	// of orchestration.EngineAPI (DBOS-specific, same reasoning as
+	// heartbeat.Service.RunTicker not being part of a generic interface),
+	// so this uses the concrete orchEngineImpl, not orchEngine.
+	if cfg.AIMDBOSRetention > 0 {
+		retentionCtx, retentionStop := context.WithCancel(context.Background())
+		defer retentionStop()
+		go orchEngineImpl.RunRetentionSweep(retentionCtx, time.Hour)
+		log.Info("aim dbos retention sweep started", "retention", cfg.AIMDBOSRetention)
+	} else {
+		log.Info("aim dbos retention sweep disabled (AIM_DBOS_RETENTION=0)")
 	}
 
 	// Clean up zombie skill runs left over from a previous crash/restart.

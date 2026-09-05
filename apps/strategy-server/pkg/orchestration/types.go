@@ -3,13 +3,14 @@
 // on: EngineAPI, the Run/StepLog record shape, and the gate-lifecycle helpers
 // in gate.go.
 //
-// It holds no concrete engine. internal/aimadk.ADKEngine is the only
-// implementation of EngineAPI; a prior implementation — a Postgres-backed
-// goroutine pool wrapping this package's own Engine type — was deleted once
-// ADKEngine reached parity with it. This package's types outlived that
-// deletion because ADKEngine deliberately reuses them rather than
-// introducing a parallel shape: Run and StepLog are what the run panel and
-// every handler already know how to render.
+// It holds no concrete engine. internal/aimdbos.DBOSEngine is the current
+// implementation of EngineAPI; two prior implementations — a Postgres-backed
+// goroutine pool wrapping this package's own Engine type, then
+// internal/aimadk.ADKEngine — were each deleted once their successor reached
+// parity. This package's types have outlived both deletions because each
+// engine deliberately reused them rather than introducing a parallel shape:
+// Run and StepLog are what the run panel and every handler already know how
+// to render, regardless of which engine is producing them.
 package orchestration
 
 import (

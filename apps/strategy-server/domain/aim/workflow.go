@@ -32,12 +32,13 @@ type PortfolioAlignResult struct {
 
 // ── engine-neutral step shape ─────────────────────────────────────────────────
 //
-// These bodies belong to no engine. internal/aimadk adapts them for the ADK
-// graph (see aimadk.Steps); this package imports no engine package at all,
-// including pkg/orchestration — Name() is the only thing an engine needs from
-// a *CycleWorkflow, recovered structurally by internal/aimadk.Register rather
-// than through a shared interface, so this decoupling has no cost even if a
-// second engine implementation ever returns.
+// These bodies belong to no engine. internal/aimdbos adapts them for
+// execution as a DBOS workflow (previously internal/aimadk, for ADK — see
+// openspec/changes/adopt-dbos-dynamic-aim); this package imports no engine
+// package at all, including pkg/orchestration — Name() is the only thing an
+// engine needs from a *CycleWorkflow, recovered structurally by
+// internal/aimdbos.Register rather than through a shared interface, so this
+// decoupling has no cost even when the engine underneath changes.
 
 // StepInput is everything a step is given.
 type StepInput struct {
@@ -67,6 +68,45 @@ type Step struct {
 	Run       func(ctx context.Context, in StepInput) (StepOutput, error)
 }
 
+// Planner decides which named steps make up an AIM cycle for a given
+// instance, and can be asked to reconsider what remains partway through.
+// See openspec/changes/adopt-dbos-dynamic-aim, Part C4. It replaces a
+// single fixed step order with an instance-aware decision, without this
+// package importing anything engine-specific to do it: internal/aimdbos
+// calls Plan from inside its own memoized step wrapper (a live DB read
+// inside a DBOS workflow function must be wrapped in dbos.RunAsStep to be
+// safe under replay — Plan itself does not need to know that).
+//
+// Plan returns step NAMES, not Step values, deliberately: Step.Run is a
+// function value, which cannot cross a gob-encoded boundary (DBOS persists
+// workflow/step input and output via gob) — internal/aimdbos.DBOSEngine
+// keeps its own name -> Step registry (from CycleSteps()) and looks names
+// up locally after Plan decides the order.
+//
+// An implementation is called at two distinct points, not once per step
+// boundary:
+//  1. Once at cycle start, with completed == nil, before the run even
+//     begins — this is what "decided once at cycle start" means: the
+//     initial step set is fixed from the instance's configuration at that
+//     instant, not silently re-derived as the cycle progresses.
+//  2. Again only if an explicit mid-cycle re-plan signal arrives (a
+//     narrower mechanism than automatic re-evaluation — config drift alone
+//     must never rewrite a cycle already in flight without that signal).
+//
+// Implementing this interface is optional: a Workflow that only implements
+// CycleSteps() gets a fixed-order planner for free (internal/aimdbos's
+// staticPlanner) — every existing test fixture keeps working unchanged.
+// CycleWorkflow is the one implementation that actually varies its plan.
+type Planner interface {
+	// Plan returns the ordered step names that remain to run for
+	// instanceID, given completed's outputs so far. Must never return a
+	// name already present in completed, and must never reorder or repeat
+	// one.
+	Plan(ctx context.Context, instanceID uuid.UUID, completed []StepOutput) ([]string, error)
+}
+
+var _ Planner = (*CycleWorkflow)(nil)
+
 // CycleWorkflow implements orchestration.Workflow for the AIM cycle.
 // It delegates each step to the existing aim.Service methods.
 // The Engine knows nothing about AIM; AIM knows about the Engine
@@ -92,7 +132,8 @@ func (w *CycleWorkflow) WithPortfolioAligner(a PortfolioAligner) *CycleWorkflow 
 // Name returns the unique workflow name.
 func (w *CycleWorkflow) Name() string { return WorkflowName }
 
-// CycleSteps returns the six ordered steps of an AIM cycle.
+// CycleSteps returns the full registry of steps an AIM cycle can run — six
+// entries, in their default order:
 //
 //  1. draft_assessment  → human reviews assessment report
 //  2. draft_calibration → human reviews calibration memo + decision
@@ -100,6 +141,12 @@ func (w *CycleWorkflow) Name() string { return WorkflowName }
 //  4. adapt_foundations → human reviews foundation-layer updates (auto-advances when empty)
 //  5. align_portfolio   → deterministic value model activation (auto-commits, no human gate)
 //  6. snapshot_cycle    → auto-publishes version snapshot
+//
+// This is the registry an engine looks names up in — internal/aimdbos
+// builds a name -> Step map from it once, at Register time. It is not
+// itself the per-instance plan: Plan decides which of these names run, and
+// in what order, for a specific instance. Every instance that hasn't opted
+// into a difference (via TriggerConfig) gets exactly this order.
 func (w *CycleWorkflow) CycleSteps() []Step {
 	return []Step{
 		{Name: "draft_assessment", Run: w.stepDraftAssessment, HumanGate: true},
@@ -110,6 +157,42 @@ func (w *CycleWorkflow) CycleSteps() []Step {
 		{Name: "align_portfolio", Run: w.stepAlignPortfolio},
 		{Name: "snapshot_cycle", Run: w.stepSnapshotCycle},
 	}
+}
+
+// Plan implements Planner. It filters CycleSteps()'s default order by two
+// things: names already in completed, and — the one real, already-existing
+// per-instance signal found for this (TriggerConfig.SkipFoundations,
+// itself read via Service.GetTriggerConfig, the same best-effort,
+// defaults-on-any-error load path EvaluateTriggers already relies on for
+// per-instance behavior) — whether adapt_foundations should be attempted
+// for this instance at all.
+//
+// svc == nil (only reachable in tests that construct a bare CycleWorkflow)
+// is treated as "no per-instance config available," not an error: the
+// default order is returned unfiltered, matching every instance that has
+// never set a trigger config artifact.
+func (w *CycleWorkflow) Plan(ctx context.Context, instanceID uuid.UUID, completed []StepOutput) ([]string, error) {
+	done := make(map[string]bool, len(completed))
+	for _, c := range completed {
+		done[c.Step] = true
+	}
+
+	skipFoundations := false
+	if w.svc != nil {
+		skipFoundations = w.svc.GetTriggerConfig(ctx, instanceID).SkipFoundations
+	}
+
+	remaining := make([]string, 0, len(w.CycleSteps()))
+	for _, step := range w.CycleSteps() {
+		if step.Name == "adapt_foundations" && skipFoundations {
+			continue
+		}
+		if done[step.Name] {
+			continue
+		}
+		remaining = append(remaining, step.Name)
+	}
+	return remaining, nil
 }
 
 // ── step implementations ──────────────────────────────────────────────────────

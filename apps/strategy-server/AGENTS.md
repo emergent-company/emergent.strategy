@@ -70,6 +70,9 @@ generates a `.env.local` file with sensible defaults. Key variables:
 | `PGPORT` | `5433` | Postgres port (docker-compose maps 5433 -> container 5432) |
 | `STRATEGY_DB_MODE` | `dev` | Database mode: `dev`, `standalone`, `shared` |
 | `AUTH_ENABLED` | `false` | Enable Zitadel auth (disabled in dev) |
+| `AIM_APPLICATION_VERSION` | `aim-cycle-v1` | Stable identifier for AIM's step shape, keys DBOS workflow recovery — bump only when the step sequence/gate positions change, and only after draining open gates (see `internal/aimdbos.DBOSEngineConfig.ApplicationVersion`) |
+| `AIM_DBOS_RETENTION` | `720h` | How long to keep completed DBOS workflow records before reaping them (`0` disables the sweep) |
+| `ABANDON_GATES_AFTER` | `1440h` | Release AIM runs left awaiting human review for longer than this (`0` disables) |
 | `EPF_MEMORY_URL` | `http://localhost:8787` | Memory server URL |
 | `EPF_MEMORY_PROJECT` | — | Memory project ID (set by `setup-memory.sh`) |
 | `EPF_MEMORY_TOKEN` | — | Memory project token |
@@ -329,10 +332,11 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (31 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (40 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
+| AIM orchestration engine | `dbos-inc/dbos-transact-golang` (`internal/aimdbos/`) — durable workflow execution, replaced ADK (`internal/aimadk`, removed) per `openspec/changes/adopt-dbos-dynamic-aim` |
 | Auth | Zitadel OIDC introspection (`internal/auth/`) |
 | Semantic graph | emergent.memory REST API (`internal/memory/`) |
 | Templates | `a-h/templ` (Phase 3) |
@@ -431,7 +435,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations (31), `TestDB(t)` |
+| `internal/database/` | DB connection, migrations (40), `TestDB(t)`, `TestDBWithDSN(t)` |
 | `internal/mcpserver/` | 144 MCP tools across 13 registration files, tool category filter |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
 | `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
@@ -447,14 +451,15 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `internal/langs/` | i18n translations |
 | `internal/skillrunner/` | Script skill subprocess execution |
 | `internal/epfimport/` | Shared YAML parsing pipeline (filesystem + in-memory); used by CLI import and GitHub import |
-| `pkg/orchestration/` | Interface-driven async workflow orchestrator (Engine, Backend, Workflow, SSE fanout) |
-| `pkg/orchestration/pg/` | PostgreSQL-backed orchestration backend with goroutine worker pool |
+| `pkg/orchestration/` | Engine-agnostic contract (`EngineAPI`, `Run`, `StepLog`) — no concrete engine; `internal/aimdbos` is the current implementation |
+| `internal/aimdbos/` | DBOS-backed AIM cycle engine (`DBOSEngine`) — durable execution, human gates via `dbos.Send`/`Recv`, retry via `ForkWorkflow`, dynamic per-instance step planning, retention sweep. Replaced `internal/aimadk` (ADK-backed, removed) per `openspec/changes/adopt-dbos-dynamic-aim` |
+| `internal/adk/` | Generic ADK Go v2 session-store infra (`SessionStore`), kept for whichever engine the authoring bot chooses (baseline open question 6, still open) — no longer AIM-specific since the DBOS cutover |
 | `internal/domain/` | Shared struct definitions with bun tags |
 | `internal/index/` | Strategic relationship index derivation |
 
 ### Database migrations
 
-31 migrations in `internal/database/migrations/`:
+40 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -490,6 +495,14 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `030_github_sync_tracking.sql` | `github_commit_sha` + `github_branch` on strategy_instances |
 | `031_github_sync_log_direction.sql` | `direction` + `source` columns on github_sync_log; adds `closed` status |
 | `032_github_user_token.sql` | `github_access_token` (nullable TEXT) on users — stores per-user GitHub OAuth token for connect flow |
+| `033_github_commit_date.sql` | Authored date of the last synced commit per instance |
+| `034_adk_sessions.sql` | ADK Go v2 session persistence (superseded — see 039) |
+| `035_adk_run_metadata.sql` | ADK engine's cross-run bookkeeping table (superseded — see 039) |
+| `036_drop_orchestration_runs.sql` | Drops the legacy pg-backed engine's run table, replaced by 035 |
+| `037_adk_session_retention.sql` | `session_reaped_at` on ADK run metadata (superseded — see 039) |
+| `038_dbos_foundation.sql` | `dbos` schema + `aim_cycle_runs` — DBOS-backed engine's cross-run bookkeeping |
+| `039_drop_adk_tables.sql` | Drops `adk_run_metadata` (AIM's own table) on the ADK→DBOS cutover; keeps `adk_sessions` and friends, which back the unrelated, still-generic `internal/adk.SessionStore` |
+| `040_aim_cycle_runs_replan.sql` | `replan_requested` flag backing `DBOSEngine.Replan`'s mid-cycle re-plan signal |
 
 ## MCP Server
 
