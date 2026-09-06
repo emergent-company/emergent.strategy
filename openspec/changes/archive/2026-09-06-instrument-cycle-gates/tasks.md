@@ -79,9 +79,32 @@ row, which is why the resume channel now carries the gate outcome rather than a
 bool. `TestSweep_FreesTheWorkerGoroutine` pins it.
 
 - [x] `go test ./...` and `task lint` clean.
-- [ ] Sweep the one run parked since 2026-06-02 in the dev database and confirm
-      the instance accepts a new cycle.
-- [ ] `openspec validate instrument-cycle-gates --strict` passes.
+- [x] Sweep the one run parked since 2026-06-02 in the dev database and confirm
+      the instance accepts a new cycle. **The literal row is gone** — it lived
+      in `orchestration_runs` (the legacy pg-backed engine's table), which was
+      deliberately dropped, data loss documented, during the ADK cutover
+      (`036_drop_orchestration_runs.sql`); its ADK-era successor
+      (`adk_run_metadata`) was itself dropped in the later DBOS cutover
+      (`039_drop_adk_tables.sql`). The property this task actually checks —
+      an abandoned gate frees its instance's concurrency slot — had **zero**
+      automated coverage under the current engine (`internal/aimdbos`):
+      `errGateAbandoned` (`workflow.go:175`) was reachable only by waiting out
+      a real `AbandonGatesAfter` in production. Closed properly rather than
+      declared moot: added
+      `TestDBOSEngine_AbandonedGate_ReleasesTheRunAndFreesTheConcurrencySlot`
+      (`internal/aimdbos/engine_test.go`) — a short `AbandonGatesAfter`
+      (300ms), confirms the run reaches `StatusFailed` with
+      `GateOutcome=abandoned`, and confirms a second `StartRun` for the same
+      concurrency key succeeds afterward (would previously fail with
+      `ErrAlreadyActive` if the abandon path left the run at
+      `awaiting_human`). Passes twice in a row under `-count=2`.
+- [x] `openspec validate instrument-cycle-gates --strict` passes.
+
+## Status (2026-09-06)
+
+All exit-gate tasks closed. Remaining items below are deliberately deferred
+follow-ups, not blockers — see each item's own reasoning. This change is
+ready to archive.
 
 ## Follow-up, deliberately not now
 

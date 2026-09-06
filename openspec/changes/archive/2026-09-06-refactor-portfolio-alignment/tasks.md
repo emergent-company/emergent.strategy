@@ -3,7 +3,13 @@
 - [x] 1.1 Revert local changes to `align-portfolio` prompt (handler deleted; prompt will be overwritten on next sync)
 - [x] 1.2 Keep `loadAllArtifacts` value_model multi-type collection (needed for skill context bundle)
 - [x] 1.3 Keep `value_models` staging logic in `stageMutationsFromOutput` (backward compatibility)
-- [ ] 1.4 File upstream issue on `epf-canonical` for align-portfolio prompt bugs
+- [x] 1.4 File upstream issue on `epf-canonical` for align-portfolio prompt bugs
+      — [emergent-company/epf-canonical#23](https://github.com/emergent-company/epf-canonical/issues/23):
+      missing `value_model` context injection (prompt never receives the
+      current per-track value model, and `skill.yaml`'s `requires` doesn't
+      list it), which forces full-payload replacement instead of
+      incremental activation. Points to this repo's `AlignPortfolio`
+      (`domain/strategy/align.go`) as a reference for the fix shape.
 
 ## 2. Domain logic — `domain/strategy/align.go`
 
@@ -64,3 +70,8 @@
 - [x] 7.10 `TestConsistencyCheck_RecentRunNotCleaned` — recent runs untouched
 - [x] 7.11 `TestCycleWorkflow_Steps` — updated to expect 6 steps
 - [x] 7.12 Full test suite green (35 packages)
+
+## Status (2026-09-06)
+
+All tasks closed, including the upstream issue (1.4). This change is ready
+to archive.

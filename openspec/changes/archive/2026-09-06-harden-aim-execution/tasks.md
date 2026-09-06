@@ -23,17 +23,27 @@ See `decision.md` for the full record. Summary of what closed and what did not:
 - [x] Finalise the kill criteria (draft in `design.md`). They must be falsifiable
       and each must name the test that decides it. — `decision.md`'s kill
       criteria table.
-- [ ] Probe: does the candidate engine's step memoization actually skip a completed
+- [x] Probe: does the candidate engine's step memoization actually skip a completed
       step on resume? Write it as a failing-if-it-re-runs test, not an assertion
-      from docs. — **Not done.** Requires DBOS or Temporal to be an actual
-      dependency; out of scope once the decision was "stay on ADK, don't adopt
-      either." Becomes required if a future review overturns that decision —
-      see `decision.md`'s revisit triggers.
-- [ ] Probe: can a workflow parked >1 deploy cycle survive new application code
+      from docs. — Deferred at the time ("out of scope once the decision was
+      'stay on ADK'... becomes required if a future review overturns that
+      decision"). That review happened the same day
+      (`adopt-dbos-dynamic-aim`, `decision.md`'s superseded note) and
+      performed this exact probe against `dbos-transact-golang v1.3.0`:
+      confirmed a completed step's invocation counter stays unchanged across
+      a kill, an incomplete step re-runs from scratch. See
+      `adopt-dbos-dynamic-aim/tasks.md` §1, probe 1.
+- [x] Probe: can a workflow parked >1 deploy cycle survive new application code
       being deployed? This is kill criterion 2 and the one most likely to fail.
-      — **Not done** for the same reason. `decision.md` records an assumption
-      (ADK sessions are our own Postgres rows, not a vendored replay format)
-      in place of a proof.
+      — Deferred at the time for the same reason. Resolved by
+      `adopt-dbos-dynamic-aim` (Part C1's deploy-survival test), with a real,
+      non-trivial finding: DBOS does **not** auto-recover a workflow across
+      an `ApplicationVersion` change (confirmed by probe — `ResumeWorkflow`
+      only advances status to `ENQUEUED`, never executes). Mitigated by
+      pinning `DBOSEngineConfig.ApplicationVersion` explicitly rather than
+      trusting DBOS's binary-hash default. This kill criterion did partially
+      fail, in the specific and now-documented sense above — see
+      `adopt-dbos-dynamic-aim/tasks.md` §2.
 - [x] Spike: resume a cycle parked at a gate across a real `SIGKILL`, matching the
       bar in `internal/aimadk/restart_proof_test.go` (re-exec the test binary; do
       not simulate). — Already exists and re-verified passing
@@ -144,3 +154,15 @@ Independent of A1. Do not block on the evaluation.
       noted as N/A rather than silently skipped.
 - [x] Fix the stale comment at `internal/adk/aim_graph.go:36-40` while in this code
       (claims the graph is not yet referenced by `cmd_serve.go`; false since B5).
+
+## Status (2026-09-06)
+
+All tasks closed. Parts A2 (retry), A3 (session retention), A4 (design) and
+documentation shipped as originally scoped and remain valid — A2's ADK-based
+retry mechanism was itself later deleted as part of `adopt-dbos-dynamic-aim`'s
+Part C6 cutover (superseded by DBOS's own `ForkWorkflow`-based retry), but the
+test discipline and e2e coverage it established were ported forward, not
+lost. Part A1's "stay on ADK" decision is formally superseded
+(`decision.md`); its two originally-deferred probes were subsequently
+performed by the superseding change, closing them here for the historical
+record. This change is ready to archive.

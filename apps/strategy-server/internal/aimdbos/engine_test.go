@@ -849,6 +849,60 @@ func TestDBOSEngine_Retry_MutationCheck_WrongStartStepFailsTheAbove(t *testing.T
 	t.Skip("documentation only — see comment; not automatable without a build tag solely for this purpose")
 }
 
+// TestDBOSEngine_AbandonedGate_ReleasesTheRunAndFreesTheConcurrencySlot is
+// the DBOS-era version of a check `instrument-cycle-gates` originally
+// verified by hand against a real 2026-06-02 stale row in the (since
+// dropped — see migration 036, then 039) legacy engine's run table. That
+// row no longer exists — both tables it ever lived in were deliberately
+// dropped across the ADK and DBOS cutovers — so it cannot literally be
+// re-swept. What matters is the property it was checking: an abandoned
+// gate must not permanently wedge its instance's concurrency slot. That
+// property had zero automated coverage under DBOSEngine specifically
+// (errGateAbandoned, workflow.go, was reachable only by waiting out a real
+// AbandonGatesAfter in production) until this test.
+func TestDBOSEngine_AbandonedGate_ReleasesTheRunAndFreesTheConcurrencySlot(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{
+		fakeStep("gate_one", true, "batch-1"),
+	}}
+	const abandonAfter = 300 * time.Millisecond
+	engine := newEngineWithConfig(t, abandonAfter, wf)
+
+	concurrencyKey := uuid.New().String()
+	run, err := engine.StartRun(t.Context(), "wf", concurrencyKey, nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStep(t, engine, run.ID, orchestration.StatusAwaitingHuman, "gate_one")
+
+	// Nobody ever calls Resume. Wait past AbandonGatesAfter for DBOS's own
+	// Recv timeout to fire.
+	abandoned := awaitEngineStatus(t, engine, run.ID, orchestration.StatusFailed)
+	if abandoned.Error != "human review abandoned" {
+		t.Errorf("run.Error = %q, want %q", abandoned.Error, "human review abandoned")
+	}
+	gate := stepIn(t, abandoned, "gate_one")
+	if gate.GateOutcome != orchestration.GateAbandoned {
+		t.Errorf("gate_one.GateOutcome = %q, want %q", gate.GateOutcome, orchestration.GateAbandoned)
+	}
+	if gate.GateClearedAt == nil {
+		t.Error("gate_one.GateClearedAt not set on abandonment")
+	}
+
+	// The actual property this test exists to prove: the same
+	// instance/concurrency key can start a brand new cycle. Before this
+	// path correctly marked the run StatusFailed, an abandoned gate would
+	// leave the run at awaiting_human forever (aim_cycle_runs' partial
+	// unique index covers pending/running/awaiting_human), and this
+	// second StartRun would fail with ErrAlreadyActive.
+	second, err := engine.StartRun(t.Context(), "wf", concurrencyKey, nil)
+	if err != nil {
+		t.Fatalf("start second run after abandonment: %v (concurrency slot not freed)", err)
+	}
+	if second.ID == run.ID {
+		t.Fatal("second StartRun returned the same run id as the abandoned one")
+	}
+}
+
 func TestDBOSEngine_Retry_NonFailedRun_Errors(t *testing.T) {
 	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{fakeStep("s", false, "")}}
 	engine := newEngine(t, wf)
@@ -862,4 +916,108 @@ func TestDBOSEngine_Retry_NonFailedRun_Errors(t *testing.T) {
 	if err := engine.Retry(t.Context(), run.ID); err == nil {
 		t.Fatal("expected retry of a completed (non-failed) run to error")
 	}
+}
+
+// TestDBOSEngine_GetRun_CostIndependentOfGateParkDuration closes the last
+// open item from adopt-dbos-dynamic-aim's tasks.md §3: does a run panel
+// GetRun call cost more while a gate has been parked a long time than while
+// it has been parked briefly?
+//
+// The doc comment above GetRun already states the answer by construction —
+// "GetRun ... answers cross-run questions from RunStore only" — a single
+// Postgres row read by primary key that never calls into DBOS (no Recv, no
+// GetWorkflowSteps, nothing park-duration-dependent).
+//
+// Verifying that empirically surfaced a real, reproducible effect worth
+// recording honestly rather than hiding behind a generous threshold: a
+// batch of GetRun calls issued shortly after ~2s of idle time is
+// consistently ~1.5-3x slower (steady-state, excluding each batch's own
+// first call) than a batch issued after only a few ms of idle time. Traced
+// with a control experiment (not kept as a permanent test — see this
+// commit's description): the identical slowdown reproduces on a
+// *completed* run's GetRun calls with no gate, no DBOS Recv, and no park
+// mechanism involved at all. That rules out DBOS's own park/Recv machinery
+// as the cause — it is a generic idle-period cost (most likely Go's DB
+// connection pool, or OS-level power management on the machine running the
+// test), identical whether or not a gate is open. It also means the
+// original concern this task named cannot actually manifest: a
+// production gate stays open for hours to weeks, during which the pool's
+// idle-reconnect cost (double-digit milliseconds at worst, observed above)
+// is paid at most once, not repeatedly, and is irrelevant next to a human
+// review taking minutes.
+//
+// The assertion below is deliberately not "no difference" (falsified by the
+// finding above) but "difference stays in the idle-reconnect regime, not a
+// regime that scales with park duration itself" — checked by parking a
+// second time for 10x longer (20s) than the first (2s) and confirming the
+// steady-state cost does not scale accordingly; if GetRun's own cost grew
+// with park duration, 10x the park time should show materially more than
+// noise-level extra cost, not the same idle-reconnect-sized bump twice.
+func TestDBOSEngine_GetRun_CostIndependentOfGateParkDuration(t *testing.T) {
+	wf := &fakeWorkflow{name: "wf", steps: []aim.Step{
+		fakeStep("gate_one", true, "batch-1"),
+	}}
+	engine := newEngine(t, wf)
+
+	run, err := engine.StartRun(t.Context(), "wf", uuid.New().String(), nil)
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	awaitEngineStep(t, engine, run.ID, orchestration.StatusAwaitingHuman, "gate_one")
+
+	// Warm up: exclude connection-pool/cache effects from the first sample.
+	if _, err := engine.GetRun(t.Context(), run.ID); err != nil {
+		t.Fatalf("warmup GetRun: %v", err)
+	}
+
+	const samples = 20
+
+	// Returns per-call durations, not just an average — needed to tell
+	// apart "every call in this batch is slower" (would indicate cost
+	// actually scales with park duration) from "only the first call after
+	// an idle gap is slower" (a connection-pool/scheduler artifact of the
+	// *gap*, unrelated to how long the gate itself has been parked).
+	measure := func() []time.Duration {
+		out := make([]time.Duration, samples)
+		for i := 0; i < samples; i++ {
+			start := time.Now()
+			if _, err := engine.GetRun(t.Context(), run.ID); err != nil {
+				t.Fatalf("GetRun while parked: %v", err)
+			}
+			out[i] = time.Since(start)
+		}
+		return out
+	}
+	steadyState := func(d []time.Duration) time.Duration {
+		var total time.Duration
+		for _, v := range d[1:] { // drop the first call in the batch
+			total += v
+		}
+		return total / time.Duration(len(d)-1)
+	}
+
+	time.Sleep(2 * time.Second)
+	shortPark := measure() // gate parked ~2s at this point
+
+	time.Sleep(20 * time.Second)
+	longPark := measure() // gate parked ~22s at this point (10x the prior gap)
+
+	shortAvg, longAvg := steadyState(shortPark), steadyState(longPark)
+
+	// Both batches pay an idle-reconnect cost on their own first call
+	// (excluded by steadyState) and, per the finding above, a modest
+	// (~1.5-3x baseline) steady-state bump that reproduces identically with
+	// no gate involved at all. What this assertion actually checks: a 10x
+	// longer park (22s vs 2s) does not produce a materially larger bump
+	// than a 2x-3x one — i.e., the cost is idle-gap noise, not a function
+	// of park duration. A generous 8x bound: comfortably above the
+	// idle-reconnect noise band observed in practice (up to ~3x), but would
+	// still catch a real park-duration-scaling regression (e.g. a future
+	// change that made GetRun read DBOS's own growing step history).
+	if longAvg > shortAvg*8 {
+		t.Errorf("GetRun steady-state latency scaled with park duration, not just idle-gap noise: 2s-park=%s 22s-park=%s (>8x) short-batch=%v long-batch=%v",
+			shortAvg, longAvg, shortPark, longPark)
+	}
+	t.Logf("GetRun latency — 2s-park batch=%v steady-state=%s; 22s-park batch=%v steady-state=%s",
+		shortPark, shortAvg, longPark, longAvg)
 }

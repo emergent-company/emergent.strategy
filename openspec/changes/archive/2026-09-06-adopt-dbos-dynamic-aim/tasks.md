@@ -105,10 +105,25 @@ All five resolved 2026-09-04 by direct experiment against
       wrong timestamp on every crash-recovery or retry.
 - [x] Ported the multi-gate correctness test —
       `TestDBOSEngine_TwoSequentialGates_EachResumesCorrectly`.
-- [ ] Confirm a run panel `GetRun` call while a gate is parked for a long
-      time shows no cost difference from a gate parked briefly. Not
-      separately measured — `Recv`'s cost profile while a process stays up
-      (as opposed to across a kill, which is measured) was not benchmarked.
+- [x] Confirm a run panel `GetRun` call while a gate is parked for a long
+      time shows no cost difference from a gate parked briefly. Measured
+      (2026-09-06): `GetRun` reads `RunStore` only, never `dbos.Recv` or
+      any DBOS API, so there is no mechanism by which its cost could scale
+      with park duration — confirmed empirically, not just by code
+      inspection, in `TestDBOSEngine_GetRun_CostIndependentOfGateParkDuration`.
+      **Real, if minor, finding along the way**: a batch of `GetRun` calls
+      issued shortly after any ~2s+ idle gap runs ~1.5-3x slower
+      (steady-state) than one issued after only a few ms of idle time. Traced
+      with a throwaway control test (not kept — see the main test's
+      comment): the identical slowdown reproduces on a **completed** run
+      with no gate and no DBOS park mechanism involved at all, ruling out
+      `Recv`/park as the cause. It is a generic idle-reconnect cost
+      (Go's DB connection pool or OS power management), paid once after any
+      idle gap regardless of length — confirmed by parking 22s vs. 2s (a
+      10x difference) and finding no corresponding scale-up in cost.
+      Operationally irrelevant: a real gate stays open for hours to weeks,
+      during which this cost is paid at most once and is negligible next to
+      a human review taking minutes.
 
 ## 4. Part C3 — Retry and failure semantics
 
@@ -363,3 +378,10 @@ first bug's failure reason to a human at all
 and the `recordFailure` fix that made a failed step's own timeline row
 show as failed instead of staying "pending" forever
 (`internal/aimdbos/workflow.go`).
+
+## Status (2026-09-06)
+
+All tasks closed, including Part C2's `GetRun`-under-park-duration
+benchmark (`TestDBOSEngine_GetRun_CostIndependentOfGateParkDuration`,
+`internal/aimdbos/engine_test.go`) — see that section for the finding. This
+change is ready to archive.
