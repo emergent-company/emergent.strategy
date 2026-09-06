@@ -128,6 +128,41 @@ The substantive part. Everything else is plumbing.
       the test fails with the expected message, restored, confirmed it
       passes again.
 
+**Note (2026-09-06): navigation-graph richness — decided out of scope.**
+`proposal.md` and `docs/UNIFIED_AGENT_ARCHITECTURE.md` both name
+`21st-captable`'s nav graph as "the reference for richness" —
+`DataHints`, `ChatActions`, and `GuardDef`s on every `ScreenDef`
+(`21st-captable/internal/navigation/navigation.go:420-476`), consumed by
+its in-app chat panel to preload data and suggest prompts per screen.
+`self-model.json`'s `screens` section (`internal/selfmodel/generate.go:112-131`,
+`model.go:94-107`) is sourced from the same kind of graph
+(`internal/navigation.DefaultGraph()`) but is a narrow routing-only
+projection — `id`/`title`/`url`/`tab_group`/`parent` — because
+strategy-server's own `navigation.ScreenDef`
+(`internal/navigation/navigation.go:114-127`) has never had
+`DataHints`/`ChatActions`/guard fields at all; there was nothing richer
+one layer back to publish. This was flagged in the design docs as an
+aspiration, not confirmed as already-built, and the gap between the two
+went unexamined when task 3 was executed — worth recording rather than
+leaving silently thinner than the docs' own stated bar.
+
+Decided **not** to close this gap by adding those fields to
+`navigation.ScreenDef` now, for a concrete reason rather than by default:
+`DataHints`/`ChatActions` exist in `21st-captable` to serve a *human*
+chatting inside a screen (what to preload, what to suggest) — strategy-
+server has no such in-app chat-panel consumer today, unlike captable.
+This contract's actual job — letting one *agent* discover and safely call
+another — is served by what `self-model.json` already publishes in full:
+the 153-tool catalogue with 14 categories and the EPF phase/artifact
+schema, which is this service's real equivalent of captable's other
+richness half (`internal/agent/knowledge.go`'s feature→tools KB). The
+`screens` section exists only for the narrower, already-served case in
+`model.go`'s own doc comment: "the fields a remote agent needs to route a
+human to a specific place." If a chat-panel consumer is ever built in
+strategy-server, `navigation.ScreenDef` should gain `DataHints`/
+`ChatActions`/guards then, against that concrete need — not speculatively
+here.
+
 ## 4. Agent cards for AIM and the authoring bot
 
 - [x] Publish a card for each. AIM declares that it stages and gates; the authoring
