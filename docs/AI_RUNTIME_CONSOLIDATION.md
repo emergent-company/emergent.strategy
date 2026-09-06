@@ -170,6 +170,31 @@ both success and failure + retries stacking. Its safety layer (queue-depth cap,
 consecutive-failure auto-disable, minimum cron interval, two doom-loop detectors)
 is remediation, not foresight.
 
+**Open, unowned: cross-org identity federation for agent delegation.** Found
+2026-09-06 while designing `emergent.strategy`'s
+`openspec/changes/establish-agent-contract` (federated approval — when agent
+A in one org delegates to agent B in another, whose identity authorises the
+result). Confirmed by direct code read: `emergent.memory`'s ACP
+(`apps/server/domain/agents/acp_handler.go`'s `CreateRun`) resolves only a
+project-scoped API token, never an individual initiating human — there is
+no field anywhere in ACP's request/response types for "which human asked
+for this." `21st-captable`'s chat sessions are keyed by a real, verifiable
+`CompanyID`, but `21st-bot`'s own surface is anonymous, so it has no
+identity to propagate into a delegated call at all. Neither gap is
+specific to one repo; every implementation in the estate authenticates its
+own direct callers but has no OIDC issuer-trust or token-exchange story for
+a call arriving *via* another service on a third party's behalf. This
+needs identity-provider work (federated OIDC trust across the
+`emergent-company` / `eyedea-io` / `CouplerAgency` org boundary, or a signed
+on-behalf-of assertion format all sides agree to honor) that no single repo
+owns. Until it exists, the correct behavior for every receiving service is
+to treat an unverifiable delegated identity claim as anonymous and apply
+its normal anonymous-caller rules (usually: refuse) — see
+`establish-agent-contract/design.md` §1 for the full reasoning and the
+same-trust-domain case that *does* work today (a token both sides can
+independently verify against the same IdP, forwarded rather than merely
+asserted).
+
 ---
 
 ## 8. How to raise input / changes
