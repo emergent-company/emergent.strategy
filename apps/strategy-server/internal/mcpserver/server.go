@@ -121,7 +121,14 @@ type HeartbeatService interface {
 // Clients call set_tool_filter to activate additional categories (e.g.
 // "features", "aim", "ripple") which triggers a tools/list_changed notification.
 // Call list_tool_categories to see all available categories and tool counts.
-func New(svc Services) http.Handler {
+// NewMCPServer builds the *server.MCPServer with every tool registered
+// against the given services, without wrapping it as an HTTP handler.
+// Extracted from New so internal/selfmodel can introspect the real,
+// live-registered tool set (via the returned server's ListTools) rather
+// than maintaining a second, hand-copied list that could drift from this
+// one — see NewMCPServerForIntrospection's doc comment for why that
+// matters.
+func NewMCPServer(svc Services) *server.MCPServer {
 	s := server.NewMCPServer(
 		"strategy-server",
 		"1.0.0",
@@ -162,7 +169,11 @@ func New(svc Services) http.Handler {
 	registerSkillRunTools(s, svc)
 	registerKnowledgePrompt(s)
 
-	return server.NewStreamableHTTPServer(s)
+	return s
+}
+
+func New(svc Services) http.Handler {
+	return server.NewStreamableHTTPServer(NewMCPServer(svc))
 }
 
 // registerToolFilterTools registers the meta-tools for category-based tool filtering.
@@ -209,7 +220,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 			// "all" expands to every category
 			for _, name := range categoryNames {
 				if name == "all" {
-					categoryNames = append(categoryNames[:0], categoryOrder...)
+					categoryNames = append(categoryNames[:0], CategoryOrder...)
 					break
 				}
 			}
@@ -218,14 +229,14 @@ func registerToolFilterTools(s *server.MCPServer) {
 
 			activeCount := 0
 			for _, name := range categoryNames {
-				for _, cat := range toolCategories {
+				for _, cat := range ToolCategories {
 					if cat == name {
 						activeCount++
 					}
 				}
 			}
 			// Always add core count
-			for _, cat := range toolCategories {
+			for _, cat := range ToolCategories {
 				if cat == CategoryCore {
 					activeCount++
 				}

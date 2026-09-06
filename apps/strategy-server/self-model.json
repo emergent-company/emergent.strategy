@@ -1,0 +1,3763 @@
+{
+  "schema_version": "1.0",
+  "service": {
+    "name": "strategy-server",
+    "description": "Emergent Strategy platform backend — EPF strategy authoring, AIM lifecycle orchestration, and ripple coherence, exposed over MCP and a web UI."
+  },
+  "tool_categories": [
+    {
+      "name": "core",
+      "description": "Always visible — routing, instance lookup, batch management, search",
+      "tool_count": 13
+    },
+    {
+      "name": "strategy",
+      "description": "Strategy reads — vision, personas, competitive position, roadmap, coverage analysis",
+      "tool_count": 12
+    },
+    {
+      "name": "features",
+      "description": "Feature CRUD, definitions, relationships, dependencies, artifacts",
+      "tool_count": 16
+    },
+    {
+      "name": "authoring",
+      "description": "Foundation writes — north star, formula, roadmap, value model",
+      "tool_count": 6
+    },
+    {
+      "name": "work",
+      "description": "Work packages — SOW contracts, footprint, status transitions (execution handover)",
+      "tool_count": 7
+    },
+    {
+      "name": "aim",
+      "description": "AIM lifecycle — LRA, assessment, calibration, cycles, assumptions",
+      "tool_count": 13
+    },
+    {
+      "name": "ripple",
+      "description": "Coherence engine — signals, equilibrium, convergence, ripple config",
+      "tool_count": 11
+    },
+    {
+      "name": "evidence",
+      "description": "Evidence ingestion, linking, and management",
+      "tool_count": 5
+    },
+    {
+      "name": "semantic",
+      "description": "Semantic graph — contradictions, neighbors, what-if scenarios",
+      "tool_count": 6
+    },
+    {
+      "name": "validation",
+      "description": "Validation, content readiness, fix plans, export",
+      "tool_count": 8
+    },
+    {
+      "name": "admin",
+      "description": "Workspace, org, instance, version, and GitHub sync management",
+      "tool_count": 26
+    },
+    {
+      "name": "knowledge",
+      "description": "EPF knowledge base — schemas, templates, agents, skills, wizards",
+      "tool_count": 10
+    },
+    {
+      "name": "packs",
+      "description": "Skill packs, apps, skill authoring and execution",
+      "tool_count": 11
+    },
+    {
+      "name": "observability",
+      "description": "Activity stream, skill runs, LLM usage, heartbeat, proposals",
+      "tool_count": 9
+    }
+  ],
+  "tools": [
+    {
+      "name": "acknowledge_heartbeat",
+      "description": "USE WHEN you need to mark a heartbeat signal as seen. Acknowledged signals are excluded from future list_heartbeat_signals results.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "signal_id": {
+            "description": "Heartbeat signal UUID to acknowledge",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "acknowledge_signal",
+      "description": "USE WHEN you want to mark a signal as seen without resolving it.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "signal_id": {
+            "description": "Signal UUID to acknowledge",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "activate_instance",
+      "description": "USE WHEN you need to set a strategy instance as the active one for its workspace.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "add_relationship",
+      "description": "USE WHEN you need to create a relationship between two artifacts (contributes_to, depends_on, tests_assumption, enables, in_tracks). Stages a mutation; call commit_batch after review.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Optional batch UUID to group with other staged mutations",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "relationship": {
+            "description": "Relationship type: contributes_to, depends_on, tests_assumption, enables, in_tracks, implements",
+            "type": "string"
+          },
+          "source_key": {
+            "description": "Source artifact key, e.g. fd-001",
+            "type": "string"
+          },
+          "target_key": {
+            "description": "Target artifact key, e.g. vm-product/growth",
+            "type": "string"
+          },
+          "target_type": {
+            "description": "Target artifact type (e.g. value_path, feature, assumption). Auto-inferred when possible.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "source_key",
+          "target_key",
+          "relationship"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "aim_get_run",
+      "description": "USE WHEN you need to check the current status of an orchestrated AIM cycle run — shows step progress, current batch_id waiting for review, and overall run status (pending, running, awaiting_human, completed, failed, aborted).",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "run_id": {
+            "description": "Run UUID returned by aim_start_cycle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "aim_start_cycle",
+      "description": "USE WHEN you need to start a fully-orchestrated AIM cycle for an instance. Runs all four steps (draft assessment, draft calibration, apply calibration, snapshot) in sequence, pausing at each step for human batch review. Returns run_id for progress polling with aim_get_run. Returns ErrAlreadyActive (409) if a run is already in progress.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "apply_aim_calibration",
+      "description": "USE WHEN you need to apply a committed calibration decision to READY artifacts. Stages targeted patches (strategy formula, north star, roadmap) for human review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "approve_cycle_proposal",
+      "description": "USE WHEN you need to approve a pending AIM cycle proposal — approves the proposal and immediately starts an orchestrated AIM cycle run.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "proposal_id": {
+            "description": "Cycle proposal UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "approve_work_package",
+      "description": "[work] USE WHEN a proposed work package is signed off. Transitions status proposed → approved (an approved work package becomes eligible for scheduling). Returns batch_id.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key to approve",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "archive_feature",
+      "description": "USE WHEN you need to draft archival of a feature. Returns batch_id for confirmation.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "feature_key": {
+            "description": "Feature artifact key to archive",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "archive_instance",
+      "description": "USE WHEN you need to archive a strategy instance and discard its staged mutations.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "assign_workspace_to_org",
+      "description": "USE WHEN you need to reassign a workspace to a different organisation. Requires org_admin role on the target org.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "org_id": {
+            "description": "Target organisation UUID",
+            "type": "string"
+          },
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "org_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "batch_create_artifacts",
+      "description": "USE WHEN you need to stage multiple new artifacts in a single batch — e.g. creating several features or definition files at once. All mutations share one batch_id. Returns batch_id for confirmation.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "artifacts": {
+            "description": "JSON array of artifacts to stage. Each item: {\"artifact_type\":\"feature\",\"artifact_key\":\"fd-042\",\"payload\":{...}}",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifacts"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "check_content_readiness",
+      "description": "USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Optional artifact key. If omitted, scores all features.",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "coherence_check",
+      "description": "USE WHEN you need a full-graph coherence analysis — orphaned paths, untested assumptions, stale artifacts.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "commit_batch",
+      "description": "USE WHEN the user has confirmed a staged change and you need to commit the batch.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Batch UUID returned by a write tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "commit_scenario",
+      "description": "USE WHEN you want to promote a what-if scenario's mutations into a staging batch for review and commit.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "scenario_id": {
+            "description": "Scenario ID from run_scenario",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_aim_report",
+      "description": "USE WHEN you need to create a post-launch AIM assessment report — captures OKR progress, assumption validations, and strategic insights for a completed cycle. Stages a mutation; call commit_batch after review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Unique report key, e.g. aim-report-2025-q1",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Optional batch UUID",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "Assessment report JSON payload conforming to assessment_report_schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_feature",
+      "description": "USE WHEN you need to draft a new feature definition. Returns batch_id for confirmation.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "feature_key": {
+            "description": "Feature artifact key, e.g. fd-042",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded feature payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_lra",
+      "description": "USE WHEN you need to create a new Living Reality Assessment (LRA) artifact for an instance — captures the current strategic context before a launch or AIM cycle. Stages a mutation; call commit_batch after review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Unique LRA key, e.g. lra-2025-q1",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Optional batch UUID to group with other staged mutations",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "LRA JSON payload conforming to living_reality_assessment_schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_org",
+      "description": "USE WHEN you need to create a new organisation. The caller becomes the org admin.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "country": {
+            "description": "ISO country code (default: NO)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Organisation name",
+            "type": "string"
+          },
+          "org_number": {
+            "description": "Norwegian organisation number (e.g. 912345678)",
+            "type": "string"
+          },
+          "website": {
+            "description": "Company website URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_work_package",
+      "description": "[work] USE WHEN you need to draft a new work package (SOW contract). Returns batch_id for confirmation.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded work_package payload (see work_package_schema.json)",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key, e.g. wp-001",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "create_workspace",
+      "description": "USE WHEN you need to register a new workspace for a GitHub organisation. Every workspace must belong to an org.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "display_name": {
+            "description": "Human-readable workspace name",
+            "type": "string"
+          },
+          "github_owner": {
+            "description": "GitHub organisation or user login",
+            "type": "string"
+          },
+          "org_id": {
+            "description": "Organisation UUID that will own this workspace",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_owner",
+          "org_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "defer_cycle_proposal",
+      "description": "USE WHEN you need to snooze a pending AIM cycle proposal. The heartbeat will not create a new proposal until the snooze period expires.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "proposal_id": {
+            "description": "Cycle proposal UUID",
+            "type": "string"
+          },
+          "snooze_days": {
+            "description": "Number of days to snooze (default: 7)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "proposal_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "delete_instance",
+      "description": "USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "delete_workspace",
+      "description": "USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "describe_batch",
+      "description": "USE WHEN you need to attach your agent identity and a human-readable description to a staged batch before presenting it for review.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "agent_id": {
+            "description": "Identifier of the agent authoring this batch, e.g. pathfinder",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Batch UUID to annotate",
+            "type": "string"
+          },
+          "description": {
+            "description": "Human-readable summary of what this batch changes",
+            "type": "string"
+          },
+          "ripple_chain": {
+            "description": "Optional: JSON array of artifact keys showing the propagation chain",
+            "type": "string"
+          },
+          "root_cause_key": {
+            "description": "Optional: artifact key that triggered this ripple batch",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id",
+          "agent_id",
+          "description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "describe_pack_format",
+      "description": "USE WHEN you need to understand the pack, skill, or app YAML format for authoring a new pack. Returns schemas and a complete example.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "detect_contradictions",
+      "description": "USE WHEN you need to scan for structural contradictions in the strategy graph.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "diff_versions",
+      "description": "USE WHEN you need to compare two strategy versions. Returns which artifacts were added, removed, or changed between the two versions.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "from_version_id": {
+            "description": "Source version UUID (the older version)",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "to_version_id": {
+            "description": "Target version UUID (the newer version)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "from_version_id",
+          "to_version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "discard_batch",
+      "description": "USE WHEN the user has declined a staged change and you need to discard the batch.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Batch UUID returned by a write tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batch_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "discard_scenario",
+      "description": "USE WHEN you want to discard a what-if scenario branch without merging it. The scenario and its mutations are permanently removed.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "scenario_id": {
+            "description": "Scenario ID returned by run_scenario",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "scenario_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "dismiss_signal",
+      "description": "USE WHEN a detected misalignment is intentional and should not be flagged again.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "reason": {
+            "description": "Why this signal is intentional",
+            "type": "string"
+          },
+          "signal_id": {
+            "description": "Signal UUID to dismiss",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal_id",
+          "reason"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "draft_aim_assessment",
+      "description": "USE WHEN you need to draft a pre-populated assessment report from live roadmap OKRs and assumption relationships. Stages a batch for human review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "draft_aim_calibration",
+      "description": "USE WHEN you need to draft a calibration memo with a suggested decision (persevere/pivot/pull_the_plug) based on a committed assessment report. Stages a batch for human review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "evaluate_scenario",
+      "description": "USE WHEN you need to assess the impact of a what-if scenario on the strategy graph.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "scenario_id": {
+            "description": "Scenario ID from run_scenario",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "explain_value_path",
+      "description": "USE WHEN you need to see which value model paths a specific feature contributes to (its contributes_to edges).",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "feature_key": {
+            "description": "Feature artifact key",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "export_feature_yaml",
+      "description": "USE WHEN you need the YAML representation of a single feature artifact — returns {rel_path, content} ready to write to the EPF directory.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "feature_key": {
+            "description": "Feature artifact key",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "export_instance_yaml",
+      "description": "USE WHEN you need to export all committed artifacts for an instance as EPF-structured YAML files. Returns a list of {rel_path, content} entries matching the EPF directory layout (READY/, FIRE/, AIM/).",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "export_report",
+      "description": "USE WHEN you need a structured Markdown strategy report for an instance — includes artifact inventory, value propositions, value path coverage, and assumptions under test.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "generate_ripple_batch",
+      "description": "USE WHEN you need context to generate draft updates for active ripple signals.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "scope": {
+            "description": "Signal scope: critical (default), all",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_agent",
+      "description": "USE WHEN you need the full agent definition (metadata + prompt) for a specific EPF agent to activate it or understand its capabilities.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "description": "Agent directory name, e.g. pathfinder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_agent_for_task",
+      "description": "USE FIRST to route any task to the right tool or agent. Returns direct_tool or agent recommendation.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "task_description": {
+            "description": "Natural-language description of what you want to do",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_aim_summary",
+      "description": "USE WHEN you need an overview of the AIM phase for an instance — lists all LRAs, assessment reports, and trigger configs with counts.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_assumptions",
+      "description": "USE WHEN you need to see all strategic assumptions and which features test each one (tests_assumption relationships).",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_competitive_position",
+      "description": "USE WHEN you need the competitive analysis for a strategy instance.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_convergence_history",
+      "description": "USE WHEN you need to see past convergence loop runs for an instance.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "damping_reason": {
+            "description": "Filter by damping reason: max_iterations, change_budget_exceeded, anchor_drift, emergency_brake",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results (1-100, default 20)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_coverage_analysis",
+      "description": "USE WHEN you need a matrix of which value model paths are covered by which features — useful for gap analysis or roadmap review.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_definition",
+      "description": "USE WHEN you need the full YAML template for a specific canonical track definition. Use list_definitions to find the path first.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "path": {
+            "description": "Template path from list_definitions, e.g. FIRE/definitions/commercial/financing/cd-010-investor-pitch-decks.yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_equilibrium_status",
+      "description": "USE WHEN you need the current equilibrium score and coherence breakdown for an instance.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_evidence",
+      "description": "USE WHEN you need to read a single evidence item by its artifact key.",
+      "category": "evidence",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Evidence artifact key, e.g. ev-\u003cuuid\u003e",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_feature",
+      "description": "USE WHEN you need full details and value model for a single feature.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "feature_key": {
+            "description": "Feature artifact key, e.g. fd-001",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_feature_dependencies",
+      "description": "USE WHEN you need the full dependency graph for an instance — all depends_on and enables edges between features.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_installed_skill",
+      "description": "USE WHEN you need the full definition of a specific skill available to an instance, including its prompt, source, and execution mode.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "skill_name": {
+            "description": "Kebab-case skill name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "skill_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_instance",
+      "description": "USE WHEN you need details and health status for a specific instance.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_llm_usage",
+      "description": "USE WHEN you need aggregated LLM token usage by skill name for an instance — useful for cost tracking and budgeting.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "since": {
+            "description": "ISO 8601 date — include only runs started after this date",
+            "type": "string"
+          },
+          "until": {
+            "description": "ISO 8601 date — include only runs started before this date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_lra",
+      "description": "USE WHEN you need to read the current state of a Living Reality Assessment artifact.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "LRA artifact key, e.g. lra-2025-q1",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_mutation",
+      "description": "USE WHEN you need details for a specific mutation record by ID.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "mutation_id": {
+            "description": "Mutation UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mutation_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_neighbors",
+      "description": "USE WHEN you need the semantic graph neighbourhood of a strategy node — connected artifacts and edge types.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "node_key": {
+            "description": "Artifact key to expand (e.g. fd-001)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "node_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_pack",
+      "description": "USE WHEN you need full details of an installed pack including all skill names and apps.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "pack_name": {
+            "description": "Pack name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "pack_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_persona_details",
+      "description": "USE WHEN you need deep persona detail including pain points, jobs-to-be-done, and behavioral patterns. Returns parsed persona data from strategy_foundations.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "persona_name": {
+            "description": "Optional persona name filter. Omit to return all personas.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_personas",
+      "description": "USE WHEN you need target personas and their pain points for a strategy instance.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_phase_artifacts",
+      "description": "USE WHEN you need to know which artifact types belong to a specific EPF phase (READY, FIRE, or AIM). Returns artifact types with descriptions, schema files, and template paths.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "phase": {
+            "description": "EPF phase: READY, FIRE, or AIM",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_product_vision",
+      "description": "USE WHEN you need the north star vision for a strategy instance.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_ripple_config",
+      "description": "USE WHEN you need the current ripple configuration for instance.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_roadmap",
+      "description": "USE WHEN you need the full roadmap recipe for a strategy instance.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_schema",
+      "description": "USE WHEN you need the full JSON Schema for a specific EPF artifact type to validate content or understand required fields.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {
+          "filename": {
+            "description": "Schema filename, e.g. feature_definition_schema.json",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_skill",
+      "description": "USE WHEN you need the full skill definition (metadata + prompt) for a specific EPF skill to execute a guided authoring workflow.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {
+          "name": {
+            "description": "Skill directory name, e.g. feature-definition",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_skill_run",
+      "description": "USE WHEN you need full detail of a specific skill run — includes per-chunk timing, token counts, validation errors, and trigger context.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "run_id": {
+            "description": "Skill run UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_strategic_context_for_feature",
+      "description": "USE WHEN you need full strategic context for a single feature: its artifact payload plus all indexed relationships grouped by type (contributes_to, tests_assumptions, depends_on, enables, in_tracks).",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "feature_key": {
+            "description": "Feature artifact key, e.g. FIRE/definitions/features/my_feature.yaml",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_strategy_context",
+      "description": "USE WHEN you need full strategic context: vision, personas, and competitive position.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_sync_state",
+      "description": "USE WHEN you need to check the current sync state between the server and GitHub without performing any import or export. Returns in_sync/server_ahead/github_ahead/diverged/unlinked state with commit SHAs and pending change counts.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "branch": {
+            "description": "Optional branch to check against. Omit to use the instance's tracked branch or repo default.",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_sync_status",
+      "description": "USE WHEN you need to check the GitHub sync status for a strategy instance — shows sync history, open PRs, and last sync result.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_template",
+      "description": "USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {
+          "path": {
+            "description": "Template path relative to templates root, e.g. READY/00_north_star.yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_value_propositions",
+      "description": "USE WHEN you need a cross-feature view of what value each feature delivers — all features with their contributes_to value paths.",
+      "category": "strategy",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_version",
+      "description": "USE WHEN you need the full artifact snapshot from a specific strategy version. Returns all artifacts and relationships at that point in time.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "version_id": {
+            "description": "Version UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_wizard",
+      "description": "USE WHEN you need the full wizard instructions for a specific EPF artifact type (legacy format).",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {
+          "filename": {
+            "description": "Wizard filename, e.g. feature_definition.wizard.md",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_work_package",
+      "description": "[work] USE WHEN you need the full payload of a single work package.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key, e.g. wp-001",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_work_package_footprint",
+      "description": "[work] USE WHEN you need a work package's footprint — the collision key for parallel-safe scheduling. Footprint = union of value_model_paths + definition_ids (KRs excluded), derived server-side.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key, e.g. wp-001",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_workspace",
+      "description": "USE WHEN you need details for a specific workspace by ID.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "health_check",
+      "description": "USE WHEN you need a health report and artifact completeness summary for an instance.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "import_from_github",
+      "description": "USE WHEN you need to import EPF strategy artifacts from the instance's linked GitHub repository. Automatically determines the sync state and takes the safe action: no-op if in sync, refuses if server has unpushed enrichments, creates a safety PR then imports if diverged. Requires github_repo to be set on the instance (use update_instance).",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "branch": {
+            "description": "Optional branch to import from. Omit to use the instance's tracked branch or the repo's default branch. Specify to switch to a different branch (e.g. 'dev' for a mature product's long-lived dev branch).",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "import_instance",
+      "description": "USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts — use CLI import for that.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "github_base_path": {
+            "description": "Path prefix within the repo",
+            "type": "string"
+          },
+          "github_repo": {
+            "description": "GitHub repo slug, e.g. org/repo",
+            "type": "string"
+          },
+          "name": {
+            "description": "Instance display name",
+            "type": "string"
+          },
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "ingest_evidence",
+      "description": "USE WHEN you need to submit a new structured evidence item (metric, user feedback, sales call, competitive insight, etc.) for strategy assessment. Stores as evidence artifact with tags for filtering.",
+      "category": "evidence",
+      "input_schema": {
+        "properties": {
+          "collected_at": {
+            "description": "ISO 8601 datetime when evidence was collected (default: now)",
+            "type": "string"
+          },
+          "content": {
+            "description": "Evidence content as a JSON object or plain text string",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "linked_artifacts": {
+            "description": "Comma-separated artifact keys this evidence supports, e.g. 'fd-001,okr-product-1'",
+            "type": "string"
+          },
+          "source_confidence": {
+            "description": "Confidence level: high, medium, low",
+            "type": "string"
+          },
+          "source_name": {
+            "description": "Name of the evidence source, e.g. 'Q1 NPS Survey', 'Sales call with Acme'",
+            "type": "string"
+          },
+          "source_type": {
+            "description": "Freeform source type, e.g. 'user_interview', 'analytics_export', 'sales_call', 'competitive_report'",
+            "type": "string"
+          },
+          "source_url": {
+            "description": "Optional URL to the source document or recording",
+            "type": "string"
+          },
+          "summary": {
+            "description": "One-sentence summary of the evidence",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Comma-separated tags for filtering. Suggested: competitive, partner, technical, market, narrative, metric, user-feedback, sales, support, engineering, internal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "source_name",
+          "source_type",
+          "content"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "install_pack",
+      "description": "USE WHEN you need to install a skill pack into an instance. Provide pack_yaml and an array of skills. Use force: true to upgrade an existing pack.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "force": {
+            "description": "Replace existing pack if already installed (default: false)",
+            "type": "boolean"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "pack_yaml": {
+            "description": "Pack manifest YAML content",
+            "type": "string"
+          },
+          "skills": {
+            "description": "JSON array of {name, skill_yaml, prompt_md?, script_src?, script_lang?}",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "pack_yaml"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "invite_member",
+      "description": "USE WHEN you need to invite a user to an organisation by email. Requires org_admin role.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "email": {
+            "description": "Email address to invite",
+            "type": "string"
+          },
+          "org_id": {
+            "description": "Organisation UUID",
+            "type": "string"
+          },
+          "role": {
+            "description": "Role: org_admin or org_viewer (default: org_viewer)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "email"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "link_evidence",
+      "description": "USE WHEN you need to create a relationship between an evidence item and another artifact (feature, OKR, assumption). Creates a strategy_relationship edge.",
+      "category": "evidence",
+      "input_schema": {
+        "properties": {
+          "evidence_key": {
+            "description": "Evidence artifact key, e.g. ev-\u003cuuid\u003e",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "relationship": {
+            "description": "Relationship type (default: supports). Common: supports, invalidates, validates, contradicts",
+            "type": "string"
+          },
+          "target_key": {
+            "description": "Target artifact key, e.g. fd-001 or okr-product-1",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "evidence_key",
+          "target_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_activities",
+      "description": "USE WHEN you need the recent activity stream for a strategy instance — shows proposal lifecycle events, cycle starts, evidence ingestion, assessments committed, and heartbeat triggers. Returns newest events first.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Maximum number of events to return (1–200, default 50)",
+            "type": "number"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_agents",
+      "description": "USE WHEN you need to discover which EPF AI agents are available for orchestrating authoring workflows.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_aim_cycles",
+      "description": "USE WHEN you need to see the history of completed AIM cycles for an instance. Returns cycles ordered by published_at descending, with cycle number, decision, version ID, and timestamp.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_apps",
+      "description": "USE WHEN you need to see which strategy apps are installed for an instance, including their display metadata and status.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_artifacts",
+      "description": "USE WHEN you need to list strategy artifacts of any type (commercial_def, org_ops_def, strategy_def, value_model, etc.) with their index fields (name, track, status).",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "artifact_type": {
+            "description": "Filter by artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model, feature",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_cycle_proposals",
+      "description": "USE WHEN you need to see pending AIM cycle proposals for an instance. Proposals are created automatically by the heartbeat when a trigger fires and no cycle is active.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "status": {
+            "description": "Filter by status: pending (default), approved, deferred, expired, or all",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_definitions",
+      "description": "USE WHEN you need to see all canonical track definition templates (commercial, org_ops, strategy). Optionally filter by track name.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "track": {
+            "description": "Filter by track: commercial, org_ops, strategy. Omit for all.",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_evidence",
+      "description": "USE WHEN you need to list evidence items for an instance. Filter by tags, source, processing status, or linked artifact.",
+      "category": "evidence",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "linked_artifact": {
+            "description": "Filter to items linked to this artifact key",
+            "type": "string"
+          },
+          "processing_status": {
+            "description": "Filter by processing status: unprocessed, processed, archived",
+            "type": "string"
+          },
+          "since": {
+            "description": "ISO 8601 datetime — include only items collected after this date",
+            "type": "string"
+          },
+          "source_name": {
+            "description": "Filter by source name (exact match)",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Comma-separated tags to filter by (OR logic)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_features",
+      "description": "USE WHEN you need the feature list with strategic alignment for an instance.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "include_archived": {
+            "description": "Set to \"true\" to include archived features in the response (default: false).",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_github_installations",
+      "description": "USE WHEN you need to list all GitHub orgs and personal accounts where the GitHub App is installed. This is the entry point for the repo connect flow — call this first to discover which GitHub accounts to scan.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_heartbeat_signals",
+      "description": "USE WHEN you need to see active heartbeat signals — automatic trigger evaluations that fired for an instance, indicating an AIM cycle may be due.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "include_acknowledged": {
+            "description": "Set to true to include already-acknowledged signals (default: false)",
+            "type": "boolean"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_installed_skills",
+      "description": "USE WHEN you need to list all skills available to an instance, with source provenance (installed | canonical | generator-alias). Use source_filter to narrow to installed-only.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "source_filter": {
+            "description": "Filter by source: installed | canonical | all (default: all)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_instances",
+      "description": "USE WHEN you need to list strategy instances in a workspace.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results",
+            "type": "string"
+          },
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_members",
+      "description": "USE WHEN you need to see all members and pending invitations for an organisation.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "org_id": {
+            "description": "Organisation UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_mutations",
+      "description": "USE WHEN you need the change history for a strategy instance.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "artifact_type": {
+            "description": "Filter by artifact type, e.g. feature",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor (mutation ID) from a previous response",
+            "type": "string"
+          },
+          "include_staged": {
+            "description": "true to include staged (uncommitted) mutations",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results per page (1–200, default 50)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_orgs",
+      "description": "USE WHEN you need to see all organisations the caller belongs to.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_packs",
+      "description": "USE WHEN you need to see which skill packs are installed for an instance and whether the standard pack is up to date.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_pending_batches",
+      "description": "USE WHEN you need to see all staged (uncommitted) batches waiting for human review in an instance.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_relationships",
+      "description": "USE WHEN you need all cross-artifact relationships (contributes_to, depends_on, tests_assumption, etc.) for a specific artifact key.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Artifact key to query relationships for, e.g. fd-001 or FIRE/definitions/commercial/financing/cd-010-investor-pitch-decks",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_schemas",
+      "description": "USE WHEN you need to discover which EPF artifact schemas are available for validation or authoring guidance.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_signals",
+      "description": "USE WHEN you need to see active ripple signals — misalignments between connected artifacts.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results (1-200, default 50)",
+            "type": "string"
+          },
+          "severity": {
+            "description": "Filter: critical, warning, info",
+            "type": "string"
+          },
+          "signal_type": {
+            "description": "Filter: drift, propagation, tension, staleness, clustering, orphan",
+            "type": "string"
+          },
+          "status": {
+            "description": "Filter: active (default), acknowledged, resolved, dismissed, all",
+            "type": "string"
+          },
+          "target_key": {
+            "description": "Filter by target artifact key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_skill_runs",
+      "description": "USE WHEN you need to see autonomous skill execution history for an instance — shows status, timing, token usage, and trigger context.",
+      "category": "observability",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results (1-200, default 50)",
+            "type": "string"
+          },
+          "status": {
+            "description": "Filter: running, completed, failed",
+            "type": "string"
+          },
+          "trigger": {
+            "description": "Filter: manual, ripple, aim_cycle",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_skills",
+      "description": "USE WHEN you need to discover which EPF skills are available to guide a specific authoring task.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_templates",
+      "description": "USE WHEN you need to see all available EPF artifact templates across READY, FIRE, and AIM phases.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_tool_categories",
+      "description": "USE FIRST to see which tool categories are available and active. Returns categories with tool counts. By default only 'core' tools are visible — use set_tool_filter to activate more.",
+      "category": "core",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_versions",
+      "description": "USE WHEN you need the version history for a strategy instance. Returns all published, superseded, and restored versions with their metadata.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_wizards",
+      "description": "USE WHEN you need to discover available legacy EPF wizard files for artifact authoring guidance.",
+      "category": "knowledge",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_work_packages",
+      "description": "[work] USE WHEN you need the work packages for an instance, optionally filtered by track or status.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "include_archived": {
+            "description": "Set to \"true\" to include archived work packages (default: false).",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "status": {
+            "description": "Filter by status: proposed | approved | scheduled | executing | done | cancelled",
+            "type": "string"
+          },
+          "track": {
+            "description": "Filter by track: product | strategy | org_ops | commercial",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_workspaces",
+      "description": "USE WHEN you need to enumerate all accessible workspaces.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "cursor": {
+            "description": "Pagination cursor from previous response",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results per page (1–200)",
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "name": "propose_change",
+      "description": "USE WHEN you want to preview the blast radius of a proposed change before committing.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Artifact key being changed",
+            "type": "string"
+          },
+          "artifact_type": {
+            "description": "Artifact type (auto-detected if omitted)",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "publish_version",
+      "description": "USE WHEN you need to create a named snapshot of the current strategy state. Captures all artifacts and relationships into an atomic version that can be compared, restored, or synced to GitHub.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "description": {
+            "description": "Longer description of what changed or why this version was published",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "label": {
+            "description": "Short label for this version, e.g. 'Q2 Strategy'",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "remove_member",
+      "description": "USE WHEN you need to remove a member from an organisation. Requires org_admin role.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "org_id": {
+            "description": "Organisation UUID",
+            "type": "string"
+          },
+          "user_id": {
+            "description": "User UUID to remove",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "user_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "resolve_signal",
+      "description": "USE WHEN a signal has been addressed and you want to mark it resolved.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Optional batch UUID that addressed the signal",
+            "type": "string"
+          },
+          "signal_id": {
+            "description": "Signal UUID to resolve",
+            "type": "string"
+          }
+        },
+        "required": [
+          "signal_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "restore_version",
+      "description": "USE WHEN you need to revert the strategy to a previous version's state. Creates a new version with the restored artifacts and relationships.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "version_id": {
+            "description": "Version UUID to restore to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "run_app",
+      "description": "USE WHEN you need to invoke an installed strategy app. The app receives artifact context and returns a document. If it proposes mutations, a batch_id is returned for human review.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "app_name": {
+            "description": "App name to invoke",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "params": {
+            "description": "Optional JSON object forwarded to the app as params",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "app_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "run_scenario",
+      "description": "USE WHEN you need to explore a what-if strategy branch without committing to main. Returns a scenario_id for evaluation.",
+      "category": "semantic",
+      "input_schema": {
+        "properties": {
+          "anchor_node": {
+            "description": "Optional artifact key to anchor the scenario",
+            "type": "string"
+          },
+          "description": {
+            "description": "What-if question or hypothesis",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "run_skill",
+      "description": "USE WHEN you need to execute an installed or canonical skill. Prompt-mode skills return the prompt for you to follow. Script-mode skills run a subprocess and return the output.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "mode": {
+            "description": "Execution mode: interactive (default) or autonomous. Autonomous mode calls the LLM server-side and stages mutations.",
+            "type": "string"
+          },
+          "params": {
+            "description": "Optional JSON object passed to the skill as params",
+            "type": "string"
+          },
+          "skill_name": {
+            "description": "Kebab-case skill name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "skill_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "scaffold_instance",
+      "description": "USE WHEN you need to create a new strategy instance with template artifacts pre-populated. Creates the instance with all READY-phase artifacts (north star, foundations, formula, roadmap, insights) seeded from canonical templates, giving the user a starting point to fill in rather than a blank slate.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "github_repo": {
+            "description": "GitHub repo slug, e.g. org/repo",
+            "type": "string"
+          },
+          "name": {
+            "description": "Product or strategy name",
+            "type": "string"
+          },
+          "workspace_id": {
+            "description": "Workspace UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "scaffold_skill",
+      "description": "USE WHEN you need to generate a schema-valid skill.yaml, prompt.md, and pack.yaml skeleton for a new skill. Output is ready to pass directly to install_pack.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "description": {
+            "description": "One-sentence description of what the skill does",
+            "type": "string"
+          },
+          "execution": {
+            "description": "Execution mode: prompt | script",
+            "type": "string"
+          },
+          "name": {
+            "description": "Kebab-case skill name",
+            "type": "string"
+          },
+          "phase": {
+            "description": "EPF phase: READY | FIRE | AIM (default: FIRE)",
+            "type": "string"
+          },
+          "requires_artifacts": {
+            "description": "Comma-separated artifact types the skill requires",
+            "type": "string"
+          },
+          "requires_tools": {
+            "description": "Comma-separated MCP tool names the skill uses",
+            "type": "string"
+          },
+          "script_lang": {
+            "description": "Script language (script mode only): py | sh | ts | js (default: sh)",
+            "type": "string"
+          },
+          "type": {
+            "description": "Skill type: creation | review | generation | analysis",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "execution",
+          "description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "scan_github_repos",
+      "description": "USE WHEN you need to scan all repositories for a GitHub owner (org or personal account) and detect which contain EPF strategy instances. Returns a repo list with EPF detection results. Results are cached for 5 minutes. Use list_github_installations to discover valid owner values first.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "github_owner": {
+            "description": "GitHub organisation login or personal account login, e.g. 'acme-company' or 'nikolaifasting'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_owner"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "search_strategy",
+      "description": "USE WHEN you need semantic search across the strategy graph for an instance.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Max results (default 10)",
+            "type": "string"
+          },
+          "query": {
+            "description": "Natural language search query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "query"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "set_tool_filter",
+      "description": "USE WHEN you need tools from a specific category. Activates tool categories so they appear in tools/list. Pass category names from list_tool_categories. The 'core' category is always active. Pass 'all' to show every tool.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "categories": {
+            "description": "Category names to activate, e.g. [\"features\", \"aim\"]. Use [\"all\"] to show all tools.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "categories"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "stage_artifact",
+      "description": "USE WHEN you need to stage any EPF artifact type that doesn't have a dedicated write tool (e.g. org_ops_def, commercial_def, strategy_def, insight_opportunity, mappings). Returns batch_id for confirmation.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "action": {
+            "description": "Mutation action: create, update, or archive",
+            "type": "string"
+          },
+          "artifact_key": {
+            "description": "Artifact key, e.g. fd-042 or FIRE/definitions/commercial/financing/cd-010",
+            "type": "string"
+          },
+          "artifact_type": {
+            "description": "EPF artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded artifact payload (required for create/update)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_type",
+          "artifact_key",
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "stage_calibration",
+      "description": "USE WHEN you need to stage a calibration memo after an AIM review. Captures strategic adjustments and lessons learned. Stages a mutation; call commit_batch after review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Unique calibration key, e.g. cal-2025-q1",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Optional batch UUID to group with other staged mutations",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "Calibration memo JSON payload conforming to calibration_memo_schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "suggest_relationships",
+      "description": "USE WHEN you need to identify missing cross-artifact relationships for a feature — checks value model coverage, assumption testing, and dependency gaps.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "feature_key": {
+            "description": "Feature artifact key, e.g. fd-001",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "sync_to_github",
+      "description": "USE WHEN you need to push strategy artifacts to a GitHub repository as a pull request. Exports all artifacts as YAML files and creates a PR for review. Requires a GitHub App installation on the target org.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "version_id": {
+            "description": "Optional version UUID. If omitted, syncs the current working state (draft sync).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "transition_work_package",
+      "description": "[work] USE WHEN you need to move a work package to a new status. Enforces the state-machine: proposed → approved → scheduled → executing → done (+ cancelled from any non-terminal). Illegal transitions are rejected. Returns batch_id.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "to_status": {
+            "description": "Target status: approved | scheduled | executing | done | cancelled",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key to transition",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key",
+          "to_status"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "uninstall_pack",
+      "description": "USE WHEN you need to remove an installed pack and all its skills and apps from an instance.",
+      "category": "packs",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "pack_name": {
+            "description": "Pack name to uninstall",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "pack_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_evidence",
+      "description": "USE WHEN you need to update an existing evidence item — e.g. add tags, update summary, or link to additional artifacts.",
+      "category": "evidence",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "Evidence artifact key, e.g. ev-\u003cuuid\u003e",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "linked_artifacts": {
+            "description": "Updated comma-separated linked artifact keys (replaces existing)",
+            "type": "string"
+          },
+          "summary": {
+            "description": "Updated one-sentence summary",
+            "type": "string"
+          },
+          "tags": {
+            "description": "Updated comma-separated tags (replaces existing)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_feature",
+      "description": "USE WHEN you need to draft an update to an existing feature. Returns batch_id for confirmation.",
+      "category": "features",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "feature_key": {
+            "description": "Feature artifact key to update",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded updated feature payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "feature_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_insight_analyses",
+      "description": "USE WHEN you need to draft an update to the insight analyses artifact (competitive landscape, market trends). Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded insight_analyses payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_instance",
+      "description": "USE WHEN you need to configure or update the GitHub repository link for a strategy instance. Sets github_repo (owner/repo slug) and optionally github_base_path. Required before import_from_github or sync_to_github if not already set.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "github_base_path": {
+            "description": "Optional path prefix within the repo where EPF artifacts live, e.g. 'docs/epf'. Leave empty to use the repo root.",
+            "type": "string"
+          },
+          "github_repo": {
+            "description": "GitHub repository slug in owner/repo format, e.g. 'my-org/strategy'. Clear by setting to empty string.",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_lra",
+      "description": "USE WHEN you need to update an existing LRA artifact — e.g. to revise findings or update strategic alignment. Stages a mutation; call commit_batch after review.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "artifact_key": {
+            "description": "LRA artifact key to update",
+            "type": "string"
+          },
+          "batch_id": {
+            "description": "Optional batch UUID",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "Updated LRA JSON payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_north_star",
+      "description": "USE WHEN you need to draft a north star vision change. Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded north star payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_org",
+      "description": "USE WHEN you need to update organisation metadata (name, website, org number). Requires org_admin role.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "country": {
+            "description": "ISO country code",
+            "type": "string"
+          },
+          "name": {
+            "description": "New organisation name",
+            "type": "string"
+          },
+          "org_id": {
+            "description": "Organisation UUID",
+            "type": "string"
+          },
+          "org_number": {
+            "description": "Norwegian organisation number",
+            "type": "string"
+          },
+          "website": {
+            "description": "Company website URL",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_ripple_config",
+      "description": "USE WHEN you need to update ripple thresholds for an instance.",
+      "category": "ripple",
+      "input_schema": {
+        "properties": {
+          "config": {
+            "description": "JSON ripple config (partial updates merged with existing)",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "config"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_roadmap",
+      "description": "USE WHEN you need to draft an update to the roadmap recipe artifact (phased feature delivery plan). Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded roadmap_recipe payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_strategy_formula",
+      "description": "USE WHEN you need to draft an update to the strategy formula artifact (vision, bets, OKRs). Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded strategy_formula payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_strategy_foundations",
+      "description": "USE WHEN you need to draft an update to the strategy foundations artifact (personas, positioning, ICP). Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded strategy_foundations payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_value_model",
+      "description": "USE WHEN you need to draft an update to a value model artifact for a specific track (product, commercial, org_ops). Returns batch_id for confirmation.",
+      "category": "authoring",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded value model payload",
+            "type": "string"
+          },
+          "track": {
+            "description": "Value model track, e.g. product, commercial, org_ops",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "track",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "update_work_package",
+      "description": "[work] USE WHEN you need to draft an update to an existing work package. For status changes prefer transition_work_package. Returns batch_id.",
+      "category": "work",
+      "input_schema": {
+        "properties": {
+          "batch_id": {
+            "description": "Existing batch UUID to append to",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON-encoded updated work_package payload",
+            "type": "string"
+          },
+          "work_package_key": {
+            "description": "Work package key to update",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "work_package_key",
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_artifact",
+      "description": "USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns valid/invalid status plus a list of schema errors.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "artifact_type": {
+            "description": "EPF artifact type (e.g. feature, north_star). Auto-detected when omitted.",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON payload of the artifact to validate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_assumptions",
+      "description": "USE WHEN you need to check which strategic assumptions have features testing them and which are untested. Returns assumption coverage with risk assessment.",
+      "category": "aim",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_instance",
+      "description": "USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_relationships",
+      "description": "USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_with_plan",
+      "description": "USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "phases": [
+    {
+      "name": "READY",
+      "artifacts": [
+        {
+          "artifact_type": "north_star",
+          "description": "Vision, mission, and purpose",
+          "schema_file": "north_star_schema.json"
+        },
+        {
+          "artifact_type": "insight_analyses",
+          "description": "Market analysis and competitive landscape",
+          "schema_file": "insight_analyses_schema.json"
+        },
+        {
+          "artifact_type": "strategy_foundations",
+          "description": "Target customer, positioning, ICP",
+          "schema_file": "strategy_foundations_schema.json"
+        },
+        {
+          "artifact_type": "insight_opportunity",
+          "description": "Opportunity assessment",
+          "schema_file": "insight_opportunity_schema.json"
+        },
+        {
+          "artifact_type": "strategy_formula",
+          "description": "Strategic bet, insight, actions",
+          "schema_file": "strategy_formula_schema.json"
+        },
+        {
+          "artifact_type": "roadmap_recipe",
+          "description": "Phased delivery plan with milestones",
+          "schema_file": "roadmap_recipe_schema.json"
+        },
+        {
+          "artifact_type": "product_portfolio",
+          "description": "Product portfolio overview",
+          "schema_file": "product_portfolio_schema.json"
+        }
+      ]
+    },
+    {
+      "name": "FIRE",
+      "artifacts": [
+        {
+          "artifact_type": "feature",
+          "description": "Feature definition with strategic context",
+          "schema_file": "feature_definition_schema.json"
+        },
+        {
+          "artifact_type": "commercial_def",
+          "description": "Commercial track definition",
+          "schema_file": "commercial_definition_schema.json"
+        },
+        {
+          "artifact_type": "org_ops_def",
+          "description": "Org ops track definition",
+          "schema_file": "org_ops_definition_schema.json"
+        },
+        {
+          "artifact_type": "strategy_def",
+          "description": "Strategy track definition",
+          "schema_file": "strategy_definition_schema.json"
+        },
+        {
+          "artifact_type": "value_model",
+          "description": "Value model for a track",
+          "schema_file": "value_model_schema.json"
+        },
+        {
+          "artifact_type": "mappings",
+          "description": "Cross-artifact mappings",
+          "schema_file": "mappings_schema.json"
+        }
+      ]
+    },
+    {
+      "name": "AIM",
+      "artifacts": [
+        {
+          "artifact_type": "living_reality_assessment",
+          "description": "Living Reality Assessment (LRA)",
+          "schema_file": "living_reality_assessment_schema.json"
+        },
+        {
+          "artifact_type": "assessment_report",
+          "description": "Post-launch AIM assessment report",
+          "schema_file": "assessment_report_schema.json"
+        },
+        {
+          "artifact_type": "aim_trigger_config",
+          "description": "AIM trigger thresholds and schedules",
+          "schema_file": "aim_trigger_config_schema.json"
+        },
+        {
+          "artifact_type": "calibration_memo",
+          "description": "Strategy calibration memo after AIM review",
+          "schema_file": "calibration_memo_schema.json"
+        },
+        {
+          "artifact_type": "strategic_reality_check",
+          "description": "Pre-AIM strategic reality check",
+          "schema_file": "strategic_reality_check_schema.json"
+        },
+        {
+          "artifact_type": "track_health_assessment",
+          "description": "Per-track health signal assessment",
+          "schema_file": "track_health_assessment_schema.json"
+        }
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "activity-overview",
+      "title": "Activity",
+      "url": "/activity",
+      "tab_group": "execution",
+      "parent": "execution-dashboard"
+    },
+    {
+      "id": "aim-assessment",
+      "title": "Assessment Report",
+      "url": "/aim/assessment",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-assumptions",
+      "title": "Assumptions",
+      "url": "/aim/assumptions",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-calibration",
+      "title": "Calibration",
+      "url": "/aim/calibration",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-coherence",
+      "title": "Coherence",
+      "url": "/aim/coherence",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-cycle-runs",
+      "title": "Cycle Runs",
+      "url": "/aim/runs",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-evidence",
+      "title": "Evidence",
+      "url": "/aim/evidence",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-lra",
+      "title": "Living Reality Assessment",
+      "url": "/aim/lra",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-overview",
+      "title": "AIM",
+      "url": "/aim",
+      "tab_group": "aim",
+      "parent": "execution-dashboard"
+    },
+    {
+      "id": "aim-proposals",
+      "title": "Proposals",
+      "url": "/aim/proposals",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "aim-versions",
+      "title": "Versions",
+      "url": "/aim/versions",
+      "tab_group": "aim",
+      "parent": "aim-overview"
+    },
+    {
+      "id": "commercial-track",
+      "title": "Commercial",
+      "url": "/fire/commercial",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    },
+    {
+      "id": "dashboard",
+      "title": "Dashboard",
+      "url": "/"
+    },
+    {
+      "id": "definition-detail",
+      "title": "Definition",
+      "url": "/fire/definitions/:key",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    },
+    {
+      "id": "execution-dashboard",
+      "title": "Execution",
+      "tab_group": "execution",
+      "parent": "dashboard"
+    },
+    {
+      "id": "feature-detail",
+      "title": "Feature",
+      "url": "/fire/features/:key",
+      "tab_group": "fire",
+      "parent": "product-track"
+    },
+    {
+      "id": "fire-overview",
+      "title": "FIRE",
+      "url": "/fire",
+      "tab_group": "fire",
+      "parent": "execution-dashboard"
+    },
+    {
+      "id": "insight-analyses",
+      "title": "Insight Analyses",
+      "url": "/ready/insights",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "insight-opportunity",
+      "title": "Validated Opportunity",
+      "url": "/ready/opportunity",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "north-star",
+      "title": "North Star",
+      "url": "/ready/north-star",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "org-ops-track",
+      "title": "Org \u0026 Ops",
+      "url": "/fire/org-ops",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    },
+    {
+      "id": "product-portfolio",
+      "title": "Product Portfolio",
+      "url": "/ready/portfolio",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "product-track",
+      "title": "Product",
+      "url": "/fire/product",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    },
+    {
+      "id": "ready-overview",
+      "title": "READY",
+      "url": "/ready",
+      "tab_group": "ready",
+      "parent": "execution-dashboard"
+    },
+    {
+      "id": "roadmap-recipe",
+      "title": "Roadmap Recipe",
+      "url": "/ready/roadmap",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "url": "/settings"
+    },
+    {
+      "id": "skill-run-detail",
+      "title": "Skill Run",
+      "url": "/skill-runs/:runID",
+      "tab_group": "execution",
+      "parent": "skill-runs"
+    },
+    {
+      "id": "skill-runs",
+      "title": "Skill Runs",
+      "url": "/skill-runs",
+      "tab_group": "execution",
+      "parent": "execution-dashboard"
+    },
+    {
+      "id": "strategy-formula",
+      "title": "Strategy Formula",
+      "url": "/ready/formula",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "strategy-foundations",
+      "title": "Strategy Foundations",
+      "url": "/ready/foundations",
+      "tab_group": "ready",
+      "parent": "ready-overview"
+    },
+    {
+      "id": "strategy-track",
+      "title": "Strategy",
+      "url": "/fire/strategy",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    },
+    {
+      "id": "value-model-detail",
+      "title": "Value Model",
+      "url": "/fire/value-models/:key",
+      "tab_group": "fire",
+      "parent": "fire-overview"
+    }
+  ]
+}

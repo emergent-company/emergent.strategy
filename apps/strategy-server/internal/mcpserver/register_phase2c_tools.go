@@ -44,15 +44,15 @@ func registerPhase2cTools(s *server.MCPServer, svc Services) {
 // Phase artifact discovery
 // ---------------------------------------------------------------------------
 
-// phaseArtifactInfo describes an artifact type within an EPF phase.
-type phaseArtifactInfo struct {
+// PhaseArtifactInfo describes an artifact type within an EPF phase.
+type PhaseArtifactInfo struct {
 	ArtifactType string `json:"artifact_type"`
 	Description  string `json:"description"`
 	SchemaFile   string `json:"schema_file,omitempty"`
 	TemplatePath string `json:"template_path,omitempty"`
 }
 
-var phaseArtifacts = map[string][]phaseArtifactInfo{
+var PhaseArtifacts = map[string][]PhaseArtifactInfo{
 	"READY": {
 		{ArtifactType: "north_star", Description: "Vision, mission, and purpose", SchemaFile: "north_star_schema.json", TemplatePath: "READY/00_north_star.yaml"},
 		{ArtifactType: "insight_analyses", Description: "Market analysis and competitive landscape", SchemaFile: "insight_analyses_schema.json", TemplatePath: "READY/01_insight_analyses.yaml"},
@@ -86,7 +86,7 @@ func registerPhaseArtifactTools(s *server.MCPServer) {
 		mcp.WithString("phase", mcp.Required(), mcp.Description("EPF phase: READY, FIRE, or AIM")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		phase := strings.ToUpper(argString(req, "phase"))
-		artifacts, ok := phaseArtifacts[phase]
+		artifacts, ok := PhaseArtifacts[phase]
 		if !ok {
 			return mcp.NewToolResultError(fmt.Sprintf(langs.T(ctx, "error.mcp_unknown_phase"), phase)), nil
 		}

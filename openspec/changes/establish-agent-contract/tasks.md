@@ -75,35 +75,91 @@ The substantive part. Everything else is plumbing.
       or token-exchange story exists across the three collaborating orgs;
       flagged as open and unowned, not solved here.
 
-## Status (2026-09-06)
-
-Sections 1 and 2 (research + design) complete — see `research.md` and
-`design.md`. Per the sequencing note at the top of this file ("do not write
-code until the contract shape is settled"), sections 3–7 (self-model
-publication, agent cards, transport, the end-to-end proof, and publishing
-the contract) are deliberately **not started** in this session — scoped
-that way on request, to allow review of the reconciled shape and the
-federated-approval design before any strategy-server code depends on them.
-
 ## 3. Publish strategy-server's self-model
 
-- [ ] Inventory what already exists and is unpublished: the MCP tool catalogue with
+- [x] Inventory what already exists and is unpublished: the MCP tool catalogue with
       its 14 categories, canonical EPF artifact schemas, the phase structure, the
-      navigation graph.
-- [ ] Generate the self-model from those sources. Generated, never authored.
-- [ ] Serve it, and add a CI drift check following `21st-bot`'s
-      `tools/genmanifest -check` precedent.
-- [ ] Test: changing a tool category changes the published model; a stale committed
-      copy fails CI.
+      navigation graph. — Found and corrected a stale-docs finding along the
+      way: `AGENTS.md` claimed 144 tools / 13 categories; the actual live
+      count (verified by introspecting the real registration path, not by
+      grepping) is **153 tools / 14 categories** — the `work` category (7
+      tools, work packages) was entirely undocumented, and `admin` had grown
+      from 24 to 26. Fixed in `AGENTS.md` (also corrected migration count
+      40→41, stale for an unrelated reason).
+- [x] Generate the self-model from those sources. Generated, never authored.
+      — `internal/selfmodel/generate.go`'s `Generate()`. Critically, tools
+      are read back from `internal/mcpserver.NewMCPServerForIntrospection()`
+      — the *actual* tool registration path (`NewMCPServer`), not a
+      second, hand-copied list — so catalogue drift is structurally
+      impossible, not merely policed by review. Required extracting
+      `NewMCPServer` out of `New` and exporting `ToolCategories`/
+      `CategoryDescriptions`/`CategoryOrder`/`PhaseArtifacts` (previously
+      unexported). **Real finding while building the introspection path**:
+      a naively zero-value `Services{}` only registers 106 of 153 tools —
+      several `register*` functions early-return on a nil optional field
+      (Activity, AIM, Evidence, Heartbeat, Org, Orchestration, Ripple,
+      SkillExecutor, SkillRun, Sync, Version). `NewMCPServerForIntrospection`
+      gives every optional field an inert, never-invoked stand-in
+      specifically to avoid silently under-reporting the catalogue —
+      verified empirically (confirmed 106→153 before/after), not assumed
+      safe from reading nil-check code alone.
+- [x] Serve it, and add a CI drift check following `21st-bot`'s
+      `tools/genmanifest -check` precedent. — Committed at
+      `self-model.json`, served identically (same `Generate`+
+      `MarshalIndent` call) at `GET /.well-known/strategy-server-selfmodel.json`
+      (public, excluded from `web.AuthMiddleware` by the same mechanism as
+      `/health`). `cmd/genselfmodel -out|-check` mirrors `genmanifest`;
+      `task selfmodel:check` wired into `task check`. **Honest caveat**:
+      strategy-server has **no GitHub Actions CI workflow at all** today
+      (confirmed — `.github/workflows/` only runs epf-cli's tests), unlike
+      21st-bot's `genmanifest -check`, which *is* enforced by a real CI job.
+      This drift check is correct and runnable
+      (`task selfmodel:check` / `go test ./internal/selfmodel/...`) but not
+      yet wired into any actual CI pipeline — that gap is pre-existing and
+      unrelated to this change; fixing it is a separate, larger decision
+      (secrets, build matrix) intentionally left out of scope here.
+- [x] Test: changing a tool category changes the published model; a stale committed
+      copy fails CI. —
+      `TestGenerate_ChangingACategoryChangesTheModel` (mutates
+      `mcpserver.ToolCategories` at test time, `t.Cleanup`-restored, proves
+      both the per-tool field and the aggregate count move) and
+      `TestModel_CommittedFileMatchesGenerated` (the drift check itself) —
+      verified by mutation: hand-corrupted the committed file, confirmed
+      the test fails with the expected message, restored, confirmed it
+      passes again.
 
 ## 4. Agent cards for AIM and the authoring bot
 
-- [ ] Publish a card for each. AIM declares that it stages and gates; the authoring
-      bot declares the same with a narrower write set.
-- [ ] Confirm the two differ only in who plans the chain and in their write set —
+- [x] Publish a card for each. AIM declares that it stages and gates; the authoring
+      bot declares the same with a narrower write set. —
+      `internal/agentcard/` (vendored A2A `AgentCard` shape per
+      `research.md` §4, not an import — zero dependency on ADK or a2a-go).
+      `agentcard.AIM()` is generated from the real, live
+      `domain/aim.CycleWorkflow.CycleSteps()` (six skills, four gated, two
+      auto-commit), `WriteCapability.Writes = "stages"`. `agentcard.
+      AuthoringBot()` is sourced from `add-artifact-assistant-bot`'s own
+      committed write-tool list (`propose_patch`, `propose_evidence_link`,
+      `propose_skill_run`, all gated) — explicitly marked
+      `Status: "planned"` (added as a necessary extension beyond A2A's
+      shape: that bot has not shipped, and publishing its card
+      unmarked would be indistinguishable from advertising a callable
+      agent that does not exist). Both served at
+      `GET /.well-known/strategy-server-agents.json` (AIM reachable at
+      `/mcp`; the bot's `url` is empty, consistent with its planned status).
+- [x] Confirm the two differ only in who plans the chain and in their write set —
       nowhere else in the type system. If a third concept is needed to express one
       but not the other, the baseline's one-agent-type claim is wrong and the
-      baseline must be corrected, not worked around.
+      baseline must be corrected, not worked around. — Confirmed, not
+      assumed: `TestAIMAndAuthoringBot_DifferOnlyInChainPlanningAndWriteSet`
+      and `TestAuthoringBot_WriteSetIsNarrowerThanAIM`
+      (`internal/agentcard/card_test.go`) check this structurally (same
+      `Capabilities` shape, same `WriteCapability` field type, every one of
+      the bot's skills gated vs. AIM's two auto-committing ones) rather
+      than by inspection. Verified by mutation: flipping one of the bot's
+      `HumanGate` flags to `false` makes
+      `TestAuthoringBot_WriteSetIsNarrowerThanAIM` fail with the expected
+      message; reverted. No third concept was needed — the one-agent-type
+      claim holds for this pair.
 
 ## 5. Delegation transport
 
@@ -132,3 +188,16 @@ federated-approval design before any strategy-server code depends on them.
 - [ ] Flag to `21st-bot` that its blocker 3 — `ProductFromManifest` discarding
       `Bot`, `AppURL`, `Navigation` and `Features` — is undocumented in their own
       change, and that wiring `proxyVerticalClient` alone will not be sufficient.
+
+## Status (2026-09-06)
+
+Sections 1–4 complete (research, design, self-model publication, agent
+cards) — see `research.md`, `design.md`, `internal/selfmodel/`,
+`internal/agentcard/`. Sections 5–7 (delegation transport, the end-to-end
+proof, and publishing the contract document) remain — each depends on a
+second, real endpoint to delegate to/from (transport needs something on
+the other end to probe `mcptoolset` against; the proof needs a real
+authoring-bot call to exercise, which does not exist yet since
+`add-artifact-assistant-bot` is unstarted). Baseline
+(`apps/strategy-server go test ./...`, 40 packages) green throughout;
+`task lint` clean.

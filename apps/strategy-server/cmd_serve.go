@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -38,6 +39,7 @@ import (
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	watchdogdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/watchdog"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agentcard"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimdbos"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
@@ -46,6 +48,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/selfmodel"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
@@ -356,6 +359,20 @@ func runServer(cfg *config.Config) error {
 	// Returns 200 when all required systems are healthy, 503 when degraded.
 	e.GET("/health", healthHandler(db, semanticSvc, llmClient))
 
+	// Self-model — machine-readable description of this service's MCP tool
+	// catalogue, EPF artifact schemas by phase, and navigation graph
+	// (openspec/changes/establish-agent-contract §3). Public, matching
+	// /health and 21st-bot's own /.well-known/21st-app.json precedent — a
+	// discovery endpoint must be reachable before any auth handshake.
+	// Excluded from web.AuthMiddleware by exact path, same mechanism as
+	// /health (internal/web/middleware.go).
+	e.GET("/.well-known/strategy-server-selfmodel.json", selfModelHandler())
+
+	// Agent cards — AIM (live) and the authoring bot (planned, not yet
+	// built — status: "planned", no URL; see internal/agentcard.Status's
+	// doc comment). Same public/no-auth reasoning as the self-model route.
+	e.GET("/.well-known/strategy-server-agents.json", agentCardsHandler())
+
 	// MCP endpoint — mounted at /mcp.
 	mcpHandler := mcpserver.New(svc)
 	e.Any("/mcp", echo.WrapHandler(mcpHandler))
@@ -663,6 +680,45 @@ func seedDevIdentity(
 		log.Warn("failed to ensure dev memberships (non-fatal)", "err", joinErr)
 	} else if joined > 0 {
 		log.Info("dev user joined additional orgs", "count", joined)
+	}
+}
+
+// selfModelHandler returns the /.well-known/strategy-server-selfmodel.json
+// echo handler. Calls the exact same selfmodel.Generate + MarshalIndent
+// pipeline the committed self-model.json and its drift check
+// (internal/selfmodel.TestModel_CommittedFileMatchesGenerated) use, so this
+// route can never serve bytes that disagree with the committed file — one
+// exporter, two outputs, per 21st-bot's design.md precedent.
+func selfModelHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		model, err := selfmodel.Generate()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "self-model generation failed")
+		}
+		body, err := selfmodel.MarshalIndent(model)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "self-model encoding failed")
+		}
+		return c.Blob(http.StatusOK, "application/json", body)
+	}
+}
+
+// agentCardsHandler returns the /.well-known/strategy-server-agents.json
+// echo handler: every agent card this service publishes, live or planned.
+func agentCardsHandler() echo.HandlerFunc {
+	type response struct {
+		SchemaVersion string           `json:"schema_version"`
+		Agents        []agentcard.Card `json:"agents"`
+	}
+	return func(c echo.Context) error {
+		body, err := json.MarshalIndent(response{
+			SchemaVersion: agentcard.SchemaVersion,
+			Agents:        []agentcard.Card{agentcard.AIM(), agentcard.AuthoringBot()},
+		}, "", "  ")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "agent card encoding failed")
+		}
+		return c.Blob(http.StatusOK, "application/json", append(body, '\n'))
 	}
 }
 

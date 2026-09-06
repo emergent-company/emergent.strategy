@@ -34,8 +34,8 @@ const (
 	CategoryWork          = "work"          // work packages: SOW contracts, footprint, status transitions
 )
 
-// toolCategories maps every tool name to its category.
-var toolCategories = map[string]string{
+// ToolCategories maps every tool name to its category.
+var ToolCategories = map[string]string{
 	// ── Core (always visible) ───────────────────────────────────────────
 	"get_agent_for_task":   CategoryCore,
 	"list_workspaces":      CategoryCore,
@@ -218,8 +218,8 @@ var toolCategories = map[string]string{
 	"defer_cycle_proposal":   CategoryObservability,
 }
 
-// categoryDescriptions maps category names to human-readable descriptions.
-var categoryDescriptions = map[string]string{
+// CategoryDescriptions maps category names to human-readable descriptions.
+var CategoryDescriptions = map[string]string{
 	CategoryCore:          "Always visible — routing, instance lookup, batch management, search",
 	CategoryStrategy:      "Strategy reads — vision, personas, competitive position, roadmap, coverage analysis",
 	CategoryFeatures:      "Feature CRUD, definitions, relationships, dependencies, artifacts",
@@ -236,8 +236,8 @@ var categoryDescriptions = map[string]string{
 	CategoryWork:          "Work packages — SOW contracts, footprint, status transitions (execution handover)",
 }
 
-// categoryOrder defines the display order of categories.
-var categoryOrder = []string{
+// CategoryOrder defines the display order of categories.
+var CategoryOrder = []string{
 	CategoryCore, CategoryStrategy, CategoryFeatures, CategoryAuthoring,
 	CategoryWork,
 	CategoryAIM, CategoryRipple, CategoryEvidence, CategorySemantic,
@@ -302,7 +302,7 @@ func toolCategoryFilter(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
 
 	var filtered []mcp.Tool
 	for _, tool := range tools {
-		cat, ok := toolCategories[tool.Name]
+		cat, ok := ToolCategories[tool.Name]
 		if !ok {
 			// Unknown tool — include it (safety net for tools not yet categorized)
 			filtered = append(filtered, tool)
@@ -337,13 +337,13 @@ func buildCategoryList(sessionID string) []CategoryInfo {
 
 	// Count tools per category
 	counts := make(map[string]int)
-	for _, cat := range toolCategories {
+	for _, cat := range ToolCategories {
 		counts[cat]++
 	}
 
 	var result []CategoryInfo
-	for _, name := range categoryOrder {
-		desc := categoryDescriptions[name]
+	for _, name := range CategoryOrder {
+		desc := CategoryDescriptions[name]
 		result = append(result, CategoryInfo{
 			Name:        name,
 			Description: desc,

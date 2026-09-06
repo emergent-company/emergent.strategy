@@ -296,7 +296,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
   service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
-- **2c (Tool parity):** Complete — 144 MCP tools, agent routing, knowledge base
+- **2c (Tool parity):** Complete — 153 MCP tools, agent routing, knowledge base
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
@@ -308,8 +308,16 @@ Four-phase build order — do not start the next phase until the exit gate is me
   evidence ingestion pipeline, autonomous skill execution.
 - **Ripple coherence:** Complete — signal detection, convergence loop, equilibrium
   scoring, authority tiers, auto-versioning on equilibrium.
-- **Tool filtering:** Complete — 13 categories, default core-only visibility,
+- **Tool filtering:** Complete — 14 categories, default core-only visibility,
   `list_tool_categories` and `set_tool_filter` meta-tools.
+- **Self-model publication:** Complete — `internal/selfmodel/` generates a
+  machine-readable description of the tool catalogue, EPF phases/artifacts,
+  and navigation graph from the live sources (never hand-copied), committed
+  at `self-model.json` and served at
+  `GET /.well-known/strategy-server-selfmodel.json`. Drift check:
+  `task selfmodel:check` (wired into `task check`). Regenerate with
+  `task selfmodel:generate` after any tool/category/phase/screen change.
+  See `openspec/changes/establish-agent-contract` §3.
 
 ### Phase 3 status
 
@@ -435,8 +443,9 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations (40), `TestDB(t)`, `TestDBWithDSN(t)` |
-| `internal/mcpserver/` | 144 MCP tools across 13 registration files, tool category filter |
+| `internal/database/` | DB connection, migrations (41), `TestDB(t)`, `TestDBWithDSN(t)` |
+| `internal/mcpserver/` | 153 MCP tools across ~14 registration files, tool category filter (14 categories) |
+| `internal/selfmodel/` | Generates the published self-model (tool catalogue, EPF phases/artifacts, navigation) from live sources — never hand-copied. `cmd/genselfmodel` regenerates the committed `self-model.json` |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
 | `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
 | `internal/ui/` | Templ components for all web pages (dashboards, phases, AIM pipeline, evidence) |
@@ -506,26 +515,29 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ## MCP Server
 
-The server exposes 144 MCP tools at `/mcp`, organized into 13 categories with
-context-aware filtering. By default only ~13 core tools are visible; clients
+The server exposes 153 MCP tools at `/mcp`, organized into 14 categories with
+context-aware filtering. By default only 13 core tools are visible; clients
 call `list_tool_categories` and `set_tool_filter` to activate additional categories.
+Counts below are verified against `internal/mcpserver.ToolCategories` directly
+(also published live at `GET /.well-known/strategy-server-selfmodel.json`),
+not maintained by hand in this table.
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| core | ~13 | `get_agent_for_task`, `list_workspaces`, `health_check`, `commit_batch`, `search_strategy` |
+| core | 13 | `get_agent_for_task`, `list_workspaces`, `health_check`, `commit_batch`, `search_strategy` |
 | strategy | 12 | `get_product_vision`, `get_personas`, `get_roadmap`, `get_coverage_analysis` |
 | features | 16 | `create_feature`, `update_feature`, `list_artifacts`, `add_relationship` |
 | authoring | 6 | `update_north_star`, `update_strategy_formula`, `update_roadmap` |
+| work | 7 | `list_work_packages`, `create_work_package`, `approve_work_package`, `transition_work_package` |
 | aim | 13 | `draft_aim_assessment`, `draft_aim_calibration`, `aim_start_cycle`, `list_aim_cycles` |
 | ripple | 11 | `coherence_check`, `list_signals`, `get_equilibrium_status`, `propose_change` |
-| evidence | 5 | `ingest_evidence`, `list_evidence`, `link_evidence` |
+| evidence | 5 | `ingest_evidence`, `list_evidence`, `get_evidence`, `update_evidence`, `link_evidence` |
 | semantic | 6 | `detect_contradictions`, `get_neighbors`, `run_scenario` |
 | validation | 8 | `validate_artifact`, `validate_with_plan`, `export_report` |
-| admin | 24 | `scaffold_instance`, `publish_version`, `sync_to_github`, `import_from_github`, `update_instance`, `get_sync_state`, `create_org` |
+| admin | 26 | `scaffold_instance`, `publish_version`, `sync_to_github`, `import_from_github`, `update_instance`, `get_sync_state`, `create_org` |
 | knowledge | 10 | `list_schemas`, `get_template`, `get_agent`, `get_skill` |
 | packs | 11 | `install_pack`, `run_skill`, `run_app`, `scaffold_skill` |
 | observability | 9 | `list_activities`, `list_skill_runs`, `get_llm_usage`, `list_cycle_proposals` |
-| Evidence | 5 | `ingest_evidence`, `get_evidence`, `list_evidence`, `update_evidence`, `link_evidence` |
 
 ### Ripple Coherence Engine
 

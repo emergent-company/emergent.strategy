@@ -187,9 +187,26 @@ tasks:
     vars:
       CANONICAL_EPF_PATH: '{{.CANONICAL_EPF_PATH | default ""}}'
 
+  selfmodel:generate:
+    desc: Regenerate the committed self-model (internal/selfmodel) from live sources
+    sources:
+      - "internal/mcpserver/**/*.go"
+      - "internal/navigation/**/*.go"
+      - "internal/selfmodel/**/*.go"
+    generates:
+      - "self-model.json"
+    cmds:
+      - go run ./cmd/genselfmodel -out self-model.json
+
+  selfmodel:check:
+    desc: Fail if the committed self-model has drifted from live sources
+    cmds:
+      - go run ./cmd/genselfmodel -check self-model.json
+
   check:
     desc: Run format, lint, and test (CI equivalent)
     cmds:
       - task: format
       - task: lint
+      - task: selfmodel:check
       - task: test

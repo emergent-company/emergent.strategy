@@ -54,8 +54,12 @@ type EnsureUserFunc func(ctx context.Context, sub, email, name string) (uuid.UUI
 func AuthMiddleware(authEnabled bool, introspector *auth.Introspector, ensureUser EnsureUserFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Skip auth for health check.
-			if c.Request().URL.Path == "/health" {
+			// Skip auth for health check and the public self-model
+			// discovery endpoint — a discovery route must be reachable
+			// before any auth handshake, matching 21st-bot's own
+			// /.well-known/21st-app.json precedent.
+			switch c.Request().URL.Path {
+			case "/health", "/.well-known/strategy-server-selfmodel.json", "/.well-known/strategy-server-agents.json":
 				return next(c)
 			}
 
