@@ -245,3 +245,58 @@ today — recommend deferring the migration to whichever change first has a
 real delegated call to prove it against, per this codebase's own
 established discipline (`harden-aim-execution`'s Part A4: design the shape,
 do not implement ahead of a concrete need).
+
+## 8. Transport decision (task 5)
+
+`internal/mcpserver/mcptoolset_probe_test.go` proves, by actually running
+the code against strategy-server's real streamable-HTTP `/mcp` handler
+(`google.golang.org/adk/v2/tool/mcptoolset`, already a resolved dependency
+via `internal/adk`, not newly added for this probe):
+
+1. `mcptoolset.New(Config{Endpoint: ...}).Tools(ctx)` genuinely converts the
+   remote MCP catalogue into local ADK `tool.Tool` values, callable via
+   `Run`, not merely listable — verified by actually calling
+   `set_tool_filter` through a converted tool and observing the effect on a
+   second `Tools()` call over the same session.
+2. **A real, non-obvious finding**: the existing per-session tool-category
+   filter (`tool_filter.go`, built for interactive LLM clients trimming
+   context) applies to an `mcptoolset` caller exactly as it does to any
+   other MCP client — a fresh session sees only the 13 `core` tools, not
+   the full catalogue. A remote agent that needs a specific category (for
+   example the authoring bot needing `authoring`-category write tools) must
+   call `set_tool_filter` itself before the tool set it hands to its LLM
+   is complete. This is a real interaction to design around when
+   `add-artifact-assistant-bot` is built, not a hypothetical.
+3. `mcptoolset.Config.Auth` (an `auth.CredentialProvider`) genuinely
+   attaches a bearer token to every outgoing request — verified by
+   inspecting the `Authorization` header the server actually received, not
+   by reading `providers.go`.
+
+**Decision, consistent with §1's same-trust-domain / cross-trust-domain
+split:**
+
+- **Same trust domain** (the only case anything can be recommended for
+  today, per §6 above): the calling agent supplies a `CredentialProvider`
+  that resolves to the *initiating principal's real token* — forwarded, not
+  minted — read from the delegation envelope (§1.2) at call time, per
+  request. `auth.StaticToken` is the wrong provider for this in production
+  (it bakes in one fixed token for the toolset's lifetime); the real
+  provider is a small `auth.ProviderFunc` that pulls the current
+  `DelegationContext.initiating_principal`'s token out of the ADK
+  invocation context per call. `strategy-server`'s existing
+  `AuthMiddleware` (`internal/web/middleware.go`) already independently
+  verifies whatever arrives via Zitadel introspection — forwarding the real
+  token costs nothing extra to build on the receiving side.
+- **Cross trust domain**: no `Config.Auth` is set (or it is deliberately
+  set to something that resolves to nothing verifiable). The call reaches
+  `/mcp` unauthenticated and `AuthMiddleware` rejects it in production
+  (`AUTH_ENABLED=true`) — matching §1.1's "no reasonable best effort
+  against an unverifiable claim." This is not new plumbing; it is today's
+  auth middleware doing exactly what it already does to any other
+  unauthenticated caller.
+
+What this does **not** yet do: there is no `DelegationContext`-aware
+`CredentialProvider` implementation anywhere in the codebase, because there
+is no second real agent to delegate from yet. Building that provider against
+`add-artifact-assistant-bot` (or whatever ships first) is task 6's job, not
+this one's — consistent with the deferral in §7 above.

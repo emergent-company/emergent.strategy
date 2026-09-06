@@ -163,12 +163,48 @@ The substantive part. Everything else is plumbing.
 
 ## 5. Delegation transport
 
-- [ ] Evaluate MCP-over-HTTP as the transport. strategy-server already serves MCP
+- [x] Evaluate MCP-over-HTTP as the transport. strategy-server already serves MCP
       over streamable HTTP at `/mcp`, so the gap is authenticated remote invocation
-      and tool scoping, not the protocol.
-- [ ] Probe ADK's `mcptoolset` against that endpoint — does a remote agent's tool
-      set genuinely appear as local tools?
-- [ ] Decide auth for delegated MCP calls, consistent with task 2.
+      and tool scoping, not the protocol. — Confirmed the gap is exactly that
+      and nothing more: `design.md` §8.
+- [x] Probe ADK's `mcptoolset` against that endpoint — does a remote agent's tool
+      set genuinely appear as local tools? —
+      `internal/mcpserver/mcptoolset_probe_test.go`,
+      `TestMCPToolSet_RemoteToolsAppearAsLocalADKTools`: real `mcptoolset.New`
+      against a real `httptest.Server` wrapping the actual
+      `NewMCPServerForIntrospection()` handler, over the real streamable-HTTP
+      wire protocol (no DB needed). `google.golang.org/adk/v2` was **not** a
+      new dependency for this — `internal/adk` already imports
+      `google.golang.org/adk/v2/model` and `.../session` directly; this is
+      the first user of `.../tool/mcptoolset`, `.../agent`, and `.../auth`
+      from that same already-resolved v2.2.0. **Real, non-obvious finding**:
+      the existing per-session tool-category filter (built for interactive
+      LLM clients trimming context) applies to a remote `mcptoolset` caller
+      exactly as it does to any other MCP client — a fresh session sees only
+      the 13 core tools, not the full 153. Proved this is genuine detection,
+      not a tautological assertion, by mutation: temporarily widened the
+      filter's default category set in `tool_filter.go`, watched the test
+      fail with the expected message (25 tools instead of 13), reverted
+      (confirmed clean via `git diff`). Also hit and fixed a real transport
+      gotcha along the way, documented in the test: streamable-HTTP MCP
+      clients hold a standalone SSE GET connection open indefinitely, so a
+      plain `httptest.Server.Close()` hangs forever — needs
+      `CloseClientConnections()` first.
+- [x] Decide auth for delegated MCP calls, consistent with task 2. —
+      `design.md` §8. `TestMCPToolSet_Auth_StaticTokenIsForwarded` proves
+      the mechanism first (`mcptoolset.Config.Auth` genuinely attaches a
+      bearer token to the wire, verified via the `Authorization` header the
+      server actually received). Decision: same-trust-domain calls use a
+      `CredentialProvider` that forwards the initiating principal's real
+      token from the delegation envelope (§1.2), verified independently by
+      strategy-server's existing `AuthMiddleware` — not `auth.StaticToken`,
+      which bakes in one fixed token and is only right for this proof.
+      Cross-trust-domain calls set no `Config.Auth`, reach `/mcp`
+      unauthenticated, and are rejected by the same `AuthMiddleware` in
+      production — no new plumbing, today's middleware already does this.
+      The `DelegationContext`-aware `CredentialProvider` implementation
+      itself is explicitly deferred to task 6, which needs a second real
+      agent to build and prove it against.
 
 ## 6. Prove it
 
@@ -191,13 +227,15 @@ The substantive part. Everything else is plumbing.
 
 ## Status (2026-09-06)
 
-Sections 1–4 complete (research, design, self-model publication, agent
-cards) — see `research.md`, `design.md`, `internal/selfmodel/`,
-`internal/agentcard/`. Sections 5–7 (delegation transport, the end-to-end
-proof, and publishing the contract document) remain — each depends on a
-second, real endpoint to delegate to/from (transport needs something on
-the other end to probe `mcptoolset` against; the proof needs a real
-authoring-bot call to exercise, which does not exist yet since
-`add-artifact-assistant-bot` is unstarted). Baseline
-(`apps/strategy-server go test ./...`, 40 packages) green throughout;
-`task lint` clean.
+Sections 1–5 complete (research, design, self-model publication, agent
+cards, delegation transport) — see `research.md`, `design.md`,
+`internal/selfmodel/`, `internal/agentcard/`,
+`internal/mcpserver/mcptoolset_probe_test.go`. Section 5 turned out not to
+need a second real service after all: strategy-server's own `/mcp` endpoint
+was a sufficient, real target to probe `mcptoolset` against. Sections 6–7
+(the end-to-end delegation proof, and publishing the contract document)
+remain and do genuinely need a second real endpoint — task 6 explicitly
+exercises discovery, invocation, staging, and human review *between two
+agents*, which does not exist until `add-artifact-assistant-bot` (or
+whatever ships first) is built. Baseline (`apps/strategy-server go test
+./...`, 40 packages) green throughout; `task lint` clean.
