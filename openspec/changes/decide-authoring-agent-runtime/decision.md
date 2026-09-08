@@ -289,7 +289,11 @@ Revisit this decision, rather than the calendar, when any of:
 2. **The bot's tool set produces genuine parallel, slow, independent tool
    calls within one turn** where concurrent dispatch has real latency value —
    not merely multiple calls in sequence, which the hand-rolled loop already
-   handles.
+   handles. **Still open as written** — the "Addendum" below tested a
+   related-but-distinct shape (council-style parallel expert conversations,
+   orchestrated by application code, not by the main agent's own turn) and
+   found it orthogonal to this decision. Do not treat the addendum as having
+   closed this trigger.
 3. **The bot needs to delegate to a sub-agent from *inside* its own loop**
    (not via the MCP transport layer) — this is where `agenttool`/
    `remoteagent`'s free composition (`research.md` §1.2 in
@@ -298,6 +302,58 @@ Revisit this decision, rather than the calendar, when any of:
 4. **The repointed or replaced conversation store (task 2.4's follow-up)
    turns out to need more of ADK's session semantics than expected** —
    e.g. genuine multi-agent branching within one conversation.
+
+## Addendum (2026-09-08, same day): cross-validated against `opencode-harness`, and re-tested against council-style concurrency
+
+The authoring bot's scope grew substantially the same day this decision was
+recorded — it is now modelled on `opencode-harness`'s expert/council pattern
+(see `add-artifact-assistant-bot`), which introduces a genuinely new
+concurrency shape this decision hadn't considered: a panel of expert reviewers
+consulted in parallel on a significant edit. Re-examined rather than assumed
+still valid.
+
+**Independent corroboration, not just consistency.** `opencode-harness` — a
+separate Go project — faced this exact "ADK vs hand-rolled" question for its
+own orchestration engine and rejected ADK, via its own reasoning, arriving at
+facts that independently match this decision's: ADK's agent loop is an
+uncapped `for{}` (their words, their own probe); ADK ships no Anthropic model.
+Two separate investigations, same underlying facts, same conclusion. Also
+found something this decision hadn't tested: a real probe where an unfiltered
+61-tool MCP toolset caused their model to select the wrong tool and fail,
+resolved only by pre-filtering. That is a tool-surface-design lesson, not a
+runtime one, and it has been folded into `add-artifact-assistant-bot` design
+Decision 5 (the authoring bot's tool view must be scoped, not the full 153-tool
+catalogue) — it does not bear on this decision directly, but it belongs on the
+record here because it's the kind of "capability present and proven elsewhere
+doesn't mean it's needed here" evidence this document already leans on.
+
+**Council concurrency, tested live, does not favour ADK.** Built a minimal
+two-expert council — `sync.WaitGroup` fanning out to two independent
+single-shot completion calls — against the real endpoint, on the negation
+example that motivates the council's existence
+(`add-artifact-assistant-bot/proposal.md`'s "We will support X" /
+"We will not support X"). It worked: the `coherence`-equivalent expert
+correctly flagged the inconsistency using genuine reasoning. The
+concurrency-specific code (the fan-out and join, not the underlying call) is
+~20 lines and exercises no ADK feature — because a council expert is an
+independent LLM conversation orchestrated by application code, not a tool call
+inside one model turn. `opencode-harness`'s own council is built identically,
+on its own hand-rolled runtime, for the same structural reason.
+
+**This does not close revisit trigger 2, and should not be read as closing
+it.** Trigger 2 as originally written is about the *main agent's own turn*
+issuing multiple tool calls that need genuine concurrent dispatch — a
+different shape from N independent expert conversations joined by application
+code. That specific question remains untested and stands as written. What
+this addendum establishes is narrower and should be stated precisely: the
+concurrency need actually surfaced by the redesign (council-style parallel
+review) is orthogonal to this decision, not a reason to reopen it.
+
+**Conclusion: the decision holds, reinforced rather than reversed.** Recorded
+as an addendum rather than a silent confirmation because a decision that is
+re-examined and holds is worth distinguishing, on the record, from a decision
+that was never checked again — the drift-log discipline this document already
+follows applies equally to standing firm as to reversing.
 
 ## Reversal note (recorded per drift-log discipline)
 

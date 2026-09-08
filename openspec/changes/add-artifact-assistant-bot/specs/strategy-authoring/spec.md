@@ -72,3 +72,73 @@ for whom, staged this" is answerable after the fact.
 - **WHEN** a delegated call is refused
 - **THEN** the refusal is recorded and the calling agent continues and reports it,
   rather than treating it as a failure or retrying under a different identity
+
+### Requirement: Significant Edits Are Reviewed by a Coherence Council Before Staging
+
+The authoring agent SHALL judge whether a proposed edit may affect artifacts other
+than the one being changed, and SHALL route such edits through a panel of independent
+expert reviewers before staging, rather than relying solely on similarity-score-based
+detection.
+
+This exists because similarity-score classification is provably insufficient for
+meaning-level changes: a negated or otherwise meaning-inverted sentence shares nearly
+all of its words with the original and cannot be distinguished from a trivial edit by
+a text-similarity score.
+
+#### Scenario: A meaning-inverting edit triggers council review
+
+- **WHEN** the agent judges a proposed edit as potentially affecting other artifacts
+- **THEN** the edit is reviewed by a panel of experts, each producing a verdict with
+  reasoning grounded in the actual content of the artifacts it examined
+- **AND** the edit is not staged until that review completes
+
+#### Scenario: A trivial edit does not trigger council review
+
+- **WHEN** the agent judges a proposed edit as unlikely to affect other artifacts
+- **THEN** the edit is staged directly, without council review
+
+#### Scenario: Council review produces one coordinated batch
+
+- **WHEN** council review results in changes to more than one artifact
+- **THEN** those changes are staged under a single batch for combined human review,
+  not as separate unrelated batches
+
+#### Scenario: Council verdicts are attributed, not merged
+
+- **WHEN** a batch produced by council review is inspected
+- **THEN** the reasoning is attributable to the specific expert that produced it, not
+  presented as a single anonymous summary
+
+#### Scenario: The council does not replace existing coherence detection
+
+- **WHEN** a change is committed
+- **THEN** the existing post-commit coherence analysis still runs
+- **AND** the council's pre-commit review is additional, not a replacement for it
+
+### Requirement: The Agent's Tool Surface Is Scoped, Not the Full Catalogue
+
+The authoring agent SHALL be given a bounded, purpose-scoped set of tools rather than
+the full tool catalogue by default.
+
+#### Scenario: A fresh agent session has a bounded tool set
+
+- **WHEN** a new authoring agent conversation begins
+- **THEN** the tools available to it are limited to those relevant to authoring, not
+  every tool the service exposes
+
+### Requirement: Externally Retrieved Content Is Treated as Data, Not Instructions
+
+Content retrieved by the agent from an external source SHALL be presented to the
+model in a way that is distinguishable from instructions, and SHALL NOT be capable of
+directly directing the agent's actions.
+
+#### Scenario: Fetched content cannot redirect the agent
+
+- **WHEN** externally retrieved content contains text formatted as an instruction
+- **THEN** the agent does not treat it as an instruction to follow
+
+#### Scenario: Research sources are attributed
+
+- **WHEN** the agent uses externally retrieved content in its reasoning
+- **THEN** the source is identifiable to the user as external research, distinct from
+  the user's own strategy content

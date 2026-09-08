@@ -1,183 +1,237 @@
-# Change: Context-aware artifact authoring agent
+# Change: The strategy authoring agent
 
-> **Rewritten 2026-09-08.** The previous version was written 2026-06-08 and never
-> substantively revised: only `proposal.md` was touched on 2026-09-04 (a caveat
-> header), while `design.md`, `tasks.md` and all three spec deltas remained exactly
-> as first written — three months and two architecture reversals earlier. This
-> rewrite replaces all of them.
+> **Rewritten again, 2026-09-08, same day as the first rewrite.** The first
+> rewrite (see git history) corrected the change against the 2026-09-04
+> architecture baseline but kept the original 2026-06-08 scope: a bounded chat
+> drawer with three narrow write tools, ending its turn after one staged
+> patch. That scope is too small for what this change actually needs to be.
 >
-> **Scope narrowed.** The sub-object patch primitive, the manual edit UI and the
-> `patch_artifact` MCP tool have moved to `add-artifact-patch-authoring`; they are
-> unblocked, LLM-free, and were being held hostage by this change's open runtime
-> question. The runtime question itself has moved to
-> `decide-authoring-agent-runtime`.
+> **The change id stays `add-artifact-assistant-bot`** for continuity — it is
+> referenced by name in `establish-agent-contract`, `docs/AIM_ARCHITECTURE_AND_
+> CROSS_REPO_REUSE.md`, `internal/agentcard/authoringbot.go`, and three
+> archived changes. Renaming would break those references for a cosmetic gain.
+> Read the title as the actual scope, not the id.
 >
-> **This change is now only the agent.**
+> **Why the scope changed:** epf-cli is frozen specifically because
+> strategy-server is meant to replace it as the primary authoring surface for
+> anyone — not eventually, that is the stated reason it stopped receiving
+> features (`retire-epf-cli/proposal.md`). The bar this change must clear is
+> parity with epf-cli's agent-first authoring experience — six persona agents,
+> a semantic engine, dogfooded on the company's own real strategy — done
+> natively in strategy-server's UI, not a bolt-on edit helper.
 
 ## Why
 
-With the patch primitive in place, a strategy manager can make surgical edits — but
-only if they already know exactly what to change and where. What is still missing is
-the conversational surface: *"tighten this UVP"*, *"what evidence backs this
-assumption?"*, *"add a KR for the retention target"* — asked in place, on the artifact
-being read, with the answer arriving as a reviewable staged change rather than as
-advice the user then has to execute by hand.
+### The two existing mechanisms for cross-artifact consistency are both inadequate, for different reasons
 
-There is a second reason, and it is the one that makes this change load-bearing for
-the estate rather than merely useful:
+**epf-cli's agents** (`pathfinder`, `product-architect`, `synthesizer`) maintain
+cross-artifact consistency entirely through prompt discipline — the LLM
+re-reads its own prior output and reasons in context against static written
+guidance. There is no tooling backing this; it works because the conversation
+is long and the model is instructed to check. Nothing enforces it.
 
-**`establish-agent-contract` cannot finish without a second agent.** Its tasks 1–5 are
-complete — research, federated-approval design, self-model publication, agent cards,
-delegation transport proven by probe. Tasks 6 and 7 are not, and its own status note
-says why: task 6 *"explicitly exercises discovery, invocation, staging, and human
-review between two agents, which does not exist until `add-artifact-assistant-bot`
-(or whatever ships first) is built."* The contract is currently proven by document
-and by probe, not by use.
+**strategy-server's Ripple Coherence Engine** is a real, sophisticated piece of
+infrastructure — but its classification of a change's severity is a **text-
+similarity score** (a Memory search-relevance score, or word-set overlap when
+Memory is unavailable), thresholded into autonomous/gated/escalated. This is
+provably the wrong tool for meaning-level changes. Concretely:
 
-Related: `internal/agentcard/authoringbot.go` **already publishes a card for this
-agent**, at `/.well-known/strategy-server-agents.json`, marked `Status: "planned"`,
-`Version: "0.0.0"`, empty URL, declaring the three write skills named below. The
-service is advertising an agent that does not exist. Either build it or withdraw the
-card.
+> "We will support enterprise SSO in Q3" → "We will not support enterprise
+> SSO in Q3"
+
+shares nearly every word and would very plausibly score as high-similarity —
+**autonomous, auto-approvable** — under the existing thresholds. That is the
+exact opposite of correct. This was verified live, not asserted: a real LLM
+call asked to review this exact edit correctly flagged it as inconsistent,
+using genuine reasoning about the two sentences' content; a similarity score
+cannot do this by construction, negation-insensitivity is a textbook property
+of bag-of-words and embedding-similarity metrics.
+
+**Neither of these compose into what's needed: an agent that reads what a
+change actually says, understands its implications, and proposes a
+coordinated, reasoned set of changes across the artifacts it affects.**
+
+### No external research capability exists anywhere in the estate
+
+Checked exhaustively: epf-cli's closest thing to a "market research" agent
+(`trend_scout`) interviews the *human* for market knowledge — it never fetches
+anything. Strategy-server has no web-search tool at all. This is a from-scratch
+capability, not an upgrade of something existing.
+
+### A working, portable pattern for exactly this problem already exists — one repository over
+
+`opencode-harness` (a sibling Go project) already solved "how do you get
+several independent, config-tunable reviewer perspectives to weigh in on a
+proposed change, in parallel, with a consensus rule, feeding a human decision"
+— its expert/council mechanism. Verified by reading its source directly, not
+its documentation: the concurrency is plain Go goroutines around independent
+LLM calls (no framework), the whole thing has zero OpenCode dependency and is
+already exposed as a generic MCP server, and — tellingly — its own design docs
+say the skill-execution pattern underneath it **was borrowed from strategy-
+server/EPF's own skill format in the first place**. This change borrows it
+back, adapted to reasoning about strategy artifacts instead of code diffs.
+
+One more thing worth stating plainly, because it independently strengthens a
+decision this change depends on: `opencode-harness` faced the identical "ADK
+vs hand-rolled" question for its own orchestration engine and rejected ADK,
+via different reasoning that converges on the same facts
+`decide-authoring-agent-runtime` found (ADK's agent loop is an uncapped
+`for{}`; ADK ships no Anthropic model). Two independent investigations, same
+conclusion. Detail in that change's `decision.md` addendum.
 
 ## What Changes
 
-### 1. The agent (`domain/authoring/` or equivalent)
+### 1. The conversational agent (`domain/authoring/` or equivalent)
 
-- **ADD** a model-planned agent over the runtime chosen by
-  `decide-authoring-agent-runtime`, using the tool-calling seam built there.
-- **ADD** an explicit **unit of work** and what ends it — task complete, budget
-  reached, or a human gate. This must be decided before implementation, not
-  discovered. The unit is what bounds the conversation; without one, the session
-  grows for as long as the drawer stays open.
-- **ADD** a read-broad, write-narrow tool set:
-  - *Read:* get/search artifacts, list evidence, get signals, semantic search.
-  - *Write:* `propose_patch` (over `add-artifact-patch-authoring`'s `StagePatch`),
-    `propose_evidence_link`, `propose_skill_run`. Each stages and returns a review
-    reference. **There is no commit tool.**
-- **ADD** declarative per-tool write gating — `{confirm, disabled}` as data, following
-  `emergent.memory`'s `ToolPolicy` (`domain/agents/entity.go:310-323`), **but failing
-  closed.** Their implementation logs a warning and lets the tool execute if the
-  confirmation gate cannot be created (`executor.go:1620-1628`). For a write-gating
-  mechanism that is the wrong default, and it is worth copying the shape while
-  explicitly not copying that.
-- **ADD** double enforcement: the allowlist applies both when building tool
-  definitions and at execution time.
+- **ADD** a model-planned agent on the runtime decided by
+  `decide-authoring-agent-runtime` (hand-rolled loop), writing exclusively
+  through the staging spine. No commit tool exists, ever.
+- **ADD** an explicit unit of work and what ends it — task complete, budget
+  reached, or a human gate — per that change's tool-calling seam.
+- **ADD** a tool surface that is **actively scoped, not the full MCP
+  catalogue.** `opencode-harness`'s own probe found a 61-tool unfiltered
+  toolset caused its model to pick the wrong tool and fail; strategy-server
+  already has 153. Reuse and extend the existing per-session category filter
+  (`internal/mcpserver/tool_filter.go`) rather than inventing a second scoping
+  mechanism — this is a tool-surface-design lesson, independent of which
+  runtime drives the loop.
+- **ADD** a new **web research tool.** Fetched external content is untrusted
+  data the agent reasons about, never instructions it follows — this must be
+  designed into the tool's result shape from the start (fetched text delimited
+  and labelled as data, never injected as if it were a system/developer
+  message), because a write-capable agent that also fetches arbitrary external
+  content is exposed to indirect prompt injection. Not a reason to avoid the
+  capability — a reason to design the boundary deliberately.
 
-### 2. Conversation persistence
+### 2. Judgment-based significance triage
 
-- **ADD** durable, org- and user-scoped conversations, on whichever store the runtime
-  decision selects.
-- **Do not build a second session store.** Migration `039_drop_adk_tables.sql`
-  deliberately retained `adk_sessions` / `adk_session_events` / `adk_app_states` /
-  `adk_user_states` *"for whichever engine the authoring bot chooses"*, and
-  `internal/adk.SessionStore` already implements ADK's `session.Service` and passes
-  ADK's own conformance suite. The original proposal specified fresh
-  `assistant_conversations` / `assistant_messages` tables — that is precisely the
-  duplication `docs/AI_RUNTIME_CONSOLIDATION.md` §7 counts as the problem
-  (*"two bun-backed ADK session stores"*).
-- **ADD** multi-tenant scoping that is actually used. `emergent.memory` hardcodes
-  `AppName: "agents"` and `UserID: "system"` at every session call site, discarding
-  the store's own user scoping. In a multi-tenant server that is not cheaply undone
-  later.
+- **ADD** the agent's own judgment as the trigger for deeper review, not an
+  always-on gate and not (yet) a per-project config toggle. A one-word
+  correction stages directly through `add-artifact-patch-authoring`'s
+  primitive. An edit the agent judges might have implications elsewhere
+  triggers the coherence council (§3) before staging.
+- This is deliberately the cheaper default: consulting a panel of experts on
+  every trivial edit is real latency and real cost for no benefit. Per-project
+  configurability of this trigger is a natural extension once experts
+  themselves are configurable (§3's non-goal) — not built now.
 
-### 3. Context assembly with a real budget
+### 3. The coherence council
 
-- **ADD** per-turn context: the current artifact, its sub-objects, related artifacts,
-  linked evidence, open signals — with a top-k and a token ceiling **enforced at the
-  boundary**, per `decide-authoring-agent-runtime`'s retrieval-budget requirement.
-- The current artifact and any selected sub-object path are passed from the UI in the
-  send payload, not inferred from a URL string.
+- **ADD** a small, **built-in, fixed** set of expert reviewers — starting with
+  a `coherence` expert that reads the artifacts structurally connected to the
+  one being edited (reusing `AnalyzeStructuralRipple`'s connectivity query as
+  the candidate list, not its scoring) and reasons directly about whether the
+  edit's actual content conflicts with them. Room for more (e.g. an
+  evidence-grounding expert) without redesigning anything.
+- **ADD** parallel dispatch via plain Go goroutines, mirroring
+  `opencode-harness/internal/runtime/council.go` exactly — proven live and
+  measured: the concurrency-specific code is ~20 lines, exercises no framework
+  feature, and is identical in cost whether the main agent's own loop is
+  hand-rolled or ADK-based. This is not evidence for either runtime choice; it
+  is evidence the choice doesn't matter here.
+- **ADD** verdict synthesis into **one coordinated multi-artifact staged
+  batch**, using the staging spine's existing support for one `batch_id`
+  spanning multiple artifact types, and the existing review screen
+  (`aim_draft_review.templ`) which already renders "N items, one shared
+  rationale, commit or discard together" — it currently only receives that
+  shared rationale from a skill executor's `batch_metadata.change_summaries`;
+  this change makes the council a second writer of that same field.
+- **ADD** experts as **skill-shaped primitives** — matching the
+  `skill.yaml`/`prompt.md` convention already used by strategy-server's 30
+  embedded skills — so that user-configurable experts (the natural next step,
+  explicitly deferred below) is an additive extension of an existing shape,
+  not a rewrite.
+- **The council does not replace the Ripple Coherence Engine.** That engine
+  keeps running exactly as it does today — a cheap, always-on, post-commit
+  backstop with known blind spots. The council is a complementary,
+  judgment-gated, pre-commit, content-aware layer. Both flagging the same
+  thing is not a conflict; it is defence in depth. Neither this change nor any
+  part of it rewires `domain/ripple`.
 
-### 4. Chat UI (`strategy-web`)
+### 4. Conversation persistence, audit, agent contract closure
 
-- **ADD** a drawer on artifact and phase pages: toggle, server-rendered message list,
-  send action. There is no chat component in the UI today — no templ file contains
-  the string, and DaisyUI's `chat` classes ship in `node_modules` unreferenced.
-- **ADD** progress streaming over the **existing** SSE activity fanout
-  (`/strategies/:id/activity/stream`), which is already wired client-side in
-  `internal/ui/shell.templ` with teardown, reconnect and a polling fallback. Token
-  streaming is out of scope for v1.
-- **ADD** a deterministic mock agent so the feature degrades gracefully with no LLM
-  configured and tests run without one.
+Unchanged in substance from the prior rewrite — carried forward here rather
+than re-derived:
 
-### 5. Close the agent contract
-
-- **ADD** `delegation_chain` (JSONB, nullable) alongside the existing `CreatedBy` on
-  mutation rows, per `establish-agent-contract/design.md` §2. That change deferred
-  the migration to *"whichever change first has a real delegated call to prove it
-  against"* — this is it. `CreatedBy`'s semantics are unchanged, so every existing
-  reader keeps working.
-- **ADD** the end-to-end delegation proof (`establish-agent-contract` task 6):
-  discovery via card, invocation via transport, a staged change, review by the
-  initiating human — plus the mutation test that an agent attempting to commit is
-  refused.
-- **ADD** review-surface attribution: *"prepared by the authoring agent, on your
-  behalf"*.
-- **MODIFY** `internal/agentcard/authoringbot.go` from `Status: planned` to live, with
-  a real URL and version — and **generate it from running code** the way
-  `agentcard.AIM()` is generated from `CycleWorkflow.CycleSteps()`. It is currently
-  hand-authored from this proposal's own text, which its doc comment admits. Hand-
-  authored cards rot; that is `agent-contract` Requirement 1.
+- Persist conversations on the store `decide-authoring-agent-runtime` settles
+  (repoint vs. replace `internal/adk`'s tables), org- and user-scoped, actually
+  enforced.
+- Tool results are references and summaries, never raw payloads, in the
+  conversation record (invariant 4).
+- Run/step audit rows for agent turns **and** council invocations, with the
+  same fidelity AIM records for cycle steps.
+- `delegation_chain` on mutation rows (deferred by `establish-agent-contract`
+  §7 to "whichever change first has a real delegated call" — this is it).
+- The end-to-end delegation proof (`establish-agent-contract` task 6),
+  including answering whether the initiating principal survives a DBOS
+  park/wake for the authoring-agent → AIM case (design Open Question 1, still
+  open, still needs answering here, not assumed).
+- `agentcard.AuthoringBot()` generated from the running agent's real tool set
+  and gate configuration, not hand-authored from this proposal's text; flipped
+  from `planned` to live.
 
 ## Impact
 
-- **Affected specs:** `strategy-web` (assistant drawer), `strategy-authoring` (agent
-  write tools stage and never commit; delegation recorded).
-- **Affected code:** new agent package; new `internal/handler/handler_assistant.go`;
-  new assistant drawer templ; `internal/agentcard/authoringbot.go` (generated, live);
-  `domain/strategy` (delegation chain on staged mutations).
-- **Migration:** `delegation_chain` on mutation rows. No new conversation tables.
-- **Closes:** baseline open questions 3–5 (via `establish-agent-contract` tasks 6–7);
-  `establish-agent-contract` reaches 24/24.
+- **Affected specs:** `strategy-authoring` (council review requirement, no-commit
+  invariant, delegation chain), `strategy-web` (chat drawer, council
+  attribution, external-research disclosure).
+- **Affected code:** new agent package; new council package (skill-shaped
+  experts, goroutine fan-out, verdict synthesis); new web-research tool with
+  untrusted-content handling; `internal/agentcard/authoringbot.go` (generated,
+  live); `domain/strategy` (delegation chain, council-authored
+  `change_summaries`).
+- **Migration:** `delegation_chain` on mutation rows. No new conversation
+  tables unless `decide-authoring-agent-runtime`'s follow-up concludes a
+  bespoke schema is needed over repointing `internal/adk`'s.
+- **Sequencing flexibility:** the council (§3) is separable enough that it
+  could become its own change if its scope grows during implementation
+  (`tasks.md` flags this explicitly rather than deciding it here).
 
 ## Dependencies
 
 | Depends on | For | State |
 |---|---|---|
-| `add-artifact-patch-authoring` | `StagePatch` behind `propose_patch`; batch provenance for review attribution | Proposed |
-| `decide-authoring-agent-runtime` | The runtime decision, the tool-calling seam across both providers, bounded loop, invariant-4 tool-result handling | Proposed |
+| `add-artifact-patch-authoring` | `propose_patch`; batch provenance for review attribution | Proposed |
+| `decide-authoring-agent-runtime` | Runtime decision, tool-calling seam, bounded loop, invariant-4 handling | Proposed — decision recorded, seam (§3-6) still open |
 | `establish-agent-contract` §1–5 | Card shape, self-model, federated-approval design, delegation transport | **Complete** |
 
-## Coordination — corrected
+## Non-goals
 
-The previous version hedged: *"if `add-operational-transparency` is not yet merged,
-the assistant emits activity events directly and adopts the ledger when available"*,
-and claimed `add-strategy-bootstrap-flow`'s "Draft with AI" buttons could stage
-through the patch primitive. Both statements are wrong, and the first has been wrong
-for three and a half months.
-
-- **`add-operational-transparency` shipped 2026-05-22** (commit `fc3bc42d`), in the
-  same commit as its own proposal — which is why its checkboxes were never ticked and
-  `openspec list` still reports `0/55`. The skill-run ledger (`domain/skillrun`,
-  migration `026`), token propagation, the MCP observability tools, the cascade
-  tracker and the client-side SSE wiring all exist. `propose_skill_run` gets ledger
-  integration **for free** by calling the executor, which already creates a run row
-  and emits `skill.*` events. Zero work. Its one unfinished task — batch provenance —
-  is absorbed by `add-artifact-patch-authoring`.
-- **`add-strategy-bootstrap-flow` shipped the same day** (commit `be2664f5`,
-  "groups 1-11"). But the coordination claim was wrong on the merits regardless: the
-  `draft-*` skills generate an artifact **from evidence where none exists**, so there
-  is no committed payload to patch. Whole-payload staging is correct for genesis;
-  patching is correct for surgical edits. They are complementary primitives on the
-  same staging spine, not layers. What they actually share — `strategy_mutations`,
-  `batch_id`, and the `/aim/draft-review/:batchID` gate — they already share.
-
-**"Complete but unfiled" is a state the dashboard cannot express, and it is worse
-than abandoned: abandoned work does not manufacture fake dependencies.** Both are
-being ticked and archived alongside this rewrite.
+- **User-configurable experts.** `opencode-harness`'s full config layering
+  (`pipeline.yaml`/`experts/*.yaml`/`llm.yaml`) is a proven pattern worth
+  reaching for eventually, not now. Ship built-in experts first; prove the
+  mechanism; let real usage determine what should become configurable rather
+  than guessing the config surface up front.
+- **Automatic (always-on) council triggering**, and **per-project
+  configuration of the trigger.** Both are natural extensions once experts are
+  configurable. The agent's own judgment is the trigger for v1.
+- **Rewiring or replacing `domain/ripple`.** It keeps running unchanged.
+- **Fixing the `ingest_evidence` staging bypass**, or emitting the twelve dead
+  `domain/activity` constants. Both real, both pre-existing, both out of scope
+  here (recorded in `add-artifact-patch-authoring`'s non-goals already).
+- **A shared cross-repo module** with `opencode-harness`. The pattern is
+  borrowed by re-implementation, not by dependency — consistent with the
+  baseline's "no shared module may import ADK" constraint and, more generally,
+  with keeping this change's runtime independent of a sibling repo's release
+  cycle.
 
 ## Design Principles
 
-1. **It is an agent, not an assistant subsystem.** Under
-   `docs/UNIFIED_AGENT_ARCHITECTURE.md` §1 there is one agent type; this and AIM
-   differ in who plans the chain and in their write set, and in nothing else that
-   should appear in the type system. `internal/agentcard/card_test.go` already
-   asserts this structurally — the tests must keep passing once the card goes live.
-2. **Prepare, don't commit.** No commit tool. Stage and return a review reference.
-3. **One staging path.** Agent edits, manual edits and drafts share the same gate and
-   the same post-commit pipeline.
-4. **Tool results are not conversation history.** Artifact payloads go to storage; the
-   conversation carries a reference and a summary.
-5. **Graceful degradation.** No LLM configured → mock agent; manual editing from
-   `add-artifact-patch-authoring` works with no LLM at all.
+1. **It is an agent, not an assistant subsystem** — one agent type
+   (baseline §1), differing from AIM only in who plans the chain and in write
+   set.
+2. **Prepare, don't commit.** No commit tool, ever — not in the main agent,
+   not in any council expert.
+3. **One staging path.** Agent edits, council-reviewed multi-artifact sets,
+   manual edits, and skill drafts all share the same gate and the same
+   post-commit pipeline.
+4. **Reasoning, not scoring, for meaning.** Where the existing ripple engine
+   uses similarity thresholds, this agent and its council read actual content
+   and reason about it — proven necessary by the negation example above, not
+   asserted.
+5. **Untrusted content stays untrusted.** External research results are data
+   the agent reasons about, never instructions it follows.
+6. **Built to extend, not to be replaced.** Experts are skill-shaped from day
+   one so that configurability is additive later.
+7. **Graceful degradation.** No LLM configured → mock agent; manual editing
+   from `add-artifact-patch-authoring` works with no LLM at all.

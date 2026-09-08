@@ -29,6 +29,12 @@ The agent SHALL NOT commit changes.
 - **WHEN** the agent is working through a multi-step turn
 - **THEN** progress is visible in the UI as it happens, rather than only on completion
 
+#### Scenario: Council review is visible as its own activity
+
+- **WHEN** the agent is consulting the coherence council on a significant edit
+- **THEN** the UI shows this distinctly from ordinary tool-call progress, so a
+  multi-second parallel review does not appear as a stalled request
+
 #### Scenario: Conversations persist across restarts
 
 - **WHEN** the server restarts
@@ -55,3 +61,21 @@ behalf, so that a reviewer can distinguish it from a change a human made directl
 - **WHEN** a reviewer opens a batch staged by the authoring agent
 - **THEN** the review surface identifies the agent as its source and the human it acted
   for
+
+#### Scenario: A council-reviewed batch shows per-expert reasoning
+
+- **WHEN** a reviewer opens a batch that resulted from coherence council review
+- **THEN** the review surface shows which expert raised which point, rather than a
+  single merged rationale
+
+### Requirement: External Research Is Visibly Distinguished From the User's Own Content
+
+Where the agent uses external web research in a conversation, the UI SHALL make clear
+which parts of its answer came from external sources rather than from the user's own
+strategy content.
+
+#### Scenario: A research-informed answer names its sources
+
+- **WHEN** the agent's answer draws on externally retrieved content
+- **THEN** the UI shows that the information came from external research, distinct
+  from the user's own artifacts and evidence
