@@ -1,206 +1,183 @@
-# Change: Add context-aware artifact assistant bot and granular sub-object editing
+# Change: Context-aware artifact authoring agent
 
-> **Revised 2026-09-04 against `docs/UNIFIED_AGENT_ARCHITECTURE.md`.** This change
-> was written 31 May, before the baseline existed. Its design principles survive
-> intact and were, in retrospect, right: *one staging path*, *prepare don't commit*,
-> *payload is the unit of storage, patches are the unit of authoring*, DB-backed
-> user-scoped conversations. Its hand-rolled bounded tool loop is also still the
-> defensible default — see baseline open question 6.
+> **Rewritten 2026-09-08.** The previous version was written 2026-06-08 and never
+> substantively revised: only `proposal.md` was touched on 2026-09-04 (a caveat
+> header), while `design.md`, `tasks.md` and all three spec deltas remained exactly
+> as first written — three months and two architecture reversals earlier. This
+> rewrite replaces all of them.
 >
-> Three things it did not address, added below as section 5:
+> **Scope narrowed.** The sub-object patch primitive, the manual edit UI and the
+> `patch_artifact` MCP tool have moved to `add-artifact-patch-authoring`; they are
+> unblocked, LLM-free, and were being held hostage by this change's open runtime
+> question. The runtime question itself has moved to
+> `decide-authoring-agent-runtime`.
 >
-> 1. **Session discipline.** It has no session boundary, no compaction, and no
->    position on invariant 4 (tool results are not session history). An authoring
->    bot's tool results are artifact payloads and diffs — the largest objects in
->    the system. Unaddressed, this is the failure mode `AGENT_RUNTIME_PATTERN.md`
->    exists to prevent.
-> 2. **Retrieval budget** (invariant 2). `BuildArtifactContext` as specified
->    assembles "the current artifact, its sub-objects, related artifacts, linked
->    evidence, and open signals" with no ceiling.
-> 3. **It is an agent, not a special case.** Under the baseline there is one agent
->    type; this bot and AIM differ only in who plans the chain. It should share the
->    agent contract, not invent an "assistant" concept beside it.
->
-> One reference correction: the proposal models itself on captable's orchestrator.
-> Captable remains the right reference for the **UX surface** — chat drawer,
-> progressive tool discovery, review-link enforcement. For the **runtime** —
-> compaction, park/wake, declarative write gating — `emergent.memory` is the better
-> reference and the only working implementation in the estate.
+> **This change is now only the agent.**
 
 ## Why
 
-Today the strategy-server web UI is read-only for artifacts. The only way to change
-an artifact is to run a whole-payload skill (AI draft → review → commit) or call an
-MCP tool from an external agent. There are two missing capabilities:
+With the patch primitive in place, a strategy manager can make surgical edits — but
+only if they already know exactly what to change and where. What is still missing is
+the conversational surface: *"tighten this UVP"*, *"what evidence backs this
+assumption?"*, *"add a KR for the retention target"* — asked in place, on the artifact
+being read, with the answer arriving as a reviewable staged change rather than as
+advice the user then has to execute by hand.
 
-1. **No conversational assistant.** A strategy manager working on an artifact cannot
-   ask "tighten this UVP", "what evidence backs this assumption?", or "add a KR for
-   the retention target" and have an AI act on it in place. The captable product has
-   proven this pattern (a context-aware drawer bot that prepares changes for human
-   approval); the strategy-server has all the substrate (LLM client, skill context
-   builder, stage/commit/review flow, SSE fanout) but no chat loop wired on top.
+There is a second reason, and it is the one that makes this change load-bearing for
+the estate rather than merely useful:
 
-2. **No granular editing.** The entire artifact model is whole-payload JSONB
-   (`strategy/service.go:518` upserts the full payload on every commit). A user who
-   wants to fix one belief, rename one value-model component, or edit one KR must
-   regenerate the whole artifact via AI or hand-edit YAML in the source repo. There
-   is no edit form and no per-sub-object mutation primitive. This makes small,
-   confident human corrections disproportionately expensive and pushes every change
-   through the LLM.
+**`establish-agent-contract` cannot finish without a second agent.** Its tasks 1–5 are
+complete — research, federated-approval design, self-model publication, agent cards,
+delegation transport proven by probe. Tasks 6 and 7 are not, and its own status note
+says why: task 6 *"explicitly exercises discovery, invocation, staging, and human
+review between two agents, which does not exist until `add-artifact-assistant-bot`
+(or whatever ships first) is built."* The contract is currently proven by document
+and by probe, not by use.
 
-These are coupled: the assistant should produce small, surgical, reviewable edits —
-which requires a sub-object editing primitive — and the manual edit UI should reuse
-the same primitive so AI edits and human edits flow through one staging/review path.
+Related: `internal/agentcard/authoringbot.go` **already publishes a card for this
+agent**, at `/.well-known/strategy-server-agents.json`, marked `Status: "planned"`,
+`Version: "0.0.0"`, empty URL, declaring the three write skills named below. The
+service is advertising an agent that does not exist. Either build it or withdraw the
+card.
 
 ## What Changes
 
-### 1. Sub-object editing primitive (`domain/strategy/`)
+### 1. The agent (`domain/authoring/` or equivalent)
 
-- **ADD** a JSON-Pointer-addressable patch operation on the strategy service:
-  `StagePatch(instanceID, artifactKey, []Patch)` where each `Patch` is a
-  `{op: set|remove|append|insert, path: <RFC6901 pointer>, value: any}`. The service
-  loads the current committed payload, applies the patches in memory, re-validates the
-  full payload against the canonical schema, and stages the **result as a normal
-  whole-payload mutation** (no schema or storage change — the payload remains the unit
-  of persistence; patches are the unit of *authoring*).
-- Patches are recorded in `BatchMetadata` so the review UI can render a precise
-  per-field diff ("changed `/beliefs/2/statement`", "removed `/value_model/layers/0/components/3`").
-- The primitive is structure-aware for known artifact types via the existing decompose
-  layer so paths can be expressed against named sub-objects (belief, component, KR,
-  feature) rather than raw indices where a stable identity field exists.
+- **ADD** a model-planned agent over the runtime chosen by
+  `decide-authoring-agent-runtime`, using the tool-calling seam built there.
+- **ADD** an explicit **unit of work** and what ends it — task complete, budget
+  reached, or a human gate. This must be decided before implementation, not
+  discovered. The unit is what bounds the conversation; without one, the session
+  grows for as long as the drawer stays open.
+- **ADD** a read-broad, write-narrow tool set:
+  - *Read:* get/search artifacts, list evidence, get signals, semantic search.
+  - *Write:* `propose_patch` (over `add-artifact-patch-authoring`'s `StagePatch`),
+    `propose_evidence_link`, `propose_skill_run`. Each stages and returns a review
+    reference. **There is no commit tool.**
+- **ADD** declarative per-tool write gating — `{confirm, disabled}` as data, following
+  `emergent.memory`'s `ToolPolicy` (`domain/agents/entity.go:310-323`), **but failing
+  closed.** Their implementation logs a warning and lets the tool execute if the
+  confirmation gate cannot be created (`executor.go:1620-1628`). For a write-gating
+  mechanism that is the wrong default, and it is worth copying the shape while
+  explicitly not copying that.
+- **ADD** double enforcement: the allowlist applies both when building tool
+  definitions and at execution time.
 
-### 2. Manual sub-object edit UI (`strategy-web`)
+### 2. Conversation persistence
 
-- **ADD** per-sub-object edit affordances on the bespoke artifact views: an "Edit"
-  action on each editable sub-object (belief, value-model component, KR, etc.) opening
-  an inline form (templ + HTMX) scoped to that sub-object's fields.
-- **ADD** add/remove/reorder controls for list-typed sub-objects.
-- Submitting an edit calls a new POST handler that builds the patch set and calls
-  `StagePatch`, then drops the user into the **existing draft review screen** to
-  commit or discard. Manual edits are never auto-committed — they use the same human
-  gate as AI edits.
-- The artifact view stops being globally read-only; editability is per-type and
-  per-sub-object, driven by a capability descriptor (some artifacts/fields remain
-  read-only, e.g. canonical-derived structure).
+- **ADD** durable, org- and user-scoped conversations, on whichever store the runtime
+  decision selects.
+- **Do not build a second session store.** Migration `039_drop_adk_tables.sql`
+  deliberately retained `adk_sessions` / `adk_session_events` / `adk_app_states` /
+  `adk_user_states` *"for whichever engine the authoring bot chooses"*, and
+  `internal/adk.SessionStore` already implements ADK's `session.Service` and passes
+  ADK's own conformance suite. The original proposal specified fresh
+  `assistant_conversations` / `assistant_messages` tables — that is precisely the
+  duplication `docs/AI_RUNTIME_CONSOLIDATION.md` §7 counts as the problem
+  (*"two bun-backed ADK session stores"*).
+- **ADD** multi-tenant scoping that is actually used. `emergent.memory` hardcodes
+  `AppName: "agents"` and `UserID: "system"` at every session call site, discarding
+  the store's own user scoping. In a multi-tenant server that is not cheaply undone
+  later.
 
-### 3. Context-aware artifact assistant (`domain/assistant/`, `strategy-web`)
+### 3. Context assembly with a real budget
 
-- **ADD** a `domain/assistant/` package with a bounded tool-use orchestrator
-  (max N rounds) over the existing `internal/llm` client, modeled on the captable
-  orchestrator: per-turn system-prompt assembly, a tool registry, and an agent loop
-  that executes tools and feeds results back until the model returns a final answer.
-- **ADD** conversation persistence (a `assistant_conversations` / `assistant_messages`
-  table, org- and user-scoped, not in-memory) so sessions survive restarts and respect
-  multi-tenant isolation.
-- **ADD** per-turn context injection: a `BuildArtifactContext(instanceID, artifactKey)`
-  function that assembles the current artifact, its sub-objects, related artifacts,
-  linked evidence, and open signals into the system prompt — reusing the
-  `skillexec` context builder where possible. The current page/artifact is passed from
-  the UI in the send payload (artifactKey + optional selected sub-object path), not
-  just a URL string.
-- **ADD** an assistant tool set that is **read-broad, write-narrow**:
-  - Read tools: get/search artifacts, list evidence, get signals, semantic search.
-  - Write tools: `propose_patch` (prepares a `StagePatch`), `propose_evidence_link`,
-    `propose_skill_run`. These **prepare staged batches and return a review link** —
-    the assistant never commits. Enforced by an allowlist applied both when building
-    tool defs and at execution time (defense in depth), mirroring captable's pattern.
-- **ADD** a chat drawer UI (templ) on the artifact and phase pages: a toggle button,
-  a server-rendered message list, and a send action. Streaming of intermediate
-  progress (tool calls, "preparing change…") reuses the existing SSE activity fanout;
-  token streaming is out of scope for v1.
-- **ADD** a `MockAssistant` fallback (keyword → tool) so the feature degrades
-  gracefully and tests run with no LLM configured (captable pattern).
+- **ADD** per-turn context: the current artifact, its sub-objects, related artifacts,
+  linked evidence, open signals — with a top-k and a token ceiling **enforced at the
+  boundary**, per `decide-authoring-agent-runtime`'s retrieval-budget requirement.
+- The current artifact and any selected sub-object path are passed from the UI in the
+  send payload, not inferred from a URL string.
 
-### 4. MCP parity
+### 4. Chat UI (`strategy-web`)
 
-- **ADD** an MCP tool surface for the sub-object patch primitive
-  (`patch_artifact`) so external agents get the same granular-edit capability,
-  staged for human review like all other authoring tools.
+- **ADD** a drawer on artifact and phase pages: toggle, server-rendered message list,
+  send action. There is no chat component in the UI today — no templ file contains
+  the string, and DaisyUI's `chat` classes ship in `node_modules` unreferenced.
+- **ADD** progress streaming over the **existing** SSE activity fanout
+  (`/strategies/:id/activity/stream`), which is already wired client-side in
+  `internal/ui/shell.templ` with teardown, reconnect and a polling fallback. Token
+  streaming is out of scope for v1.
+- **ADD** a deterministic mock agent so the feature degrades gracefully with no LLM
+  configured and tests run without one.
 
-### 5. Runtime discipline (added 2026-09-04)
+### 5. Close the agent contract
 
-Required by `openspec/AGENT_RUNTIME_PATTERN.md`; absent from the original scope.
-
-- **ADD** an explicit **unit of work** and what ends it. Candidates: task complete,
-  context budget reached, or a human gate. This must be decided before
-  implementation, not discovered (baseline open question 6). The unit is what bounds
-  the conversation; without one, the session grows for as long as the user keeps the
-  drawer open.
-- **ADD** invariant 4 compliance: **tool results are not session history by
-  default.** Artifact payloads, diffs and search results are the largest objects
-  this bot will handle. Persist a reference and a summary; keep the payload out of
-  the conversation record. This is the single highest-leverage decision in the
-  change — `21st-bot` is accidentally immune because it never persists tool results,
-  and this bot must be deliberately immune.
-- **ADD** a **retrieval budget** for `BuildArtifactContext`: a top-k and a token
-  ceiling enforced at the boundary, not "everything relevant". Reuse
-  `skillexec`'s existing precedent — it already has a 112,000-byte budget and drops
-  feature definitions on overflow (`executor.go:1468-1497`).
-- **ADD** compaction **only if** the chosen unit of work does not already bound the
-  session. If it is needed, follow `emergent.memory`'s two-phase shape: token-aware
-  trim first, LLM summarisation only if the trim was destructive, with an
-  anti-thrash guard (`session_compressor.go:75-286`). Compaction **must be
-  inspectable** — recorded as an event, never silent (invariant 5).
-- **MODIFY** the write-gating approach: prefer a **declarative per-tool policy**
-  (`{confirm, disabled}` per tool) over a hardcoded allowlist, following
-  `emergent.memory`'s `ToolPolicy` (`entity.go:313-323`). Same guarantee, but data
-  rather than a Go slice, and it composes with the staging spine. Keep the
-  defence-in-depth double enforcement the original proposal specifies.
-- **ADD** run/step audit rows for assistant turns, consistent with what AIM records,
-  so a bot-originated change is as traceable as a cycle-originated one. Byte-capped
-  with truncation recorded (invariant 6).
-
-### 6. Agent contract alignment
-
-- The bot SHALL be modelled as an **agent** under `docs/UNIFIED_AGENT_ARCHITECTURE.md`
-  §1, not as a bespoke "assistant" subsystem. Concretely: it and AIM differ in who
-  plans the chain, and in nothing else that should appear in the type system.
-- Where `establish-agent-contract` lands first, adopt its card/self-description
-  shape. Where this change lands first, do not invent a competing one — leave the
-  seam and let that change fill it.
+- **ADD** `delegation_chain` (JSONB, nullable) alongside the existing `CreatedBy` on
+  mutation rows, per `establish-agent-contract/design.md` §2. That change deferred
+  the migration to *"whichever change first has a real delegated call to prove it
+  against"* — this is it. `CreatedBy`'s semantics are unchanged, so every existing
+  reader keeps working.
+- **ADD** the end-to-end delegation proof (`establish-agent-contract` task 6):
+  discovery via card, invocation via transport, a staged change, review by the
+  initiating human — plus the mutation test that an agent attempting to commit is
+  refused.
+- **ADD** review-surface attribution: *"prepared by the authoring agent, on your
+  behalf"*.
+- **MODIFY** `internal/agentcard/authoringbot.go` from `Status: planned` to live, with
+  a real URL and version — and **generate it from running code** the way
+  `agentcard.AIM()` is generated from `CycleWorkflow.CycleSteps()`. It is currently
+  hand-authored from this proposal's own text, which its doc comment admits. Hand-
+  authored cards rot; that is `agent-contract` Requirement 1.
 
 ## Impact
 
-- Affected specs: `strategy-authoring` (sub-object patch primitive, MCP patch tool),
-  `strategy-web` (manual edit UI, assistant drawer), `strategy-mcp` (patch_artifact tool)
-- Affected code:
-  - New: `domain/assistant/` (orchestrator, tool registry, context builder, session store)
-  - Modified: `domain/strategy/service.go` (StagePatch + patch application/diff in BatchMetadata)
-  - Modified: `internal/handler/handler_artifact.go` (edit forms + patch POST handler),
-    `internal/handler/handler.go` (routes), new `internal/handler/handler_assistant.go`
-  - Modified: `internal/ui/` bespoke artifact views (edit affordances), new `assistant_drawer.templ`
-  - Modified: `internal/mcpserver/` (register `patch_artifact`)
-  - Modified: `internal/llm/client.go` only if a multi-turn `Chat([]ChatMessage)` entry
-    point and `tools`/function-calling support are not already sufficient
-- New migration: `assistant_conversations`, `assistant_messages` tables
-- No change to `strategy_artifacts` / `strategy_mutations` schema — payload remains the
-  persisted unit; patches are an authoring/diff layer
-- No breaking changes to existing MCP tools or APIs
+- **Affected specs:** `strategy-web` (assistant drawer), `strategy-authoring` (agent
+  write tools stage and never commit; delegation recorded).
+- **Affected code:** new agent package; new `internal/handler/handler_assistant.go`;
+  new assistant drawer templ; `internal/agentcard/authoringbot.go` (generated, live);
+  `domain/strategy` (delegation chain on staged mutations).
+- **Migration:** `delegation_chain` on mutation rows. No new conversation tables.
+- **Closes:** baseline open questions 3–5 (via `establish-agent-contract` tasks 6–7);
+  `establish-agent-contract` reaches 24/24.
 
-## Coordination with in-flight changes
+## Dependencies
 
-- **`add-operational-transparency`** introduces the skill run ledger, token
-  propagation, and activity events. The assistant's `propose_skill_run` tool and its
-  progress streaming SHOULD reuse that ledger and activity stream rather than add a
-  parallel mechanism. If that change is not yet merged, the assistant emits activity
-  events directly and adopts the ledger when available.
-- **`add-strategy-bootstrap-flow`** adds "Draft with AI" buttons and READY edit flows.
-  The manual sub-object edit primitive here is the lower-level mechanism those buttons
-  and the bootstrap drafts can stage through; this change provides the editing
-  substrate, bootstrap provides the genesis workflow.
+| Depends on | For | State |
+|---|---|---|
+| `add-artifact-patch-authoring` | `StagePatch` behind `propose_patch`; batch provenance for review attribution | Proposed |
+| `decide-authoring-agent-runtime` | The runtime decision, the tool-calling seam across both providers, bounded loop, invariant-4 tool-result handling | Proposed |
+| `establish-agent-contract` §1–5 | Card shape, self-model, federated-approval design, delegation transport | **Complete** |
+
+## Coordination — corrected
+
+The previous version hedged: *"if `add-operational-transparency` is not yet merged,
+the assistant emits activity events directly and adopts the ledger when available"*,
+and claimed `add-strategy-bootstrap-flow`'s "Draft with AI" buttons could stage
+through the patch primitive. Both statements are wrong, and the first has been wrong
+for three and a half months.
+
+- **`add-operational-transparency` shipped 2026-05-22** (commit `fc3bc42d`), in the
+  same commit as its own proposal — which is why its checkboxes were never ticked and
+  `openspec list` still reports `0/55`. The skill-run ledger (`domain/skillrun`,
+  migration `026`), token propagation, the MCP observability tools, the cascade
+  tracker and the client-side SSE wiring all exist. `propose_skill_run` gets ledger
+  integration **for free** by calling the executor, which already creates a run row
+  and emits `skill.*` events. Zero work. Its one unfinished task — batch provenance —
+  is absorbed by `add-artifact-patch-authoring`.
+- **`add-strategy-bootstrap-flow` shipped the same day** (commit `be2664f5`,
+  "groups 1-11"). But the coordination claim was wrong on the merits regardless: the
+  `draft-*` skills generate an artifact **from evidence where none exists**, so there
+  is no committed payload to patch. Whole-payload staging is correct for genesis;
+  patching is correct for surgical edits. They are complementary primitives on the
+  same staging spine, not layers. What they actually share — `strategy_mutations`,
+  `batch_id`, and the `/aim/draft-review/:batchID` gate — they already share.
+
+**"Complete but unfiled" is a state the dashboard cannot express, and it is worse
+than abandoned: abandoned work does not manufacture fake dependencies.** Both are
+being ticked and archived alongside this rewrite.
 
 ## Design Principles
 
-1. **One staging path.** AI edits, manual sub-object edits, and bootstrap drafts all
-   produce staged batches reviewed and committed through the same human gate. No edit
-   surface bypasses review.
-2. **Prepare, don't commit.** The assistant has no commit tool. It stages and returns
-   a review link. Humans commit.
-3. **Payload is the unit of storage; patches are the unit of authoring.** No schema or
-   storage migration for artifacts — patches apply in memory and re-stage the full,
-   re-validated payload.
-4. **Structure is sacred where canonical.** Canonical-derived structure (value-model
-   layers, track definition skeletons) stays read-only or activation-only; editing is
-   confined to human-authored content.
-5. **Graceful degradation.** No LLM configured → MockAssistant; the manual edit UI
-   works with no LLM at all.
+1. **It is an agent, not an assistant subsystem.** Under
+   `docs/UNIFIED_AGENT_ARCHITECTURE.md` §1 there is one agent type; this and AIM
+   differ in who plans the chain and in their write set, and in nothing else that
+   should appear in the type system. `internal/agentcard/card_test.go` already
+   asserts this structurally — the tests must keep passing once the card goes live.
+2. **Prepare, don't commit.** No commit tool. Stage and return a review reference.
+3. **One staging path.** Agent edits, manual edits and drafts share the same gate and
+   the same post-commit pipeline.
+4. **Tool results are not conversation history.** Artifact payloads go to storage; the
+   conversation carries a reference and a summary.
+5. **Graceful degradation.** No LLM configured → mock agent; manual editing from
+   `add-artifact-patch-authoring` works with no LLM at all.

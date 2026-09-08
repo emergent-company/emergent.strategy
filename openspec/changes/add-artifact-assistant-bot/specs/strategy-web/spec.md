@@ -1,64 +1,57 @@
 ## ADDED Requirements
 
-### Requirement: Manual Sub-object Editing
+### Requirement: Context-aware Artifact Authoring Agent
 
-The web UI SHALL allow users to edit individual sub-objects of an artifact (e.g. a
-belief, a value-model component, a KR) through scoped inline forms, without
-regenerating the whole artifact via AI. Editability SHALL be per-type and
-per-sub-object; canonical-derived structure SHALL remain read-only.
-
-#### Scenario: Edit an editable sub-object
-
-- **WHEN** a user opens the Edit affordance on an editable sub-object and submits changes
-- **THEN** the system builds a patch set and stages it via the sub-object patch primitive
-- **AND** the user is taken to the draft review screen to commit or discard
-
-#### Scenario: Read-only sub-object has no edit affordance
-
-- **WHEN** a sub-object is canonical-derived or otherwise marked read-only
-- **THEN** no Edit affordance is shown for it
-
-#### Scenario: List sub-object add/remove/reorder
-
-- **WHEN** a user adds, removes, or reorders an item in a list-typed sub-object
-- **THEN** the corresponding append/remove/insert patches are staged for review
-
-#### Scenario: Field-level diff at review
-
-- **WHEN** a patch batch reaches the draft review screen
-- **THEN** the screen shows a precise per-field diff derived from the batch metadata
-
-### Requirement: Context-aware Artifact Assistant
-
-The web UI SHALL provide a conversational assistant, available on artifact and phase
+The web UI SHALL provide a conversational agent, available on artifact and phase
 pages, that is aware of the current artifact and can prepare changes for human review.
-The assistant SHALL NOT commit changes.
+The agent SHALL NOT commit changes.
 
-#### Scenario: Assistant answers with artifact context
+#### Scenario: The agent is grounded in the current artifact
 
-- **WHEN** a user asks a question with an artifact open
-- **THEN** the assistant's response is grounded in the current artifact, its sub-objects,
-  linked evidence, and open signals injected into the system prompt
+- **WHEN** a user opens the agent on an artifact page and asks about that artifact
+- **THEN** the agent's answer reflects the current artifact, its sub-objects, its
+  linked evidence and its open signals
 
-#### Scenario: Assistant prepares a change
+#### Scenario: Grounding respects a budget
 
-- **WHEN** the user asks the assistant to modify the artifact
-- **THEN** the assistant stages a patch batch and returns an inline "Review change" link
-- **AND** the change is only applied after the user commits it
+- **WHEN** the material relevant to a turn exceeds the configured context ceiling
+- **THEN** the context is reduced to fit before the model is called
+- **AND** what was dropped is recorded
 
-#### Scenario: Assistant has no commit capability
+#### Scenario: The agent prepares a reviewable change
 
-- **WHEN** the assistant attempts any tool
-- **THEN** only allowlisted read and propose (staging) tools are available; no commit
-  tool exists for the assistant
+- **WHEN** a user asks the agent to change something and the agent acts
+- **THEN** a change is staged and the conversation shows a link to review it
+- **AND** nothing is applied to current state until the user commits
 
-#### Scenario: Conversation persists across restarts
+#### Scenario: The user can see what the agent is doing
+
+- **WHEN** the agent is working through a multi-step turn
+- **THEN** progress is visible in the UI as it happens, rather than only on completion
+
+#### Scenario: Conversations persist across restarts
 
 - **WHEN** the server restarts
 - **THEN** an existing conversation's messages are still available to the same user
 
-#### Scenario: Graceful degradation without an LLM
+#### Scenario: Conversations are isolated per user and organisation
 
-- **WHEN** no LLM is configured
-- **THEN** the assistant falls back to a deterministic keyword-routed mock, and the
-  manual sub-object editing UI continues to function
+- **WHEN** a user opens the agent
+- **THEN** they see only their own conversations within their own organisation
+
+#### Scenario: Graceful degradation without a language model
+
+- **WHEN** the server is running with no LLM provider configured
+- **THEN** the agent falls back to a deterministic mock
+- **AND** manual sub-object editing continues to function
+
+### Requirement: Agent-prepared Changes Are Attributed at Review
+
+The review surface SHALL show that a change was prepared by an agent, and on whose
+behalf, so that a reviewer can distinguish it from a change a human made directly.
+
+#### Scenario: An agent-prepared batch is labelled
+
+- **WHEN** a reviewer opens a batch staged by the authoring agent
+- **THEN** the review surface identifies the agent as its source and the human it acted
+  for
