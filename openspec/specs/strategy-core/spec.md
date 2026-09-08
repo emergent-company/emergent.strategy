@@ -1,5 +1,7 @@
 # Capability: strategy-core
 
+## Purpose
+
 Workspace and strategy instance lifecycle management. The foundational layer on which all
 other strategy-server capabilities are built.
 

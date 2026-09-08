@@ -1,5 +1,7 @@
 # Capability: strategy-scenarios
 
+## Purpose
+
 Primary user journey test scenarios. Each scenario must be completable via MCP tools
 (Phase 2 exit gate) and via the web UI (Phase 3 exit gate).
 

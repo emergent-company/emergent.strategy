@@ -1,5 +1,7 @@
 # Capability: strategy-semantic
 
+## Purpose
+
 Semantic graph integration via emergent.memory. Enables semantic search, graph traversal,
 contradiction detection, and what-if scenario exploration.
 

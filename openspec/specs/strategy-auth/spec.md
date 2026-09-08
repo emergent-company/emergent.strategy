@@ -1,5 +1,7 @@
 # Capability: strategy-auth
 
+## Purpose
+
 Authentication and authorisation for strategy-server. Multi-tenant from the first route.
 GitHub App OAuth is the identity provider.
 

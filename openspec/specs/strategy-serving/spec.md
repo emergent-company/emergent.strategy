@@ -1,5 +1,7 @@
 # Capability: strategy-serving
 
+## Purpose
+
 Read-only access to strategy content. These operations derive current state from the committed
 mutation ledger and expose it to AI agents, web clients, and MCP consumers.
 

@@ -1,5 +1,7 @@
 # Capability: EPF Semantic Strategy Engine
 
+## Purpose
+
 The semantic strategy engine treats EPF artifacts as a live semantic graph.
 Changes at any node propagate through the graph using tiered LLM reasoning,
 enabling real-time impact analysis, contradiction detection, and what-if
@@ -17,6 +19,8 @@ The engine consists of six packages in `apps/epf-cli/internal/`:
 | `reasoning` | Tiered LLM reasoning (Local/Cloud/Frontier) |
 | `propagation` | Propagation circuit with 4-layer protection |
 | `scenario` | What-if exploration via graph branching |
+
+## Requirements
 
 ### Requirement: Artifact Decomposition
 
