@@ -14,38 +14,64 @@ holding four database tables open ever since waiting for someone to actually dec
 
 The spike is throwaway. Its output is evidence, not code to keep.
 
-- [ ] 1.1 Build the smallest possible tool-calling round trip against **one** provider
+- [x] 1.1 Build the smallest possible tool-calling round trip against **one** provider
       (choose the OpenAI-compatible path — it is the cheaper half) with a hand-rolled
       loop: declare one tool, get a tool call back, execute it, feed the result back,
-      get a final answer. Measure the real line count, do not estimate it.
-- [ ] 1.2 Build the same round trip through ADK's `LlmAgent` with a `model.LLM`
-      written directly against that provider. Measure again.
-- [ ] 1.3 Record what each spike actually needed that the other did not. Distinguish
-      "ADK gave me this" from "ADK made me write this differently".
-- [ ] 1.4 Probe specifically whether ADK's out-of-order function-response history
+      get a final answer. Measure the real line count, do not estimate it. —
+      182 lines, run live against Google AI Studio's endpoint. Found a real,
+      previously unknown provider quirk on the first run (Gemini 3.5 requires
+      an opaque `thought_signature` echoed back on tool-call turns). See
+      `decision.md` §1–2.
+- [x] 1.2 Build the same round trip through ADK's `LlmAgent` with a `model.LLM`
+      written directly against that provider. Measure again. — 418 lines
+      (`model.go` 279 + `main.go` 93 + `agent.go` 46), same live endpoint.
+      `decision.md` §1.
+- [x] 1.3 Record what each spike actually needed that the other did not. Distinguish
+      "ADK gave me this" from "ADK made me write this differently". —
+      `decision.md`'s capability scorecard. The 2.3× line-count delta is
+      entirely the genai↔wire translation layer, not the loop itself.
+- [x] 1.4 Probe specifically whether ADK's out-of-order function-response history
       rearrangement (`internal/llminternal/contents_processor.go:161,166`) and
       function-call ID synthesis (`internal/utils/utils.go:37-65`) matter for our
       shape, or only for parallel/async tool use we will not have. These are the
-      strongest claimed ADK benefits — test the claim rather than repeating it.
-- [ ] 1.5 Confirm or refute the proposal's reframing: **does the authoring bot need
+      strongest claimed ADK benefits — test the claim rather than repeating it. —
+      Both confirmed inert by direct source reading: the rearrangement
+      functions early-return unchanged whenever a response immediately
+      follows its call (our synchronous shape, always); ID synthesis only
+      fires on an empty provider-returned ID (never observed; structurally
+      required by all three wire formats). `decision.md` §4.
+- [x] 1.5 Confirm or refute the proposal's reframing: **does the authoring bot need
       mid-turn HITL at all**, given the human gate is an out-of-band batch review?
       If it does not, ADK's confirmation protocol — its strongest single advantage —
-      is not a benefit for this agent. Answer with a worked flow, not an opinion.
+      is not a benefit for this agent. Answer with a worked flow, not an opinion. —
+      Confirmed via a worked 4-step flow: `propose_patch` executes
+      synchronously and returns a review link in the same turn; no
+      suspension occurs anywhere. `decision.md` §5.
 
 ## 2. Decide and record
 
-- [ ] 2.1 Write `decision.md` with explicit criteria and the evidence from section 1.
+- [x] 2.1 Write `decision.md` with explicit criteria and the evidence from section 1.
       Follow `harden-aim-execution/decision.md`'s shape, including its drift-log
-      discipline.
-- [ ] 2.2 State what would reverse the decision. A decision with no reversal
-      condition is a preference.
-- [ ] 2.3 Update `docs/UNIFIED_AGENT_ARCHITECTURE.md` open question 6 with the outcome
+      discipline. — `decision.md`. **Decision: hand-rolled loop, not ADK's
+      `LlmAgent`** — reverses this proposal's own working hypothesis, recorded
+      as a reversal rather than a quiet correction.
+- [x] 2.2 State what would reverse the decision. A decision with no reversal
+      condition is a preference. — `decision.md`'s four revisit triggers:
+      a write tool needing genuine pre-execution approval; genuine parallel
+      slow tool calls in one turn; in-loop sub-agent delegation; the
+      conversation store (2.4) needing more of ADK's session semantics than
+      expected.
+- [x] 2.3 Update `docs/UNIFIED_AGENT_ARCHITECTURE.md` open question 6 with the outcome
       and a link. Do not leave the baseline stating an open question that is closed —
-      that is drift-log error 2 in the making.
-- [ ] 2.4 If the decision is against ADK, say plainly in `decision.md` what happens to
+      that is drift-log error 2 in the making. — Done; see the doc's §8.
+- [x] 2.4 If the decision is against ADK, say plainly in `decision.md` what happens to
       `internal/adk.SessionStore` and the four `adk_*` tables migration 039 retained,
       and open a follow-up to drop them. Leaving them is how the estate accumulates
-      load-bearing-looking dead code.
+      load-bearing-looking dead code. — `decision.md`'s "What happens to
+      `internal/adk`" section: `adksession.Service` has no caller once the bot
+      doesn't run `LlmAgent`/`runner`. Two options recorded (repoint vs.
+      replace), deliberately not decided here — that needs the actual
+      conversation schema design, which is bot task 3, not this spike.
 
 ## 3. Tool-calling seam — shared types
 

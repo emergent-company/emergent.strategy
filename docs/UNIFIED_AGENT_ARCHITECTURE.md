@@ -396,9 +396,37 @@ Numbered so they can be cited and closed individually.
    MCP, and `mcptoolset` then makes a remote agent's tools appear locally for free.
    Nobody has an MCP client or an HTTP MCP server today.
 5. **Federated approval and identity propagation.** §3.3. The genuinely unsolved one.
-6. **Does the authoring bot use ADK's `LlmAgent` or a hand-rolled loop?** Now a real
-   choice: `emergent.memory` proves the ADK path works for this shape, at the cost of
-   a version pin.
+6. **CLOSED (2026-09-08) — Does the authoring bot use ADK's `LlmAgent` or a
+   hand-rolled loop?** `openspec/changes/decide-authoring-agent-runtime/decision.md`:
+   **hand-rolled loop.** Not a desk comparison — both options were built as real,
+   running round trips against the same live provider. The working hypothesis
+   going in (adopt ADK, write `model.LLM` directly per provider, to avoid a
+   third lossy translation hop and reuse the conformance-tested
+   `internal/adk.SessionStore`) is reversed by the result: the ADK path cost
+   2.3× the code for an identical round trip (418 vs. 182 lines), with the
+   entire delta being the genai↔wire translation layer, not the loop itself —
+   the opposite of what "avoids a lossy hop" predicted. Two of ADK's three
+   most-cited advantages (out-of-order function-response rearrangement,
+   function-call ID synthesis) were confirmed dormant for this bot's
+   synchronous, well-behaved-provider shape by reading the source, not by
+   assumption. The third and strongest — mid-turn HITL confirmation — was
+   confirmed unnecessary by a worked flow: this bot's writes are synchronous
+   `Stage` calls that return a review link in the same turn, so nothing is
+   ever suspended. This does **not** contradict `emergent.memory`'s own choice
+   of ADK — their tools wrap remote services with real latency, some mutate
+   state directly and need pre-execution confirmation, and they run long-lived
+   sub-agents; none of that is true of this bot's shape. Per drift-log entry 3:
+   per-repo adoption decisions are evaluated on their own shape, not on another
+   repo's precedent. One real ADK asset (`internal/adk.SessionStore`,
+   already conformance-tested) is not carried over automatically — its fate
+   (repoint vs. replace) is deferred to the bot's own conversation-schema task,
+   since the interface it implements has no caller once `LlmAgent`/`runner`
+   aren't in the loop. A genuine new finding surfaced by the spike, independent
+   of which side won: Gemini 3.x's OpenAI-compatible endpoint requires an
+   opaque `thought_signature` blob to be echoed back on every tool-call turn or
+   the second round 400s — folded into the provider-seam scope
+   (`decide-authoring-agent-runtime` tasks 3–6) rather than left as a surprise
+   for whoever builds it.
 7. **Compaction policy** — does `emergent.memory`'s tuning (80% trigger / 75% target /
    30% anti-thrash) generalise, or only the two-phase shape?
 8. **Does `ToolPolicy` become the estate-wide write-gating primitive,** and is it

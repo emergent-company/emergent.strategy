@@ -82,6 +82,16 @@ the work, which is why the decision needs re-deriving rather than inheriting.
   for `skillexec`'s 30 one-shot JSON skills, and makes the already
   conformance-tested `internal/adk.SessionStore` immediately useful.
 - The record must state what would reverse it.
+- **Outcome (2026-09-08): reversed.** The spike (`tasks.md` §1) measured this
+  hypothesis against a hand-rolled loop with a real, running round trip against
+  the live provider on both sides, not a desk comparison. The hand-rolled loop
+  won on the only two things that turned out to matter for this bot's shape:
+  it costs 2.3× less code for an identical round trip (182 vs. 418 lines, the
+  entire delta being the genai↔wire translation layer ADK requires and
+  hand-rolled does not), and the strongest cited ADK advantage — mid-turn HITL
+  confirmation — is confirmed, by a worked flow, not needed at all, because
+  this bot's writes are synchronous `Stage` calls that never need
+  pre-execution approval. Full reasoning: `decision.md`.
 
 ### 2. Build the tool-calling seam
 
