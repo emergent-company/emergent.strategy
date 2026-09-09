@@ -552,7 +552,11 @@ authority tier, and runs a convergence loop to reach equilibrium.
 4. If equilibrium is reached with changes, an auto-published version snapshot is created
 
 **Authority tiers:**
-- `autonomous` — trivial/minor changes (high semantic similarity). Auto-resolvable.
+- `autonomous` — trivial/minor changes (high semantic similarity). The resolver
+  drafts a fix and **stages** it (as of `fix-ripple-autonomous-autocommit`) —
+  it does not commit directly. Prior to that change this tier committed with
+  no human review at all whenever a `SignalResolver` was configured; that was
+  a live gap, not intended behavior — see the change's `proposal.md`.
 - `gated` — significant changes. Require human `commit_batch` approval.
 - `escalated` — major changes. Require human review with blast radius acknowledgment.
 
@@ -619,11 +623,15 @@ Enterprise sales (higher natural tension between Product and Commercial):
 ```
 
 **Dual-mode operation:**
-- **Agent-orchestrated** (default, MCP clients): The convergence loop detects
-  and classifies signals. The AI agent sees the `convergence_summary` in the
-  `commit_batch` response and drives resolution via subsequent MCP calls.
-- **Server-orchestrated** (future, web UI): An LLM provider is configured and
-  the convergence loop autonomously resolves low-authority signals.
+- **Agent-orchestrated** (no LLM provider configured): The convergence loop
+  detects and classifies signals only. The AI agent sees the
+  `convergence_summary` in the `commit_batch` response and drives resolution
+  via subsequent MCP calls.
+- **Server-orchestrated** (an LLM provider is configured — this is not a
+  future/Phase-4 mode, it is live today, gated only on `LLM_AUTH_MODE` being
+  set, independent of web UI phase): the convergence loop drafts and **stages**
+  fixes for low-authority signals for human review, rather than applying them
+  directly.
 
 ### Strategy Versioning Workflow
 

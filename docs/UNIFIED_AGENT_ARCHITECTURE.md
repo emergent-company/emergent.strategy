@@ -256,6 +256,20 @@ Shared invariants, honoured everywhere without coordination:
 **This is the spine.** It is the highest-confidence shared concept in the estate and
 should be the anchor of any unification, ahead of any runtime choice.
 
+**Correction (2026-09-09):** "honoured everywhere" was overclaimed. Strategy-server's
+own Ripple Coherence Engine was a standing counterexample — its convergence loop
+would commit an LLM-generated fix directly to a live artifact with no staging and no
+human review whenever a signal was classified `autonomous`
+(`domain/ripple/convergence.go:resolveAutonomousSignal` → `CommitAuto`), live and
+wired by default whenever an LLM provider is configured, not gated behind any
+feature flag. That classification was itself score-based (Memory similarity or
+word-overlap), which is provably unable to distinguish a trivial edit from a
+meaning-inverting one — worse than "the agent commits," since here nothing but the
+server itself was in the loop at all. Fixed in
+`openspec/changes/fix-ripple-autonomous-autocommit`, which routes it through the
+same staging primitive as everything else. Recorded here per this project's
+drift-log discipline rather than silently correcting the original claim.
+
 For strategy-server specifically, it is also load-bearing operationally: an edit that
 goes through the staging spine inherits the whole downstream chain for free —
 `commit_batch` → post-commit pipeline → ripple analysis → heartbeat → `CycleProposal`
