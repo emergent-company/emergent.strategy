@@ -1,15 +1,32 @@
 // Package mcpserver — tool category filter.
 //
-// With 120+ MCP tools, sending the full list on every tools/list response
+// With 150+ MCP tools, sending the full list on every tools/list response
 // bloats LLM context windows. This filter groups tools into categories and
 // only exposes a small "core" set by default. Clients call
 // list_tool_categories to see what's available and set_tool_filter to
-// activate a category. The server sends a tools/list_changed notification
-// so the client re-fetches the now-scoped tool list.
+// activate a category. The server then sends a tools/list_changed
+// notification so the client re-fetches the now-scoped tool list.
+//
+// # This is a context-window optimisation, NOT an authorization boundary
+//
+// The filter shapes tools/list and nothing else. Every registered tool stays
+// invocable via tools/call regardless of which categories are active — mcp-go
+// consults ToolFilterFunc only in its list handler, never in its call handler.
+// Do not rely on an inactive category to keep a tool unreachable; enforce
+// access in internal/web middleware and in the tool handlers themselves.
+//
+// That invocable-but-unadvertised state used to be a silent trap: a client
+// could successfully call a tool it had never been shown, and therefore had
+// no argument schema for, so it guessed the arguments and failed validation
+// (reported by opencode-harness against validate_instance). autoActivate
+// closes that: calling a tool from an inactive category activates that
+// category for the session and emits tools/list_changed, so the very next
+// tools/list carries the schema. The call itself is never blocked.
 package mcpserver
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -37,19 +54,20 @@ const (
 // ToolCategories maps every tool name to its category.
 var ToolCategories = map[string]string{
 	// ── Core (always visible) ───────────────────────────────────────────
-	"get_agent_for_task":   CategoryCore,
-	"list_workspaces":      CategoryCore,
-	"get_workspace":        CategoryCore,
-	"list_instances":       CategoryCore,
-	"get_instance":         CategoryCore,
-	"health_check":         CategoryCore,
-	"commit_batch":         CategoryCore,
-	"discard_batch":        CategoryCore,
-	"list_pending_batches": CategoryCore,
-	"describe_batch":       CategoryCore,
-	"search_strategy":      CategoryCore,
-	"list_tool_categories": CategoryCore,
-	"set_tool_filter":      CategoryCore,
+	"get_agent_for_task":    CategoryCore,
+	"list_workspaces":       CategoryCore,
+	"get_workspace":         CategoryCore,
+	"list_instances":        CategoryCore,
+	"get_instance":          CategoryCore,
+	"find_instance_by_repo": CategoryCore,
+	"health_check":          CategoryCore,
+	"commit_batch":          CategoryCore,
+	"discard_batch":         CategoryCore,
+	"list_pending_batches":  CategoryCore,
+	"describe_batch":        CategoryCore,
+	"search_strategy":       CategoryCore,
+	"list_tool_categories":  CategoryCore,
+	"set_tool_filter":       CategoryCore,
 
 	// ── Strategy reads ──────────────────────────────────────────────────
 	"get_strategy_context":              CategoryStrategy,
@@ -178,6 +196,9 @@ var ToolCategories = map[string]string{
 	"import_from_github":        CategoryAdmin,
 	"get_sync_state":            CategoryAdmin,
 	"update_instance":           CategoryAdmin,
+	"list_consumer_repos":       CategoryAdmin,
+	"register_consumer_repo":    CategoryAdmin,
+	"unregister_consumer_repo":  CategoryAdmin,
 	"list_github_installations": CategoryAdmin,
 	"scan_github_repos":         CategoryAdmin,
 
@@ -250,55 +271,87 @@ var CategoryOrder = []string{
 // ---------------------------------------------------------------------------
 
 // toolFilterState holds the active category filters per session.
+//
+// One instance is created per MCPServer (see newToolFilterState), so two
+// servers in the same process — for example the live server and
+// NewMCPServerForIntrospection — never share filter state.
 type toolFilterState struct {
 	mu         sync.RWMutex
 	categories map[string]map[string]bool // sessionID → set of active categories
 }
 
-var filterState = &toolFilterState{
-	categories: make(map[string]map[string]bool),
+func newToolFilterState() *toolFilterState {
+	return &toolFilterState{categories: make(map[string]map[string]bool)}
 }
 
 // setCategories replaces the active categories for a session.
 func (s *toolFilterState) setCategories(sessionID string, cats []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	m := make(map[string]bool, len(cats))
+	m := make(map[string]bool, len(cats)+1)
 	for _, c := range cats {
 		m[c] = true
 	}
+	m[CategoryCore] = true
 	s.categories[sessionID] = m
 }
 
-// getCategories returns the active categories for a session.
-// Returns nil if no filter is set (= show only core).
-func (s *toolFilterState) getCategories(sessionID string) map[string]bool {
+// activate adds a single category to a session's active set, creating the set
+// if the session has not called set_tool_filter yet. It reports whether this
+// actually changed anything, so callers only announce a real change.
+func (s *toolFilterState) activate(sessionID, category string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.categories[sessionID]
+	if m == nil {
+		m = map[string]bool{CategoryCore: true}
+		s.categories[sessionID] = m
+	}
+	if m[category] {
+		return false
+	}
+	m[category] = true
+	return true
+}
+
+// forget drops a session's filter state. Without this the map grows for the
+// lifetime of the process, since sessions are keyed by a per-connection UUID.
+func (s *toolFilterState) forget(sessionID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.categories, sessionID)
+}
+
+// activeCategories returns a copy of the session's active category set, with
+// core always included. It must return a copy: callers mutate the result, and
+// handing out the stored map under a released read lock is a concurrent map
+// write (two simultaneous tools/list on one session used to crash the server).
+func (s *toolFilterState) activeCategories(sessionID string) map[string]bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.categories[sessionID]
+
+	stored := s.categories[sessionID]
+	out := make(map[string]bool, len(stored)+1)
+	for c := range stored {
+		out[c] = true
+	}
+	// Default and floor: core is always visible.
+	out[CategoryCore] = true
+	return out
 }
 
 // ---------------------------------------------------------------------------
 // Tool filter function — passed to server.WithToolFilter
 // ---------------------------------------------------------------------------
 
-// toolCategoryFilter is the WithToolFilter callback. It scopes the tool list
-// to the core set plus any categories the session has activated.
-func toolCategoryFilter(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
-	// Get session ID from context
-	session := server.ClientSessionFromContext(ctx)
-	var activeCats map[string]bool
-	if session != nil {
-		activeCats = filterState.getCategories(session.SessionID())
+// filterTools is the WithToolFilter callback. It scopes the tool list to the
+// core set plus any categories the session has activated.
+func (s *toolFilterState) filterTools(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
+	sessionID := ""
+	if session := server.ClientSessionFromContext(ctx); session != nil {
+		sessionID = session.SessionID()
 	}
-
-	// If no filter set, show only core tools (default — minimal context)
-	if len(activeCats) == 0 {
-		activeCats = map[string]bool{CategoryCore: true}
-	}
-
-	// Always include core
-	activeCats[CategoryCore] = true
+	activeCats := s.activeCategories(sessionID)
 
 	var filtered []mcp.Tool
 	for _, tool := range tools {
@@ -316,6 +369,65 @@ func toolCategoryFilter(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
 }
 
 // ---------------------------------------------------------------------------
+// Auto-activation — closes the invocable-but-unadvertised discovery trap
+// ---------------------------------------------------------------------------
+
+// autoActivate returns a tool-handler middleware that activates a tool's
+// category for the calling session before running the tool.
+//
+// It never blocks a call. The filter is a context-window optimisation, not an
+// authorization boundary (see the package doc), so the only thing to fix here
+// is discovery: once a client has demonstrably used a category, keeping that
+// category hidden from its tools/list serves no purpose and costs it the
+// argument schemas.
+//
+// srv is resolved lazily because the middleware is a construction-time option
+// and therefore has to be built before the server it notifies exists.
+func (s *toolFilterState) autoActivate(srv func() *server.MCPServer) server.ToolHandlerMiddleware {
+	return func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
+		return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			s.noteToolUse(ctx, srv, req.Params.Name)
+			return next(ctx, req)
+		}
+	}
+}
+
+func (s *toolFilterState) noteToolUse(ctx context.Context, srv func() *server.MCPServer, toolName string) {
+	cat, ok := ToolCategories[toolName]
+	if !ok || cat == CategoryCore {
+		return
+	}
+	session := server.ClientSessionFromContext(ctx)
+	if session == nil {
+		return
+	}
+	if !s.activate(session.SessionID(), cat) {
+		return // already active — nothing changed, so announce nothing
+	}
+
+	slog.DebugContext(ctx, "tool filter: auto-activated category for session",
+		"category", cat, "tool", toolName, "session_id", session.SessionID())
+
+	s.announceToolListChanged(ctx, srv)
+}
+
+// announceToolListChanged tells the calling client its tool list has changed.
+// Delivery is best-effort: a client that never upgraded to an SSE stream has
+// nowhere to receive notifications, which is normal and not an error here.
+func (s *toolFilterState) announceToolListChanged(ctx context.Context, srv func() *server.MCPServer) {
+	if srv == nil {
+		return
+	}
+	mcpSrv := srv()
+	if mcpSrv == nil {
+		return
+	}
+	if err := mcpSrv.SendNotificationToClient(ctx, mcp.MethodNotificationToolsListChanged, nil); err != nil {
+		slog.DebugContext(ctx, "tool filter: tools/list_changed not delivered", "err", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Category info helpers
 // ---------------------------------------------------------------------------
 
@@ -329,11 +441,8 @@ type CategoryInfo struct {
 
 // buildCategoryList returns the full category listing with tool counts and
 // active status for the given session.
-func buildCategoryList(sessionID string) []CategoryInfo {
-	activeCats := filterState.getCategories(sessionID)
-	if len(activeCats) == 0 {
-		activeCats = map[string]bool{CategoryCore: true}
-	}
+func (s *toolFilterState) buildCategoryList(sessionID string) []CategoryInfo {
+	activeCats := s.activeCategories(sessionID)
 
 	// Count tools per category
 	counts := make(map[string]int)

@@ -296,7 +296,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
   service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
-- **2c (Tool parity):** Complete — 153 MCP tools, agent routing, knowledge base
+- **2c (Tool parity):** Complete — 157 MCP tools, agent routing, knowledge base
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
@@ -340,7 +340,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (40 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (42 migrations) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -443,8 +443,8 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations (41), `TestDB(t)`, `TestDBWithDSN(t)` |
-| `internal/mcpserver/` | 153 MCP tools across ~14 registration files, tool category filter (14 categories) |
+| `internal/database/` | DB connection, migrations (42), `TestDB(t)`, `TestDBWithDSN(t)` |
+| `internal/mcpserver/` | 157 MCP tools across ~14 registration files, tool category filter (14 categories) |
 | `internal/selfmodel/` | Generates the published self-model (tool catalogue, EPF phases/artifacts, navigation) from live sources — never hand-copied. `cmd/genselfmodel` regenerates the committed `self-model.json` |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
 | `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
@@ -468,7 +468,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 ### Database migrations
 
-40 migrations in `internal/database/migrations/`:
+42 migrations in `internal/database/migrations/`:
 
 | Migration | Purpose |
 |-----------|---------|
@@ -512,11 +512,29 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `038_dbos_foundation.sql` | `dbos` schema + `aim_cycle_runs` — DBOS-backed engine's cross-run bookkeeping |
 | `039_drop_adk_tables.sql` | Drops `adk_run_metadata` (AIM's own table) on the ADK→DBOS cutover; keeps `adk_sessions` and friends, which back the unrelated, still-generic `internal/adk.SessionStore` |
 | `040_aim_cycle_runs_replan.sql` | `replan_requested` flag backing `DBOSEngine.Replan`'s mid-cycle re-plan signal |
+| `041_aim_cycle_runs_dbos_workflow_id.sql` | `dbos_workflow_id` on `aim_cycle_runs` |
+| `042_instance_consumer_repos.sql` | `instance_consumer_repos` — repos that *consume* an instance (submodule mounts), distinct from `strategy_instances.github_repo`, which is its single *home* (sync source and AIM push target) |
+
+### Home repo vs consumer repos — do not conflate these
+
+`strategy_instances.github_repo` is the instance's **source of truth**:
+`domain/sync` imports EPF YAML from it and AIM auto-push opens pull requests
+against it. It is one value because there can only be one source.
+
+Consumption is many-to-one — an instance is mounted as a submodule into
+sibling repos — and lives in `instance_consumer_repos`. Use
+`register_consumer_repo`, never `update_instance`, to make a repo
+discoverable. Writing a consumer's slug into `github_repo` silently retargets
+sync and AIM auto-push at that repo; that is not hypothetical, it is what
+happened to the "Emergent Strategy" instance before migration 042.
+
+`find_instance_by_repo` searches both and reports `match_type` as `home` or
+`consumer`, so callers can tell which relationship they have.
 
 ## MCP Server
 
-The server exposes 153 MCP tools at `/mcp`, organized into 14 categories with
-context-aware filtering. By default only 13 core tools are visible; clients
+The server exposes 157 MCP tools at `/mcp`, organized into 14 categories with
+context-aware filtering. By default only 14 core tools are visible; clients
 call `list_tool_categories` and `set_tool_filter` to activate additional categories.
 Counts below are verified against `internal/mcpserver.ToolCategories` directly
 (also published live at `GET /.well-known/strategy-server-selfmodel.json`),
@@ -524,7 +542,7 @@ not maintained by hand in this table.
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| core | 13 | `get_agent_for_task`, `list_workspaces`, `health_check`, `commit_batch`, `search_strategy` |
+| core | 14 | `get_agent_for_task`, `list_workspaces`, `find_instance_by_repo`, `health_check`, `commit_batch`, `search_strategy` |
 | strategy | 12 | `get_product_vision`, `get_personas`, `get_roadmap`, `get_coverage_analysis` |
 | features | 16 | `create_feature`, `update_feature`, `list_artifacts`, `add_relationship` |
 | authoring | 6 | `update_north_star`, `update_strategy_formula`, `update_roadmap` |
@@ -534,7 +552,7 @@ not maintained by hand in this table.
 | evidence | 5 | `ingest_evidence`, `list_evidence`, `get_evidence`, `update_evidence`, `link_evidence` |
 | semantic | 6 | `detect_contradictions`, `get_neighbors`, `run_scenario` |
 | validation | 8 | `validate_artifact`, `validate_with_plan`, `export_report` |
-| admin | 26 | `scaffold_instance`, `publish_version`, `sync_to_github`, `import_from_github`, `update_instance`, `get_sync_state`, `create_org` |
+| admin | 29 | `scaffold_instance`, `publish_version`, `sync_to_github`, `update_instance`, `register_consumer_repo`, `list_consumer_repos`, `create_org` |
 | knowledge | 10 | `list_schemas`, `get_template`, `get_agent`, `get_skill` |
 | packs | 11 | `install_pack`, `run_skill`, `run_app`, `scaffold_skill` |
 | observability | 9 | `list_activities`, `list_skill_runs`, `get_llm_usage`, `list_cycle_proposals` |

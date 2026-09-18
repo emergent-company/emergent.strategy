@@ -129,16 +129,31 @@ type HeartbeatService interface {
 // one — see NewMCPServerForIntrospection's doc comment for why that
 // matters.
 func NewMCPServer(svc Services) *server.MCPServer {
-	s := server.NewMCPServer(
+	filterState := newToolFilterState()
+
+	// The tool-handler middleware and the unregister hook both need the server
+	// they belong to, but both are construction-time options. s is captured by
+	// reference and read only from callbacks that fire after construction.
+	var s *server.MCPServer
+	serverRef := func() *server.MCPServer { return s }
+
+	hooks := &server.Hooks{}
+	hooks.AddOnUnregisterSession(func(_ context.Context, session server.ClientSession) {
+		filterState.forget(session.SessionID())
+	})
+
+	s = server.NewMCPServer(
 		"strategy-server",
 		"1.0.0",
 		server.WithToolCapabilities(true),
 		server.WithPromptCapabilities(true),
 		server.WithInstructions(agent.ServerInstructions()),
-		server.WithToolFilter(toolCategoryFilter),
+		server.WithToolFilter(filterState.filterTools),
+		server.WithToolHandlerMiddleware(filterState.autoActivate(serverRef)),
+		server.WithHooks(hooks),
 	)
 
-	registerToolFilterTools(s)
+	registerToolFilterTools(s, filterState, serverRef)
 	registerWorkspaceReadTools(s, svc)
 	registerInstanceReadTools(s, svc)
 	registerArtifactContextTools(s, svc)
@@ -177,7 +192,7 @@ func New(svc Services) http.Handler {
 }
 
 // registerToolFilterTools registers the meta-tools for category-based tool filtering.
-func registerToolFilterTools(s *server.MCPServer) {
+func registerToolFilterTools(s *server.MCPServer, filterState *toolFilterState, serverRef func() *server.MCPServer) {
 	// list_tool_categories — shows all categories with tool counts and active status
 	s.AddTool(
 		mcp.NewTool("list_tool_categories",
@@ -188,7 +203,7 @@ func registerToolFilterTools(s *server.MCPServer) {
 			if session := server.ClientSessionFromContext(ctx); session != nil {
 				sessionID = session.SessionID()
 			}
-			categories := buildCategoryList(sessionID)
+			categories := filterState.buildCategoryList(sessionID)
 			raw, err := json.Marshal(categories)
 			if err != nil {
 				// MCP convention: surface tool-level failures via the result, not
@@ -227,25 +242,29 @@ func registerToolFilterTools(s *server.MCPServer) {
 
 			filterState.setCategories(session.SessionID(), categoryNames)
 
-			activeCount := 0
-			for _, name := range categoryNames {
-				for _, cat := range ToolCategories {
-					if cat == name {
-						activeCount++
-					}
-				}
-			}
-			// Always add core count
+			// The tool list this client sees just changed. Announce it —
+			// the package doc and this tool's contract have always promised
+			// a tools/list_changed notification here, and until now none was
+			// ever sent, leaving clients to guess that they should re-poll.
+			filterState.announceToolListChanged(ctx, serverRef)
+
+			// Count from the resulting active set rather than from the
+			// request. The previous arithmetic added core on top of
+			// categoryNames unconditionally, so "all" (which already
+			// contains core) reported 15 categories and ~166 tools when the
+			// real answer is 14 and 153 — a number an agent may well act on.
+			active := filterState.activeCategories(session.SessionID())
+			toolCount := 0
 			for _, cat := range ToolCategories {
-				if cat == CategoryCore {
-					activeCount++
+				if active[cat] {
+					toolCount++
 				}
 			}
 
 			return mcp.NewToolResultText(fmt.Sprintf(
 				langs.T(ctx, "mcp.tool_filter.updated"),
-				len(categoryNames)+1, // +1 for core
-				activeCount,
+				len(active),
+				toolCount,
 			)), nil
 		},
 	)
@@ -381,6 +400,8 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 		return mustJSON(inst)
 	})
 
+	registerFindInstanceByRepoTool(s, svc)
+
 	s.AddTool(mcp.NewTool("health_check",
 		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
@@ -492,6 +513,48 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 // ---------------------------------------------------------------------------
 // Read tools — strategy artifacts (context views)
 // ---------------------------------------------------------------------------
+
+// registerFindInstanceByRepoTool exposes repo → instance lookup.
+//
+// It is a core tool, alongside list_instances/get_instance, because it is the
+// entry point for a client that knows only which repository it is running in.
+// Requiring a workspace_id first — which meant list_workspaces, match on
+// github_owner, list_instances, then filter client-side — made every consumer
+// reimplement the same four-step lookup, and opencode-harness asked for this
+// rather than build a fifth copy of it.
+func registerFindInstanceByRepoTool(s *server.MCPServer, svc Services) {
+	s.AddTool(mcp.NewTool("find_instance_by_repo",
+		mcp.WithDescription("USE WHEN you know a GitHub repository and need the strategy instance(s) it uses. Searches both the instance's home repo and registered consumer repos. Returns a list — a repo can legitimately map to more than one instance."),
+		mcp.WithString("github_repo", mcp.Required(), mcp.Description("Repository slug, e.g. emergent-company/opencode-harness")),
+		mcp.WithString("base_path", mcp.Description("Optional path within the repo where the instance is mounted, e.g. docs/EPF/_instances/emergent. Omit to match any mount point.")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		repo := argString(req, "github_repo")
+		basePath := argString(req, "base_path")
+
+		matches, err := svc.Instance.FindByRepo(ctx, repo, basePath)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		// This lookup is not workspace-scoped, so access has to be applied
+		// per result rather than once up front. Inaccessible instances are
+		// dropped silently — reporting them would leak their existence.
+		visible := make([]instance.RepoMatch, 0, len(matches))
+		for _, m := range matches {
+			if err := assertInstanceAccess(ctx, svc, m.Instance.ID); err != nil {
+				continue
+			}
+			visible = append(visible, m)
+		}
+
+		return mustJSON(map[string]any{
+			"github_repo": repo,
+			"base_path":   basePath,
+			"matches":     visible,
+			"count":       len(visible),
+		})
+	})
+}
 
 func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("get_strategy_context",

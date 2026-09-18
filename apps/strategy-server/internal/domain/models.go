@@ -61,6 +61,26 @@ type StrategyInstance struct {
 	Workspace *Workspace `bun:"rel:belongs-to,join:workspace_id=id" json:"workspace,omitempty"`
 }
 
+// InstanceConsumerRepo records a repository that consumes a strategy instance
+// — typically by mounting it as a git submodule at BasePath.
+//
+// This is distinct from StrategyInstance.GithubRepo, which is the instance's
+// single home: the repo sync imports from and pushes to. Consumption is
+// many-to-one, so it needs its own rows. Writing a consumer's slug into
+// GithubRepo instead repoints GitHub sync and AIM auto-push at that consumer.
+type InstanceConsumerRepo struct {
+	bun.BaseModel `bun:"table:instance_consumer_repos,alias:icr"`
+
+	ID         uuid.UUID  `bun:"id,pk,type:uuid,default:gen_random_uuid()" json:"id"`
+	InstanceID uuid.UUID  `bun:"instance_id,notnull,type:uuid"             json:"instance_id"`
+	GithubRepo string     `bun:"github_repo,notnull"                       json:"github_repo"`
+	BasePath   string     `bun:"base_path,notnull"                         json:"base_path"`
+	Note       *string    `bun:"note"                                      json:"note,omitempty"`
+	CreatedBy  *uuid.UUID `bun:"created_by,type:uuid"                      json:"created_by,omitempty"`
+	CreatedAt  time.Time  `bun:"created_at,notnull,default:now()"          json:"created_at"`
+	UpdatedAt  time.Time  `bun:"updated_at,notnull,default:now()"          json:"updated_at"`
+}
+
 // StrategyMutation is an append-only record of every strategy artifact change.
 // Current state is derived by reading strategy_artifacts (populated on commit).
 type StrategyMutation struct {

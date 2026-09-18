@@ -120,7 +120,7 @@ func (c *mcpClient) call(id int, toolName string, args map[string]any) toolResul
 			IsError bool `json:"isError"`
 		} `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
+	if err := json.Unmarshal(jsonRPCPayload(raw), &envelope); err != nil {
 		c.t.Fatalf("tool %s: parse envelope: %v\nbody: %s", toolName, err, raw)
 	}
 	if len(envelope.Result.Content) == 0 {
@@ -165,7 +165,7 @@ func (c *mcpClient) listTools() []string {
 			} `json:"tools"`
 		} `json:"result"`
 	}
-	json.Unmarshal(raw, &envelope) //nolint:errcheck
+	json.Unmarshal(jsonRPCPayload(raw), &envelope) //nolint:errcheck
 	names := make([]string, len(envelope.Result.Tools))
 	for i, t := range envelope.Result.Tools {
 		names[i] = t.Name

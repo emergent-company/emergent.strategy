@@ -8,7 +8,7 @@
     {
       "name": "core",
       "description": "Always visible — routing, instance lookup, batch management, search",
-      "tool_count": 13
+      "tool_count": 14
     },
     {
       "name": "strategy",
@@ -58,7 +58,7 @@
     {
       "name": "admin",
       "description": "Workspace, org, instance, version, and GitHub sync management",
-      "tool_count": 26
+      "tool_count": 29
     },
     {
       "name": "knowledge",
@@ -940,6 +940,27 @@
         },
         "required": [
           "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "find_instance_by_repo",
+      "description": "USE WHEN you know a GitHub repository and need the strategy instance(s) it uses. Searches both the instance's home repo and registered consumer repos. Returns a list — a repo can legitimately map to more than one instance.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "base_path": {
+            "description": "Optional path within the repo where the instance is mounted, e.g. docs/EPF/_instances/emergent. Omit to match any mount point.",
+            "type": "string"
+          },
+          "github_repo": {
+            "description": "Repository slug, e.g. emergent-company/opencode-harness",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_repo"
         ],
         "type": "object"
       }
@@ -2000,6 +2021,23 @@
       }
     },
     {
+      "name": "list_consumer_repos",
+      "description": "USE WHEN you need to see which repositories consume a strategy instance (e.g. mount it as a submodule). Does not include the instance's own home repo — that is github_repo on the instance itself.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "list_cycle_proposals",
       "description": "USE WHEN you need to see pending AIM cycle proposals for an instance. Proposals are created automatically by the heartbeat when a trigger fires and no cycle is active.",
       "category": "observability",
@@ -2519,6 +2557,36 @@
       }
     },
     {
+      "name": "register_consumer_repo",
+      "description": "USE WHEN a repository consumes a strategy instance and should be discoverable by find_instance_by_repo. Use this instead of update_instance when the repo is not the instance's source of truth — update_instance's github_repo is where sync reads from and AIM pushes to. Idempotent.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "base_path": {
+            "description": "Path within the consuming repo where the instance is mounted, e.g. docs/EPF/_instances/emergent. Omit for the repo root.",
+            "type": "string"
+          },
+          "github_repo": {
+            "description": "Consuming repository slug, e.g. emergent-company/opencode-harness",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "note": {
+            "description": "Optional free-text note, e.g. how the instance is consumed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "github_repo"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "remove_member",
       "description": "USE WHEN you need to remove a member from an organisation. Requires org_admin role.",
       "category": "admin",
@@ -2965,6 +3033,32 @@
         "required": [
           "instance_id",
           "pack_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "unregister_consumer_repo",
+      "description": "USE WHEN a repository no longer consumes a strategy instance and should stop appearing in find_instance_by_repo.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "base_path": {
+            "description": "Mount path used when the link was registered. Omit if it was registered at the repo root.",
+            "type": "string"
+          },
+          "github_repo": {
+            "description": "Consuming repository slug",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "github_repo"
         ],
         "type": "object"
       }

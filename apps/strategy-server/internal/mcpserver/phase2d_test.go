@@ -879,7 +879,7 @@ func (c *mcpClientWithUser) call(id int, toolName string, args map[string]any) t
 			IsError bool `json:"isError"`
 		} `json:"result"`
 	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
+	if err := json.Unmarshal(jsonRPCPayload(raw), &envelope); err != nil {
 		c.t.Fatalf("tool %s: parse envelope: %v\nbody: %s", toolName, err, raw)
 	}
 	if len(envelope.Result.Content) == 0 {

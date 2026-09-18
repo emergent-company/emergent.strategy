@@ -16,6 +16,7 @@ func registerSyncTools(s *server.MCPServer, svc Services) {
 		return
 	}
 	registerUpdateInstanceTool(s, svc)
+	registerConsumerRepoTools(s, svc)
 	if svc.Sync != nil {
 		registerImportFromGithubTool(s, svc)
 		registerGetSyncStateTool(s, svc)
@@ -59,6 +60,94 @@ func registerUpdateInstanceTool(s *server.MCPServer, svc Services) {
 		})
 	})
 
+}
+
+// registerConsumerRepoTools manages the repositories that CONSUME an instance,
+// as opposed to the single repo that owns it.
+//
+// These are separate tools from update_instance on purpose. update_instance
+// sets github_repo, which is the instance's source of truth: sync imports from
+// it and AIM auto-push opens pull requests against it. Pointing that at a repo
+// that merely mounts the instance as a submodule silently redirects both. When
+// the only available field was github_repo, that is exactly what happened — the
+// "Emergent Strategy" instance ended up claiming a consumer repo as its home.
+func registerConsumerRepoTools(s *server.MCPServer, svc Services) {
+	s.AddTool(mcp.NewTool("list_consumer_repos",
+		mcp.WithDescription("USE WHEN you need to see which repositories consume a strategy instance (e.g. mount it as a submodule). Does not include the instance's own home repo — that is github_repo on the instance itself."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		rows, err := svc.Instance.ListConsumerRepos(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(map[string]any{
+			"instance_id":    instID,
+			"consumer_repos": rows,
+			"count":          len(rows),
+		})
+	})
+
+	s.AddTool(mcp.NewTool("register_consumer_repo",
+		mcp.WithDescription("USE WHEN a repository consumes a strategy instance and should be discoverable by find_instance_by_repo. Use this instead of update_instance when the repo is not the instance's source of truth — update_instance's github_repo is where sync reads from and AIM pushes to. Idempotent."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("github_repo", mcp.Required(), mcp.Description("Consuming repository slug, e.g. emergent-company/opencode-harness")),
+		mcp.WithString("base_path", mcp.Description("Path within the consuming repo where the instance is mounted, e.g. docs/EPF/_instances/emergent. Omit for the repo root.")),
+		mcp.WithString("note", mcp.Description("Optional free-text note, e.g. how the instance is consumed")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		params := instancedom.RegisterConsumerRepoParams{
+			InstanceID: instID,
+			GithubRepo: argString(req, "github_repo"),
+			BasePath:   argString(req, "base_path"),
+		}
+		if note := argString(req, "note"); note != "" {
+			params.Note = &note
+		}
+
+		row, err := svc.Instance.RegisterConsumerRepo(ctx, params)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(row)
+	})
+
+	s.AddTool(mcp.NewTool("unregister_consumer_repo",
+		mcp.WithDescription("USE WHEN a repository no longer consumes a strategy instance and should stop appearing in find_instance_by_repo."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("github_repo", mcp.Required(), mcp.Description("Consuming repository slug")),
+		mcp.WithString("base_path", mcp.Description("Mount path used when the link was registered. Omit if it was registered at the repo root.")),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := svc.Instance.UnregisterConsumerRepo(ctx, instID,
+			argString(req, "github_repo"), argString(req, "base_path")); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(map[string]any{
+			"instance_id":  instID,
+			"github_repo":  argString(req, "github_repo"),
+			"unregistered": true,
+		})
+	})
 }
 
 func registerImportFromGithubTool(s *server.MCPServer, svc Services) {
