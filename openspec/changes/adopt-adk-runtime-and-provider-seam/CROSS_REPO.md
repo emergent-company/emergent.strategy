@@ -11,6 +11,28 @@ impact.
 **Repo:** `github.com/emergent-company/opencode-harness`
 **Spec:** `openspec/specs/factory-engine/spec.md`
 
+> **SUPERSEDED 2026-09-05 — do not plan against this section.**
+>
+> The authoritative version of this contract now lives downstream, in
+> `opencode-harness/openspec/CROSS_REPO.md`, which supersedes its own copy of
+> this section and corrects the record. Two things below are simply false:
+>
+> 1. **The harness did not adopt ADK v2 as its workflow runtime.** It evaluated
+>    ADK and rejected its orchestration engine (uncapped loop, no Anthropic
+>    model), independently of this repo reaching the same conclusion. The
+>    sequencing story — strategy-server as pathfinder, harness following behind
+>    a pinned common version, a shared session-store schema — describes a plan
+>    nobody is executing.
+> 2. **This repo no longer runs AIM on ADK.** `internal/aimadk` and
+>    `internal/adk/aim_graph.go` were deleted in the DBOS cutover
+>    (`adopt-dbos-dynamic-aim`, migrations 038/039). `internal/adk` survives
+>    only as a generic session store that nothing currently imports.
+>
+> The live cross-repo contract that *is* load-bearing — strategy-server as the
+> sole EPF authority, the `<instance_id>/strategy:*` vs `plan:*` Memory key
+> namespaces, and the `--local` dependency — is in the harness document, not
+> here. Read that first.
+
 ### Relationship
 
 `opencode-harness` is a Software Factory Harness for OpenCode that adopts ADK
