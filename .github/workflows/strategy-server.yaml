@@ -1,0 +1,124 @@
+name: Strategy Server CI
+
+# strategy-server had no CI until now. The only workflow in the repository is
+# scoped to apps/epf-cli/**, which is the component being retired, so changes to
+# the estate's source of truth for the EPF framework shipped unverified. The
+# detection-signature drift fixed in #58 — ten of seventeen entries naming keys
+# no schema declares, undetected long enough for a consumer to find it — is
+# roughly what that predicts.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/strategy-server/**"
+      - "go.work"
+      - "go.work.sum"
+      - ".github/workflows/strategy-server.yaml"
+  pull_request:
+    paths:
+      - "apps/strategy-server/**"
+      - "go.work"
+      - "go.work.sum"
+      - ".github/workflows/strategy-server.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A superseded run tells you about a commit nobody is going to merge.
+concurrency:
+  group: strategy-server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # internal/aimdbos needs a real Postgres. Its tests are the durable
+      # execution proofs — SIGKILL a process parked at a human gate and recover
+      # the run from a separate process — so they are worth the service rather
+      # than skipping.
+      #
+      # Port 5433 and these exact credentials are not a preference: the DSN is
+      # hardcoded in internal/aimdbos/restart_proof_test.go (testDSNFor), and
+      # there is no environment override. The tests also CREATE DATABASE through
+      # a maintenance connection, which the superuser role below allows. Making
+      # that DSN configurable is a worthwhile follow-up; until then this has to
+      # match the literal.
+      #
+      # Image matches docker-compose.yml so CI and local development validate
+      # against the same Postgres.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: strategy
+          POSTGRES_PASSWORD: strategy
+          POSTGRES_DB: strategy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U strategy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # No submodules and no secrets. The EPF schemas this module validates
+      # against are committed under internal/embedded/schemas, and the only
+      # test references to docs/EPF are string fixtures simulating GitHub API
+      # responses, not paths on disk. That keeps this workflow runnable on a
+      # fork's pull request, which the epf-cli one is not.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/strategy-server/go.mod
+          cache-dependency-path: |
+            apps/strategy-server/go.sum
+            go.work.sum
+
+      # Deliberately NOT GOWORK=off, which is where this diverges from the
+      # epf-cli workflow beside it.
+      #
+      # strategy-server cannot currently build standalone: rsc.io/omap and
+      # rsc.io/ordered (reached through google.golang.org/adk/v2) have hashes
+      # only in the root go.work.sum, not in the module's own go.sum, so
+      # `GOWORK=off go build ./...` fails with two missing go.sum entries. The
+      # workspace resolves them, which is why local development never noticed.
+      #
+      # Using the workspace here matches how the module is actually built today.
+      # It is not the end state: a module that only builds inside its workspace
+      # will bite a container build or anyone vendoring it, and `go mod tidy`
+      # fixes it. Left as a separate change so a dependency edit is not buried
+      # in a workflow addition.
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+        working-directory: apps/strategy-server
+
+      - name: Vet
+        run: go vet ./...
+        working-directory: apps/strategy-server
+
+      - name: Build
+        run: go build ./...
+        working-directory: apps/strategy-server
+
+      # Six tests skip by design and should stay skipped here: two semantic
+      # integration tests needing Memory and a live LLM, two performance
+      # measurements, one live Bedrock call, and one documentation-only case.
+      # They are opt-in behind their own environment variables.
+      - name: Test
+        run: go test ./...
+        working-directory: apps/strategy-server
