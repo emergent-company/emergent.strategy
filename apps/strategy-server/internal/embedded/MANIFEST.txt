@@ -1,7 +1,7 @@
 # Strategy-Server Embedded Artifacts Manifest
-# Generated: 2026-09-19T09:56:02Z
+# Generated: 2026-09-19T10:05:34Z
 # Source: /Users/nikolaifasting/code/epf-canonical
-# Version: 2.30.0
+# Version: 2.31.0
 
 ## Schemas
 _epf_anchor_schema.json

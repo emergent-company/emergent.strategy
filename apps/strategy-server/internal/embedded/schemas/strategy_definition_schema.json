@@ -277,11 +277,11 @@
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^ps-[0-9]+$",
-                "description": "Unique scenario ID. Format: ps-{number}",
+                "pattern": "^ps-[0-9]+(-[0-9]+)*$",
+                "description": "Unique scenario ID. Flat (ps-001) or hierarchical (ps-009-001), where the leading group identifies the parent definition. Both are in use; the hierarchical form is unique across definitions rather than only within one.",
                 "examples": [
                   "ps-001",
-                  "ps-002"
+                  "ps-009-001"
                 ]
               },
               "name": {
@@ -321,9 +321,22 @@
                 "description": "What initiates this specific instance of the process"
               },
               "actions": {
-                "type": "string",
-                "minLength": 100,
-                "description": "Step-by-step narrative of what the practitioner does"
+                "description": "Step-by-step narrative of what the practitioner does",
+                "$comment": "Accepts prose or an ordered list of steps. The list form was already in use when this was widened in 2.31.0 and preserves step boundaries that prose loses; prefer it for anything with more than one step.",
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Prose description of what the practitioner does."
+                  },
+                  {
+                    "type": "array",
+                    "description": "Ordered steps the practitioner takes.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                ]
               },
               "outcome": {
                 "type": "string",
@@ -461,6 +474,50 @@
               "description": "What must exist before running this process"
             }
           }
+        },
+        "adoption_profiles": {
+          "type": "object",
+          "description": "How practitioners at different organisational stages adopt this definition — the practitioner-facing companion to `maturity`.",
+          "$comment": "Introduced in 2.31.0. This content already existed across the corpus, but was authored into `practitioner_scenarios`, which models something else entirely: concrete situations with id/name/situation/trigger/actions/outcome. The two share no fields. Keeping both under one name would have forced every consumer to branch on the field's type and would have hidden the real relationship, which is to `maturity`: each profile's `approach` names the tier that practitioner should start at. Read this alongside maturity.tier_*, not alongside practitioner_scenarios.",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "description": "How this definition is adopted by one kind of practitioner.",
+            "required": [
+              "context",
+              "approach",
+              "time_investment"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "context": {
+                "type": "string",
+                "description": "The situation this practitioner is in"
+              },
+              "approach": {
+                "type": "string",
+                "description": "What they should do, typically naming the maturity tier to start at"
+              },
+              "time_investment": {
+                "type": "string",
+                "description": "What it realistically costs them"
+              }
+            }
+          },
+          "examples": [
+            {
+              "startup_founder": {
+                "context": "Early-stage founder managing organizational aspirations personally",
+                "approach": "Start with Tier 1, focus on documenting decisions for future reference",
+                "time_investment": "2-4 hours/week initially"
+              },
+              "enterprise_executive": {
+                "context": "Large organization optimizing organizational aspirations",
+                "approach": "Full Tier 3 with automation and integration",
+                "time_investment": "Cross-functional team effort"
+              }
+            }
+          ]
         }
       }
     }

@@ -270,11 +270,11 @@
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^ps-[0-9]+$",
-                "description": "Unique scenario ID. Format: ps-{number}",
+                "pattern": "^ps-[0-9]+(-[0-9]+)*$",
+                "description": "Unique scenario ID. Flat (ps-001) or hierarchical (ps-009-001), where the leading group identifies the parent definition. Both are in use; the hierarchical form is unique across definitions rather than only within one.",
                 "examples": [
                   "ps-001",
-                  "ps-002"
+                  "ps-009-001"
                 ]
               },
               "name": {
@@ -315,9 +315,22 @@
                 "description": "What initiates this specific instance of the process"
               },
               "actions": {
-                "type": "string",
-                "minLength": 100,
-                "description": "Step-by-step narrative of what the practitioner does"
+                "description": "Step-by-step narrative of what the practitioner does",
+                "$comment": "Accepts prose or an ordered list of steps. The list form was already in use when this was widened in 2.31.0 and preserves step boundaries that prose loses; prefer it for anything with more than one step.",
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Prose description of what the practitioner does."
+                  },
+                  {
+                    "type": "array",
+                    "description": "Ordered steps the practitioner takes.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                ]
               },
               "outcome": {
                 "type": "string",
