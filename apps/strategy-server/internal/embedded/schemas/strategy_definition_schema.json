@@ -27,11 +27,7 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "step",
-                  "action",
-                  "responsible"
-                ],
+                "required": ["step", "action", "responsible"],
                 "properties": {
                   "step": {
                     "type": "integer",
@@ -49,11 +45,7 @@
                   "duration": {
                     "type": "string",
                     "description": "Typical time for this step",
-                    "examples": [
-                      "2-4 hours",
-                      "1 day",
-                      "1 week"
-                    ]
+                    "examples": ["2-4 hours", "1 day", "1 week"]
                   },
                   "deliverable": {
                     "type": "string",
@@ -61,16 +53,12 @@
                   },
                   "questions": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
+                    "items": {"type": "string"},
                     "description": "Key questions to answer in this step"
                   },
                   "avoid": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
+                    "items": {"type": "string"},
                     "description": "Common mistakes to avoid in this step"
                   }
                 },
@@ -88,37 +76,21 @@
                 "frequency": {
                   "type": "string",
                   "description": "How often this process executes",
-                  "examples": [
-                    "Quarterly",
-                    "Annually",
-                    "On major pivots",
-                    "Continuous monitoring"
-                  ]
+                  "examples": ["Quarterly", "Annually", "On major pivots", "Continuous monitoring"]
                 },
                 "trigger": {
                   "type": "string",
                   "description": "What initiates this process",
-                  "examples": [
-                    "Quarterly planning cycle",
-                    "Market shift",
-                    "New funding round",
-                    "Strategic pivot"
-                  ]
+                  "examples": ["Quarterly planning cycle", "Market shift", "New funding round", "Strategic pivot"]
                 },
                 "duration": {
                   "type": "string",
                   "description": "Total time from start to completion",
-                  "examples": [
-                    "1-2 weeks",
-                    "2-4 weeks",
-                    "Ongoing"
-                  ]
+                  "examples": ["1-2 weeks", "2-4 weeks", "Ongoing"]
                 },
                 "ongoing": {
                   "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
+                  "items": {"type": "string"},
                   "description": "Ongoing activities after initial process completion"
                 }
               }
@@ -128,15 +100,9 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "role": {
-                    "type": "string"
-                  },
-                  "responsibility": {
-                    "type": "string"
-                  },
-                  "time_commitment": {
-                    "type": "string"
-                  }
+                  "role": {"type": "string"},
+                  "responsibility": {"type": "string"},
+                  "time_commitment": {"type": "string"}
                 }
               },
               "description": "All roles involved in this strategic process"
@@ -149,16 +115,12 @@
           "properties": {
             "prerequisites": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "What must be in place before this process can run"
             },
             "common_blockers": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Typical obstacles and how to address them"
             },
             "metrics": {
@@ -166,22 +128,12 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "target": {
-                    "type": "string"
-                  },
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target": {"type": "string"},
                   "tier": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "Which maturity tier introduces this metric"
                   }
                 }
@@ -197,9 +149,7 @@
           "properties": {
             "key_decisions": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Critical decisions this process must address"
             },
             "evaluation_criteria": {
@@ -207,15 +157,9 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "criterion": {
-                    "type": "string"
-                  },
-                  "weight": {
-                    "type": "string"
-                  },
-                  "how_to_assess": {
-                    "type": "string"
-                  }
+                  "criterion": {"type": "string"},
+                  "weight": {"type": "string"},
+                  "how_to_assess": {"type": "string"}
                 }
               },
               "description": "Criteria for evaluating strategic options"
@@ -235,26 +179,18 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "category": {
-                    "type": "string"
-                  },
+                  "category": {"type": "string"},
                   "examples": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
+                    "items": {"type": "string"}
                   },
-                  "purpose": {
-                    "type": "string"
-                  }
+                  "purpose": {"type": "string"}
                 }
               }
             },
             "integrations": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Common integration points with other systems"
             }
           }
@@ -265,51 +201,29 @@
           "$comment": "Practitioner scenarios help leadership teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include both 'first-time' and 'mature organization' scenarios to show the range.",
           "items": {
             "type": "object",
-            "required": [
-              "id",
-              "name",
-              "practitioner",
-              "situation",
-              "trigger",
-              "actions",
-              "outcome"
-            ],
+            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^ps-[0-9]+(-[0-9]+)*$",
-                "description": "Unique scenario ID. Flat (ps-001) or hierarchical (ps-009-001), where the leading group identifies the parent definition. Both are in use; the hierarchical form is unique across definitions rather than only within one.",
-                "examples": [
-                  "ps-001",
-                  "ps-009-001"
-                ]
+                "pattern": "^ps-[0-9]+$",
+                "description": "Unique scenario ID. Format: ps-{number}",
+                "examples": ["ps-001", "ps-002"]
               },
               "name": {
                 "type": "string",
                 "minLength": 10,
                 "description": "Descriptive name summarizing the scenario",
-                "examples": [
-                  "First-time OKR implementation",
-                  "Vision reset after pivot"
-                ]
+                "examples": ["First-time OKR implementation", "Vision reset after pivot"]
               },
               "practitioner": {
                 "type": "string",
                 "description": "Who is executing this process (role, not person name)",
-                "examples": [
-                  "CEO",
-                  "VP Strategy",
-                  "Head of Product",
-                  "Founder"
-                ]
+                "examples": ["CEO", "VP Strategy", "Head of Product", "Founder"]
               },
               "organization_context": {
                 "type": "string",
                 "description": "Brief description of org size, stage, and relevant context",
-                "examples": [
-                  "20-person seed-stage startup",
-                  "100-person Series C scale-up"
-                ]
+                "examples": ["20-person seed-stage startup", "100-person Series C scale-up"]
               },
               "situation": {
                 "type": "string",
@@ -321,22 +235,9 @@
                 "description": "What initiates this specific instance of the process"
               },
               "actions": {
-                "description": "Step-by-step narrative of what the practitioner does",
-                "$comment": "Accepts prose or an ordered list of steps. The list form was already in use when this was widened in 2.31.0 and preserves step boundaries that prose loses; prefer it for anything with more than one step.",
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "description": "Prose description of what the practitioner does."
-                  },
-                  {
-                    "type": "array",
-                    "description": "Ordered steps the practitioner takes.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  }
-                ]
+                "type": "string",
+                "minLength": 100,
+                "description": "Step-by-step narrative of what the practitioner does"
               },
               "outcome": {
                 "type": "string",
@@ -345,9 +246,7 @@
               },
               "lessons": {
                 "type": "array",
-                "items": {
-                  "type": "string"
-                },
+                "items": {"type": "string"},
                 "description": "Key takeaways for practitioners facing similar situations"
               }
             }
@@ -363,12 +262,7 @@
               "description": "Things that can go wrong during process execution",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "likelihood",
-                  "impact",
-                  "mitigation"
-                ],
+                "required": ["risk", "likelihood", "impact", "mitigation"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -376,21 +270,12 @@
                   },
                   "likelihood": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How likely is this to occur"
                   },
                   "impact": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high",
-                      "critical"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How serious if it occurs"
                   },
                   "mitigation": {
@@ -405,11 +290,7 @@
               "description": "Business/organizational consequences of poorly executed strategy",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "impact",
-                  "prevention"
-                ],
+                "required": ["risk", "impact", "prevention"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -436,88 +317,29 @@
             "related_l2": {
               "type": "string",
               "description": "The L2 category this definition belongs to",
-              "examples": [
-                "Strategic Roadmap",
-                "Context",
-                "Communications"
-              ]
+              "examples": ["Strategic Roadmap", "Context", "Communications"]
             },
             "related_l1": {
               "type": "string",
               "description": "The L1 pillar this definition belongs to",
-              "examples": [
-                "STRATEGIC ROADMAP",
-                "CONTEXT",
-                "TACTICAL ROADMAP",
-                "COMMUNICATIONS"
-              ]
+              "examples": ["STRATEGIC ROADMAP", "CONTEXT", "TACTICAL ROADMAP", "COMMUNICATIONS"]
             },
             "synergies": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "How this process connects to other strategic processes"
             },
             "artifacts_produced": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Concrete outputs this process produces"
             },
             "prerequisites": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "What must exist before running this process"
             }
           }
-        },
-        "adoption_profiles": {
-          "type": "object",
-          "description": "How practitioners at different organisational stages adopt this definition — the practitioner-facing companion to `maturity`.",
-          "$comment": "Introduced in 2.31.0. This content already existed across the corpus, but was authored into `practitioner_scenarios`, which models something else entirely: concrete situations with id/name/situation/trigger/actions/outcome. The two share no fields. Keeping both under one name would have forced every consumer to branch on the field's type and would have hidden the real relationship, which is to `maturity`: each profile's `approach` names the tier that practitioner should start at. Read this alongside maturity.tier_*, not alongside practitioner_scenarios.",
-          "minProperties": 1,
-          "additionalProperties": {
-            "type": "object",
-            "description": "How this definition is adopted by one kind of practitioner.",
-            "required": [
-              "context",
-              "approach",
-              "time_investment"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "context": {
-                "type": "string",
-                "description": "The situation this practitioner is in"
-              },
-              "approach": {
-                "type": "string",
-                "description": "What they should do, typically naming the maturity tier to start at"
-              },
-              "time_investment": {
-                "type": "string",
-                "description": "What it realistically costs them"
-              }
-            }
-          },
-          "examples": [
-            {
-              "startup_founder": {
-                "context": "Early-stage founder managing organizational aspirations personally",
-                "approach": "Start with Tier 1, focus on documenting decisions for future reference",
-                "time_investment": "2-4 hours/week initially"
-              },
-              "enterprise_executive": {
-                "context": "Large organization optimizing organizational aspirations",
-                "approach": "Full Tier 3 with automation and integration",
-                "time_investment": "Cross-functional team effort"
-              }
-            }
-          ]
         }
       }
     }

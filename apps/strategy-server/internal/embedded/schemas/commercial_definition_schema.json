@@ -27,11 +27,7 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "step",
-                  "action",
-                  "responsible"
-                ],
+                "required": ["step", "action", "responsible"],
                 "properties": {
                   "step": {
                     "type": "integer",
@@ -49,11 +45,7 @@
                   "duration": {
                     "type": "string",
                     "description": "Typical time for this step",
-                    "examples": [
-                      "2-4 hours",
-                      "1 day",
-                      "1 week"
-                    ]
+                    "examples": ["2-4 hours", "1 day", "1 week"]
                   },
                   "deliverable": {
                     "type": "string",
@@ -61,16 +53,12 @@
                   },
                   "templates": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
+                    "items": {"type": "string"},
                     "description": "Templates or tools useful for this step"
                   },
                   "best_practices": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
+                    "items": {"type": "string"},
                     "description": "Best practices for this step"
                   }
                 },
@@ -88,38 +76,21 @@
                 "frequency": {
                   "type": "string",
                   "description": "How often this process executes",
-                  "examples": [
-                    "Per opportunity",
-                    "Weekly",
-                    "Monthly",
-                    "Quarterly",
-                    "Annually"
-                  ]
+                  "examples": ["Per opportunity", "Weekly", "Monthly", "Quarterly", "Annually"]
                 },
                 "trigger": {
                   "type": "string",
                   "description": "What initiates this process",
-                  "examples": [
-                    "New lead",
-                    "Partnership inquiry",
-                    "Fundraising round",
-                    "Product launch"
-                  ]
+                  "examples": ["New lead", "Partnership inquiry", "Fundraising round", "Product launch"]
                 },
                 "duration": {
                   "type": "string",
                   "description": "Total time from start to completion",
-                  "examples": [
-                    "1-2 weeks",
-                    "2-4 weeks",
-                    "3-6 months"
-                  ]
+                  "examples": ["1-2 weeks", "2-4 weeks", "3-6 months"]
                 },
                 "ongoing": {
                   "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
+                  "items": {"type": "string"},
                   "description": "Ongoing activities after initial process completion"
                 }
               }
@@ -129,15 +100,9 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "role": {
-                    "type": "string"
-                  },
-                  "responsibility": {
-                    "type": "string"
-                  },
-                  "time_commitment": {
-                    "type": "string"
-                  }
+                  "role": {"type": "string"},
+                  "responsibility": {"type": "string"},
+                  "time_commitment": {"type": "string"}
                 }
               },
               "description": "All roles involved in this commercial process"
@@ -150,16 +115,12 @@
           "properties": {
             "prerequisites": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "What must be in place before this process can run"
             },
             "common_blockers": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Typical obstacles and how to address them"
             },
             "metrics": {
@@ -167,22 +128,12 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "target": {
-                    "type": "string"
-                  },
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target": {"type": "string"},
                   "tier": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "Which maturity tier introduces this metric"
                   }
                 }
@@ -211,11 +162,7 @@
             "roi_timeline": {
               "type": "string",
               "description": "Expected timeline to see ROI",
-              "examples": [
-                "Immediate",
-                "1-3 months",
-                "6-12 months"
-              ]
+              "examples": ["Immediate", "1-3 months", "6-12 months"]
             }
           }
         },
@@ -228,26 +175,18 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "category": {
-                    "type": "string"
-                  },
+                  "category": {"type": "string"},
                   "examples": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
+                    "items": {"type": "string"}
                   },
-                  "purpose": {
-                    "type": "string"
-                  }
+                  "purpose": {"type": "string"}
                 }
               }
             },
             "integrations": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Common integration points with other systems"
             }
           }
@@ -258,52 +197,29 @@
           "$comment": "Practitioner scenarios help revenue teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include scenarios across different org sizes and maturity levels.",
           "items": {
             "type": "object",
-            "required": [
-              "id",
-              "name",
-              "practitioner",
-              "situation",
-              "trigger",
-              "actions",
-              "outcome"
-            ],
+            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^ps-[0-9]+(-[0-9]+)*$",
-                "description": "Unique scenario ID. Flat (ps-001) or hierarchical (ps-009-001), where the leading group identifies the parent definition. Both are in use; the hierarchical form is unique across definitions rather than only within one.",
-                "examples": [
-                  "ps-001",
-                  "ps-009-001"
-                ]
+                "pattern": "^ps-[0-9]+$",
+                "description": "Unique scenario ID. Format: ps-{number}",
+                "examples": ["ps-001", "ps-002"]
               },
               "name": {
                 "type": "string",
                 "minLength": 10,
                 "description": "Descriptive name summarizing the scenario",
-                "examples": [
-                  "First fundraise as technical founder",
-                  "Scaling content marketing"
-                ]
+                "examples": ["First fundraise as technical founder", "Scaling content marketing"]
               },
               "practitioner": {
                 "type": "string",
                 "description": "Who is executing this process (role, not person name)",
-                "examples": [
-                  "CEO",
-                  "VP Sales",
-                  "Head of Marketing",
-                  "BD Lead",
-                  "Founder"
-                ]
+                "examples": ["CEO", "VP Sales", "Head of Marketing", "BD Lead", "Founder"]
               },
               "organization_context": {
                 "type": "string",
                 "description": "Brief description of org size, stage, and relevant context",
-                "examples": [
-                  "15-person seed-stage startup",
-                  "80-person Series B scale-up"
-                ]
+                "examples": ["15-person seed-stage startup", "80-person Series B scale-up"]
               },
               "situation": {
                 "type": "string",
@@ -315,22 +231,9 @@
                 "description": "What initiates this specific instance of the process"
               },
               "actions": {
-                "description": "Step-by-step narrative of what the practitioner does",
-                "$comment": "Accepts prose or an ordered list of steps. The list form was already in use when this was widened in 2.31.0 and preserves step boundaries that prose loses; prefer it for anything with more than one step.",
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "description": "Prose description of what the practitioner does."
-                  },
-                  {
-                    "type": "array",
-                    "description": "Ordered steps the practitioner takes.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  }
-                ]
+                "type": "string",
+                "minLength": 100,
+                "description": "Step-by-step narrative of what the practitioner does"
               },
               "outcome": {
                 "type": "string",
@@ -339,9 +242,7 @@
               },
               "lessons": {
                 "type": "array",
-                "items": {
-                  "type": "string"
-                },
+                "items": {"type": "string"},
                 "description": "Key takeaways for practitioners facing similar situations"
               }
             }
@@ -357,12 +258,7 @@
               "description": "Things that can go wrong during process execution",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "likelihood",
-                  "impact",
-                  "mitigation"
-                ],
+                "required": ["risk", "likelihood", "impact", "mitigation"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -370,21 +266,12 @@
                   },
                   "likelihood": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How likely is this to occur"
                   },
                   "impact": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high",
-                      "critical"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How serious if it occurs"
                   },
                   "mitigation": {
@@ -399,11 +286,7 @@
               "description": "Business/organizational consequences of poorly executed commercial process",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "impact",
-                  "prevention"
-                ],
+                "required": ["risk", "impact", "prevention"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -430,42 +313,26 @@
             "related_l2": {
               "type": "string",
               "description": "The L2 category this definition belongs to",
-              "examples": [
-                "Financing",
-                "Partnerships",
-                "Sales & Marketing",
-                "Brand & Positioning"
-              ]
+              "examples": ["Financing", "Partnerships", "Sales & Marketing", "Brand & Positioning"]
             },
             "related_l1": {
               "type": "string",
               "description": "The L1 pillar this definition belongs to",
-              "examples": [
-                "FINANCING",
-                "PARTNERSHIPS",
-                "BRAND & POSITIONING",
-                "SALES & MARKETING"
-              ]
+              "examples": ["FINANCING", "PARTNERSHIPS", "BRAND & POSITIONING", "SALES & MARKETING"]
             },
             "synergies": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "How this process connects to other commercial processes"
             },
             "artifacts_produced": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Concrete outputs this process produces"
             },
             "prerequisites": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "What must exist before running this process"
             }
           }

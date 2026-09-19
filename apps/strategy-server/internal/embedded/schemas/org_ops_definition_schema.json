@@ -27,11 +27,7 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "step",
-                  "action",
-                  "responsible"
-                ],
+                "required": ["step", "action", "responsible"],
                 "properties": {
                   "step": {
                     "type": "integer",
@@ -49,17 +45,11 @@
                   "duration": {
                     "type": "string",
                     "description": "Typical time for this step",
-                    "examples": [
-                      "15 minutes",
-                      "1 hour",
-                      "1 day"
-                    ]
+                    "examples": ["15 minutes", "1 hour", "1 day"]
                   },
                   "tools": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
+                    "items": {"type": "string"},
                     "description": "Suggested tools (not mandated)"
                   },
                   "deliverable": {
@@ -79,37 +69,18 @@
               "properties": {
                 "frequency": {
                   "type": "string",
-                  "description": "How often this process runs. Free text: real cadences are frequently compound (\"Continuous scanning, monthly synthesis, quarterly deep dive\") and a single enumerated term cannot express them. The examples are the suggested vocabulary for the simple cases; prefer them when one fits.",
-                  "examples": [
-                    "one-time",
-                    "daily",
-                    "weekly",
-                    "bi-weekly",
-                    "monthly",
-                    "quarterly",
-                    "annually",
-                    "on-demand",
-                    "event-triggered"
-                  ]
+                  "enum": ["one-time", "daily", "weekly", "bi-weekly", "monthly", "quarterly", "annually", "on-demand", "event-triggered"],
+                  "description": "How often this process executes"
                 },
                 "trigger": {
                   "type": "string",
                   "description": "What initiates this process (for event-triggered processes)",
-                  "examples": [
-                    "New hire start date",
-                    "Employee request",
-                    "Compliance deadline",
-                    "Budget cycle start"
-                  ]
+                  "examples": ["New hire start date", "Employee request", "Compliance deadline", "Budget cycle start"]
                 },
                 "duration": {
                   "type": "string",
                   "description": "Total time from start to completion",
-                  "examples": [
-                    "4 hours",
-                    "1 day",
-                    "1 week"
-                  ]
+                  "examples": ["4 hours", "1 day", "1 week"]
                 }
               }
             },
@@ -118,15 +89,9 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "role": {
-                    "type": "string"
-                  },
-                  "responsibility": {
-                    "type": "string"
-                  },
-                  "time_commitment": {
-                    "type": "string"
-                  }
+                  "role": {"type": "string"},
+                  "responsibility": {"type": "string"},
+                  "time_commitment": {"type": "string"}
                 }
               },
               "description": "All roles involved in this process"
@@ -139,16 +104,12 @@
           "properties": {
             "prerequisites": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "What must be in place before this process can run"
             },
             "common_blockers": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Typical obstacles and how to address them"
             },
             "metrics": {
@@ -156,22 +117,12 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "target": {
-                    "type": "string"
-                  },
+                  "name": {"type": "string"},
+                  "description": {"type": "string"},
+                  "target": {"type": "string"},
                   "tier": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "Which maturity tier introduces this metric"
                   }
                 }
@@ -186,16 +137,12 @@
           "properties": {
             "regulatory_requirements": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Applicable regulations (GDPR, SOX, ISO, etc.)"
             },
             "documentation_required": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Records that must be kept"
             },
             "audit_considerations": {
@@ -213,26 +160,18 @@
               "items": {
                 "type": "object",
                 "properties": {
-                  "category": {
-                    "type": "string"
-                  },
+                  "category": {"type": "string"},
                   "examples": {
                     "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
+                    "items": {"type": "string"}
                   },
-                  "purpose": {
-                    "type": "string"
-                  }
+                  "purpose": {"type": "string"}
                 }
               }
             },
             "integrations": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": {"type": "string"},
               "description": "Common integration points with other systems"
             }
           }
@@ -243,51 +182,29 @@
           "$comment": "Practitioner scenarios help operations teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include both 'happy path' and 'challenging' scenarios. Scenarios make abstract processes concrete and actionable.",
           "items": {
             "type": "object",
-            "required": [
-              "id",
-              "name",
-              "practitioner",
-              "situation",
-              "trigger",
-              "actions",
-              "outcome"
-            ],
+            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^ps-[0-9]+(-[0-9]+)*$",
-                "description": "Unique scenario ID. Flat (ps-001) or hierarchical (ps-009-001), where the leading group identifies the parent definition. Both are in use; the hierarchical form is unique across definitions rather than only within one.",
-                "examples": [
-                  "ps-001",
-                  "ps-009-001"
-                ]
+                "pattern": "^ps-[0-9]+$",
+                "description": "Unique scenario ID. Format: ps-{number}",
+                "examples": ["ps-001", "ps-002"]
               },
               "name": {
                 "type": "string",
                 "minLength": 10,
                 "description": "Descriptive name summarizing the scenario",
-                "examples": [
-                  "First-time performance review with nervous manager",
-                  "Onboarding remote hire across timezones"
-                ]
+                "examples": ["First-time performance review with nervous manager", "Onboarding remote hire across timezones"]
               },
               "practitioner": {
                 "type": "string",
                 "description": "Who is executing this process (role, not person name)",
-                "examples": [
-                  "HR Lead",
-                  "Engineering Manager",
-                  "CFO",
-                  "Office Manager"
-                ]
+                "examples": ["HR Lead", "Engineering Manager", "CFO", "Office Manager"]
               },
               "organization_context": {
                 "type": "string",
                 "description": "Brief description of org size, stage, and relevant context",
-                "examples": [
-                  "15-person seed-stage startup, mostly remote",
-                  "50-person Series B with 3 offices"
-                ]
+                "examples": ["15-person seed-stage startup, mostly remote", "50-person Series B with 3 offices"]
               },
               "situation": {
                 "type": "string",
@@ -299,22 +216,9 @@
                 "description": "What initiates this specific instance of the process"
               },
               "actions": {
-                "description": "Step-by-step narrative of what the practitioner does, including decisions made and adaptations to standard process",
-                "$comment": "Accepts prose or an ordered list of steps. The list form was already in use when this was widened in 2.31.0 and preserves step boundaries that prose loses; prefer it for anything with more than one step.",
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "description": "Prose description of what the practitioner does."
-                  },
-                  {
-                    "type": "array",
-                    "description": "Ordered steps the practitioner takes.",
-                    "items": {
-                      "type": "string"
-                    },
-                    "minItems": 1
-                  }
-                ]
+                "type": "string",
+                "minLength": 100,
+                "description": "Step-by-step narrative of what the practitioner does, including decisions made and adaptations to standard process"
               },
               "outcome": {
                 "type": "string",
@@ -323,9 +227,7 @@
               },
               "lessons": {
                 "type": "array",
-                "items": {
-                  "type": "string"
-                },
+                "items": {"type": "string"},
                 "description": "Key takeaways for practitioners facing similar situations"
               }
             }
@@ -341,12 +243,7 @@
               "description": "Things that can go wrong during process execution",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "likelihood",
-                  "impact",
-                  "mitigation"
-                ],
+                "required": ["risk", "likelihood", "impact", "mitigation"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -354,21 +251,12 @@
                   },
                   "likelihood": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How likely is this to occur"
                   },
                   "impact": {
                     "type": "string",
-                    "enum": [
-                      "low",
-                      "medium",
-                      "high",
-                      "critical"
-                    ],
+                    "enum": ["low", "medium", "high"],
                     "description": "How serious if it occurs"
                   },
                   "mitigation": {
@@ -383,11 +271,7 @@
               "description": "Business/organizational consequences of poorly executed process",
               "items": {
                 "type": "object",
-                "required": [
-                  "risk",
-                  "impact",
-                  "prevention"
-                ],
+                "required": ["risk", "impact", "prevention"],
                 "properties": {
                   "risk": {
                     "type": "string",
@@ -417,98 +301,24 @@
             },
             "best_practices": {
               "type": "array",
-              "description": "Proven approaches from high-performing organizations.",
-              "$comment": "Accepts either a plain sentence or a structured entry. The structured form was already the majority of authored content when this was widened in 2.30.0, and it carries fields the sentence form cannot. Narrowing back to string would discard authored material, so both are valid; prefer the structured form.",
-              "items": {
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "description": "Short form: a single sentence."
-                  },
-                  {
-                    "type": "object",
-                    "description": "Structured form: the practice, what it involves, and the evidence for it.",
-                    "required": [
-                      "practice",
-                      "description",
-                      "evidence"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "practice": {
-                        "type": "string",
-                        "description": "Short name for the practice"
-                      },
-                      "description": {
-                        "type": "string",
-                        "description": "What the practice involves"
-                      },
-                      "evidence": {
-                        "type": "string",
-                        "description": "Why it is believed to work — data, source, or observed outcome"
-                      }
-                    }
-                  }
-                ]
-              }
+              "items": {"type": "string"},
+              "description": "Proven approaches from high-performing organizations"
             },
             "anti_patterns": {
               "type": "array",
-              "description": "Common mistakes to avoid, with explanations.",
-              "$comment": "Accepts either a plain sentence or a structured entry. The structured form was already the majority of authored content when this was widened in 2.30.0, and it carries fields the sentence form cannot. Narrowing back to string would discard authored material, so both are valid; prefer the structured form.",
-              "items": {
-                "oneOf": [
-                  {
-                    "type": "string",
-                    "description": "Short form: a single sentence."
-                  },
-                  {
-                    "type": "object",
-                    "description": "Structured form: the mistake, what it looks like, and what it costs.",
-                    "required": [
-                      "anti_pattern",
-                      "description",
-                      "consequence"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "anti_pattern": {
-                        "type": "string",
-                        "description": "Short name for the mistake"
-                      },
-                      "description": {
-                        "type": "string",
-                        "description": "What the mistake looks like in practice"
-                      },
-                      "consequence": {
-                        "type": "string",
-                        "description": "What it costs when it happens"
-                      }
-                    }
-                  }
-                ]
-              }
+              "items": {"type": "string"},
+              "description": "Common mistakes to avoid, with explanations"
             },
             "benchmarks": {
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
-                  "metric": {
-                    "type": "string"
-                  },
-                  "poor": {
-                    "type": "string"
-                  },
-                  "average": {
-                    "type": "string"
-                  },
-                  "excellent": {
-                    "type": "string"
-                  },
-                  "source": {
-                    "type": "string"
-                  }
+                  "metric": {"type": "string"},
+                  "poor": {"type": "string"},
+                  "average": {"type": "string"},
+                  "excellent": {"type": "string"},
+                  "source": {"type": "string"}
                 }
               },
               "description": "Industry benchmarks for key metrics"
@@ -519,23 +329,17 @@
               "properties": {
                 "tier_1_signs": {
                   "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
+                  "items": {"type": "string"},
                   "description": "Indicators that org is ready for Tier 1"
                 },
                 "tier_2_signs": {
                   "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
+                  "items": {"type": "string"},
                   "description": "Indicators that org should move to Tier 2"
                 },
                 "tier_3_signs": {
                   "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
+                  "items": {"type": "string"},
                   "description": "Indicators that org needs Tier 3"
                 }
               }
