@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -424,6 +425,74 @@ func (t *tokenTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		base = http.DefaultTransport
 	}
 	return base.RoundTrip(req2)
+}
+
+// ---------------------------------------------------------------------------
+// App-level: capability probe
+// ---------------------------------------------------------------------------
+
+// AppCapability is what the GitHub App can actually do, as reported by GitHub
+// rather than inferred from local config.
+//
+// This exists because config presence is not capability. An App ID and a
+// private key that merely parse tell you nothing about whether the App has
+// been granted any permissions — and an App with none authenticates
+// successfully, mints installation tokens successfully, and then fails every
+// single repository operation. That happened here: the App ran with
+// `permissions: {}` for four months while startup logged
+// "github sync enabled (read + write)".
+type AppCapability struct {
+	Slug        string
+	Permissions map[string]string // e.g. {"contents":"write","pull_requests":"write"}
+}
+
+// CanWriteContents reports whether the App can commit files.
+func (a AppCapability) CanWriteContents() bool { return a.Permissions["contents"] == "write" }
+
+// CanWritePullRequests reports whether the App can open PRs.
+func (a AppCapability) CanWritePullRequests() bool {
+	return a.Permissions["pull_requests"] == "write"
+}
+
+// MissingForSync returns the permissions required for push that the App does
+// not have. Empty means push should work.
+func (a AppCapability) MissingForSync() []string {
+	var missing []string
+	if !a.CanWriteContents() {
+		missing = append(missing, "contents:write")
+	}
+	if !a.CanWritePullRequests() {
+		missing = append(missing, "pull_requests:write")
+	}
+	return missing
+}
+
+// GetApp calls GET /app with the App-level JWT and reports the App's declared
+// permissions. Needs no installation, so it works as a startup probe even when
+// the App is installed nowhere.
+func (c *Client) GetApp(ctx context.Context) (*AppCapability, error) {
+	jwtToken, err := c.generateJWT()
+	if err != nil {
+		return nil, fmt.Errorf("generate jwt: %w", err)
+	}
+
+	app, _, apiErr := c.ghClient(jwtToken).Apps.Get(ctx, "")
+	if apiErr != nil {
+		return nil, fmt.Errorf("get app: %w", apiErr)
+	}
+
+	// InstallationPermissions is a struct of optional typed fields; round-trip
+	// through JSON so every granted permission is reported generically and a
+	// permission added by GitHub later needs no code change here. omitempty
+	// means only granted permissions survive, so {} really does mean none.
+	perms := map[string]string{}
+	if p := app.GetPermissions(); p != nil {
+		if raw, mErr := json.Marshal(p); mErr == nil {
+			_ = json.Unmarshal(raw, &perms)
+		}
+	}
+
+	return &AppCapability{Slug: app.GetSlug(), Permissions: perms}, nil
 }
 
 // ---------------------------------------------------------------------------

@@ -627,8 +627,49 @@ func setupGitHubSync(
 	syncSvc := syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
 	syncSvc.WithReader(ghclient.NewRepoReaderAdapter(ghClient))
 	syncSvc.WithInstanceReimporter(instSvc)
-	log.Info("github sync enabled (read + write)", "app_id", cfg.GithubAppID)
+
+	reportGitHubCapability(cfg, log, ghClient)
 	return syncSvc
+}
+
+// reportGitHubCapability probes what the App can actually do and logs that,
+// instead of asserting a capability from the mere presence of config.
+//
+// The previous line here read `log.Info("github sync enabled (read + write)")`
+// whenever the App ID and private key parsed. "read + write" was a literal, not
+// an observation. The App in fact had `permissions: {}` for four months: it
+// authenticated fine, minted installation tokens fine, and failed every
+// repository operation — including two AIM auto-pushes, which are deliberately
+// swallowed so they never block a cycle and therefore produced no signal
+// anywhere. One authenticated call at startup surfaces it immediately.
+//
+// Never fatal: GitHub being unreachable at boot must not stop the server, and
+// sync degrades gracefully everywhere else.
+func reportGitHubCapability(cfg *config.Config, log *slog.Logger, ghClient *ghclient.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cap, err := ghClient.GetApp(ctx)
+	if err != nil {
+		log.Warn("github sync: could not verify app capability at startup; "+
+			"sync may fail at first use",
+			"app_id", cfg.GithubAppID, "err", err)
+		return
+	}
+
+	if missing := cap.MissingForSync(); len(missing) > 0 {
+		log.Warn("github sync: app lacks the permissions required to push — "+
+			"import may work, but sync_to_github and AIM auto-push will fail on every repo",
+			"app_id", cfg.GithubAppID,
+			"app_slug", cap.Slug,
+			"granted", cap.Permissions,
+			"missing", missing,
+			"fix", "grant the missing permissions in the GitHub App settings, then approve the updated request on each installation")
+		return
+	}
+
+	log.Info("github sync enabled",
+		"app_id", cfg.GithubAppID, "app_slug", cap.Slug, "permissions", cap.Permissions)
 }
 
 // seedDevIdentity ensures the dev user, dev org, orphan-workspace adoption, and
