@@ -440,6 +440,7 @@ var messages = map[Locale]map[string]string{
 		"settings.github.no_repo_configured":   "No GitHub repo configured",
 		"settings.github.view_pr":              "View PR",
 		"settings.github.push_btn":             "Push",
+		"settings.github.push_unavailable":     "Push unavailable",
 		"settings.github.import_btn":           "Import",
 
 		"settings.memory.title":             "Semantic Memory",
@@ -910,6 +911,7 @@ var messages = map[Locale]map[string]string{
 		"settings.github.no_repo_configured":   "Ingen GitHub-repo konfigurert",
 		"settings.github.view_pr":              "Vis PR",
 		"settings.github.push_btn":             "Dytt",
+		"settings.github.push_unavailable":     "Dytting utilgjengelig",
 		"settings.github.import_btn":           "Importer",
 
 		"settings.memory.title":             "Semantisk minne",

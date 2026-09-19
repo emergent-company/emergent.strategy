@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	gosync "sync"
@@ -324,6 +325,17 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 						if len(stateResult.RemoteSHA) >= 7 {
 							status.RemoteSHA = stateResult.RemoteSHA[:7]
 						}
+					} else {
+						// Previously discarded, which is why a repo the App
+						// cannot reach rendered as a blank state badge beside
+						// an enabled Push button that was guaranteed to fail.
+						// Every write goes through the App, so if state cannot
+						// be determined, push cannot work either — say so here
+						// rather than after the user clicks.
+						status.PushBlocked = true
+						status.PushBlockedReason = pushBlockedReason(status.Repo, stateErr)
+						s.log.Warn("github sync state unavailable; push disabled for this instance",
+							"instance_id", inst.ID, "repo", status.Repo, "err", stateErr)
 					}
 				}
 			}
@@ -475,4 +487,35 @@ func (s *Server) handleMoveInstance(c echo.Context) error {
 	}
 
 	return c.Redirect(http.StatusSeeOther, "/settings")
+}
+
+// pushBlockedReason turns a sync-state failure into something the person
+// looking at the settings page can act on.
+//
+// The two ways push breaks are indistinguishable in the raw error but need
+// different fixes, and both previously surfaced as nothing at all:
+//
+//   - App not installed on the owning org  -> install it there
+//   - App installed but lacking permissions -> grant them, then re-approve
+//
+// Anything else is reported verbatim rather than guessed at.
+func pushBlockedReason(repo string, err error) string {
+	owner := repo
+	if i := strings.Index(repo, "/"); i > 0 {
+		owner = repo[:i]
+	}
+
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "find github app installation"):
+		return fmt.Sprintf(
+			"The GitHub App is not installed on %q, so pushing to %s is not possible. "+
+				"Install it on that organisation and grant access to this repository.", owner, repo)
+	case strings.Contains(msg, "404"):
+		return fmt.Sprintf(
+			"The GitHub App cannot see %s. Either it is not granted access to this repository, "+
+				"or it lacks the contents/pull_requests permissions needed to write.", repo)
+	default:
+		return fmt.Sprintf("GitHub sync state could not be determined for %s: %v", repo, err)
+	}
 }
