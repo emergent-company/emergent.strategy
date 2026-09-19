@@ -7,20 +7,29 @@ name: Strategy Server CI
 # no schema declares, undetected long enough for a consumer to find it — is
 # roughly what that predicts.
 
+# Deliberately unfiltered by path, which costs about four minutes on a
+# documentation-only change and is worth it.
+#
+# This job is a required status check. A required check that never reports
+# leaves a pull request pending forever, and a paths filter means exactly that
+# for every pull request touching nothing under apps/strategy-server. Measured,
+# not assumed: with the filter in place a README-only pull request showed
+# `checks=0  state=BLOCKED` and could not be merged by anyone.
+#
+# The usual escape is a companion workflow reusing this job name that reports
+# success when the paths do not match. Rejected: `paths-ignore` runs when *any*
+# changed file falls outside the list, so a pull request touching both a README
+# and this module would produce two check runs called "Test & Build" — one real,
+# one trivially green — and which of them decides the required check is not
+# something worth being uncertain about.
+#
+# Running always is the version with no failure mode. Actions minutes are free
+# on a public repository, so the only real cost is four minutes of latency on
+# changes that could not have broken this module.
 on:
   push:
     branches: [main]
-    paths:
-      - "apps/strategy-server/**"
-      - "go.work"
-      - "go.work.sum"
-      - ".github/workflows/strategy-server.yaml"
   pull_request:
-    paths:
-      - "apps/strategy-server/**"
-      - "go.work"
-      - "go.work.sum"
-      - ".github/workflows/strategy-server.yaml"
   workflow_dispatch:
 
 permissions:
