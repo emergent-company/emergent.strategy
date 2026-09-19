@@ -55,29 +55,87 @@ func SchemaForType(artifactType string) (string, bool) {
 // Auto-detection heuristic
 // ---------------------------------------------------------------------------
 
-// payloadSignatures maps artifact type to a set of top-level keys that
-// are uniquely present in that artifact's payload.
+// payloadSignatures says how to recognise each artifact type from its payload.
+//
+// Every entry here is derived from the type's own schema — the keys it declares
+// `required`, and the value its `track` is pinned to by `const` where one
+// applies. That is deliberate and worth keeping to. The previous table was
+// written independently of the schemas and had drifted from all of them: ten
+// of the seventeen entries named keys that are not properties of the schema
+// they claim to detect. Nine of those types could therefore never be detected;
+// the tenth, mappings, was worse — it was shadowed by strategy_formula and so
+// validated against the wrong schema, reporting a valid artifact as invalid.
+// On a real instance (emergent-company/emergent-epf, 177 artifacts) 146 were
+// unclassifiable and one was misrouted.
+// TestEverySignatureKeyIsDeclaredBySchema now makes that class of drift a test
+// failure rather than something a consumer discovers.
+//
+// A match requires every key in keys to be present, and every entry in values
+// to be present AND equal. Order matters only where two types could both match;
+// the entries below are mutually exclusive on required keys.
 var payloadSignatures = []struct {
 	artifactType string
-	keys         []string // ALL must be present for a match
+	keys         []string          // ALL must be present for a match
+	values       map[string]string // ALL must be present and equal, when set
 }{
-	{"feature", []string{"id", "strategic_context", "definition"}},
-	{"north_star", []string{"north_star"}},
-	{"strategy_foundations", []string{"target_customer", "geographic_focus"}},
-	{"strategy_formula", []string{"strategy"}},
-	{"insight_analyses", []string{"market_analysis"}},
-	{"insight_opportunity", []string{"opportunity"}},
-	{"value_model", []string{"track_name", "maturity_stages"}},
-	{"roadmap_recipe", []string{"roadmap"}},
-	{"assessment_report", []string{"assessment_period", "okrs_assessed"}},
-	{"living_reality_assessment", []string{"lra_id", "strategic_alignment"}},
-	{"aim_trigger_config", []string{"trigger_thresholds"}},
-	{"commercial_def", []string{"commercial_model"}},
-	{"org_ops_def", []string{"org_model"}},
-	{"strategy_def", []string{"strategy_definition"}},
-	{"product_portfolio", []string{"portfolio"}},
-	{"mappings", []string{"mappings"}},
-	{"work_package", []string{"track", "targets", "lifecycle"}},
+	{artifactType: "feature", keys: []string{"id", "strategic_context", "definition"}},
+	{artifactType: "north_star", keys: []string{"north_star"}},
+
+	// Before strategy_formula, and the order is load-bearing: a mappings
+	// payload has a top-level `strategy`, so the single-key signature below
+	// would otherwise claim it. The old signature looked for a `mappings`
+	// wrapper the schema does not declare.
+	{artifactType: "mappings", keys: []string{"product", "strategy", "org_ops", "commercial"}},
+
+	{artifactType: "strategy_formula", keys: []string{"strategy"}},
+	{artifactType: "insight_opportunity", keys: []string{"opportunity"}},
+	{artifactType: "roadmap_recipe", keys: []string{"roadmap"}},
+	{artifactType: "product_portfolio", keys: []string{"portfolio"}},
+
+	// Schema requires exactly this one top-level key, which wraps the content.
+	// The old signature looked for target_customer/geographic_focus, fields
+	// that live inside the wrapper and are not top-level properties.
+	{artifactType: "strategy_foundations", keys: []string{"strategy_foundations"}},
+
+	// market_definition is not in the schema's `required`, unlike every other
+	// key here. It is added because required alone is {last_updated,
+	// confidence_level}, and last_updated is generic enough to appear in
+	// unrelated payloads; market_definition is what makes this an analysis.
+	{artifactType: "insight_analyses", keys: []string{"last_updated", "confidence_level", "market_definition"}},
+	{artifactType: "assessment_report", keys: []string{"roadmap_id", "cycle", "okr_assessments", "assumption_validations"}},
+	{artifactType: "aim_trigger_config", keys: []string{"metadata", "adoption_level", "calendar_trigger", "value_driven_triggers"}},
+	{artifactType: "living_reality_assessment", keys: []string{"metadata", "adoption_context", "track_baselines"}},
+	{artifactType: "value_model", keys: []string{"track_name", "version", "status", "description"}},
+
+	// The three track definitions share one base schema and are structurally
+	// identical: the same eleven top-level keys, so no combination of key
+	// presence can tell them apart. Each schema pins `track` with a const, and
+	// that is the discriminator — which is why signatures carry values at all.
+	{
+		artifactType: "org_ops_def",
+		keys:         trackDefinitionKeys,
+		values:       map[string]string{"track": "org_ops"},
+	},
+	{
+		artifactType: "strategy_def",
+		keys:         trackDefinitionKeys,
+		values:       map[string]string{"track": "strategy"},
+	},
+	{
+		artifactType: "commercial_def",
+		keys:         trackDefinitionKeys,
+		values:       map[string]string{"track": "commercial"},
+	},
+
+	// Also carries `track`, with the same four values, but shares none of the
+	// definition base's other required keys.
+	{artifactType: "work_package", keys: []string{"track", "targets", "lifecycle"}},
+}
+
+// trackDefinitionKeys is required by track_definition_base_schema.json, which
+// every track definition extends.
+var trackDefinitionKeys = []string{
+	"id", "name", "slug", "track", "status", "contributes_to", "maturity", "definition",
 }
 
 // DetectArtifactType infers the artifact type from the top-level keys of a JSON
@@ -88,18 +146,34 @@ func DetectArtifactType(payload []byte) (string, bool) {
 		return "", false
 	}
 	for _, sig := range payloadSignatures {
-		match := true
-		for _, k := range sig.keys {
-			if _, ok := raw[k]; !ok {
-				match = false
-				break
-			}
-		}
-		if match {
+		if signatureMatches(sig.keys, sig.values, raw) {
 			return sig.artifactType, true
 		}
 	}
 	return "", false
+}
+
+// signatureMatches reports whether a payload satisfies one signature.
+func signatureMatches(keys []string, values map[string]string, raw map[string]json.RawMessage) bool {
+	for _, k := range keys {
+		if _, ok := raw[k]; !ok {
+			return false
+		}
+	}
+	for k, want := range values {
+		rawVal, ok := raw[k]
+		if !ok {
+			return false
+		}
+		var got string
+		if err := json.Unmarshal(rawVal, &got); err != nil || got != want {
+			// A non-string, or the wrong string. Either way not this type —
+			// never an error, because detection is a guess by construction and
+			// its failure mode is "we do not know", not "this is broken".
+			return false
+		}
+	}
+	return true
 }
 
 // ---------------------------------------------------------------------------
