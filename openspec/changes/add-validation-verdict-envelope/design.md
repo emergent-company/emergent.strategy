@@ -122,27 +122,77 @@ issue #53's stated tool list: `health_check` reports completeness, not a
 verdict, and giving it an `ok` requires the server to define "healthy", which
 contradicts Decision 1's whole basis.
 
-## Open questions
+## Decision 6: The field names are already fixed by an existing consumer
 
-1. **`check_content_readiness` severity mapping.** Readiness is currently
-   scored, not error/warning/info. Does a low readiness score become one
-   `warning` finding, or one finding per unmet criterion? Per-criterion is
-   more useful for baselining but needs the underlying check to enumerate
-   criteria — verify it does before committing to it.
+Found while resolving the open questions: `opencode-harness` has **already
+built the consumer side**, in `internal/provider/verdict.go`, and its own doc
+comment names the convention as estate-wide (`emergent.strategy#53`,
+`emergent.memory#586`). Its envelope is:
 
-2. **`validate_relationships` finding keys.** A broken relationship has two
-   endpoints. Is `key` the source artifact, or do we need `key` plus a
-   `related_key`? Adding a field to `Finding` for one tool's benefit weakens
-   Decision 3; encoding both into `path` is uglier but keeps the envelope
-   uniform. Decide before implementing, not during.
+```go
+type Finding struct {
+    Severity Severity `json:"severity,omitempty"`
+    Key      string   `json:"key,omitempty"`
+    Rule     string   `json:"rule,omitempty"`
+    Message  string   `json:"message,omitempty"`
+}
+type Verdict struct {
+    OK       bool      `json:"ok"`
+    Summary  string    `json:"summary,omitempty"`
+    Findings []Finding `json:"findings,omitempty"`
+}
+```
 
-3. **Does any current consumer read `structuredContent` already?** If the web
-   UI or an internal caller passes these responses through a client library
-   that validates against `outputSchema`, the rollout order matters. Check
-   `internal/handler` and the harness's `internal/strategy/client` before
-   merging.
+So the names in Decision 1 are not ours to choose — `ok`, `summary`,
+`findings[].{severity,key,rule,message}` must match exactly. Three
+consequences:
 
-4. **Should `Rule` ids be frozen as a public contract?** If consumers baseline
-   on `(key, rule, path)`, then renaming a rule id is a breaking change for
-   them. Either commit to stability now and document it, or state explicitly
-   that rule ids are advisory and only `key` + `path` are stable.
+- **`counts` and `path` stay, as additive extras.** The harness unmarshals
+  into a struct and ignores unknown fields, so they cost it nothing, and
+  `counts.checked` answers a question `findings` cannot ("did anything
+  actually run?").
+- **Severity must always be set explicitly.** The harness's `Blocking()`
+  treats `severity == ""` as blocking. A warning emitted without a severity
+  would silently become a build-breaker. `verdict.New` normalises a missing
+  severity to `error` rather than letting it default to the zero value, so
+  the conservative reading is at least deliberate.
+- **`Message` must stand alone.** `verdictDetail` renders `key + ": " +
+  message` for the first 8 blocking findings and nothing else. A message that
+  only makes sense next to `path` will read as noise in a gate failure.
+
+## Resolved: former open questions
+
+**1. `check_content_readiness` → one finding per missing field, severity
+`warning`.** `ReadinessReport.Missing []string` already enumerates the missing
+field names, so per-criterion findings cost nothing and give baselining real
+identity: `rule: "readiness.missing_field"`, `path: "/<field>"`.
+
+Severity is `warning`, never `error`, which means **readiness always returns
+`ok: true`**. That is correct, not a bug: readiness is a score, and deciding
+which score is "failing" is exactly the threshold Decision 1 says belongs to
+the consumer. The one exception is an unparseable payload, which is a genuine
+`error` — the check could not be performed on it.
+
+**2. `validate_relationships` → `key` is the source, the edge goes in
+`path`.** A broken reference is `key: <source_key>`, `rule:
+"relationship.broken_target"`, `path: "/<relationship>/<target_key>"`. That
+keeps `(key, rule, path)` unique and stable per broken edge without adding a
+`related_key` field that only one tool would populate — which would break the
+uniformity Decision 3 exists to protect. The message names both endpoints so
+it stands alone, per Decision 6. Severity is `error`: a dangling reference is
+disqualifying.
+
+**3. Existing consumers: only the harness, and it is ready.** Nothing in
+`internal/handler` or the web UI reads `structuredContent`; the only consumer
+in the estate is the harness code above, which treats a missing verdict as
+"the tool did not answer" rather than as consent. Rollout order does not
+matter — every tool that gains an envelope is an improvement for it, and the
+ones that do not keep working unchanged.
+
+**4. Rule ids are a stable public contract.** Consumers baseline on
+`(key, rule, path)`, so churn there is a breaking change for them. Committing
+to stability is cheap because the ids are derived from things that are
+themselves stable: JSON Schema keywords (`required`, `type`, `enum`) via
+`ErrorKind.KeywordPath()`, under a namespace prefix we own (`schema.`,
+`relationship.`, `readiness.`). Documented in `AGENTS.md` as a contract, not
+an implementation detail.

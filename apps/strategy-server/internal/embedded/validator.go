@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 )
 
 // ---------------------------------------------------------------------------
@@ -134,6 +136,125 @@ type ValidationResult struct {
 	SchemaFile   string   `json:"schema_file,omitempty"`
 	Errors       []string `json:"errors,omitempty"`
 	Warnings     []string `json:"warnings,omitempty"`
+
+	// Findings is the same information as Errors, kept structured.
+	//
+	// Errors is prose and stays exactly as it was — plenty of callers read it
+	// and the web UI renders it. But prose cannot be baselined: a consumer
+	// that wants to accept an existing backlog and fail only on new problems
+	// needs findings whose identity survives the validation library rewording
+	// a message. (Key, Rule, Path) does; a sentence does not.
+	//
+	// Indices correspond to Errors 1:1.
+	Findings []verdict.Finding `json:"findings,omitempty"`
+}
+
+// rule id prefixes. These are a public contract — consumers baseline on them,
+// so renaming one breaks them. See internal/verdict.Finding.Rule.
+const (
+	ruleSchemaPrefix = "schema."
+	// ruleSchemaInvalid is the fallback when the validation library reports a
+	// failure with no keyword attached.
+	ruleSchemaInvalid = "schema.invalid"
+	// ruleSchemaUnavailable means the check could not be performed — the
+	// schema was missing, unparseable, or would not compile. Distinct from a
+	// violation so a consumer can tell "this artifact is wrong" from "we
+	// could not tell whether it is wrong".
+	ruleSchemaUnavailable = "schema.unavailable"
+	// rulePayloadInvalidJSON means the subject itself could not be parsed.
+	rulePayloadInvalidJSON = "payload.invalid_json"
+	// ruleArtifactTypeUndetected means auto-detection failed, so no schema
+	// could be selected.
+	ruleArtifactTypeUndetected = "artifact_type.undetected"
+)
+
+// blockedResult builds the result for a check that could not be performed.
+//
+// These stay ordinary results rather than becoming protocol errors: the
+// existing contract returns Valid=false with an explanatory string, callers
+// depend on that, and the distinct rule id gives a structured consumer the
+// same information without a behaviour change.
+func blockedResult(artifactType, schemaFile, rule, msg string) ValidationResult {
+	return ValidationResult{
+		Valid:        false,
+		ArtifactType: artifactType,
+		SchemaFile:   schemaFile,
+		Errors:       []string{msg},
+		Findings: []verdict.Finding{{
+			Severity: verdict.SeverityError,
+			Rule:     rule,
+			Message:  msg,
+		}},
+	}
+}
+
+// collectValidationError populates Errors and Findings from a schema
+// validation failure.
+//
+// Findings are derived from the structured error — InstanceLocation and
+// ErrorKind.KeywordPath() — not by parsing the rendered message. Recovering a
+// rule id by regex over English would be fragile and would break silently on
+// a library upgrade, which is precisely the failure a baselining consumer
+// cannot absorb.
+//
+// Errors keeps its existing derivation and ordering exactly, so Findings[i]
+// describes the same problem as Errors[i].
+func (r *ValidationResult) collectValidationError(err error) {
+	r.Valid = false
+
+	ve, ok := err.(*jsonschema.ValidationError)
+	if !ok {
+		r.Errors = []string{err.Error()}
+		r.Findings = []verdict.Finding{{
+			Severity: verdict.SeverityError,
+			Rule:     ruleSchemaInvalid,
+			Message:  err.Error(),
+		}}
+		return
+	}
+
+	// A top-level error with no causes is itself the finding.
+	causes := ve.Causes
+	if len(causes) == 0 {
+		causes = []*jsonschema.ValidationError{ve}
+	}
+
+	for _, e := range causes {
+		msg := e.Error()
+		r.Errors = append(r.Errors, msg)
+		r.Findings = append(r.Findings, verdict.Finding{
+			Severity: verdict.SeverityError,
+			Rule:     schemaRule(e),
+			Path:     jsonPointer(e.InstanceLocation),
+			Message:  msg,
+		})
+	}
+}
+
+// schemaRule maps a validation error to a stable rule id, e.g. "schema.required".
+func schemaRule(e *jsonschema.ValidationError) string {
+	if e.ErrorKind == nil {
+		return ruleSchemaInvalid
+	}
+	kw := e.ErrorKind.KeywordPath()
+	if len(kw) == 0 {
+		return ruleSchemaInvalid
+	}
+	return ruleSchemaPrefix + strings.Join(kw, ".")
+}
+
+// jsonPointer renders an instance location as an RFC 6901 JSON pointer.
+// The library's own helper is unexported, so this reimplements the escaping.
+func jsonPointer(tokens []string) string {
+	if len(tokens) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, tok := range tokens {
+		sb.WriteByte('/')
+		sb.WriteString(strings.NewReplacer("~", "~0", "/", "~1").Replace(tok))
+	}
+	return sb.String()
 }
 
 // ---------------------------------------------------------------------------
@@ -163,53 +284,31 @@ func ValidateArtifactFromBytes(artifactType string, payload, schemaBytes []byte)
 
 	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaBytes))
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			Errors:       []string{fmt.Sprintf("failed to parse schema: %v", err)},
-		}
+		return blockedResult(artifactType, "", ruleSchemaUnavailable,
+			fmt.Sprintf("failed to parse schema: %v", err))
 	}
 
 	c := jsonschema.NewCompiler()
 	if err := c.AddResource(schemaID, schemaDoc); err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			Errors:       []string{fmt.Sprintf("failed to register schema: %v", err)},
-		}
+		return blockedResult(artifactType, "", ruleSchemaUnavailable,
+			fmt.Sprintf("failed to register schema: %v", err))
 	}
 
 	sch, err := c.Compile(schemaID)
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			Errors:       []string{fmt.Sprintf("failed to compile schema: %v", err)},
-		}
+		return blockedResult(artifactType, "", ruleSchemaUnavailable,
+			fmt.Sprintf("failed to compile schema: %v", err))
 	}
 
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(payload))
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			Errors:       []string{fmt.Sprintf("invalid JSON payload: %v", err)},
-		}
+		return blockedResult(artifactType, "", rulePayloadInvalidJSON,
+			fmt.Sprintf("invalid JSON payload: %v", err))
 	}
 
 	result := ValidationResult{ArtifactType: artifactType}
 	if err := sch.Validate(instance); err != nil {
-		result.Valid = false
-		if ve, ok := err.(*jsonschema.ValidationError); ok {
-			for _, e := range ve.Causes {
-				result.Errors = append(result.Errors, e.Error())
-			}
-			if len(result.Errors) == 0 {
-				result.Errors = []string{ve.Error()}
-			}
-		} else {
-			result.Errors = []string{err.Error()}
-		}
+		result.collectValidationError(err)
 	} else {
 		result.Valid = true
 	}
@@ -229,11 +328,8 @@ func ValidateArtifactWithSource(artifactType string, payload []byte, source Sche
 	if artifactType == "" {
 		t, ok := DetectArtifactType(payload)
 		if !ok {
-			return ValidationResult{
-				Valid:        false,
-				ArtifactType: "",
-				Errors:       []string{"could not detect artifact type from payload structure"},
-			}
+			return blockedResult("", "", ruleArtifactTypeUndetected,
+				"could not detect artifact type from payload structure")
 		}
 		artifactType = t
 		detected = true
@@ -256,54 +352,34 @@ func ValidateArtifactWithSource(artifactType string, payload []byte, source Sche
 	// Load the schema bytes from the provided source.
 	schemaBytes, err := source.GetSchemaBytes(schemaFile)
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			SchemaFile:   schemaFile,
-			Errors:       []string{fmt.Sprintf("failed to load schema %q: %v", schemaFile, err)},
-		}
+		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
+			fmt.Sprintf("failed to load schema %q: %v", schemaFile, err))
 	}
 
 	// Compile the schema.
 	schemaDoc, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaBytes))
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			SchemaFile:   schemaFile,
-			Errors:       []string{fmt.Sprintf("failed to parse schema %q: %v", schemaFile, err)},
-		}
+		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
+			fmt.Sprintf("failed to parse schema %q: %v", schemaFile, err))
 	}
 
 	c := jsonschema.NewCompiler()
 	if err := c.AddResource(schemaFile, schemaDoc); err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			SchemaFile:   schemaFile,
-			Errors:       []string{fmt.Sprintf("failed to register schema %q: %v", schemaFile, err)},
-		}
+		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
+			fmt.Sprintf("failed to register schema %q: %v", schemaFile, err))
 	}
 
 	sch, err := c.Compile(schemaFile)
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			SchemaFile:   schemaFile,
-			Errors:       []string{fmt.Sprintf("failed to compile schema %q: %v", schemaFile, err)},
-		}
+		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
+			fmt.Sprintf("failed to compile schema %q: %v", schemaFile, err))
 	}
 
 	// Unmarshal instance.
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(payload))
 	if err != nil {
-		return ValidationResult{
-			Valid:        false,
-			ArtifactType: artifactType,
-			SchemaFile:   schemaFile,
-			Errors:       []string{fmt.Sprintf("invalid JSON payload: %v", err)},
-		}
+		return blockedResult(artifactType, schemaFile, rulePayloadInvalidJSON,
+			fmt.Sprintf("invalid JSON payload: %v", err))
 	}
 
 	// Validate.
@@ -316,18 +392,7 @@ func ValidateArtifactWithSource(artifactType string, payload []byte, source Sche
 	}
 
 	if err := sch.Validate(instance); err != nil {
-		result.Valid = false
-		// Collect individual validation errors if the error is a *jsonschema.ValidationError.
-		if ve, ok := err.(*jsonschema.ValidationError); ok {
-			for _, e := range ve.Causes {
-				result.Errors = append(result.Errors, e.Error())
-			}
-			if len(result.Errors) == 0 {
-				result.Errors = []string{ve.Error()}
-			}
-		} else {
-			result.Errors = []string{err.Error()}
-		}
+		result.collectValidationError(err)
 	} else {
 		result.Valid = true
 	}

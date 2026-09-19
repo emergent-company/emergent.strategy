@@ -65,12 +65,25 @@ func Generate() (*Model, error) {
 		if err != nil {
 			return nil, fmt.Errorf("selfmodel: marshal input schema for %q: %w", name, err)
 		}
-		tools = append(tools, Tool{
+		tool := Tool{
 			Name:        name,
 			Description: st.Tool.Description,
 			Category:    category,
 			InputSchema: schemaJSON,
-		})
+		}
+
+		// Only tools that actually declare an output schema carry one. An
+		// empty ToolOutputSchema marshals to a bare {"type":""} object, which
+		// would read as "this tool publishes a contract" when it does not.
+		if st.Tool.OutputSchema.Type != "" {
+			outJSON, err := json.Marshal(st.Tool.OutputSchema)
+			if err != nil {
+				return nil, fmt.Errorf("selfmodel: marshal output schema for %q: %w", name, err)
+			}
+			tool.OutputSchema = outJSON
+		}
+
+		tools = append(tools, tool)
 	}
 	sort.Slice(tools, func(i, j int) bool { return tools[i].Name < tools[j].Name })
 

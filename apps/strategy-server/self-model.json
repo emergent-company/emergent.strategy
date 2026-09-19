@@ -351,7 +351,7 @@
     },
     {
       "name": "check_content_readiness",
-      "description": "USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance.",
+      "description": "USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -366,6 +366,80 @@
         },
         "required": [
           "instance_id"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
         ],
         "type": "object"
       }
@@ -3433,7 +3507,7 @@
     },
     {
       "name": "validate_artifact",
-      "description": "USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns valid/invalid status plus a list of schema errors.",
+      "description": "USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -3448,6 +3522,80 @@
         },
         "required": [
           "payload"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
         ],
         "type": "object"
       }
@@ -3471,7 +3619,7 @@
     },
     {
       "name": "validate_instance",
-      "description": "USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type.",
+      "description": "USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -3482,13 +3630,87 @@
         },
         "required": [
           "instance_id"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
         ],
         "type": "object"
       }
     },
     {
       "name": "validate_relationships",
-      "description": "USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts.",
+      "description": "USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts. Returns a verdict in structuredContent; each broken reference is one finding keyed by its source artifact.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -3501,11 +3723,85 @@
           "instance_id"
         ],
         "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
+        ],
+        "type": "object"
       }
     },
     {
       "name": "validate_with_plan",
-      "description": "USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order.",
+      "description": "USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent; the prioritised fix plan itself stays in the text content.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -3516,6 +3812,80 @@
         },
         "required": [
           "instance_id"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
         ],
         "type": "object"
       }

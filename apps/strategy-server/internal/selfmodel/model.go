@@ -64,15 +64,22 @@ type Category struct {
 	ToolCount   int    `json:"tool_count"`
 }
 
-// Tool is one registered MCP tool. InputSchema is the tool's real,
-// live-registered JSON Schema (marshaled from the mcp-go Tool this was
-// introspected from), not a hand-projected summary — a consumer gets the
-// same schema an MCP client validating a call would use.
+// Tool is one registered MCP tool. InputSchema and OutputSchema are the
+// tool's real, live-registered JSON Schemas (marshaled from the mcp-go Tool
+// this was introspected from), not hand-projected summaries — a consumer gets
+// the same schemas an MCP client validating a call would use.
 type Tool struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
 	Category    string          `json:"category"`
 	InputSchema json.RawMessage `json:"input_schema,omitempty"`
+
+	// OutputSchema is set only for tools that publish one — currently the
+	// validation tools, which return a verdict envelope as structuredContent.
+	// Omitting it here would defeat the point of declaring it: the whole
+	// reason the envelope has a schema is so consumers can discover its shape
+	// rather than learn it by folklore, and this document is where they look.
+	OutputSchema json.RawMessage `json:"output_schema,omitempty"`
 }
 
 // Phase is one EPF phase (READY, FIRE, AIM) and the artifact types that

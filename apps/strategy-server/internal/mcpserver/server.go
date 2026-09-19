@@ -56,6 +56,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/pipeline"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
@@ -1763,16 +1764,22 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 	// validate_artifact — validate a single JSON payload against its EPF schema.
 	s.AddTool(mcp.NewTool("validate_artifact",
-		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns valid/invalid status plus a list of schema errors."),
+		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error."),
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON payload of the artifact to validate")),
 		mcp.WithString("artifact_type", mcp.Description("EPF artifact type (e.g. feature, north_star). Auto-detected when omitted.")),
+		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
-			return mustJSON(embedded.ValidationResult{
+			detail := embedded.ValidationResult{
 				Valid:  false,
 				Errors: []string{"payload is not valid JSON"},
-			})
+			}
+			return verdictResult(verdict.New(1, []verdict.Finding{{
+				Severity: verdict.SeverityError,
+				Rule:     "payload.invalid_json",
+				Message:  "payload is not valid JSON",
+			}}).WithSummary("payload is not valid JSON"), detail)
 		}
 
 		// Use registry-backed schema source when available.
@@ -1781,13 +1788,22 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 			source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, "", "standard")
 		}
 		result := embedded.ValidateArtifactWithSource(argString(req, "artifact_type"), []byte(payloadStr), source)
-		return mustJSON(result)
+
+		v := verdict.New(1, findingsFromValidation("", result))
+		if v.OK {
+			v = v.WithSummary("payload is valid against the %s schema", result.ArtifactType)
+		} else {
+			v = v.WithSummary("payload is invalid against the %s schema: %s",
+				result.ArtifactType, v.Summary)
+		}
+		return verdictResult(v, result)
 	})
 
 	// validate_instance — validate all artifacts in an instance against their schemas.
 	s.AddTool(mcp.NewTool("validate_instance",
-		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type."),
+		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -1829,13 +1845,21 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 				totalInvalid++
 			}
 		}
-		return mustJSON(map[string]any{
-			"instance_id":    instID,
-			"artifact_count": len(artifacts),
-			"valid_count":    totalValid,
-			"invalid_count":  totalInvalid,
-			"results":        results,
-		})
+		findings := make([]verdict.Finding, 0)
+		for i := range results {
+			findings = append(findings, findingsFromValidation(results[i].ArtifactKey, results[i].ValidationResult)...)
+		}
+
+		return verdictResult(
+			verdict.New(len(artifacts), findings).
+				WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts)),
+			map[string]any{
+				"instance_id":    instID,
+				"artifact_count": len(artifacts),
+				"valid_count":    totalValid,
+				"invalid_count":  totalInvalid,
+				"results":        results,
+			})
 	})
 
 	// validate_relationships — check cross-artifact reference integrity.
@@ -1844,8 +1868,9 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 // registerRelationshipValidationTools registers relationship and content-readiness checks.
 func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("validate_relationships",
-		mcp.WithDescription("USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts."),
+		mcp.WithDescription("USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts. Returns a verdict in structuredContent; each broken reference is one finding keyed by its source artifact."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -1902,20 +1927,40 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 			}
 		}
 
-		return mustJSON(map[string]any{
-			"instance_id":           instID,
-			"relationships_checked": totalChecked,
-			"broken_count":          len(broken),
-			"broken":                broken,
-			"valid":                 len(broken) == 0,
-		})
+		// key is the source artifact and the edge goes in path, rather than
+		// adding a related_key field only this tool would populate — the
+		// envelope is only useful while it is identical across tools.
+		// (key, rule, path) stays unique and stable per broken edge.
+		findings := make([]verdict.Finding, 0, len(broken))
+		for _, b := range broken {
+			findings = append(findings, verdict.Finding{
+				Severity: verdict.SeverityError,
+				Key:      b.SourceKey,
+				Rule:     "relationship.broken_target",
+				Path:     "/" + b.Relationship + "/" + b.TargetKey,
+				Message: fmt.Sprintf("relationship %q targets %s %q, which does not exist in this instance",
+					b.Relationship, b.TargetType, b.TargetKey),
+			})
+		}
+
+		return verdictResult(
+			verdict.New(totalChecked, findings).
+				WithSummary("%d of %d relationships have unresolvable targets", len(broken), totalChecked),
+			map[string]any{
+				"instance_id":           instID,
+				"relationships_checked": totalChecked,
+				"broken_count":          len(broken),
+				"broken":                broken,
+				"valid":                 len(broken) == 0,
+			})
 	})
 
 	// check_content_readiness — score content quality for one or all artifacts.
 	s.AddTool(mcp.NewTool("check_content_readiness",
-		mcp.WithDescription("USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance."),
+		mcp.WithDescription("USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("artifact_key", mcp.Description("Optional artifact key. If omitted, scores all features.")),
+		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -1930,7 +1975,10 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 				return toolErr(ctx, err), nil
 			}
 			report := embedded.CheckContentReadiness(a.ArtifactType, a.ArtifactKey, a.Payload)
-			return mustJSON(report)
+			return verdictResult(
+				verdict.New(1, readinessFindings(report)).
+					WithSummary("%s readiness %d/100 (%s)", report.ArtifactKey, report.Score, report.Level),
+				report)
 		}
 
 		// All features.
@@ -1949,12 +1997,20 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 		if len(artifacts) > 0 {
 			avgScore = totalScore / len(artifacts)
 		}
-		return mustJSON(map[string]any{
-			"instance_id":   instID,
-			"feature_count": len(artifacts),
-			"average_score": avgScore,
-			"reports":       reports,
-		})
+		findings := make([]verdict.Finding, 0)
+		for _, r := range reports {
+			findings = append(findings, readinessFindings(r)...)
+		}
+
+		return verdictResult(
+			verdict.New(len(artifacts), findings).
+				WithSummary("average readiness %d/100 across %d features", avgScore, len(artifacts)),
+			map[string]any{
+				"instance_id":   instID,
+				"feature_count": len(artifacts),
+				"average_score": avgScore,
+				"reports":       reports,
+			})
 	})
 }
 

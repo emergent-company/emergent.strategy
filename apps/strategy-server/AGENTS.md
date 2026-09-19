@@ -445,6 +445,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 |---------|---------|
 | `internal/database/` | DB connection, migrations (42), `TestDB(t)`, `TestDBWithDSN(t)` |
 | `internal/mcpserver/` | 157 MCP tools across ~14 registration files, tool category filter (14 categories) |
+| `internal/verdict/` | Shared validation verdict envelope (`ok`/`summary`/`counts`/`findings`) returned as `structuredContent` by the five validation tools. Wire names are a cross-repo contract — see "Validation Verdict Envelope" |
 | `internal/selfmodel/` | Generates the published self-model (tool catalogue, EPF phases/artifacts, navigation) from live sources — never hand-copied. `cmd/genselfmodel` regenerates the committed `self-model.json` |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
 | `internal/handler/` | Web UI handlers — HTMX rendering, RenderTriple pattern, graph-driven route registration |
@@ -556,6 +557,64 @@ not maintained by hand in this table.
 | knowledge | 10 | `list_schemas`, `get_template`, `get_agent`, `get_skill` |
 | packs | 11 | `install_pack`, `run_skill`, `run_app`, `scaffold_skill` |
 | observability | 9 | `list_activities`, `list_skill_runs`, `get_llm_usage`, `list_cycle_proposals` |
+
+### Validation Verdict Envelope — `isError` is not "the subject is bad"
+
+Five tools render a *judgement* rather than returning data:
+`validate_artifact`, `validate_instance`, `validate_relationships`,
+`validate_with_plan`, `check_content_readiness`. Each returns the same
+envelope as `structuredContent` and publishes it via `outputSchema`
+(`internal/verdict`, wired in `internal/mcpserver/verdict_tools.go`):
+
+```json
+{
+  "ok": false,
+  "summary": "132 of 185 artifacts invalid",
+  "counts": {"error": 132, "warning": 0, "info": 0, "checked": 185},
+  "findings": [
+    {"severity": "error", "key": "fd-001", "rule": "schema.required",
+     "path": "/name", "message": "at '/name': missing property 'name'"}
+  ]
+}
+```
+
+Rules, in order of how easy they are to get wrong:
+
+1. **Never set `isError` because the subject is invalid.** `isError` means the
+   *call* could not be performed. `validate_instance` is a query — dashboards
+   and surveying agents legitimately ask "what is the validation state?" and
+   must get an answer whatever it is. A malformed `instance_id` is `isError`;
+   132 invalid artifacts is not.
+2. **Always set `severity` explicitly.** `opencode-harness` treats an absent
+   severity as blocking, so an unset warning becomes someone's failed build.
+   `verdict.New` normalises a missing one to `error` as a backstop.
+3. **`ok` is advisory, not a gate.** It is `counts.error == 0` and nothing
+   more. On an instance with a tolerated backlog it is permanently `false` and
+   carries no signal — `f0c81e00` is 132/185 invalid today. Consumers with a
+   real threshold baseline `findings` on `(key, rule, path)` and act on new
+   ones. Tool descriptions must say this; do not write one that implies `ok`
+   is a universal pass/fail.
+4. **Rule ids are a public contract.** `schema.*`, `relationship.*`,
+   `readiness.*`. Consumers baseline on them, so renaming one breaks them as
+   surely as deleting a field. The `schema.*` suffix comes from the JSON
+   Schema keyword (`required`, `type`), which is stable vocabulary.
+5. **Do not extend the envelope per tool.** Its only value is being identical
+   everywhere. Tool-specific detail (`validate_with_plan`'s fix plan,
+   `validate_instance`'s per-artifact results) stays in the text content,
+   which is unchanged from before the envelope existed.
+6. **`health_check` has no verdict, deliberately.** It reports completeness,
+   not a judgement; an `ok` for it would mean the server defining "healthy",
+   which is the consumer's threshold to set.
+
+The wire names (`ok`, `summary`, `findings[].{severity,key,rule,message}`) are
+a cross-repo contract consumed by `opencode-harness`
+(`internal/provider/verdict.go`) and requested of `emergent.memory` (#586).
+Add fields freely; never rename these.
+
+Findings are produced in `internal/embedded/validator.go` from the structured
+`jsonschema.ValidationError` — `InstanceLocation` and `ErrorKind.KeywordPath()`
+— never by parsing a rendered message. `ValidationResult.Errors` keeps its
+original prose, index-aligned with `Findings`.
 
 ### Ripple Coherence Engine
 

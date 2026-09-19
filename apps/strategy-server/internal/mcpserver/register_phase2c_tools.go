@@ -26,6 +26,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -170,8 +171,9 @@ func registerDefinitionTools(s *server.MCPServer) {
 
 func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("validate_with_plan",
-		mcp.WithDescription("USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order."),
+		mcp.WithDescription("USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent; the prioritised fix plan itself stays in the text content."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -192,11 +194,13 @@ func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 		}
 
 		var plan []fixItem
+		findings := make([]verdict.Finding, 0)
 		for _, a := range artifacts {
 			result := embedded.ValidateArtifact(a.ArtifactType, a.Payload)
 			if result.Valid {
 				continue
 			}
+			findings = append(findings, findingsFromValidation(a.ArtifactKey, result)...)
 
 			priority := "medium"
 			hint := "Fix schema errors to conform to the EPF standard."
@@ -239,13 +243,16 @@ func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 			}
 		}
 
-		return mustJSON(map[string]any{
-			"instance_id":     instID,
-			"total_artifacts": len(artifacts),
-			"errors_found":    len(plan),
-			"fix_plan":        plan,
-			"suggestion":      "Work through the fix plan in order — critical items first. Use get_schema to see required fields for each artifact type.",
-		})
+		return verdictResult(
+			verdict.New(len(artifacts), findings).
+				WithSummary("%d of %d artifacts need fixes", len(plan), len(artifacts)),
+			map[string]any{
+				"instance_id":     instID,
+				"total_artifacts": len(artifacts),
+				"errors_found":    len(plan),
+				"fix_plan":        plan,
+				"suggestion":      "Work through the fix plan in order — critical items first. Use get_schema to see required fields for each artifact type.",
+			})
 	})
 }
 
