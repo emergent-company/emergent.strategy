@@ -60,11 +60,13 @@ func SchemaForType(artifactType string) (string, bool) {
 // Every entry here is derived from the type's own schema — the keys it declares
 // `required`, and the value its `track` is pinned to by `const` where one
 // applies. That is deliberate and worth keeping to. The previous table was
-// written independently of the schemas and had drifted from all of them: nine
+// written independently of the schemas and had drifted from all of them: ten
 // of the seventeen entries named keys that are not properties of the schema
-// they claim to detect, so those types could never be detected at all. On a
-// real instance (emergent-company/emergent-epf, 177 artifacts) 146 were
-// unclassifiable, including 131 of 131 across the three definition families.
+// they claim to detect. Nine of those types could therefore never be detected;
+// the tenth, mappings, was worse — it was shadowed by strategy_formula and so
+// validated against the wrong schema, reporting a valid artifact as invalid.
+// On a real instance (emergent-company/emergent-epf, 177 artifacts) 146 were
+// unclassifiable and one was misrouted.
 // TestEverySignatureKeyIsDeclaredBySchema now makes that class of drift a test
 // failure rather than something a consumer discovers.
 //
@@ -95,6 +97,10 @@ var payloadSignatures = []struct {
 	// that live inside the wrapper and are not top-level properties.
 	{artifactType: "strategy_foundations", keys: []string{"strategy_foundations"}},
 
+	// market_definition is not in the schema's `required`, unlike every other
+	// key here. It is added because required alone is {last_updated,
+	// confidence_level}, and last_updated is generic enough to appear in
+	// unrelated payloads; market_definition is what makes this an analysis.
 	{artifactType: "insight_analyses", keys: []string{"last_updated", "confidence_level", "market_definition"}},
 	{artifactType: "assessment_report", keys: []string{"roadmap_id", "cycle", "okr_assessments", "assumption_validations"}},
 	{artifactType: "aim_trigger_config", keys: []string{"metadata", "adoption_level", "calendar_trigger", "value_driven_triggers"}},
