@@ -106,7 +106,9 @@ Gives both read AND background write-back (AIM auto-push).
 URL: `https://github.com/apps/{GITHUB_APP_SLUG}/installations/new`
 
 **Option B — Approve the OAuth App:**
-Gives read and manual push via the web UI. No background write-back.
+Gives **read only**: browsing and import via the web UI. It does NOT enable
+push of any kind — manual push and background write-back both go through the
+App. If you need to write back to this org's repo, Option A is required.
 URL: `https://github.com/organizations/{org}/settings/oauth_application_policy`
 
 ---
@@ -118,11 +120,37 @@ URL: `https://github.com/organizations/{org}/settings/oauth_application_policy`
 | Connect GitHub account | OAuth dance (browser) | None |
 | Browse public repos | OAuth token (`gho_`) | None |
 | Browse private org repos | OAuth token (`gho_`) | Org must approve OAuth App |
-| Import from private org repo | OAuth token (`gho_`) | Org must approve OAuth App |
-| Push to private org repo (manual) | OAuth token (`gho_`) | Org must approve OAuth App |
+| Import from private org repo (web UI) | OAuth token (`gho_`) | Org must approve OAuth App |
+| **Push to private org repo (manual, web UI)** | **App installation token** | **Org must install GitHub App** |
 | AIM auto-push (background) | App installation token | Org must install GitHub App |
 | `import_from_github` MCP tool | App installation token | Org must install GitHub App |
 | `sync_to_github` MCP tool | App installation token | Org must install GitHub App |
+
+### Reading the matrix: the split is by direction, not by caller
+
+Every **write** goes through the App. Only **reads** can use a user token.
+
+The user-token path exists for import (`domain/sync.ImportFromGithubWithUserToken`)
+and repo scanning (`ScanUserRepos`), and both are reachable only from the web UI
+handlers. There is no `PushToGithubWithUserToken`. `SyncToGithub` opens with:
+
+```go
+if s.writer == nil {
+    return nil, apperror.ErrBadRequest.WithDetail("GitHub App is not configured; …")
+}
+```
+
+and the web UI's push button calls it directly, so a user who connected their
+account and imported a repo successfully will still fail to push if the App is
+not installed on that repo's org.
+
+**Multi-tenant consequence:** the App must be installed on every org whose
+strategy repo you intend to write to. One OAuth connect covers browsing and
+import across all of a user's orgs; pushing does not scale the same way. This
+is intrinsic to GitHub Apps — an installation *is* the grant and tokens are
+minted per installation — not a strategy-server design choice.
+
+Whether the asymmetry should stay is tracked in issue #55.
 
 ---
 

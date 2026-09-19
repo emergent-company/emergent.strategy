@@ -729,12 +729,32 @@ Strategy-server uses **two separate GitHub auth mechanisms**:
 
 | Mechanism | Env vars | Used for | App install required? |
 |-----------|----------|----------|----------------------|
-| GitHub App (JWT) | `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` | AIM auto-push, MCP sync tools | **Yes** — per org |
-| User OAuth token | `GITHUB_OAUTH_CLIENT_ID` + `GITHUB_OAUTH_CLIENT_SECRET` | Connect flow, user import/push | **No** |
+| GitHub App (JWT) | `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY_PATH` | **All pushes**, AIM auto-push, every MCP sync tool | **Yes** — per org |
+| User OAuth token | `GITHUB_OAUTH_CLIENT_ID` + `GITHUB_OAUTH_CLIENT_SECRET` | Connect flow, repo browsing, **web-UI import only** | **No** |
 
-**The key insight:** Regular users connecting GitHub and doing import/push via the
-web UI use their own OAuth token — no admin App installation needed. App installation
-is only required for background server-initiated operations (AIM auto-push).
+**The key insight — read direction and write direction differ:**
+
+| Operation | Token path | Per-org App install? |
+|-----------|-----------|----------------------|
+| Connect + browse repos | user OAuth | No |
+| Import — web UI | user OAuth (`ImportFromGithubWithUserToken`) | No |
+| Import — MCP tool | App | Yes |
+| **Push — anywhere, including the web UI** | **App only** | **Yes** |
+| AIM auto-push | App | Yes |
+| Sync state / history — MCP | App | Yes |
+
+**There is no user-token push path.** `domain/sync.SyncToGithub` returns
+`ErrBadRequest` when the App writer is nil, and the web UI's push button
+(`internal/handler/handler_settings.go`) calls straight through to it. No
+`PushToGithubWithUserToken` exists. So a connected user can browse and import
+across every org they belong to with no admin involvement, but **cannot push
+back to any org where the App is not installed** — see issue #55 for whether
+that asymmetry is deliberate.
+
+Practical consequence for multi-tenant use: the App must be installed on
+**every org whose strategy repo you intend to write to**. That is intrinsic to
+GitHub Apps (an installation *is* the grant, and tokens are minted per
+installation), not a strategy-server choice.
 
 **Using the GitHub App's own client ID for OAuth** (not a separate OAuth App).
 This produces `ghu_` tokens. Plain OAuth App `gho_` tokens cannot call
@@ -746,11 +766,13 @@ Full bidirectional lifecycle. Three flows: **Genesis** (scaffold → push),
 **Connect** (user connects GitHub → browse repos → import → edit → push),
 **Ongoing** (import when remote changes, auto-push after AIM cycles).
 
-**User connect flow (web UI — no App install needed):**
+**User connect flow (web UI — no App install needed for steps 1-4):**
 1. User visits `/github/connect` → clicks "Connect GitHub account"
 2. OAuth dance with `repo,read:user` scope → token stored in `users.github_access_token`
 3. All repos user has access to shown (across all orgs) — no App install required
-4. User picks repo → Import or Link → work in the UI → Push back
+4. User picks repo → Import or Link → work in the UI
+5. **Push back — requires the App installed on that repo's org.** This step does
+   not use the user's token; it calls `SyncToGithub`, which is App-only.
 
 **MCP tool flow (App installation required):**
 - `update_instance(instance_id, github_repo="org/repo")` to link
