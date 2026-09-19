@@ -748,7 +748,7 @@ Strategy-server uses **two separate GitHub auth mechanisms**:
 (`internal/handler/handler_settings.go`) calls straight through to it. No
 `PushToGithubWithUserToken` exists. So a connected user can browse and import
 across every org they belong to with no admin involvement, but **cannot push
-back to any org where the App is not installed** — see issue #55 for whether
+back to any org where the App is not installed** — see issues #55 and #56 for whether
 that asymmetry is deliberate.
 
 Practical consequence for multi-tenant use: the App must be installed on
@@ -756,9 +756,28 @@ Practical consequence for multi-tenant use: the App must be installed on
 GitHub Apps (an installation *is* the grant, and tokens are minted per
 installation), not a strategy-server choice.
 
-**Using the GitHub App's own client ID for OAuth** (not a separate OAuth App).
-This produces `ghu_` tokens. Plain OAuth App `gho_` tokens cannot call
-`GET /user/installations` and will get 403.
+**The OAuth side is a separate CLASSIC OAuth App, not the GitHub App's own
+OAuth.** `GITHUB_OAUTH_CLIENT_ID` is an `Ov23…` classic client id and issues
+`gho_` tokens. This is deliberate — see `docs/GITHUB_AUTH_MODEL.md` §2 for the
+full reasoning.
+
+Do not "fix" this to use the GitHub App's client id. `ghu_` tokens are scoped
+to what the **App installation** can reach, so switching would shrink the
+connect flow from "every repo you can access" to "repos in orgs where an admin
+already installed the App" — breaking browsing on exactly the orgs that have
+not onboarded yet. Verified live: the `gho_` token reads 4 of 5 linked strategy
+repos with `push: true`, across four orgs with zero App installations.
+
+The one real cost of `gho_`: it cannot call `GET /user/installations` (403 —
+*"You must authenticate with an access token authorized to a GitHub App"*).
+`domain/sync.ListUserInstallations` exists for that call and consequently has
+**no production caller**; the connect flow uses `ScanUserRepos` instead. Treat
+that function as dead until the token strategy changes.
+
+**Private org repos additionally need the OAuth App approved** in the org's
+third-party access policy, which is a *different* admin action from installing
+the GitHub App. A repo can be pushable-but-invisible: `Assetfront-Software`
+currently 404s for the user token while the other four orgs return 200.
 
 ### GitHub Sync Workflow (Strategy-as-Code)
 

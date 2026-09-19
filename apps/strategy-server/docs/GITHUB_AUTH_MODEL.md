@@ -64,10 +64,33 @@ repos based on the user's personal access, not App installation grants.
 **What it can do:**
 - Read repos in orgs that have approved this OAuth App
 - Read public repos in any org without approval
-- Write to repos the user has push access to (if org has approved the OAuth App)
+- In principle write to repos the user has push access to — but **strategy-server
+  never uses it for writes.** Every write path goes through the GitHub App
+  (`SyncToGithub` hard-fails on a nil App writer). The token's own capability is
+  irrelevant here; there is no code path that uses it to push. See the Auth
+  Decision Matrix below and issue #55.
 
 **Requires:** Org admin approves the OAuth App in the org's third-party
 access policy for private repos. Public repos work without approval.
+
+**This is a separate admin action from installing the GitHub App**, and the two
+fail differently:
+
+| Missing | Symptom |
+|---------|---------|
+| OAuth App not approved on the org | Repo invisible to browse/import — user token gets 404 |
+| GitHub App not installed on the org | Browse/import fine; **push** fails with `find github app installation: 404` |
+
+Both are needed for a full round trip on a private org repo. Observed live:
+`Assetfront-Software` 404s for the user token (OAuth App unapproved) *and* has
+a failed AIM auto-push in `github_sync_log` (App not installed) — two distinct
+gaps on the same repo.
+
+**Consequence for `ListUserInstallations`:** that call requires a `ghu_` token
+and therefore cannot work here. `domain/sync.ListUserInstallations` is wired
+through client → adapter → domain interface but has no production caller, and
+its unit test passes a `gho_usertoken` fixture that would 403 against the real
+API. It is leftover from a GitHub-App-OAuth design that was never deployed.
 
 **Used for:**
 - User connect flow (`/github/connect`) — repo discovery and import
