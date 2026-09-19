@@ -145,7 +145,12 @@ type ValidationResult struct {
 	// needs findings whose identity survives the validation library rewording
 	// a message. (Key, Rule, Path) does; a sentence does not.
 	//
-	// Indices correspond to Errors 1:1.
+	// Findings does NOT correspond to Errors index-for-index. Errors keeps the
+	// library's top-level grouping, where a single "allOf" entry can carry a
+	// whole subtree of unrelated problems in one newline-delimited string.
+	// Findings flattens to the leaves, so each is one actionable problem at
+	// one location. On real data that is the difference between 1 finding
+	// reading "'allOf' failed" and 18 findings naming the fields at fault.
 	Findings []verdict.Finding `json:"findings,omitempty"`
 }
 
@@ -167,6 +172,40 @@ const (
 	// could be selected.
 	ruleArtifactTypeUndetected = "artifact_type.undetected"
 )
+
+// schemaRefBase is the synthetic base URI schemas are registered under.
+//
+// Registering a schema as a bare filename makes the library resolve it
+// against the process working directory, so a relative "$ref" to a sibling
+// schema turns into a file:// URL pointing at wherever the binary happens to
+// be running from. A fixed base removes the dependency on cwd entirely and
+// gives schemaSourceLoader a predictable URL to resolve.
+const schemaRefBase = "https://schemas.epf.internal/"
+
+// schemaSourceLoader resolves "$ref" targets through the SchemaSource instead
+// of the filesystem.
+//
+// Without this, any schema containing a relative "$ref" fails to compile and
+// every artifact of that type is reported as unvalidatable. That was live:
+// commercial_definition_schema.json, org_ops_definition_schema.json and
+// strategy_definition_schema.json all reference
+// track_definition_base_schema.json, which is embedded and present, but was
+// being looked for on disk.
+type schemaSourceLoader struct{ source SchemaSource }
+
+func (l schemaSourceLoader) Load(url string) (any, error) {
+	name := strings.TrimPrefix(url, schemaRefBase)
+	// Tolerate an absolute URL from any base — the schema set is flat, so the
+	// filename is the identity.
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	b, err := l.source.GetSchemaBytes(name)
+	if err != nil {
+		return nil, fmt.Errorf("resolve $ref %q: %w", name, err)
+	}
+	return jsonschema.UnmarshalJSON(bytes.NewReader(b))
+}
 
 // blockedResult builds the result for a check that could not be performed.
 //
@@ -197,8 +236,8 @@ func blockedResult(artifactType, schemaFile, rule, msg string) ValidationResult 
 // a library upgrade, which is precisely the failure a baselining consumer
 // cannot absorb.
 //
-// Errors keeps its existing derivation and ordering exactly, so Findings[i]
-// describes the same problem as Errors[i].
+// Errors keeps its existing derivation and ordering exactly. Findings does
+// not mirror it: see the field comment on ValidationResult.Findings.
 func (r *ValidationResult) collectValidationError(err error) {
 	r.Valid = false
 
@@ -213,22 +252,41 @@ func (r *ValidationResult) collectValidationError(err error) {
 		return
 	}
 
-	// A top-level error with no causes is itself the finding.
+	// A top-level error with no causes is itself the error.
 	causes := ve.Causes
 	if len(causes) == 0 {
 		causes = []*jsonschema.ValidationError{ve}
 	}
-
 	for _, e := range causes {
-		msg := e.Error()
-		r.Errors = append(r.Errors, msg)
-		r.Findings = append(r.Findings, verdict.Finding{
-			Severity: verdict.SeverityError,
-			Rule:     schemaRule(e),
-			Path:     jsonPointer(e.InstanceLocation),
-			Message:  msg,
-		})
+		r.Errors = append(r.Errors, e.Error())
 	}
+
+	r.Findings = appendLeafFindings(nil, ve)
+}
+
+// appendLeafFindings walks a validation error tree and emits one finding per
+// leaf — the deepest node, which is where the actual problem is.
+//
+// Intermediate nodes are applicator keywords: "allOf failed", "validation
+// failed". They are true but useless. Emitting them instead of their leaves
+// costs a consumer both of the things findings exist for: it cannot act on
+// them (nothing names the offending field), and it cannot baseline them
+// (every distinct problem inside one allOf collapses to the same
+// (key, rule, path) triple, so fixing all but one looks identical to fixing
+// none).
+func appendLeafFindings(out []verdict.Finding, e *jsonschema.ValidationError) []verdict.Finding {
+	if len(e.Causes) > 0 {
+		for _, c := range e.Causes {
+			out = appendLeafFindings(out, c)
+		}
+		return out
+	}
+	return append(out, verdict.Finding{
+		Severity: verdict.SeverityError,
+		Rule:     schemaRule(e),
+		Path:     jsonPointer(e.InstanceLocation),
+		Message:  e.Error(),
+	})
 }
 
 // schemaRule maps a validation error to a stable rule id, e.g. "schema.required".
@@ -364,12 +422,16 @@ func ValidateArtifactWithSource(artifactType string, payload []byte, source Sche
 	}
 
 	c := jsonschema.NewCompiler()
-	if err := c.AddResource(schemaFile, schemaDoc); err != nil {
+	// Sibling "$ref"s are resolved from the same SchemaSource rather than the
+	// filesystem; see schemaSourceLoader.
+	c.UseLoader(schemaSourceLoader{source: source})
+	schemaURL := schemaRefBase + schemaFile
+	if err := c.AddResource(schemaURL, schemaDoc); err != nil {
 		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
 			fmt.Sprintf("failed to register schema %q: %v", schemaFile, err))
 	}
 
-	sch, err := c.Compile(schemaFile)
+	sch, err := c.Compile(schemaURL)
 	if err != nil {
 		return blockedResult(artifactType, schemaFile, ruleSchemaUnavailable,
 			fmt.Sprintf("failed to compile schema %q: %v", schemaFile, err))

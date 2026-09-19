@@ -92,6 +92,27 @@ the structured error. Keep `Errors []string` exactly as it is, derived the
 same way, so every existing reader — including `validate_with_plan`'s
 chunking and the web UI — keeps working untouched.
 
+### Correction after first contact with real data
+
+This decision originally also said Findings would mirror Errors index-for-
+index, taking only the library's top-level causes, on the grounds that
+divergence would be surprising. That was decided before running it against a
+real instance, and it was wrong.
+
+The library groups under applicator keywords. On the live instance, a single
+definition artifact with 18 distinct field-level violations produced exactly
+one top-level cause: rule `schema.allOf`, no path, and all 18 problems
+concatenated into one newline-delimited message. That fails both things
+findings exist for — a consumer cannot act on it (nothing names a field) and
+cannot baseline it (fixing 17 of the 18 leaves an identical
+`(key, rule, path)` triple).
+
+Findings are therefore flattened to the **leaves** of the error tree, and no
+longer align with Errors by index. Errors keeps the library's grouping
+unchanged for its existing readers. Measured effect on the live instance: 65
+opaque `schema.allOf` findings became 280 findings naming a rule and a JSON
+pointer each.
+
 ## Decision 3: One `outputSchema`, registered per tool
 
 All five tools declare the same envelope via

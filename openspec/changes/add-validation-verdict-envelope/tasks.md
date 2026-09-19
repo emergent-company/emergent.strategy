@@ -105,3 +105,25 @@ Each: attach `outputSchema`, return `structuredContent`, keep the existing
   server actually advertises via `ListTools()` and validate real
   `structuredContent` against it, so a drifting envelope fails rather than
   being compared to a copy that drifts with it.
+
+## 7. Follow-on, found by running the envelope against a real instance
+
+- [x] 7.1 Fix `$ref` resolution: `commercial_`, `org_ops_` and
+      `strategy_definition_schema.json` each reference
+      `track_definition_base_schema.json`, which is embedded and present, but
+      only the single schema file was registered with the compiler, so the
+      relative ref resolved against the process working directory and failed
+      to load. Three schemas had validated nothing, on any instance, for as
+      long as the ref existed; 131 unvalidated artifacts were being counted as
+      invalid. Fixed with `schemaSourceLoader` + a fixed `schemaRefBase`.
+- [x] 7.2 Regression tests: every embedded schema containing a `$ref` must
+      compile; the three definition types must resolve from a foreign working
+      directory; every `$ref` target must be present in the embedded set.
+      Verified these fail without the fix (6 failures) and pass with it.
+- [x] 7.3 Flatten findings to leaf causes (see design Decision 2's
+      correction), so an applicator keyword stops swallowing the problems
+      underneath it.
+- [x] 7.4 Re-measure. `validate_instance` on `f0c81e00`:
+      132 "invalid" (131 unvalidatable + 1 real)
+      → 65 genuinely invalid, 280 actionable findings.
+      67 artifacts that had been reported invalid are in fact valid.
