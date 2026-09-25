@@ -163,17 +163,41 @@ func buildVMComponentDefinition(artifactKey, name, status, payloadStr string, vi
 		ViewURL: viewURLFn(artifactKey),
 	}
 
+	return d, contributesTo(p)
+}
+
+// contributesTo reads a definition's contributes_to paths from both locations
+// the EPF schemas put them in.
+//
+// Features nest the list under strategic_context; strategy, org_ops and
+// commercial definitions place it at the top level. Reading only the top level
+// meant every feature contributed no paths at all, so the entire product track
+// placed nothing — a value model rendered as untouched work when in fact 63
+// paths pointed into it. The failure is silent by construction: an empty
+// component looks the same whether nothing claims it or nothing was read.
+func contributesTo(p map[string]any) []string {
+	if p == nil {
+		return nil
+	}
+	lists := []any{p["contributes_to"]}
+	if sc, ok := p["strategic_context"].(map[string]any); ok {
+		lists = append(lists, sc["contributes_to"])
+	}
+
 	var paths []string
-	if p != nil {
-		if ct, ok := p["contributes_to"].([]any); ok {
-			for _, v := range ct {
-				if sv, ok := v.(string); ok {
-					paths = append(paths, sv)
-				}
+	for _, raw := range lists {
+		for _, v := range slice(raw) {
+			if sv, ok := v.(string); ok && sv != "" {
+				paths = append(paths, sv)
 			}
 		}
 	}
-	return d, paths
+	return paths
+}
+
+func slice(v any) []any {
+	s, _ := v.([]any)
+	return s
 }
 
 // placeVMDefinition assigns a definition to each component its contributes_to

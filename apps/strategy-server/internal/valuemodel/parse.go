@@ -27,16 +27,26 @@ func ParseModel(payload map[string]any) Model {
 				Name:        str(cm["name"]),
 				PathSegment: str(cm["path_segment"]),
 			}
-			for _, rawSub := range slice(cm["subs"]) {
-				sm, ok := rawSub.(map[string]any)
-				if !ok {
-					continue
+			// L3 sub-components are written under either key. Both spellings
+			// occur inside a single value model in the emergent instance
+			// (product.epf-runtime uses sub_components for five components and
+			// subs for nine), so this is not a per-file dialect that could be
+			// normalised at the boundary. Reading only one key silently halves
+			// that model's L3 surface, and the symptom — a Component.Sub path
+			// reported as naming nothing — accuses the data of a defect that
+			// belongs to the parser.
+			for _, key := range []string{"subs", "sub_components"} {
+				for _, rawSub := range slice(cm[key]) {
+					sm, ok := rawSub.(map[string]any)
+					if !ok {
+						continue
+					}
+					comp.Subs = append(comp.Subs, Sub{
+						ID:          str(sm["id"]),
+						Name:        str(sm["name"]),
+						PathSegment: str(sm["path_segment"]),
+					})
 				}
-				comp.Subs = append(comp.Subs, Sub{
-					ID:          str(sm["id"]),
-					Name:        str(sm["name"]),
-					PathSegment: str(sm["path_segment"]),
-				})
 			}
 			layer.Components = append(layer.Components, comp)
 		}
