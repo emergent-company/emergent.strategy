@@ -2,9 +2,9 @@ package mcpserver
 
 // Verdict plumbing for the validation tools.
 //
-// Five tools render a judgement rather than returning data: validate_artifact,
-// validate_instance, validate_relationships, validate_with_plan and
-// check_content_readiness. Each publishes the same envelope through
+// Six tools render a judgement rather than returning data: validate_artifact,
+// validate_instance, validate_relationships, validate_with_plan,
+// check_content_readiness and validate_value_model_links. Each publishes the same envelope through
 // outputSchema and returns it as structuredContent, so a consumer can read
 // `ok` and `findings` without knowing which tool it called.
 //
@@ -22,7 +22,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 )
 
-// verdictSchemaCache lets the five tools share one reflection of the envelope
+// verdictSchemaCache lets the verdict tools share one reflection of the envelope
 // type instead of recomputing an identical schema five times at startup.
 var verdictSchemaCache = mcp.NewSchemaCache()
 

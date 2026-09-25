@@ -162,14 +162,15 @@ var ToolCategories = map[string]string{
 	"update_value_model":          CategoryAuthoring,
 
 	// ── Validation ──────────────────────────────────────────────────────
-	"validate_artifact":       CategoryValidation,
-	"validate_instance":       CategoryValidation,
-	"validate_relationships":  CategoryValidation,
-	"check_content_readiness": CategoryValidation,
-	"validate_with_plan":      CategoryValidation,
-	"export_instance_yaml":    CategoryValidation,
-	"export_feature_yaml":     CategoryValidation,
-	"export_report":           CategoryValidation,
+	"validate_artifact":          CategoryValidation,
+	"validate_instance":          CategoryValidation,
+	"validate_relationships":     CategoryValidation,
+	"check_content_readiness":    CategoryValidation,
+	"validate_with_plan":         CategoryValidation,
+	"validate_value_model_links": CategoryValidation,
+	"export_instance_yaml":       CategoryValidation,
+	"export_feature_yaml":        CategoryValidation,
+	"export_report":              CategoryValidation,
 
 	// ── Admin (workspace/org/instance management) ───────────────────────
 	"create_workspace":          CategoryAdmin,

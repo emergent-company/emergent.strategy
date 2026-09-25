@@ -169,6 +169,7 @@ func NewMCPServer(svc Services) *server.MCPServer {
 	registerBatchWriteTools(s, svc)
 	registerDerivedReadTools(s, svc)
 	registerValidationTools(s, svc)
+	registerValueModelLinkTools(s, svc)
 	registerExportTools(s, svc)
 	registerAIMTools(s, svc)
 	registerPackTools(s, svc)

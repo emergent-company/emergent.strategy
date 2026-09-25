@@ -33,6 +33,7 @@ var verdictTools = []string{
 	"validate_relationships",
 	"validate_with_plan",
 	"check_content_readiness",
+	"validate_value_model_links",
 }
 
 // publishedOutputSchema returns the compiled outputSchema the server actually
@@ -70,10 +71,10 @@ func publishedOutputSchema(t *testing.T, toolName string) *jsonschema.Schema {
 	return nil
 }
 
-// TestVerdict_AllFiveToolsPublishAnOutputSchema guards the set itself. A new
+// TestVerdict_EveryVerdictToolPublishesAnOutputSchema guards the set itself. A new
 // validation tool added without an envelope, or health_check quietly acquiring
 // one, both fail here.
-func TestVerdict_AllFiveToolsPublishAnOutputSchema(t *testing.T) {
+func TestVerdict_EveryVerdictToolPublishesAnOutputSchema(t *testing.T) {
 	srv := mcpserver.NewMCPServerForIntrospection()
 
 	publishing := map[string]bool{}
