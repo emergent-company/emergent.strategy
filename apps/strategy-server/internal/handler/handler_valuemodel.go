@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
+	"log/slog"
 
 	"github.com/a-h/templ"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/valuemodel"
 )
 
 // valueModelContent extracts rich data from a value_model payload
@@ -89,8 +90,9 @@ func (s *Server) valueModelContent(ctx context.Context, instanceID, track string
 // paths to assign definitions to components.
 //
 // For canonical tracks (strategy, org_ops, commercial) it loads *_def artifacts.
-// For product track it loads feature artifacts and matches via their contributes_to
-// path against the value model's component names.
+// For product track it loads feature artifacts and matches via their
+// contributes_to path against the value model, using internal/valuemodel — see
+// that package for why the match is not a map lookup.
 func (s *Server) loadVMDefinitionsByComponent(
 	ctx context.Context,
 	instanceID, track string,
@@ -102,10 +104,10 @@ func (s *Server) loadVMDefinitionsByComponent(
 		return nil
 	}
 
-	// Build comp name → comp ID lookup from the value model payload.
-	// contributes_to paths use component names (not IDs), so we need both.
-	compByName := buildVMCompByName(vmPayload)
-	if len(compByName) == 0 {
+	// The value model itself, parsed once, so each definition's contributes_to
+	// paths can be resolved against it.
+	model := valuemodel.ParseModel(vmPayload)
+	if len(model.Layers) == 0 {
 		return nil
 	}
 
@@ -129,44 +131,10 @@ func (s *Server) loadVMDefinitionsByComponent(
 
 	for _, r := range rows {
 		d, paths := buildVMComponentDefinition(r.ArtifactKey, r.Name, r.Status, r.Payload, viewURLFn)
-		placeVMDefinition(result, placed, d, paths, compByName)
+		placeVMDefinition(result, placed, d, paths, model)
 	}
 
 	return result
-}
-
-// buildVMCompByName builds a lowercased-component-name → component-ID lookup
-// from a value model payload. contributes_to paths reference component names,
-// not IDs, so this mapping is needed to assign definitions to components.
-func buildVMCompByName(vmPayload map[string]any) map[string]string {
-	compByName := make(map[string]string)
-	layers, ok := vmPayload["layers"].([]any)
-	if !ok {
-		return compByName
-	}
-	for _, lAny := range layers {
-		lm, ok := lAny.(map[string]any)
-		if !ok {
-			continue
-		}
-		rawComps, ok := lm["components"].([]any)
-		if !ok {
-			continue
-		}
-		for _, cAny := range rawComps {
-			cm, ok := cAny.(map[string]any)
-			if !ok {
-				continue
-			}
-			id, _ := cm["id"].(string)
-			name, _ := cm["name"].(string)
-			if id == "" {
-				continue
-			}
-			compByName[strings.ToLower(name)] = id
-		}
-	}
-	return compByName
 }
 
 // buildVMComponentDefinition constructs a VMComponentDefinition from a definition
@@ -208,25 +176,33 @@ func buildVMComponentDefinition(artifactKey, name, status, payloadStr string, vi
 	return d, paths
 }
 
-// placeVMDefinition assigns a definition to each component referenced by its
-// contributes_to paths, deduplicating via the placed set.
-func placeVMDefinition(result map[string][]ui.VMComponentDefinition, placed map[string]bool, d ui.VMComponentDefinition, paths []string, compByName map[string]string) {
+// placeVMDefinition assigns a definition to each component its contributes_to
+// paths resolve to, deduplicating via the placed set.
+//
+// A path that does not resolve is skipped and logged rather than dropped
+// silently: it means a mechanism claims to serve a value generator that does
+// not exist, which is a real defect in the instance and invisible if the only
+// symptom is an empty component.
+func placeVMDefinition(
+	result map[string][]ui.VMComponentDefinition,
+	placed map[string]bool,
+	d ui.VMComponentDefinition,
+	paths []string,
+	model valuemodel.Model,
+) {
 	for _, path := range paths {
-		parts := strings.SplitN(path, ".", 3)
-		if len(parts) < 2 {
+		match, err := model.Resolve(path)
+		if err != nil {
+			slog.Debug("value model: contributes_to path does not resolve",
+				"definition", d.Key, "path", path, "error", err.Error())
 			continue
 		}
-		compNameRaw := parts[1]
-		compID, ok := compByName[strings.ToLower(compNameRaw)]
-		if !ok {
-			continue
-		}
-		placeKey := d.Key + "|" + compID
+		placeKey := d.Key + "|" + match.ComponentID
 		if placed[placeKey] {
 			continue
 		}
 		placed[placeKey] = true
-		result[compID] = append(result[compID], d)
+		result[match.ComponentID] = append(result[match.ComponentID], d)
 	}
 }
 
