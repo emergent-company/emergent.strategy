@@ -53,7 +53,7 @@
     {
       "name": "validation",
       "description": "Validation, content readiness, fix plans, export",
-      "tool_count": 8
+      "tool_count": 9
     },
     {
       "name": "admin",
@@ -3711,6 +3711,97 @@
     {
       "name": "validate_relationships",
       "description": "USE WHEN you need to check cross-artifact reference integrity — verifies that relationship target_keys resolve to actual artifacts in strategy_artifacts. Returns a verdict in structuredContent; each broken reference is one finding keyed by its source artifact.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_value_model_links",
+      "description": "USE WHEN you need to check that every contributes_to path names a real value model component, and that every active component has at least one mechanism serving it. Reports two independent pairs: paths resolved of paths found, and active components served of active components. Components marked inactive are canonical scaffolding the instance does not use — they are excluded from both denominators and reported only as a count.",
       "category": "validation",
       "input_schema": {
         "properties": {

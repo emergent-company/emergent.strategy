@@ -47,6 +47,12 @@ type Component struct {
 	Name        string
 	PathSegment string
 	Subs        []Sub
+
+	// active is unexported and read through Active() so it cannot be silently
+	// omitted when a Component is built in a test or a caller: a component that
+	// defaults to active would count canonical scaffolding as project work,
+	// which is the failure this field exists to prevent.
+	active bool
 }
 
 // Layer is an L1 layer.

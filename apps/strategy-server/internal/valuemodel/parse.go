@@ -26,6 +26,7 @@ func ParseModel(payload map[string]any) Model {
 				ID:          str(cm["id"]),
 				Name:        str(cm["name"]),
 				PathSegment: str(cm["path_segment"]),
+				active:      bool2(cm["active"]),
 			}
 			// L3 sub-components are written under either key. Both spellings
 			// occur inside a single value model in the emergent instance
@@ -63,4 +64,9 @@ func str(v any) string {
 func slice(v any) []any {
 	s, _ := v.([]any)
 	return s
+}
+
+func bool2(v any) bool {
+	b, _ := v.(bool)
+	return b
 }
