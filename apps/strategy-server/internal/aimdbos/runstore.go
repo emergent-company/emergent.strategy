@@ -160,6 +160,58 @@ func (s *RunStore) UpdateStatus(ctx context.Context, runID uuid.UUID, status orc
 	return err
 }
 
+// MarkRunningIfPending transitions runID from "pending" to "running" and
+// touches nothing else — not current_step, not error, and critically not
+// steps. It is a conditional UPDATE (`WHERE status = 'pending'`), not the
+// unconditional read-modify-write every other bookkeeping call in this
+// package uses, because of who else can be writing to this exact row at
+// the same instant.
+//
+// StartRun calls this immediately after dbos.RunWorkflow returns — but
+// dbos.RunWorkflow starts the workflow in a background goroutine and
+// returns as soon as it is launched, confirmed by direct read of the DBOS
+// library's own RunWorkflow (dbos/workflow.go): `go func() { result, err =
+// fn(workflowCtx, input) ... }()`, with no wait for even the first step.
+// So by the time this call runs, cycleWorkflow's own recordStepDone may
+// already have completed step one (or more) and persisted real progress
+// via its own GetByID-mutate-UpdateStatus cycle in withRun.
+//
+// Found by reproduction, not inspection: three real CI failures on
+// unrelated branches (TestDBOSEngine_InstanceDependentPlanning_
+// TwoInstancesGetDifferentPlans among them) showed one step silently
+// reverted from "done" back to "pending" while its siblings completed
+// normally — the signature of exactly this lost-update race, not the
+// already-documented gate/abort timeout flakiness (#65) it was initially
+// mistaken for. Confirmed by widening the race window with an artificial
+// delay before the old unconditional UpdateStatus call: reproduced the
+// exact symptom on every run until replaced with this conditional write.
+//
+// Before this fix, StartRun used UpdateStatus — an unconditional
+// read-modify-write seeded from run.Steps, a local variable captured
+// before dbos.RunWorkflow was ever called. If that write reached Postgres
+// after the workflow goroutine's own progress, it silently overwrote
+// every step back to its initial all-pending placeholder state — not a
+// timing-sensitive test assertion failing, an actual data loss bug a
+// production run could hit under the same ordering.
+//
+// Scoping the WHERE clause to status='pending' makes every race outcome
+// safe by construction rather than by timing luck: if the workflow has
+// not yet made any observable progress, this call is the one that
+// legitimately marks the run running; if it has — whether by completing
+// one step or by finishing, failing, or opening a gate entirely — status
+// is no longer 'pending' and this call becomes a silent no-op, never
+// touching a row some other write has already moved forward.
+func (s *RunStore) MarkRunningIfPending(ctx context.Context, runID uuid.UUID) error {
+	_, err := s.db.NewUpdate().
+		Model((*runRow)(nil)).
+		Set("status = ?", string(orchestration.StatusRunning)).
+		Set("updated_at = NOW()").
+		Where("id = ?", runID).
+		Where("status = ?", string(orchestration.StatusPending)).
+		Exec(ctx)
+	return err
+}
+
 // SetReplanRequested sets or clears the replan flag for runID. Called by
 // DBOSEngine.Replan (set) and by cycleWorkflow's checkReplan (clear, once
 // the signal has been consumed or found already gone).
