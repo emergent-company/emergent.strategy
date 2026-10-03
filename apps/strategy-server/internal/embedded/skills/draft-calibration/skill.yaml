@@ -2,7 +2,7 @@ name: draft-calibration
 version: "1.1.0"
 type: generation
 phase: AIM
-execution: prompt
+execution: prompt-delivery
 description: "Generates the substantive judgment for a calibration_memo artifact: the narrative reasoning plus structured learnings (validated/invalidated assumptions, surprises) and next_cycle_focus (continue/stop/start), all derived from assessment evidence. Receives the pre-computed decision (persevere/pivot/pull_the_plug), OKR hit rate, invalidated assumption count, and formula-based reasoning as parameters. The skill does NOT choose or override the decision, hit rate, or invalidated count — those are copied verbatim."
 
 capability:

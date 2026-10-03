@@ -2,8 +2,8 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "feature_definition_schema.json",
   "title": "EPF Feature Definition Schema",
-  "version": "2.1.0",
-  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.1: Added feature_maturity for tracking capability-level delivery progress and overall feature maturity stage.",
+  "version": "2.3.0",
+  "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.1: Added feature_maturity for tracking capability-level delivery progress and overall feature maturity stage. Version 2.2: Added optional tools_ecosystem (matching the strategy/org_ops/commercial track schemas) so the product track can carry tool recommendations (EPF issue #25). Version 2.3: Capability ids accept the hierarchical form cap-NNN-NN (matching practitioner-scenario ids), aligning with canonical product example definitions (EPF issue #24 product-track follow-up).",
   "$comment": "This schema validates YAML feature definition files located in _instances/{product}/features/READY/. Feature definitions are the bridge between strategic EPF artifacts (North Star, Strategy Formula, Value Model, Roadmap Recipe) and implementation tools (OpenSpec, Linear, Cursor, etc.). They capture WHAT users need (job-to-be-done), WHY it matters (value propositions), HOW it works (capabilities, scenarios), and WHERE it fits (strategic context, dependencies). GRANULARITY GUIDANCE: A feature should represent a coherent job-to-be-done that users recognize as a complete capability. Use the one-sentence test (can you describe it without \"and\" connecting unrelated functions?), the 4-persona limit (if you need more, split the feature), and the 2-15 capability range. See FEATURE_DEFINITION_GRANULARITY_GUIDE.md for comprehensive guidance. Enhanced validation ensures high-quality, tool-consumable feature definitions.",
   "type": "object",
   "required": [
@@ -76,7 +76,7 @@
             "properties": {
               "capability_id": {
                 "type": "string",
-                "pattern": "^cap-[0-9]+$",
+                "pattern": "^cap-[0-9]+(-[0-9]+)*$",
                 "description": "Reference to capability ID from definition.capabilities array.",
                 "examples": ["cap-001", "cap-002", "cap-003"]
               },
@@ -215,7 +215,7 @@
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^cap-[0-9]+$",
+                "pattern": "^cap-[0-9]+(-[0-9]+)*$",
                 "description": "Unique capability identifier. Format: cap-{number}",
                 "$comment": "Capability ID must be unique within the feature (not globally). Format: 'cap-' prefix + zero-padded number. Example: cap-001, cap-042. Capabilities are discrete units of value that the feature provides. They map to implementation specs (OpenSpec documents), Linear issues, and test suites. Tools use capability IDs for: (1) Coverage tracking - which capabilities have specs/tests, (2) Status reporting - which are implemented/delivered, (3) Cross-references - scenarios reference capabilities they exercise. Numbering should be sequential for discoverability.",
                 "examples": ["cap-001", "cap-015", "cap-042"]
@@ -1224,7 +1224,7 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "pattern": "^cap-[0-9]+$"
+                  "pattern": "^cap-[0-9]+(-[0-9]+)*$"
                 },
                 "description": "List of EPF capability IDs (cap-001, cap-002, etc.) that this spec implements. Enables capability-to-spec traceability.",
                 "$comment": "capability_coverage maps spec to EPF capabilities, answering 'Which capabilities does this spec implement?' One spec may cover multiple capabilities (e.g., backend spec implements cap-001 validation + cap-002 storage). Tools use this for: coverage reporting (5 of 8 capabilities have specs), impact analysis (capability changed → which specs need updates?), work planning (prioritize specs for high-value capabilities), documentation generation (embed spec link in capability section). Update this when: (1) new capability added to spec, (2) capability removed from spec, (3) EPF capability IDs renumbered.",
@@ -1299,6 +1299,29 @@
               "examples": [10, 12, 18, 25]
             }
           }
+        }
+      }
+    },
+    "tools_ecosystem": {
+      "type": "object",
+      "description": "Tool recommendations (suggestions, not mandates)",
+      "$comment": "Optional. Matches the tools_ecosystem definition shared by the strategy, org_ops, and commercial track schemas so the product/feature track can express the same tool-recommendation content. Added in feature_definition_schema v2.2.0 (EPF issue #25). Recommendations are advisory only; they do not constrain implementation.",
+      "properties": {
+        "recommended": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": { "type": "string" },
+              "examples": { "type": "array", "items": { "type": "string" } },
+              "purpose": { "type": "string" }
+            }
+          }
+        },
+        "integrations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Common integration points with other systems"
         }
       }
     }

@@ -1,8 +1,8 @@
 name: adapt-strategy
-version: "1.0.0"
+version: "1.1.0"
 type: generation
 phase: AIM
-description: "Generates full replacement payloads for strategy_formula and roadmap_recipe based on a committed calibration decision. Also produces an LRA evolution entry and updated riskiest assumptions."
+description: "Generates full replacement payloads for strategy_formula and roadmap_recipe based on a committed calibration decision. Consumes the calibration memo's learnings and next_cycle_focus (Start/Stop/Continue) as the primary driver of the rewrite when present, falling back to assessment-derived guidance for legacy/thin memos. Also produces an LRA evolution entry and updated riskiest assumptions."
 
 capability:
   class: autonomous

@@ -1,9 +1,9 @@
 name: align-portfolio
-version: "1.0.0"
+version: "2.0.0"
 type: generation
 phase: FIRE
-execution: prompt
-description: "Aligns the value model and track definitions with the current roadmap and strategy formula. Reads strategy_formula, roadmap_recipe, and canonical value model templates. Produces value model state updates and definition activation/tier changes across all four tracks (product, strategy, org_ops, commercial)."
+execution: prompt-delivery
+description: "Aligns the committed value model with the current roadmap by producing an incremental activation patch. Reads strategy_formula, roadmap_recipe, and the current value_model artifacts, then emits only which components to activate/deactivate (citing the driving KR) — it never regenerates or replaces value model structure. Covers all tracks present in the roadmap (product, strategy, org_ops, commercial)."
 
 capability:
   class: balanced
@@ -13,11 +13,17 @@ requires:
   artifacts:
     - roadmap_recipe
     - strategy_formula
+    - value_model
   optional:
     - strategy_foundations
     - north_star
 
+# Output is an incremental activation PATCH, not a full value_model artifact.
+# Shape: { activations: [...], deactivations: [...], warnings: [...] }
+# where each entry references an existing component by dot-separated L1.L2.L3
+# path and sets active/activation_notes only. The consumer applies this patch
+# to the committed value_model artifacts, leaving all other fields untouched.
+# NOTE: this skill intentionally does NOT declare output.artifact_type — it does
+# not emit a whole artifact, so it must not be auto-committed as one.
 output:
   format: json
-  artifact_types:
-    - value_model
