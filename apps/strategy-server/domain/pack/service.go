@@ -59,7 +59,7 @@ type ResolvedSkill struct {
 	PromptMD      *string `json:"prompt_md,omitempty"`
 	ScriptSrc     *string `json:"script_src,omitempty"`
 	ScriptLang    *string `json:"script_lang,omitempty"`
-	ExecutionMode string  `json:"execution"` // prompt | script | inline
+	ExecutionMode string  `json:"execution"` // prompt-delivery | script | inline
 	Type          string  `json:"type"`
 	Source        string  `json:"source"` // installed | canonical | generator-alias
 	PackName      *string `json:"pack_name,omitempty"`
@@ -143,7 +143,7 @@ func ParsePackBundle(packYAML string, skills []SkillBundle) (*PackBundle, error)
 		}
 		// Reject inline execution for installed skills — reserved for core embedded skills.
 		if strings.EqualFold(meta.Execution, "inline") {
-			return nil, fmt.Errorf("skill %q: execution: inline is reserved for canonical core skills; use prompt or script", meta.Name)
+			return nil, fmt.Errorf("skill %q: execution: inline is reserved for canonical core skills; use prompt-delivery or script", meta.Name)
 		}
 	}
 
@@ -500,10 +500,7 @@ func installedSkillToResolved(row *domain.InstalledSkill) *ResolvedSkill {
 	r.PackVersion = &pv
 
 	// Parse execution mode and type from stored YAML.
-	r.ExecutionMode = extractField(row.SkillYAML, "execution")
-	if r.ExecutionMode == "" {
-		r.ExecutionMode = "prompt"
-	}
+	r.ExecutionMode = normalizeExecutionMode(extractField(row.SkillYAML, "execution"))
 	r.Type = extractField(row.SkillYAML, "type")
 	if r.Type == "" {
 		r.Type = "creation"
@@ -527,11 +524,25 @@ func resolveFromEmbedded(name string) (*ResolvedSkill, error) {
 		s := string(core.PromptMD)
 		r.PromptMD = &s
 	}
-	r.ExecutionMode = extractField(string(core.SkillYAML), "execution")
-	if r.ExecutionMode == "" {
-		r.ExecutionMode = "prompt"
-	}
+	r.ExecutionMode = normalizeExecutionMode(extractField(string(core.SkillYAML), "execution"))
 	return r, nil
+}
+
+// normalizeExecutionMode maps the various execution mode spellings to the
+// canonical values.  "prompt" and "prompt-delivery" both resolve to
+// "prompt-delivery" (the canonical spelling, matching epf-cli).  Empty
+// defaults to "prompt-delivery".
+func normalizeExecutionMode(raw string) string {
+	switch raw {
+	case "", "prompt", "prompt-delivery":
+		return "prompt-delivery"
+	case "inline", "script":
+		return raw
+	default:
+		// Unknown mode — pass through so callers see the original value
+		// and can report it; silently swallowing it would hide drift.
+		return raw
+	}
 }
 
 // extractField does a simple line-scan for a top-level YAML scalar field.

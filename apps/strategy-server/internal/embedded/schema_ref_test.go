@@ -179,12 +179,32 @@ func collectRefs(node any) []string {
 func TestFindingsFlattenToLeaves(t *testing.T) {
 	// org_ops_def composes its constraints with allOf, so a payload that
 	// violates several nested fields exercises the applicator path.
+	//
+	// The payload uses type violations that are stable under schema widening:
+	// integers where strings are required in nested objects — none of these
+	// will ever become valid, unlike best_practices/anti_patterns which may
+	// accept structured objects in widened schemas.
+	//
+	// id/name/slug/track/status are valid so they don't produce duplicate
+	// findings across allOf branches.  The errors come from definition.*
+	// (base schema) and operational_context.* (org_ops extension) — fields
+	// that live in only one branch.
 	payload := []byte(`{
 		"id": "pd-001",
 		"name": "x",
-		"domain_context": {
-			"anti_patterns": [{"not": "a string"}, {"also": "not"}],
-			"best_practices": [{"nor": "this"}]
+		"slug": "x",
+		"track": "org_ops",
+		"status": "draft",
+		"contributes_to": [],
+		"maturity": {"overall_stage": "hypothetical"},
+		"definition": {
+			"purpose": 99,
+			"outcome": false,
+			"owner": 42
+		},
+		"operational_context": {
+			"stakeholders": "not an array",
+			"decision_rights": 123
 		}
 	}`)
 

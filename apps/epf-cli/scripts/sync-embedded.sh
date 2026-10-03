@@ -169,6 +169,22 @@ else
     echo "Warning: No VERSION file found in canonical EPF"
 fi
 
+# Verify VERSION matches the pinned version (if pin file exists)
+PIN_FILE="$EPF_CLI_DIR/../../.epf-canonical-version"
+if [ -f "$PIN_FILE" ]; then
+    PINNED="$(tr -d '[:space:]' < "$PIN_FILE")"
+    SYNCED="$(tr -d '[:space:]' < "$EMBEDDED_DIR/VERSION")"
+    if [ "$SYNCED" != "$PINNED" ]; then
+        echo ""
+        echo "ERROR: synced canonical VERSION ($SYNCED) does not match pinned version ($PINNED)"
+        echo "Pin file: $PIN_FILE"
+        echo ""
+        echo "Either update .epf-canonical-version to $SYNCED or clone the correct tag."
+        exit 1
+    fi
+    echo "  Version pin verified: $SYNCED matches .epf-canonical-version"
+fi
+
 # Create a manifest of embedded files
 echo ""
 echo "Creating manifest..."

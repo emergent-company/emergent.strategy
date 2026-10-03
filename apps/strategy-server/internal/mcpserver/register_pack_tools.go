@@ -227,7 +227,7 @@ func registerSkillRunTool(s *server.MCPServer, svc Services) { //nolint:gocyclo
 				"duration_ms": result.Duration.Milliseconds(),
 			})
 
-		default: // prompt
+		default: // prompt-delivery (also handles legacy "prompt")
 			promptMD := ""
 			if skill.PromptMD != nil {
 				promptMD = *skill.PromptMD
@@ -252,7 +252,7 @@ func registerSkillAuthoringTools(s *server.MCPServer, _ Services) { //nolint:goc
 		mcp.WithDescription("USE WHEN you need to generate a schema-valid skill.yaml, prompt.md, and pack.yaml skeleton for a new skill. Output is ready to pass directly to install_pack."),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Kebab-case skill name")),
 		mcp.WithString("type", mcp.Required(), mcp.Description("Skill type: creation | review | generation | analysis")),
-		mcp.WithString("execution", mcp.Required(), mcp.Description("Execution mode: prompt | script")),
+		mcp.WithString("execution", mcp.Required(), mcp.Description("Execution mode: prompt-delivery | script")),
 		mcp.WithString("description", mcp.Required(), mcp.Description("One-sentence description of what the skill does")),
 		mcp.WithString("phase", mcp.Description("EPF phase: READY | FIRE | AIM (default: FIRE)")),
 		mcp.WithString("requires_artifacts", mcp.Description("Comma-separated artifact types the skill requires")),
@@ -273,9 +273,13 @@ func registerSkillAuthoringTools(s *server.MCPServer, _ Services) { //nolint:goc
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail(
 				fmt.Sprintf("type must be one of: creation, review, generation, analysis; got %q", skillType))), nil
 		}
-		if execution != "prompt" && execution != "script" {
+		if execution != "prompt-delivery" && execution != "prompt" && execution != "script" {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail(
-				fmt.Sprintf("execution must be prompt or script; got %q", execution))), nil
+				fmt.Sprintf("execution must be prompt-delivery or script; got %q", execution))), nil
+		}
+		// Normalize legacy "prompt" to canonical "prompt-delivery".
+		if execution == "prompt" {
+			execution = "prompt-delivery"
 		}
 
 		phase := argString(req, "phase")
@@ -367,7 +371,7 @@ The script must write a single JSON object to stdout:
 
 <!-- TODO: implement the script logic -->
 `, name, description)
-		default: // prompt
+		default: // prompt-delivery
 			promptSections = fmt.Sprintf(`# %s
 
 ## Purpose
@@ -722,7 +726,7 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 					"type":        "enum: creation | review | generation | analysis",
 					"phase":       "enum: READY | FIRE | AIM (default: FIRE)",
 					"description": "string",
-					"execution":   "enum: prompt | script (default: prompt; inline reserved for core skills)",
+					"execution":   "enum: prompt-delivery | script (default: prompt-delivery; inline reserved for core skills)",
 					"script_lang": "enum: py | sh | ts | js (required when execution=script)",
 				},
 			},
@@ -750,7 +754,7 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 			},
 			"example_pack": map[string]any{
 				"pack_yaml":  "name: my-pack\nversion: \"1.0.0\"\ndescription: \"Example pack\"\nauthor: \"Your Name\"\ntrusted: false\n",
-				"skill_yaml": "name: my-skill\nversion: \"1.0.0\"\ntype: creation\nphase: FIRE\ndescription: \"Does something useful\"\nexecution: prompt\n",
+				"skill_yaml": "name: my-skill\nversion: \"1.0.0\"\ntype: creation\nphase: FIRE\ndescription: \"Does something useful\"\nexecution: prompt-delivery\n",
 				"prompt_md":  "# My Skill\n\n## Purpose\n\nDescribe the skill purpose here.\n\n## Instructions\n\n1. First step\n2. Second step\n",
 			},
 		})

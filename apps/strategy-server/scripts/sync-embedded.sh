@@ -185,6 +185,23 @@ fi
 echo ""
 echo "EPF version: $(cat "$EMBEDDED_DIR/VERSION")"
 
+# Verify VERSION matches the pinned version (if pin file exists)
+MONOREPO_ROOT="$(dirname "$(dirname "$SERVER_DIR")")"
+PIN_FILE="$MONOREPO_ROOT/.epf-canonical-version"
+if [ -f "$PIN_FILE" ]; then
+    PINNED="$(tr -d '[:space:]' < "$PIN_FILE")"
+    SYNCED="$(tr -d '[:space:]' < "$EMBEDDED_DIR/VERSION")"
+    if [ "$SYNCED" != "$PINNED" ]; then
+        echo ""
+        echo "ERROR: synced canonical VERSION ($SYNCED) does not match pinned version ($PINNED)"
+        echo "Pin file: $PIN_FILE"
+        echo ""
+        echo "Either update .epf-canonical-version to $SYNCED or clone the correct tag."
+        exit 1
+    fi
+    echo "  Version pin verified: $SYNCED matches .epf-canonical-version"
+fi
+
 # --- MANIFEST ---
 echo ""
 echo "Writing MANIFEST.txt..."
