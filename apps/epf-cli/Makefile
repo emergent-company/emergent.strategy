@@ -121,6 +121,7 @@ docker-build:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
 		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		--build-arg CANONICAL_EPF_SHA=$$(head -n1 ../../.epf-canonical-version) \
 		-t $(IMAGE_URI) .
 
 docker-run:

@@ -185,21 +185,31 @@ fi
 echo ""
 echo "EPF version: $(cat "$EMBEDDED_DIR/VERSION")"
 
-# Verify VERSION matches the pinned version (if pin file exists)
+# Verify the source is checked out at the pinned commit (if pin file exists).
+# epf-canonical has no tags/releases, so the pin is a commit SHA (first
+# line of the pin file), not a version string.
 MONOREPO_ROOT="$(dirname "$(dirname "$SERVER_DIR")")"
 PIN_FILE="$MONOREPO_ROOT/.epf-canonical-version"
-if [ -f "$PIN_FILE" ]; then
-    PINNED="$(tr -d '[:space:]' < "$PIN_FILE")"
-    SYNCED="$(tr -d '[:space:]' < "$EMBEDDED_DIR/VERSION")"
-    if [ "$SYNCED" != "$PINNED" ]; then
+if [ -f "$PIN_FILE" ] && [ -d "$CANONICAL_EPF/.git" ]; then
+    PINNED_SHA="$(head -n1 "$PIN_FILE" | tr -d '[:space:]')"
+    ACTUAL_SHA="$(cd "$CANONICAL_EPF" && git rev-parse HEAD 2>/dev/null || echo "")"
+    if [ -z "$ACTUAL_SHA" ]; then
         echo ""
-        echo "ERROR: synced canonical VERSION ($SYNCED) does not match pinned version ($PINNED)"
+        echo "Warning: could not determine git HEAD of $CANONICAL_EPF — skipping pin check"
+    elif [ "$ACTUAL_SHA" != "$PINNED_SHA" ]; then
+        echo ""
+        echo "ERROR: $CANONICAL_EPF is checked out at $ACTUAL_SHA, but .epf-canonical-version pins $PINNED_SHA"
         echo "Pin file: $PIN_FILE"
         echo ""
-        echo "Either update .epf-canonical-version to $SYNCED or clone the correct tag."
+        echo "Either checkout the pinned commit, or update .epf-canonical-version"
+        echo "after deliberately reviewing the new canonical content (see the"
+        echo "comment in that file for how)."
         exit 1
     fi
-    echo "  Version pin verified: $SYNCED matches .epf-canonical-version"
+    echo "  Version pin verified: checked out at pinned commit $PINNED_SHA (VERSION=$(cat "$EMBEDDED_DIR/VERSION"))"
+elif [ -f "$PIN_FILE" ]; then
+    echo ""
+    echo "Note: $CANONICAL_EPF is not a git checkout (no .git dir) — skipping pin verification."
 fi
 
 # --- MANIFEST ---

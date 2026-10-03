@@ -46,12 +46,18 @@ jobs:
             epf-canonical
             homebrew-tap
 
-      - name: Read pinned epf-canonical version
+      - name: Read pinned epf-canonical commit
         id: canonical
-        run: echo "version=$(cat .epf-canonical-version)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(head -n1 .epf-canonical-version)" >> "$GITHUB_OUTPUT"
 
-      - name: Clone epf-canonical
-        run: git clone --depth 1 --branch "v${{ steps.canonical.outputs.version }}" "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/epf-canonical.git" "$RUNNER_TEMP/canonical-epf"
+      # epf-canonical has no tags/releases, so the pin is a commit SHA — see
+      # the comment in .epf-canonical-version for how to find/update it.
+      - name: Clone epf-canonical at pinned commit
+        run: |
+          git clone --depth 1 "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/epf-canonical.git" "$RUNNER_TEMP/canonical-epf"
+          cd "$RUNNER_TEMP/canonical-epf"
+          git fetch --depth 1 origin "${{ steps.canonical.outputs.sha }}"
+          git checkout "${{ steps.canonical.outputs.sha }}"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -99,9 +105,11 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CANONICAL_SHA="$(head -n1 .epf-canonical-version)"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          echo "canonical_sha=${CANONICAL_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -141,6 +149,7 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             GIT_COMMIT=${{ steps.meta.outputs.short_sha }}
             BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            CANONICAL_EPF_SHA=${{ steps.meta.outputs.canonical_sha }}
           secrets: |
             gh_token=${{ steps.canonical-app-token.outputs.token }}
           platforms: linux/amd64,linux/arm64

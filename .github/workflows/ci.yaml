@@ -60,12 +60,21 @@ jobs:
             "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/emergent-epf.git"
           git submodule update --init --depth 1
 
-      - name: Read pinned epf-canonical version
+      - name: Read pinned epf-canonical commit
         id: canonical
-        run: echo "version=$(cat .epf-canonical-version)" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(head -n1 .epf-canonical-version)" >> "$GITHUB_OUTPUT"
 
-      - name: Clone epf-canonical
-        run: git clone --depth 1 --branch "v${{ steps.canonical.outputs.version }}" "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/epf-canonical.git" "$RUNNER_TEMP/canonical-epf"
+      # epf-canonical has no tags/releases, so the pin is a commit SHA and
+      # we can't use `clone --branch`. Clone shallow at main, then try to
+      # checkout the pinned SHA directly — if that SHA has already rolled
+      # out of the shallow window, deepen on demand instead of always
+      # paying for a full clone.
+      - name: Clone epf-canonical at pinned commit
+        run: |
+          git clone --depth 1 "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/epf-canonical.git" "$RUNNER_TEMP/canonical-epf"
+          cd "$RUNNER_TEMP/canonical-epf"
+          git fetch --depth 1 origin "${{ steps.canonical.outputs.sha }}"
+          git checkout "${{ steps.canonical.outputs.sha }}"
 
       - name: Set up Go
         uses: actions/setup-go@v5
