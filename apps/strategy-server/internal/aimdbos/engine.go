@@ -366,7 +366,15 @@ func (e *DBOSEngine) StartRun(ctx context.Context, workflowName, concurrencyKey 
 		return nil, fmt.Errorf("aimdbos: start workflow: %w", err)
 	}
 
-	if err := e.store.UpdateStatus(ctx, run.ID, orchestration.StatusRunning, "", "", run.Steps); err != nil {
+	// MarkRunningIfPending, not UpdateStatus: dbos.RunWorkflow above starts
+	// the workflow in a background goroutine and returns as soon as it is
+	// launched, without waiting for even its first step — see that
+	// method's doc comment for the full race this guards against and how
+	// it was found. An unconditional UpdateStatus here, seeded from
+	// run.Steps (captured before RunWorkflow was ever called), could land
+	// after the workflow's own progress and silently revert real step
+	// completions back to their initial pending placeholders.
+	if err := e.store.MarkRunningIfPending(ctx, run.ID); err != nil {
 		slog.ErrorContext(ctx, "aimdbos: failed to mark run running", "run_id", run.ID, "err", err)
 	}
 	run.Status = orchestration.StatusRunning
