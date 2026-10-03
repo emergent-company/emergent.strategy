@@ -115,6 +115,22 @@ var artifactMapping = []struct {
 	{regexp.MustCompile(`(?i)definitions/strategy/(.+/)?[^/]*\.ya?ml$`), ArtifactStrategyDefinition, PhaseFIRE, "Strategy Track Definition"},
 	{regexp.MustCompile(`(?i)definitions/org_ops/(.+/)?[^/]*\.ya?ml$`), ArtifactOrgOpsDefinition, PhaseFIRE, "OrgOps Track Definition"},
 	{regexp.MustCompile(`(?i)definitions/commercial/(.+/)?[^/]*\.ya?ml$`), ArtifactCommercialDefinition, PhaseFIRE, "Commercial Track Definition"},
+	// Filename-only fallback for track definitions, matching fd-*'s identical
+	// fallback above (line 100): the directory-anchored patterns just above
+	// require definitions/{track}/ in the path, but IDs sd-NNN, pd-NNN, and
+	// cd-NNN (patterns fixed by the strategy/org_ops/commercial definition
+	// schemas themselves — see ^sd-[0-9]{3}$ etc.) are the canonical,
+	// unambiguous identity of these artifacts regardless of where a
+	// consumer repo happens to place the file. Without this, any sd-/pd-/
+	// cd-prefixed file outside the exact definitions/<track>/ layout fails
+	// detection outright ("could not detect artifact type") — reported by
+	// a downstream consumer (assetfront-phoenix) against 133 artifacts in
+	// a non-standard layout. Ordered after the directory-anchored patterns
+	// so a file that matches both resolves identically either way; these
+	// three only fire when the structural pattern does not.
+	{regexp.MustCompile(`(?i)(?:^|/)sd-[^/]*\.ya?ml$`), ArtifactStrategyDefinition, PhaseFIRE, "Strategy Track Definition"},
+	{regexp.MustCompile(`(?i)(?:^|/)pd-[^/]*\.ya?ml$`), ArtifactOrgOpsDefinition, PhaseFIRE, "OrgOps Track Definition"},
+	{regexp.MustCompile(`(?i)(?:^|/)cd-[^/]*\.ya?ml$`), ArtifactCommercialDefinition, PhaseFIRE, "Commercial Track Definition"},
 
 	// Health assessments
 	{regexp.MustCompile(`(?i)track[_-]health[_-]assessment\.ya?ml$`), ArtifactTrackHealthAssessment, "", "Track Health Assessment"},
