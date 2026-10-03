@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "track_definition_base_schema.json",
   "title": "EPF Track Definition Base Schema",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Base schema for track definitions across all EPF tracks (Product, Strategy, OrgOps, Commercial). Track definitions are procedural templates that practitioners use as input to produce track-specific outputs. They embody EPF's 'grow with the organization' philosophy through maturity tiers.",
   "$comment": "This base schema defines common structure shared by all track definitions. Track-specific schemas (feature_definition_schema, strategy_definition_schema, org_ops_definition_schema, commercial_definition_schema) extend this base with track-specific fields. Definitions are intentionally NARROW in scope - single responsibility, MVP-implementable in 1-2 days, iteratively expandable. NOTE: additionalProperties intentionally NOT set to false - track-specific schemas extend with additional properties.",
   "type": "object",
@@ -45,11 +45,11 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^(Product|Strategy|OrgOps|Commercial)\\.[A-Za-z0-9 &-]+\\.[a-z0-9-]+$"
+        "pattern": "^(Product|Strategy|OrgOps|Commercial)\\.[A-Za-z0-9 &()/,'-]+\\.[a-z0-9-]+$"
       },
       "minItems": 1,
       "description": "Value Model L1.L2.L3 paths this definition contributes to",
-      "$comment": "Links definition to value model capabilities. Format: {L1-Pillar}.{L2-Theme}.{L3-Capability}. L2 can contain spaces and ampersands (e.g., 'Feedback & Performance'). L3 is kebab-case (e.g., 'performance-reviews'). A definition typically contributes to 1-2 paths. Multiple paths indicate cross-cutting value.",
+      "$comment": "Links definition to value model capabilities. Format: {L1-Pillar}.{L2-Theme}.{L3-Capability}. L2 can contain spaces, ampersands, parentheses, slashes, commas and apostrophes (e.g., 'Feedback & Performance', 'Financial Modeling (for Fundraising)'). L3 is kebab-case (e.g., 'performance-reviews'). A definition typically contributes to 1-2 paths. Multiple paths indicate cross-cutting value. (EPF issue #24: L2 character class widened to admit parentheses used in canonical commercial definitions.)",
       "examples": [
         ["OrgOps.Feedback & Performance.performance-reviews"],
         ["Strategy.Strategic Roadmap.goal-prioritization"],
@@ -194,7 +194,7 @@
           },
           "relationship": {
             "type": "string",
-            "enum": ["requires", "enables", "follows", "parallel", "alternative"],
+            "enum": ["requires", "enables", "follows", "parallel", "alternative", "complements", "contains", "enhances", "mirrors"],
             "description": "How this definition relates to the other"
           },
           "description": {

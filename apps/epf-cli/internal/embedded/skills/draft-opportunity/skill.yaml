@@ -2,7 +2,7 @@ name: draft-opportunity
 version: "1.0.0"
 type: creation
 phase: READY
-execution: prompt
+execution: prompt-delivery
 description: "Generates an initial Insight Opportunity artifact. Requires insight_analyses. Reads north_star and evidence. Synthesises the single biggest strategic opportunity from analyses and evidence."
 
 capability:

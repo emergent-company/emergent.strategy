@@ -2,9 +2,9 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "strategy_definition_schema.json",
   "title": "EPF Strategy Definition Schema",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Schema for Strategy track definitions. Extends track_definition_base_schema.json with strategy-specific fields (steps, cadence, decision_frameworks, practitioner_scenarios, risks, domain_context). Strategy definitions are input for leadership teams to develop and execute strategic processes.",
-  "$comment": "Strategy definitions cover: Context (trends, competitive, internal), Strategic Roadmap (north star, OKRs, portfolio), Tactical Roadmap (resource, risk, milestones), Communications (value prop, messaging, storytelling). These are canonical templates usable by any organization. Version 1.1: Added practitioner_scenarios, risks, and domain_context fields for richer practitioner guidance.",
+  "$comment": "Strategy definitions cover: Context (trends, competitive, internal), Strategic Roadmap (north star, OKRs, portfolio), Tactical Roadmap (resource, risk, milestones), Communications (value prop, messaging, storytelling). These are canonical templates usable by any organization. Version 1.1: Added practitioner_scenarios, risks, and domain_context fields for richer practitioner guidance. Version 1.2 (EPF issue #24): practitioner_scenarios now accepts both the array form and a persona/maturity-keyed object form; scenario actions accept string or list; scenario id accepts hierarchical ids (ps-NNN-NN); execution_risks impact accepts 'critical'.",
   "allOf": [
     {
       "$ref": "track_definition_base_schema.json"
@@ -196,61 +196,79 @@
           }
         },
         "practitioner_scenarios": {
-          "type": "array",
-          "description": "Concrete scenarios showing how this strategic process plays out in real organizations.",
-          "$comment": "Practitioner scenarios help leadership teams understand how the process works in practice. Each scenario shows a realistic situation, the practitioner's actions, and outcomes. Include both 'first-time' and 'mature organization' scenarios to show the range.",
-          "items": {
-            "type": "object",
-            "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^ps-[0-9]+$",
-                "description": "Unique scenario ID. Format: ps-{number}",
-                "examples": ["ps-001", "ps-002"]
-              },
-              "name": {
-                "type": "string",
-                "minLength": 10,
-                "description": "Descriptive name summarizing the scenario",
-                "examples": ["First-time OKR implementation", "Vision reset after pivot"]
-              },
-              "practitioner": {
-                "type": "string",
-                "description": "Who is executing this process (role, not person name)",
-                "examples": ["CEO", "VP Strategy", "Head of Product", "Founder"]
-              },
-              "organization_context": {
-                "type": "string",
-                "description": "Brief description of org size, stage, and relevant context",
-                "examples": ["20-person seed-stage startup", "100-person Series C scale-up"]
-              },
-              "situation": {
-                "type": "string",
-                "minLength": 50,
-                "description": "The specific situation that makes this scenario realistic and educational."
-              },
-              "trigger": {
-                "type": "string",
-                "description": "What initiates this specific instance of the process"
-              },
-              "actions": {
-                "type": "string",
-                "minLength": 100,
-                "description": "Step-by-step narrative of what the practitioner does"
-              },
-              "outcome": {
-                "type": "string",
-                "minLength": 50,
-                "description": "What happens as a result"
-              },
-              "lessons": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Key takeaways for practitioners facing similar situations"
+          "description": "Concrete scenarios showing how this strategic process plays out in real organizations. Accepts either an array of discrete scenario objects, or a maturity/persona-keyed object (e.g. startup_founder / scale_up_leader / enterprise_executive) describing how the approach differs by organizational stage.",
+          "$comment": "Two authoring conventions are supported (EPF issue #24): (1) an array of scenario objects, and (2) a persona-keyed object where each value is {context, approach, time_investment}. The persona-keyed form is a practitioner-facing view of the maturity model and is used widely in strategy definitions.",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "practitioner", "situation", "trigger", "actions", "outcome"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^ps-[0-9]+(-[0-9]+)*$",
+                    "description": "Unique scenario ID. Format: ps-{number} or hierarchical ps-{parent}-{seq}",
+                    "examples": ["ps-001", "ps-002", "ps-016-002"]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 10,
+                    "description": "Descriptive name summarizing the scenario",
+                    "examples": ["First-time OKR implementation", "Vision reset after pivot"]
+                  },
+                  "practitioner": {
+                    "type": "string",
+                    "description": "Who is executing this process (role, not person name)",
+                    "examples": ["CEO", "VP Strategy", "Head of Product", "Founder"]
+                  },
+                  "organization_context": {
+                    "type": "string",
+                    "description": "Brief description of org size, stage, and relevant context",
+                    "examples": ["20-person seed-stage startup", "100-person Series C scale-up"]
+                  },
+                  "situation": {
+                    "type": "string",
+                    "minLength": 50,
+                    "description": "The specific situation that makes this scenario realistic and educational."
+                  },
+                  "trigger": {
+                    "type": "string",
+                    "description": "What initiates this specific instance of the process"
+                  },
+                  "actions": {
+                    "description": "What the practitioner does — either a step-by-step narrative string or an ordered list of steps.",
+                    "oneOf": [
+                      { "type": "string", "minLength": 100 },
+                      { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+                    ]
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "minLength": 50,
+                    "description": "What happens as a result"
+                  },
+                  "lessons": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Key takeaways for practitioners facing similar situations"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "description": "Persona/maturity-keyed scenarios: each key is a persona (e.g. startup_founder) and each value describes the approach at that stage.",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "context": { "type": "string", "description": "The persona's situation" },
+                  "approach": { "type": "string", "description": "How this persona applies the process (often naming the maturity tier)" },
+                  "time_investment": { "type": "string", "description": "Rough time commitment for this persona" }
+                }
               }
             }
-          }
+          ]
         },
         "risks": {
           "type": "object",
@@ -275,7 +293,7 @@
                   },
                   "impact": {
                     "type": "string",
-                    "enum": ["low", "medium", "high"],
+                    "enum": ["low", "medium", "high", "critical"],
                     "description": "How serious if it occurs"
                   },
                   "mitigation": {
