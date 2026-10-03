@@ -148,4 +148,4 @@
 - [x] 14.2 Update CONSTITUTION.md — strategy-server directory layout, Memory integration
 - [x] 14.3 Document MCP tool parameters and response formats (in AGENTS.md tool inventory)
 - [x] 14.4 Document deployment guide (docker-compose in AGENTS.md + Taskfile)
-- [x] 14.5 Document migration path from epf-cli MCP to strategy-server MCP (epf-cli frozen, strategy-server is the target)
+- [x] 14.5 Document migration path from epf-cli MCP to strategy-server MCP (epf-cli in maintenance mode, strategy-server is the target)

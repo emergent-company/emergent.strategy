@@ -153,7 +153,9 @@ orgs, optional semantic graph via emergent.memory.
 
 ### Relationship to epf-cli
 
-- **epf-cli is frozen** — bug fixes only, no new features
+- **epf-cli is in maintenance mode, not frozen** — being retired in favor of
+  strategy-server, but still actively maintained (bug fixes, no new features)
+  until strategy-server reaches parity, since real users depend on it today
 - **strategy-server has its own `internal/memory/` client** — cannot import
   epf-cli's `internal/` packages due to Go visibility rules
 - epf-cli remains the reference validator and local developer CLI/MCP tool

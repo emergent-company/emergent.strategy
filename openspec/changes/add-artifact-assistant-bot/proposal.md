@@ -12,10 +12,12 @@
 > archived changes. Renaming would break those references for a cosmetic gain.
 > Read the title as the actual scope, not the id.
 >
-> **Why the scope changed:** epf-cli is frozen specifically because
-> strategy-server is meant to replace it as the primary authoring surface for
-> anyone — not eventually, that is the stated reason it stopped receiving
-> features (`retire-epf-cli/proposal.md`). The bar this change must clear is
+> **Why the scope changed:** epf-cli is in maintenance mode (bug fixes only,
+> no new features) specifically because strategy-server is meant to replace
+> it as the primary authoring surface for anyone — not eventually, that is
+> the stated reason it stopped receiving new features
+> (`retire-epf-cli/proposal.md`), though real users still depend on it today
+> and bug fixes continue. The bar this change must clear is
 > parity with epf-cli's agent-first authoring experience — six persona agents,
 > a semantic engine, dogfooded on the company's own real strategy — done
 > natively in strategy-server's UI, not a bolt-on edit helper.

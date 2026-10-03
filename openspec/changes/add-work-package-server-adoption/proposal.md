@@ -81,14 +81,16 @@ strategy-server side, and resolves emergent.strategy#47.
   (`artifactTypeToDirPath` ~L28, `artifactKeyToFilename` ~L77) so work packages
   round-trip to `work_packages/wp-*.yaml`.
 
-## Open Question — graph decomposition vs. frozen epf-cli
+## Open Question — graph decomposition vs. epf-cli's maintenance-mode scope
 
 The canonical graph decomposer lives in `apps/epf-cli/pkg/decompose/`, which
-strategy-server imports — but epf-cli is **frozen** per repo instructions. Two
-options, to be decided during implementation:
+strategy-server imports — but epf-cli is in **maintenance mode** (bug fixes
+only, no new features) per repo instructions. Two options, to be decided
+during implementation:
 
-- **(A)** Add a `decomposeWorkPackages` to `pkg/decompose` (requires an explicit
-  exception to the freeze, since it's a `pkg/` consumed by strategy-server).
+- **(A)** Add a `decomposeWorkPackages` to `pkg/decompose` (a new feature, which
+  maintenance mode excludes — would need an explicit, deliberate exception
+  since it's a `pkg/` consumed by strategy-server).
 - **(B)** Keep graph decomposition strategy-server-local via
   `internal/index/extract.go` only, and defer full graph-object decomposition.
 
@@ -114,4 +116,6 @@ appear as first-class nodes in the semantic graph.
 - **Executing tasks.** Substrate-owned (coding agent / 21st / sequence).
 - **Per-track posture.** Unified for now.
 - **A task model on the work package.** Tasks stay substrate-owned.
-- **Modifying frozen epf-cli** beyond the decompose decision above.
+- **Adding new epf-cli features** beyond the decompose decision above — bug
+  fixes remain in scope for epf-cli at any time, per its maintenance-mode
+  policy.

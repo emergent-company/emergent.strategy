@@ -9,8 +9,8 @@ applyTo: "**"
 
 This repository (`emergent-strategy`) is focused on **strategy tooling**:
 
-- **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool (frozen — do not modify)
-- **`apps/strategy-server/`** - Go backend for the Emergent Strategy platform (active development)
+- **`apps/epf-cli/`** - Go-based EPF (Emergent Product Framework) CLI tool — being retired in favor of strategy-server, but still actively maintained (bug fixes, no new features) until strategy-server reaches parity, since real users depend on it today
+- **`apps/strategy-server/`** - Go backend for the Emergent Strategy platform (active development, the eventual replacement for epf-cli)
 - **`docs/EPF/`** - EPF framework documentation and instances
 - **`openspec/`** - Spec-driven development infrastructure
 
@@ -109,8 +109,8 @@ The EPF CLI includes an MCP server for AI agent integration. It provides:
 
 | Directory                  | Purpose                                   |
 | -------------------------- | ----------------------------------------- |
-| `apps/epf-cli/`            | EPF CLI tool (Go) — frozen                |
-| `apps/strategy-server/`    | Strategy platform backend (Go) — active   |
+| `apps/epf-cli/`            | EPF CLI tool (Go) — maintenance mode, bug fixes only, being retired |
+| `apps/strategy-server/`    | Strategy platform backend (Go) — active development, eventual replacement |
 | `docs/EPF/`                | EPF framework docs and product instances  |
 | `openspec/`                | Spec-driven development infrastructure    |
 

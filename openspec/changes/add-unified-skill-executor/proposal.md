@@ -132,8 +132,9 @@ prompt-delivery model; this spec extends it for autonomous server-side execution
   - Modified: `internal/ui/phase_aim.templ` — Adapt step label
   - New migration: none (no schema changes)
 - **No breaking changes** to existing MCP tools, APIs, or the interactive `run_skill` path
-- **epf-cli is frozen** — the skill model in epf-cli is the reference; this change
-  extends it server-side without touching epf-cli code
+- **epf-cli is in maintenance mode (bug fixes only)** — the skill model in
+  epf-cli is the reference; this change extends it server-side without adding
+  new epf-cli features
 
 ## Non-Goals
 
