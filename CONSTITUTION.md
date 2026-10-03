@@ -5,14 +5,19 @@ Adapted from the organisational Go microservice constitution.
 
 This repo contains two Go applications:
 
-- **`apps/epf-cli/`** — CLI tool (cobra, no database, MCP server) — **frozen**
-- **`apps/strategy-server/`** — Backend server (go-arg, PostgreSQL/bun, MCP + HTTP) — **active development**
+- **`apps/epf-cli/`** — CLI tool (cobra, no database, MCP server) — **being
+  retired in favor of strategy-server, but still actively maintained** (bug
+  fixes, no new features) until strategy-server reaches parity, since real
+  users depend on it today
+- **`apps/strategy-server/`** — Backend server (go-arg, PostgreSQL/bun, MCP + HTTP) — **active development, the eventual replacement for epf-cli**
 
 The `strategy-server` follows the full `go-microservice` skill conventions
 (PostgreSQL, bun, huma, go-arg, goose, etc.). See its own `AGENTS.md` for
 app-specific rules. This constitution covers the shared principles and the
 epf-cli-specific conventions. Where a section says "this project", it means
-whichever app you are currently working in.
+whichever app you are currently working in. epf-cli's conventions below still
+apply in full — maintenance mode means bug fixes follow the same standard as
+everything else, not a lower one.
 
 ### Strategy Server Summary
 

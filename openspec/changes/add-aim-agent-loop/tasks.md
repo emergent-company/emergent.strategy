@@ -1,6 +1,6 @@
 # Tasks: Add AI-Assisted AIM Agent Loop
 
-All tasks target `apps/strategy-server/`. epf-cli is frozen — no changes there.
+All tasks target `apps/strategy-server/`. epf-cli is in maintenance mode (bug fixes only) — no new-feature changes there.
 
 ## 1. Domain Service — `domain/aim`
 

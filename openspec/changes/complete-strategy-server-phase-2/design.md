@@ -182,8 +182,10 @@ changes to the Memory API require updates in two places.
 
 **Accepted because:** The clients serve different purposes (CLI file-based
 operations vs. server-side async ingestion). A shared client package would
-create coupling between the two apps, violating the "epf-cli is frozen"
-constraint.
+create coupling between the two apps — unnecessary given epf-cli's
+maintenance-mode (bug-fixes-only) status, and blocked outright by Go
+visibility rules regardless, since strategy-server cannot import epf-cli's
+`internal/` packages across module boundaries.
 
 ---
 

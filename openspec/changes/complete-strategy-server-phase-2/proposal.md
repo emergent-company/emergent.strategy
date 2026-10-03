@@ -107,7 +107,7 @@ Fill remaining gaps between epf-cli and strategy-server MCP surfaces:
   - `internal/mcpserver/` — new tools (routing, org, parity)
   - `internal/database/migrations/` — new migrations for users, orgs, auth cache
   - `cmd_serve.go` — Memory client initialization, schema bootstrapping
-- **No changes to `apps/epf-cli/`** (frozen)
+- **No changes to `apps/epf-cli/`** (maintenance mode — bug fixes only)
 - **BREAKING** (internal): `web.User.GithubLogin` removed; `web.User.Sub` added
 - **Consolidates work from:** `add-strategy-server` (tasks 2.4.x, 2.5.5),
   `add-zitadel-multi-tenant` (entire proposal),

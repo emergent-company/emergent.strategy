@@ -2,7 +2,7 @@
 
 ## Why
 
-epf-cli is frozen (bug fixes only) and the intent is to retire it completely once
+epf-cli is in maintenance mode (bug fixes only, no new features) and the intent is to retire it completely once
 strategy-server can serve every use case it does. Today strategy-server is a
 **superset for hosted, multi-tenant authoring** (versioning, ripple coherence,
 the orchestrated AIM cycle, GitHub sync, orgs, web UI, autonomous skill
@@ -48,8 +48,8 @@ the "fully local, full control, local repo" user.
 
 ## Non-Goals
 
-- Rewriting epf-cli. epf-cli stays frozen and is deleted only after parity is
-  proven and a deprecation window has elapsed.
+- Rewriting epf-cli. epf-cli stays in maintenance mode (bug fixes only) and is
+  deleted only after parity is proven and a deprecation window has elapsed.
 - Porting epf-cli internals. strategy-server cannot import epf-cli's `internal/`
   packages; equivalents are implemented natively or share canonical-EPF content.
 - Changing canonical EPF schemas (this is a parity/runtime change, not a
@@ -117,8 +117,8 @@ the "fully local, full control, local repo" user.
   strategy-server equivalent (tool, CLI, web, or explicit N/A with rationale).
 - **Deprecation + removal plan.** epf-cli emits a deprecation notice; a window is
   observed; `apps/epf-cli/` is deleted and `project.md` / `AGENTS.md` /
-  `config.yaml` are updated to remove the "epf-cli is frozen / reference
-  validator" language only after the parity matrix is fully green.
+  `config.yaml` are updated to remove the "epf-cli is in maintenance mode /
+  reference validator" language only after the parity matrix is fully green.
 
 ## Impact
 

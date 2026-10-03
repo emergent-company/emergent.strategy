@@ -50,9 +50,9 @@
 
 ## 7. Decomposition decision (see proposal Open Question)
 
-- [x] 7.1 Decide (A) extend frozen `pkg/decompose` vs (B) index-level only
+- [x] 7.1 Decide (A) extend `pkg/decompose` (new feature, maintenance-mode exception needed) vs (B) index-level only
 - [x] 7.2 If (B): document that WPs are index/relationship objects, not graph nodes (this change)
-- [x] 7.3 If (A): add `decomposeWorkPackages` + register in `DecomposeInstance` (separate, with freeze exception)
+- [x] 7.3 If (A): add `decomposeWorkPackages` + register in `DecomposeInstance` (separate, with explicit maintenance-mode exception)
 
 ## 8. Verification
 

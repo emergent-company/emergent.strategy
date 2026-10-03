@@ -17,7 +17,7 @@ in seconds. The human's job should be to review, correct, and commit — not to
 transcribe data from one artifact to another.
 
 The archived `add-aim-recalibration-engine` proposal (2026-05-20) designed this
-for epf-cli (now frozen). This change re-specifies it for strategy-server,
+for epf-cli (now in maintenance mode). This change re-specifies it for strategy-server,
 using the platform's existing staged-batch authoring pattern, ripple coherence
 engine, and MCP tool surface. All AI outputs land in staged batches; no
 autonomous commits without explicit human `commit_batch`.
@@ -122,7 +122,7 @@ edit capability before commit.
 | `strategy-authoring` | All AI outputs use the existing staged-batch pattern (`create_feature`, `commit_batch`) |
 | `strategy-web` (stepper) | Adds action buttons to the existing 4-step stepper |
 | `domain/version` | Cycle snapshots use the existing `publish_version` with new metadata fields |
-| Archived `add-aim-recalibration-engine` | Phase 3–4 intent re-specified for strategy-server; epf-cli phases 1–2 remain archived (epf-cli frozen) |
+| Archived `add-aim-recalibration-engine` | Phase 3–4 intent re-specified for strategy-server; epf-cli phases 1–2 remain archived (epf-cli now in maintenance mode) |
 
 ## Impact
 

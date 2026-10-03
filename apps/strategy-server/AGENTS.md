@@ -27,8 +27,15 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 `strategy-server` is a constitution-compliant Go backend serving the Emergent Strategy platform.
 It is a **greenfield app** at `apps/strategy-server/` in the `emergent-strategy` monorepo.
 
-**Do not modify `apps/epf-cli/`.** That app is frozen. strategy-server has its own
-`internal/memory/` client (cannot import epf-cli's `internal/` packages due to Go visibility).
+**strategy-server code must not import `apps/epf-cli/`'s `internal/` packages** — Go
+visibility rules forbid it across module boundaries anyway, which is why
+strategy-server has its own `internal/memory/` client rather than reusing
+epf-cli's. This is an architectural boundary, not a statement about epf-cli's
+status: epf-cli itself is in maintenance mode (bug fixes only, no new
+features) while strategy-server works toward parity, but it is still
+actively maintained — see the root `AGENTS.md` and `CONSTITUTION.md` for the
+full picture. Bug fixes to `apps/epf-cli/` are expected and welcome; this
+line only says strategy-server's own code shouldn't reach into it.
 
 ## Local Development Setup
 
