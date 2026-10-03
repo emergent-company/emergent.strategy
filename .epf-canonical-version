@@ -1,0 +1,10 @@
+69fced3c310bfbe62eeba255a3edfb990c80a77d
+# VERSION at this commit: 2.29.0
+#
+# epf-canonical has no tags or releases — only a VERSION file on main.
+# This file pins an exact commit SHA so builds are reproducible. To
+# upgrade, find the commit where VERSION changed to the desired value
+# (`gh api "repos/emergent-company/epf-canonical/commits?path=VERSION"`),
+# update the SHA below, update the comment, and re-run
+# scripts/sync-embedded.sh to confirm the decomposer/tests still pass
+# against the new shapes before merging.

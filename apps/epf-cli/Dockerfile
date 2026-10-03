@@ -38,6 +38,11 @@ FROM golang:1.25-bookworm AS builder
 ARG VERSION=dev
 ARG GIT_COMMIT=dev
 ARG BUILD_DATE=""
+# Pinned epf-canonical commit SHA — see .epf-canonical-version at the repo
+# root. epf-canonical has no tags/releases, only a VERSION file on main, so
+# reproducible builds require an exact commit. If empty, falls back to
+# cloning main HEAD (local dev convenience only — CI always passes this).
+ARG CANONICAL_EPF_SHA=""
 
 WORKDIR /build
 
@@ -51,7 +56,7 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Clone canonical-epf and sync embedded artifacts.
+# Clone canonical-epf at the pinned commit and sync embedded artifacts.
 # The GitHub token is passed as a build secret to avoid leaking it into layers.
 RUN --mount=type=secret,id=gh_token \
     GITHUB_TOKEN="$(cat /run/secrets/gh_token 2>/dev/null || echo '')" && \
@@ -59,6 +64,14 @@ RUN --mount=type=secret,id=gh_token \
         git clone --depth 1 \
             "https://x-access-token:${GITHUB_TOKEN}@github.com/emergent-company/epf-canonical.git" \
             /tmp/canonical-epf && \
+        if [ -n "$CANONICAL_EPF_SHA" ]; then \
+            cd /tmp/canonical-epf && \
+            git fetch --depth 1 origin "$CANONICAL_EPF_SHA" && \
+            git checkout "$CANONICAL_EPF_SHA" && \
+            cd /build; \
+        else \
+            echo "WARNING: CANONICAL_EPF_SHA not set — using main HEAD (non-reproducible, local dev only)"; \
+        fi && \
         ./scripts/sync-embedded.sh /tmp/canonical-epf && \
         rm -rf /tmp/canonical-epf; \
     else \

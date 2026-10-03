@@ -186,8 +186,8 @@ func (e *Executor) Run(ctx context.Context, instanceID uuid.UUID, skillName stri
 		return SkillResult{}, fmt.Errorf("skillexec: resolve skill %q: %w", skillName, err)
 	}
 
-	if skill.ExecutionMode != "prompt" {
-		return SkillResult{}, fmt.Errorf("skillexec: skill %q uses execution=%q; autonomous mode only supports prompt-mode skills", skillName, skill.ExecutionMode)
+	if skill.ExecutionMode != "prompt-delivery" {
+		return SkillResult{}, fmt.Errorf("skillexec: skill %q uses execution=%q; autonomous mode only supports prompt-delivery skills", skillName, skill.ExecutionMode)
 	}
 
 	if skill.PromptMD == nil || *skill.PromptMD == "" {
@@ -409,8 +409,8 @@ func (e *Executor) runChunkedInternal(ctx context.Context, instanceID uuid.UUID,
 	if err != nil {
 		return SkillResult{}, fmt.Errorf("skillexec: resolve skill %q: %w", skillName, err)
 	}
-	if skill.ExecutionMode != "prompt" {
-		return SkillResult{}, fmt.Errorf("skillexec: skill %q uses execution=%q; chunked mode only supports prompt-mode skills", skillName, skill.ExecutionMode)
+	if skill.ExecutionMode != "prompt-delivery" {
+		return SkillResult{}, fmt.Errorf("skillexec: skill %q uses execution=%q; chunked mode only supports prompt-delivery skills", skillName, skill.ExecutionMode)
 	}
 
 	// Build context bundle (loaded once, shared across all chunks).

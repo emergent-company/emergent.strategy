@@ -29,8 +29,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Clone epf-canonical
-        run: git clone --depth 1 https://x-access-token:${{ secrets.EPF_CANONICAL_TOKEN }}@github.com/emergent-company/epf-canonical.git "$RUNNER_TEMP/canonical-epf"
+      # Short-lived installation token for the CI-only GitHub App
+      # (emergent-strategy-ci, App ID in EPF_CANONICAL_APP_ID). Covers:
+      #   - reading epf-canonical (clone below)
+      #   - writing homebrew-tap (GoReleaser's brews push, TAP_GITHUB_TOKEN)
+      # Replaces the EPF_CANONICAL_TOKEN static PAT, which silently expired
+      # and broke every build using it from 2026-06-08 onward — see #73.
+      - name: Generate canonical EPF + tap access token
+        id: canonical-app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.EPF_CANONICAL_APP_ID }}
+          private-key: ${{ secrets.EPF_CANONICAL_APP_PRIVATE_KEY }}
+          owner: emergent-company
+          repositories: |
+            epf-canonical
+            homebrew-tap
+
+      - name: Read pinned epf-canonical commit
+        id: canonical
+        run: echo "sha=$(head -n1 .epf-canonical-version)" >> "$GITHUB_OUTPUT"
+
+      # epf-canonical has no tags/releases, so the pin is a commit SHA — see
+      # the comment in .epf-canonical-version for how to find/update it.
+      - name: Clone epf-canonical at pinned commit
+        run: |
+          git clone --depth 1 "https://x-access-token:${{ steps.canonical-app-token.outputs.token }}@github.com/emergent-company/epf-canonical.git" "$RUNNER_TEMP/canonical-epf"
+          cd "$RUNNER_TEMP/canonical-epf"
+          git fetch --depth 1 origin "${{ steps.canonical.outputs.sha }}"
+          git checkout "${{ steps.canonical.outputs.sha }}"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -46,7 +73,7 @@ jobs:
           args: release --clean -f apps/epf-cli/.goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.EPF_CANONICAL_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ steps.canonical-app-token.outputs.token }}
           CANONICAL_EPF_PATH: ${{ runner.temp }}/canonical-epf
 
   docker:
@@ -59,15 +86,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Short-lived installation token for the CI-only GitHub App — read
+      # access to epf-canonical, used by the Dockerfile's gh_token build
+      # secret to clone canonical artifacts during the build stage.
+      - name: Generate canonical EPF access token
+        id: canonical-app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.EPF_CANONICAL_APP_ID }}
+          private-key: ${{ secrets.EPF_CANONICAL_APP_PRIVATE_KEY }}
+          owner: emergent-company
+          repositories: |
+            epf-canonical
+
       - name: Extract release metadata
         id: meta
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CANONICAL_SHA="$(head -n1 .epf-canonical-version)"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          echo "canonical_sha=${CANONICAL_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -107,8 +149,9 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             GIT_COMMIT=${{ steps.meta.outputs.short_sha }}
             BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            CANONICAL_EPF_SHA=${{ steps.meta.outputs.canonical_sha }}
           secrets: |
-            gh_token=${{ secrets.EPF_CANONICAL_TOKEN }}
+            gh_token=${{ steps.canonical-app-token.outputs.token }}
           platforms: linux/amd64,linux/arm64
 
       - name: Capture Artifact Registry image reference

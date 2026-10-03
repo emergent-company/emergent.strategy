@@ -620,15 +620,146 @@ type rawTrackDefinition struct {
 		} `yaml:"cadence"`
 	} `yaml:"definition"`
 
-	PractitionerScenarios []struct {
-		ID           string `yaml:"id"`
-		Name         string `yaml:"name"`
-		Practitioner string `yaml:"practitioner"`
-		Situation    string `yaml:"situation"`
-		Trigger      string `yaml:"trigger"`
-		Actions      string `yaml:"actions"`
-		Outcome      string `yaml:"outcome"`
-	} `yaml:"practitioner_scenarios"`
+	// PractitionerScenarios accepts the old array form and the new
+	// persona-keyed object form (v2.30.0+).  See flexScenarios.
+	PractitionerScenarios flexScenarios `yaml:"practitioner_scenarios"`
+
+	DomainContext struct {
+		BestPractices flexBestPractices `yaml:"best_practices"`
+		AntiPatterns  flexAntiPatterns  `yaml:"anti_patterns"`
+	} `yaml:"domain_context"`
+}
+
+// practitionerScenario is a single scenario, used by both array and
+// persona-keyed forms.
+type practitionerScenario struct {
+	ID           string      `yaml:"id"`
+	Name         string      `yaml:"name"`
+	Practitioner string      `yaml:"practitioner"`
+	Situation    string      `yaml:"situation"`
+	Trigger      string      `yaml:"trigger"`
+	Actions      flexActions `yaml:"actions"`
+	Outcome      string      `yaml:"outcome"`
+
+	// persona-keyed form fields
+	Context        string `yaml:"context"`
+	Approach       string `yaml:"approach"`
+	TimeInvestment string `yaml:"time_investment"`
+}
+
+// flexActions accepts a string or a []string.
+type flexActions []string
+
+func (fa *flexActions) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var single string
+	if err := unmarshal(&single); err == nil {
+		*fa = []string{single}
+		return nil
+	}
+	var multi []string
+	if err := unmarshal(&multi); err != nil {
+		return err
+	}
+	*fa = multi
+	return nil
+}
+
+// JoinedActions returns the actions as a single string for graph properties.
+func (fa flexActions) JoinedActions() string {
+	return strings.Join(fa, "; ")
+}
+
+// flexScenarios accepts practitioner_scenarios as an array of objects or
+// as a persona-keyed object (where each key maps to a scenario object).
+type flexScenarios []practitionerScenario
+
+func (fs *flexScenarios) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try array first (old form).
+	var arr []practitionerScenario
+	if err := unmarshal(&arr); err == nil {
+		*fs = arr
+		return nil
+	}
+	// Try persona-keyed object (new form):
+	// { "startup_founder": { context, approach, time_investment }, ... }
+	var m map[string]practitionerScenario
+	if err := unmarshal(&m); err != nil {
+		return err
+	}
+	result := make([]practitionerScenario, 0, len(m))
+	for persona, ps := range m {
+		ps.Practitioner = persona
+		if ps.Name == "" {
+			ps.Name = persona
+		}
+		result = append(result, ps)
+	}
+	// Sort by practitioner name for deterministic output.
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Practitioner < result[j].Practitioner
+	})
+	*fs = result
+	return nil
+}
+
+// flexBestPractices accepts best_practices as []string or
+// []{practice, description, evidence}.
+type flexBestPractices []bestPracticeEntry
+
+type bestPracticeEntry struct {
+	Practice    string `yaml:"practice"`
+	Description string `yaml:"description"`
+	Evidence    string `yaml:"evidence"`
+}
+
+func (fb *flexBestPractices) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try structured objects first.
+	var structured []bestPracticeEntry
+	if err := unmarshal(&structured); err == nil && len(structured) > 0 && structured[0].Practice != "" {
+		*fb = structured
+		return nil
+	}
+	// Try plain strings.
+	var plain []string
+	if err := unmarshal(&plain); err != nil {
+		return err
+	}
+	result := make([]bestPracticeEntry, len(plain))
+	for i, s := range plain {
+		result[i] = bestPracticeEntry{Practice: s}
+	}
+	*fb = result
+	return nil
+}
+
+// flexAntiPatterns accepts anti_patterns as []string or
+// []{anti_pattern, description, consequence}.
+type flexAntiPatterns []antiPatternEntry
+
+type antiPatternEntry struct {
+	AntiPattern string `yaml:"anti_pattern"`
+	Description string `yaml:"description"`
+	Consequence string `yaml:"consequence"`
+}
+
+func (fa *flexAntiPatterns) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try structured objects first.
+	var structured []antiPatternEntry
+	if err := unmarshal(&structured); err == nil && len(structured) > 0 && structured[0].AntiPattern != "" {
+		*fa = structured
+		return nil
+	}
+	// Try plain strings.
+	var plain []string
+	if err := unmarshal(&plain); err != nil {
+		return err
+	}
+	result := make([]antiPatternEntry, len(plain))
+	for i, s := range plain {
+		result[i] = antiPatternEntry{AntiPattern: s}
+	}
+	*fa = result
+	return nil
 }
 
 // decomposeTrackDefinitions scans FIRE/definitions/strategy/, org_ops/, and commercial/
@@ -714,27 +845,95 @@ func (d *Decomposer) decomposeTrackDefinitions(result *Result) {
 				}
 			}
 
-			// Practitioner scenarios
+			// Practitioner scenarios (array or persona-keyed object form)
 			for _, ps := range raw.PractitionerScenarios {
 				if ps.Name == "" {
 					continue
 				}
-				psKey := objectKey("PractitionerScenario", fmt.Sprintf("definition:%s:%s", raw.ID, ps.ID))
+				psID := ps.ID
+				if psID == "" {
+					psID = ps.Practitioner
+				}
+				psKey := objectKey("PractitionerScenario", fmt.Sprintf("definition:%s:%s", raw.ID, psID))
+				props := map[string]any{
+					"name":            ps.Name,
+					"practitioner":    ps.Practitioner,
+					"situation":       truncate(ps.Situation, 500),
+					"trigger":         ps.Trigger,
+					"actions":         truncate(ps.Actions.JoinedActions(), 500),
+					"outcome":         truncate(ps.Outcome, 500),
+					"definition_ref":  raw.ID,
+					"inertia_tier":    "6",
+					"source_artifact": relPath,
+					"section_path":    fmt.Sprintf("practitioner_scenarios.%s", psID),
+				}
+				// Include persona-keyed form fields if present.
+				if ps.Context != "" {
+					props["context"] = truncate(ps.Context, 500)
+				}
+				if ps.Approach != "" {
+					props["approach"] = truncate(ps.Approach, 500)
+				}
+				if ps.TimeInvestment != "" {
+					props["time_investment"] = ps.TimeInvestment
+				}
 				d.addObject(result, GraphObject{
 					Type: "PractitionerScenario", Key: psKey,
-					Properties: map[string]any{
-						"name":            ps.Name,
-						"practitioner":    ps.Practitioner,
-						"situation":       truncate(ps.Situation, 500),
-						"trigger":         ps.Trigger,
-						"outcome":         truncate(ps.Outcome, 500),
-						"definition_ref":  raw.ID,
-						"inertia_tier":    "6",
-						"source_artifact": relPath,
-						"section_path":    fmt.Sprintf("practitioner_scenarios.%s", ps.ID),
-					},
+					Properties: props,
 				})
 				d.addContains(result, defKey, "TrackDefinition", psKey, "PractitionerScenario")
+			}
+
+			// Domain context: best practices & anti-patterns
+			for _, bp := range raw.DomainContext.BestPractices {
+				if bp.Practice == "" {
+					continue
+				}
+				bpKey := objectKey("BestPractice", fmt.Sprintf("definition:%s:%s", raw.ID, bp.Practice))
+				props := map[string]any{
+					"name":            truncate(bp.Practice, 200),
+					"practice":        truncate(bp.Practice, 500),
+					"definition_ref":  raw.ID,
+					"inertia_tier":    "7",
+					"source_artifact": relPath,
+					"section_path":    "domain_context.best_practices",
+				}
+				if bp.Description != "" {
+					props["description"] = truncate(bp.Description, 500)
+				}
+				if bp.Evidence != "" {
+					props["evidence"] = truncate(bp.Evidence, 500)
+				}
+				d.addObject(result, GraphObject{
+					Type: "BestPractice", Key: bpKey,
+					Properties: props,
+				})
+				d.addContains(result, defKey, "TrackDefinition", bpKey, "BestPractice")
+			}
+			for _, ap := range raw.DomainContext.AntiPatterns {
+				if ap.AntiPattern == "" {
+					continue
+				}
+				apKey := objectKey("AntiPattern", fmt.Sprintf("definition:%s:%s", raw.ID, ap.AntiPattern))
+				props := map[string]any{
+					"name":            truncate(ap.AntiPattern, 200),
+					"anti_pattern":    truncate(ap.AntiPattern, 500),
+					"definition_ref":  raw.ID,
+					"inertia_tier":    "7",
+					"source_artifact": relPath,
+					"section_path":    "domain_context.anti_patterns",
+				}
+				if ap.Description != "" {
+					props["description"] = truncate(ap.Description, 500)
+				}
+				if ap.Consequence != "" {
+					props["consequence"] = truncate(ap.Consequence, 500)
+				}
+				d.addObject(result, GraphObject{
+					Type: "AntiPattern", Key: apKey,
+					Properties: props,
+				})
+				d.addContains(result, defKey, "TrackDefinition", apKey, "AntiPattern")
 			}
 
 			return nil

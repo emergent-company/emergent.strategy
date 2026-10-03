@@ -169,6 +169,35 @@ else
     echo "Warning: No VERSION file found in canonical EPF"
 fi
 
+# Verify the source is checked out at the pinned commit (if pin file exists).
+# epf-canonical has no tags/releases, so the pin is a commit SHA (first
+# line of the pin file), not a version string. This only verifies when
+# $CANONICAL_EPF is a git checkout with the pinned commit reachable
+# (depth >= 1 fetch of that SHA) — callers that pass a shallow clone of a
+# different ref will correctly fail here rather than silently embedding it.
+PIN_FILE="$EPF_CLI_DIR/../../.epf-canonical-version"
+if [ -f "$PIN_FILE" ] && [ -d "$CANONICAL_EPF/.git" ]; then
+    PINNED_SHA="$(head -n1 "$PIN_FILE" | tr -d '[:space:]')"
+    ACTUAL_SHA="$(cd "$CANONICAL_EPF" && git rev-parse HEAD 2>/dev/null || echo "")"
+    if [ -z "$ACTUAL_SHA" ]; then
+        echo ""
+        echo "Warning: could not determine git HEAD of $CANONICAL_EPF — skipping pin check"
+    elif [ "$ACTUAL_SHA" != "$PINNED_SHA" ]; then
+        echo ""
+        echo "ERROR: $CANONICAL_EPF is checked out at $ACTUAL_SHA, but .epf-canonical-version pins $PINNED_SHA"
+        echo "Pin file: $PIN_FILE"
+        echo ""
+        echo "Either checkout the pinned commit, or update .epf-canonical-version"
+        echo "after deliberately reviewing the new canonical content (see the"
+        echo "comment in that file for how)."
+        exit 1
+    fi
+    echo "  Version pin verified: checked out at pinned commit $PINNED_SHA (VERSION=$(cat "$EMBEDDED_DIR/VERSION"))"
+elif [ -f "$PIN_FILE" ]; then
+    echo ""
+    echo "Note: $CANONICAL_EPF is not a git checkout (no .git dir) — skipping pin verification."
+fi
+
 # Create a manifest of embedded files
 echo ""
 echo "Creating manifest..."

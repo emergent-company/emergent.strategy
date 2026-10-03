@@ -963,7 +963,7 @@ func TestMCP_ScaffoldSkill_PromptMode(t *testing.T) {
 	c.call(id, "scaffold_skill", map[string]any{
 		"name":        "my-test-skill",
 		"type":        "creation",
-		"execution":   "prompt",
+		"execution":   "prompt-delivery",
 		"description": "A scaffolded test skill",
 	}).assertOK().decode(&result)
 	id++
@@ -978,7 +978,7 @@ func TestMCP_ScaffoldSkill_PromptMode(t *testing.T) {
 	if !strings.Contains(skillYAML, "type: creation") {
 		t.Errorf("scaffold_skill: skill_yaml missing type; got %q", skillYAML)
 	}
-	if !strings.Contains(skillYAML, "execution: prompt") {
+	if !strings.Contains(skillYAML, "execution: prompt-delivery") {
 		t.Errorf("scaffold_skill: skill_yaml missing execution; got %q", skillYAML)
 	}
 	if !strings.Contains(packYAML, "name: my-test-skill") {
@@ -1050,7 +1050,7 @@ func TestMCP_ScaffoldThenInstall(t *testing.T) {
 	c.call(id, "scaffold_skill", map[string]any{
 		"name":        "round-trip-skill",
 		"type":        "review",
-		"execution":   "prompt",
+		"execution":   "prompt-delivery",
 		"description": "Round-trip scaffold test",
 	}).assertOK().decode(&scaffolded)
 	id++
