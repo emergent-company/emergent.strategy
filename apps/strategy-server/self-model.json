@@ -2844,7 +2844,7 @@
             "type": "string"
           },
           "execution": {
-            "description": "Execution mode: prompt | script",
+            "description": "Execution mode: prompt-delivery | script",
             "type": "string"
           },
           "name": {
