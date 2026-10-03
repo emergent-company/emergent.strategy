@@ -106,6 +106,21 @@ func TestDetectArtifactType(t *testing.T) {
 		{"FIRE/definitions/commercial/partnerships/cd-007-revenue-sharing.yaml", ArtifactCommercialDefinition, false},
 		{"FIRE/definitions/commercial/brand-positioning/cd-035-verbal-guidelines.yaml", ArtifactCommercialDefinition, false},
 
+		// Track definitions by filename prefix alone, outside the
+		// definitions/<track>/ structural pattern (#36 regression —
+		// reported by a downstream consumer whose instance placed these
+		// files in a non-standard layout; 133 affected artifacts). Mirrors
+		// fd-*'s identical filename-only fallback (line 75 above): sd-,
+		// pd-, and cd- are the canonical, schema-enforced ID prefixes
+		// (^sd-[0-9]{3}$ etc. in the track definition schemas) regardless
+		// of directory layout.
+		{"sd-001-vision.yaml", ArtifactStrategyDefinition, false},
+		{"pd-platform-admin.yaml", ArtifactOrgOpsDefinition, false},
+		{"cd-asset-core.yaml", ArtifactCommercialDefinition, false},
+		{"some/nonstandard/path/sd-014-market-shift.yaml", ArtifactStrategyDefinition, false},
+		{"some/nonstandard/path/pd-022-review.yaml", ArtifactOrgOpsDefinition, false},
+		{"some/nonstandard/path/cd-009-pricing.yaml", ArtifactCommercialDefinition, false},
+
 		// Other artifacts
 		{"track_health_assessment.yaml", ArtifactTrackHealthAssessment, false},
 		{"track-health-assessment.yaml", ArtifactTrackHealthAssessment, false},
@@ -116,7 +131,7 @@ func TestDetectArtifactType(t *testing.T) {
 		{"work_packages/wp-001.yaml", ArtifactWorkPackage, false},
 		{"work_packages/wp-042_csv_import.yaml", ArtifactWorkPackage, false},
 		{"instance/work_packages/wp-1024.yml", ArtifactWorkPackage, false},
-		{"work_packages/notes.yaml", "", true}, // missing wp- prefix
+		{"work_packages/notes.yaml", "", true},       // missing wp- prefix
 		{".github/workflows/release.yaml", "", true}, // workflows != work_packages
 
 		// Unknown files (should NOT match any EPF type)
