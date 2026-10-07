@@ -374,6 +374,79 @@ const (
 )
 
 // ---------------------------------------------------------------------------
+// Access tokens
+// ---------------------------------------------------------------------------
+
+// AccessToken is a long-lived credential for non-interactive MCP clients.
+//
+// The plaintext token exists only in the response to the create call; this
+// struct never carries it. TokenHash is an Argon2id PHC string and TokenPrefix
+// is the indexed, non-secret lookup key — see migration 043 for why both are
+// needed.
+type AccessToken struct {
+	bun.BaseModel `bun:"table:access_tokens,alias:at"`
+
+	ID     uuid.UUID `bun:"id,pk,type:uuid"          json:"id"`
+	OrgID  uuid.UUID `bun:"org_id,notnull,type:uuid"  json:"org_id"`
+	UserID uuid.UUID `bun:"user_id,notnull,type:uuid" json:"user_id"`
+	Name   string    `bun:"name,notnull"              json:"name"`
+
+	// TokenPrefix is the clear-text first 8 characters, used to narrow the
+	// candidate set before the Argon2id comparison.
+	TokenPrefix string `bun:"token_prefix,notnull" json:"token_prefix"`
+
+	// TokenHash is never serialised. `json:"-"` is load-bearing: this struct
+	// is returned by the list endpoints, and without it every caller able to
+	// list tokens would receive the hashes to attack offline.
+	TokenHash string `bun:"token_hash,notnull" json:"-"`
+
+	ExpiresAt  time.Time  `bun:"expires_at,notnull"               json:"expires_at"`
+	LastUsedAt *time.Time `bun:"last_used_at"                     json:"last_used_at,omitempty"`
+	RevokedAt  *time.Time `bun:"revoked_at"                       json:"revoked_at,omitempty"`
+	CreatedAt  time.Time  `bun:"created_at,notnull,default:now()" json:"created_at"`
+
+	// Relations
+	Grants []*AccessTokenGrant `bun:"rel:has-many,join:id=token_id" json:"grants,omitempty"`
+}
+
+// IsRevoked reports whether the token has been explicitly revoked.
+func (t *AccessToken) IsRevoked() bool { return t.RevokedAt != nil }
+
+// IsExpired reports whether the token's lifetime has elapsed as of now.
+func (t *AccessToken) IsExpired(now time.Time) bool { return !now.Before(t.ExpiresAt) }
+
+// IsUsable reports whether the token may authenticate a request.
+//
+// Both conditions are checked in one place so no call site can validate a
+// token by testing only one of them.
+func (t *AccessToken) IsUsable(now time.Time) bool {
+	return !t.IsRevoked() && !t.IsExpired(now)
+}
+
+// AccessTokenGrant binds a token to one instance with one permission.
+type AccessTokenGrant struct {
+	bun.BaseModel `bun:"table:access_token_grants,alias:atg"`
+
+	ID         uuid.UUID `bun:"id,pk,type:uuid"               json:"id"`
+	TokenID    uuid.UUID `bun:"token_id,notnull,type:uuid"    json:"token_id"`
+	InstanceID uuid.UUID `bun:"instance_id,notnull,type:uuid" json:"instance_id"`
+	Permission string    `bun:"permission,notnull"            json:"permission"`
+	CreatedAt  time.Time `bun:"created_at,notnull,default:now()" json:"created_at"`
+}
+
+// TokenPermission values. Mirrors the CHECK constraint in migration 043.
+const (
+	TokenPermissionRead  = "read"
+	TokenPermissionWrite = "write"
+)
+
+// AllowsWrite reports whether the grant permits mutation.
+//
+// Written as an equality test against write rather than "not read", so an
+// unexpected value denies rather than being treated as writable.
+func (g *AccessTokenGrant) AllowsWrite() bool { return g.Permission == TokenPermissionWrite }
+
+// ---------------------------------------------------------------------------
 // Schema registry
 // ---------------------------------------------------------------------------
 

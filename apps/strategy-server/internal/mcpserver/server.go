@@ -35,6 +35,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 
+	accesstokendom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/accesstoken"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
@@ -90,6 +91,7 @@ type Services struct {
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
+	AccessToken   *accesstokendom.Service  // optional — nil disables access-token management tools
 
 	// GithubAppInstallURL is the GitHub App installation URL, e.g.
 	// "https://github.com/apps/emergent-strategy/installations/new".
@@ -150,6 +152,12 @@ func NewMCPServer(svc Services) *server.MCPServer {
 		server.WithPromptCapabilities(true),
 		server.WithInstructions(agent.ServerInstructions()),
 		server.WithToolFilter(filterState.filterTools),
+		// Order matters. mcp-go applies tool middlewares outermost-first, so
+		// the write gate registered here runs before autoActivate: a refused
+		// write must not also activate its category as a side effect, which
+		// would let a read-only caller reshape its own tool list by probing
+		// tools it may not call.
+		server.WithToolHandlerMiddleware(writeGateMiddleware),
 		server.WithToolHandlerMiddleware(filterState.autoActivate(serverRef)),
 		server.WithHooks(hooks),
 	)
@@ -174,6 +182,7 @@ func NewMCPServer(svc Services) *server.MCPServer {
 	registerAIMTools(s, svc)
 	registerPackTools(s, svc)
 	registerOrgTools(s, svc)
+	registerTokenTools(s, svc)
 	registerPhase2cTools(s, svc)
 	registerVersionTools(s, svc)
 	registerSyncTools(s, svc)
@@ -2358,7 +2367,10 @@ func stageArtifact(
 	if err != nil {
 		return toolErr(ctx, err), nil
 	}
-	if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+	// Write, not merely access: this is the shared path behind every
+	// artifact-authoring tool, so a read-scoped credential must be refused
+	// here even though it may read the same instance freely.
+	if err := assertInstanceWrite(ctx, svc, instID); err != nil {
 		return toolErr(ctx, err), nil
 	}
 

@@ -159,6 +159,11 @@ var messages = map[Locale]map[string]string{
 		"semantic.unavailable": "Semantic engine unavailable",
 		"scenario.not_found":   "Scenario not found",
 
+		// Access tokens (114xxx)
+		"token.invalid":   "Invalid or expired access token",
+		"token.not_found": "Access token not found",
+		"token.read_only": "This access token is read-only and cannot call tools that modify strategy data",
+
 		// ---------------------------------------------------------------------------
 		// Health
 		// ---------------------------------------------------------------------------
@@ -628,6 +633,11 @@ var messages = map[Locale]map[string]string{
 		// ---------------------------------------------------------------------------
 		"semantic.unavailable": "Semantisk motor utilgjengelig",
 		"scenario.not_found":   "Scenario ikke funnet",
+
+		// Access tokens (114xxx)
+		"token.invalid":   "Ugyldig eller utløpt tilgangstoken",
+		"token.not_found": "Tilgangstoken ikke funnet",
+		"token.read_only": "Dette tilgangstokenet er skrivebeskyttet og kan ikke kalle verktøy som endrer strategidata",
 
 		// ---------------------------------------------------------------------------
 		// Health

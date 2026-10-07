@@ -3,11 +3,13 @@ package web
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/accesstoken"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
@@ -125,12 +127,77 @@ var DevPrincipal = &Principal{User: DevUser}
 // create or update the user record in the database. Set by cmd_serve.go.
 type EnsureUserFunc func(ctx context.Context, sub, email, name string) (uuid.UUID, error)
 
+// TokenResolver authenticates a long-lived access token.
+//
+// Declared as a narrow interface here rather than importing the concrete
+// service: middleware needs one method, and depending on the whole service
+// would drag a database into every middleware test.
+type TokenResolver interface {
+	Resolve(ctx context.Context, plaintext string) (*accesstoken.Resolved, error)
+}
+
+// authenticateAccessToken resolves an est_ token and continues the chain with
+// a scoped Principal.
+//
+// Any resolution failure is a flat 401 with no detail. The service already
+// collapses unknown/expired/revoked into one error so the response cannot be
+// used to probe which tokens exist; this preserves that at the HTTP layer.
+func authenticateAccessToken(c echo.Context, resolver TokenResolver, next echo.HandlerFunc, token string) error {
+	if resolver == nil {
+		// Token presented but the feature is not wired. Deny — treating an
+		// unconfigured resolver as "no opinion" and falling through to the
+		// IdP path would send our credential to Zitadel.
+		slog.ErrorContext(c.Request().Context(),
+			"access token presented but no resolver is configured; denying")
+		return echo.ErrUnauthorized
+	}
+
+	resolved, err := resolver.Resolve(c.Request().Context(), token)
+	if err != nil {
+		return echo.ErrUnauthorized
+	}
+
+	grants := make([]InstanceGrant, 0, len(resolved.Grants))
+	writable := false
+	for _, g := range resolved.Grants {
+		grants = append(grants, InstanceGrant{
+			InstanceID: g.InstanceID,
+			Permission: g.Permission,
+		})
+		if g.AllowsWrite() {
+			writable = true
+		}
+	}
+
+	principal := &Principal{
+		User:    &User{ID: resolved.UserID},
+		TokenID: &resolved.TokenID,
+		Grants:  grants,
+		// ReadOnly is true unless *some* grant permits writing. The
+		// per-instance grant still governs each individual call; this flag
+		// is the cheap short-circuit for the write gate, so it must not be
+		// set merely because the owner is an org admin.
+		ReadOnly: !writable,
+	}
+
+	ctx := ContextWithPrincipal(c.Request().Context(), principal)
+	ctx = audit.ContextWithActor(ctx, resolved.UserID)
+	ctx = audit.ContextWithToken(ctx, resolved.TokenID)
+	// Overrides the source set by AuditMiddleware, which cannot know how the
+	// request authenticated.
+	ctx = audit.ContextWithSource(ctx, audit.SourceMCPToken)
+	c.SetRequest(c.Request().WithContext(ctx))
+	return next(c)
+}
+
 // AuthMiddleware returns an Echo middleware that enforces authentication.
 //
 // When authEnabled is false (development), requests pass through with DevPrincipal
-// injected. When authEnabled is true, the Bearer token is introspected via
-// Zitadel. Unauthenticated requests get 401.
-func AuthMiddleware(authEnabled bool, introspector *auth.Introspector, ensureUser EnsureUserFunc) echo.MiddlewareFunc {
+// injected. When authEnabled is true, the Bearer token is routed by its prefix:
+// tokens starting with est_ are our own long-lived access tokens and are resolved
+// locally; everything else is introspected via Zitadel. Unauthenticated requests
+// get 401.
+func AuthMiddleware(authEnabled bool, introspector *auth.Introspector, ensureUser EnsureUserFunc, resolver TokenResolver) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip auth for health check and the public self-model
@@ -159,6 +226,14 @@ func AuthMiddleware(authEnabled bool, introspector *auth.Introspector, ensureUse
 				return echo.ErrUnauthorized
 			}
 			token := strings.TrimPrefix(authHeader, "Bearer ")
+
+			// Access tokens are ours, not Zitadel's. This branch must come
+			// before introspection: sending one of our tokens to the IdP
+			// would disclose a live credential to a third party and return
+			// "inactive" regardless.
+			if strings.HasPrefix(token, accesstoken.Prefix) {
+				return authenticateAccessToken(c, resolver, next, token)
+			}
 
 			if introspector == nil {
 				return echo.ErrUnauthorized

@@ -19,6 +19,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/accesstoken"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
@@ -104,6 +105,7 @@ func runServer(cfg *config.Config) error {
 	}
 
 	orgSvc := org.NewService(db)
+	accessTokenSvc := accesstoken.NewService(db, orgSvc)
 	versionSvc := versiondom.NewService(db)
 	strategySvc := strategy.NewService(db)
 	rippleSvc := rippledom.NewService(db)
@@ -269,6 +271,7 @@ func runServer(cfg *config.Config) error {
 		Evidence:            evidenceSvc,
 		Activity:            activitySvc,
 		Watchdog:            watchdogdom.NewService(db),
+		AccessToken:         accessTokenSvc,
 		GithubAppInstallURL: cfg.GithubAppInstallURL(),
 	}
 
@@ -346,8 +349,9 @@ func runServer(cfg *config.Config) error {
 		seedDevIdentity(log, db, auditWriter, userSvc, orgSvc, wsSvc)
 	}
 
-	// Auth middleware — injects Principal + ActorID.
-	e.Use(web.AuthMiddleware(cfg.AuthEnabled, introspector, ensureUser))
+	// Auth middleware — injects Principal + ActorID. Routes est_ bearer
+	// tokens to the access token service and everything else to Zitadel.
+	e.Use(web.AuthMiddleware(cfg.AuthEnabled, introspector, ensureUser, accessTokenSvc))
 
 	// Audit source middleware — sets source = mcp or web by path prefix.
 	e.Use(web.AuditMiddleware())

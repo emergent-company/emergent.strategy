@@ -33,6 +33,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "strategy-server: %v\n", err)
 			os.Exit(1)
 		}
+	case cfg.Token != nil:
+		if err := runToken(&cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "strategy-server: %v\n", err)
+			os.Exit(1)
+		}
 	default:
 		p.WriteHelp(os.Stdout)
 		os.Exit(1)

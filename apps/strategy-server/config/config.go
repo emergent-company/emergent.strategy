@@ -26,6 +26,26 @@ type ImportCmd struct {
 	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"true" help:"Ingest artifacts into Memory graph after import (skipped when Memory is not configured)"`
 }
 
+// TokenCmd is the subcommand for access-token administration.
+//
+// This exists to bootstrap the first token: the MCP tools require an
+// authenticated org_admin, which is unavailable before anyone can connect.
+// It is also the recovery path if every admin credential is lost.
+type TokenCmd struct {
+	Mint   bool `arg:"--mint" help:"Mint a new access token"`
+	List   bool `arg:"--list" help:"List an org's access tokens"`
+	Revoke bool `arg:"--revoke" help:"Revoke an access token"`
+
+	OrgID   string   `arg:"--org-id" help:"Organisation UUID (required for all operations)"`
+	UserID  string   `arg:"--user-id" help:"Owning user UUID (required for --mint). Grants are validated against this user's access."`
+	Name    string   `arg:"--name" help:"Token label (required for --mint)"`
+	Grant   []string `arg:"--grant,separate" help:"Repeatable. Format: <instance-uuid>:<read|write>. Permission defaults to read."`
+	Expires string   `arg:"--expires" help:"RFC3339 expiry (default 90 days, max 365)"`
+	TokenID string   `arg:"--token-id" help:"Access token UUID (required for --revoke)"`
+
+	IncludeInactive bool `arg:"--include-inactive" help:"Include revoked and expired tokens in --list"`
+}
+
 // DBMode controls how strategy-server co-locates with emergent.memory's database.
 type DBMode string
 
@@ -48,6 +68,7 @@ type Config struct {
 	Server *ServerCmd `arg:"subcommand:server" help:"Start the HTTP and MCP server"`
 	DB     *DBCmd     `arg:"subcommand:db" help:"Database management commands"`
 	Import *ImportCmd `arg:"subcommand:import" help:"Import a local EPF instance into the database"`
+	Token  *TokenCmd  `arg:"subcommand:token" help:"Access token administration (bootstrap and recovery)"`
 
 	// General
 	LogLevel string `arg:"--log-level,env:LOG_LEVEL" default:"INFO" help:"Log level: DEBUG, INFO, WARN, ERROR"`

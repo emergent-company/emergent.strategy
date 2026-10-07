@@ -180,3 +180,24 @@ var (
 	ErrSemanticUnavailable = NewHTTPDefinedError(http.StatusServiceUnavailable, 113001, "semantic.unavailable")
 	ErrScenarioNotFound    = NewHTTPDefinedError(http.StatusNotFound, 113002, "scenario.not_found")
 )
+
+// ---------------------------------------------------------------------------
+// Sentinel errors — access tokens (114xxx)
+// ---------------------------------------------------------------------------
+
+var (
+	// ErrTokenInvalid covers every reason a presented token did not
+	// authenticate: malformed, unknown, expired, revoked, or owned by a user
+	// who has since lost membership.
+	//
+	// Deliberately one error for all of them. Distinguishing "expired" from
+	// "unknown" tells an attacker which of their guesses corresponded to a
+	// real token, turning the error channel into an oracle. The specific
+	// reason is logged server-side, where it is useful and not disclosed.
+	ErrTokenInvalid = NewHTTPDefinedError(http.StatusUnauthorized, 114001, "token.invalid")
+
+	// ErrTokenNotFound is for management operations (revoke, get) on a token
+	// id that does not exist or is not visible to the caller. Distinct from
+	// ErrTokenInvalid, which is about authentication.
+	ErrTokenNotFound = NewHTTPDefinedError(http.StatusNotFound, 114002, "token.not_found")
+)
