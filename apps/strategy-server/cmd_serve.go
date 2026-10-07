@@ -61,6 +61,13 @@ func runServer(cfg *config.Config) error {
 	log := logger.New(cfg.LogLevel)
 	slog.SetDefault(log)
 
+	// Before anything with side effects. database.Migrate below mutates the
+	// schema, and ingest/DBOS start goroutines — a refused boot must not have
+	// already altered a production database on its way out.
+	if err := cfg.ValidateProduction(); err != nil {
+		return err
+	}
+
 	log.Info("starting strategy-server", "env", cfg.Env, "port", cfg.Port)
 
 	// Database
@@ -326,7 +333,11 @@ func runServer(cfg *config.Config) error {
 			ClientID:   cfg.ZitadelClientID,
 			KeyPath:    cfg.ZitadelKeyPath,
 			DebugToken: cfg.ZitadelDebugToken,
-			CacheTTL:   time.Duration(cfg.IntrospectionCacheTTL) * time.Second,
+			// Never in production. ValidateProduction already refuses to
+			// boot in that case; passing the flag keeps the bypass inert
+			// rather than relying solely on the startup check.
+			AllowDebugToken: !cfg.IsProduction(),
+			CacheTTL:        time.Duration(cfg.IntrospectionCacheTTL) * time.Second,
 		}, db)
 		if intrErr != nil {
 			return fmt.Errorf("create introspector: %w", intrErr)
@@ -345,7 +356,15 @@ func runServer(cfg *config.Config) error {
 
 	// In dev mode, ensure the dev user exists in the DB so FK constraints on
 	// created_by columns don't fail. EnsureUser is idempotent.
-	if !cfg.AuthEnabled {
+	//
+	// Gated on the environment as well as on AuthEnabled. This grants a
+	// hardcoded user org_admin on every organisation in the database and
+	// reassigns orphan workspaces between orgs — destructive, cross-tenant,
+	// and silent. ValidateProduction already makes the AuthEnabled=false case
+	// unreachable in production, so this condition should never be the one
+	// that saves us; it is here because the cost of being wrong is every
+	// tenant's data and the cost of the check is one boolean.
+	if !cfg.AuthEnabled && !cfg.IsProduction() {
 		seedDevIdentity(log, db, auditWriter, userSvc, orgSvc, wsSvc)
 	}
 

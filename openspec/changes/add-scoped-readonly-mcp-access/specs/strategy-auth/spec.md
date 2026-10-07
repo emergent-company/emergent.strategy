@@ -93,24 +93,24 @@ The system SHALL refuse to start in a configuration that would expose an
 unauthenticated or bypassable endpoint when running in production.
 
 #### Scenario: Production requires auth
-- **WHEN** `ENVIRONMENT=production` and `AUTH_ENABLED=false`
+- **WHEN** `ENV=production` and `AUTH_ENABLED=false`
 - **THEN** the server logs a fatal error and exits non-zero
 - **AND** does not bind a listener
 
 #### Scenario: Debug token forbidden in production
-- **WHEN** `ENVIRONMENT=production` and `ZITADEL_DEBUG_TOKEN` is set
+- **WHEN** `ENV=production` and `ZITADEL_DEBUG_TOKEN` is set
 - **THEN** the server logs a fatal error and exits non-zero
 
 #### Scenario: Debug token ignored outside its environment
-- **WHEN** `ENVIRONMENT` is not `development` and a request presents the debug token
+- **WHEN** `ENV` is not `development` and a request presents the debug token
 - **THEN** the token is not honoured and introspection proceeds normally
 
 #### Scenario: Production requires configured Zitadel
-- **WHEN** `ENVIRONMENT=production` and `AUTH_ENABLED=true` and Zitadel is not configured
+- **WHEN** `ENV=production` and `AUTH_ENABLED=true` and Zitadel is not configured
 - **THEN** the server logs a fatal error and exits non-zero
 
 #### Scenario: Development is unaffected
-- **WHEN** `ENVIRONMENT=development` (the default) and `AUTH_ENABLED=false`
+- **WHEN** `ENV=development` (the default) and `AUTH_ENABLED=false`
 - **THEN** the server starts normally with the dev pass-through
 
 ---

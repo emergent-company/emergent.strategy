@@ -105,20 +105,20 @@
 
 ## 8. Production Guards
 
-- [ ] 8.1 Add `Environment` to `config/config.go` (`ENVIRONMENT`, default `development`)
-- [ ] 8.2 Add a startup validation that aborts when `ENVIRONMENT=production` and `AUTH_ENABLED=false`
-- [ ] 8.3 Abort when `ENVIRONMENT=production` and `ZITADEL_DEBUG_TOKEN` is set
-- [ ] 8.4 Abort when `ENVIRONMENT=production` and `AUTH_ENABLED=true` and Zitadel is unconfigured
-- [ ] 8.5 Gate the `DebugToken` bypass in `internal/auth/introspection.go:85-92` on `ENVIRONMENT=development`
-- [ ] 8.6 Guard `seedDevIdentity`/`EnsureDevMembershipForAllOrgs` (`cmd_serve.go:345`) so it cannot run outside development
-- [ ] 8.7 Write tests for each abort condition and confirm dev defaults still boot
+- [x] 8.1 Use the existing `Env` field (`ENV`, default `development`) — do NOT add a second `ENVIRONMENT` variable; two competing indicators would let `ENV=production ENVIRONMENT=development` silently disable every guard
+- [x] 8.2 Add a startup validation that aborts when `ENV=production` and `AUTH_ENABLED=false`
+- [x] 8.3 Abort when `ENV=production` and `ZITADEL_DEBUG_TOKEN` is set
+- [x] 8.4 Abort when `ENV=production` and `AUTH_ENABLED=true` and Zitadel is unconfigured
+- [x] 8.5 Gate the `DebugToken` bypass in `internal/auth/introspection.go:85-92` on `ENV=development`
+- [x] 8.6 Guard `seedDevIdentity`/`EnsureDevMembershipForAllOrgs` (`cmd_serve.go:345`) so it cannot run outside development
+- [x] 8.7 Write tests for each abort condition and confirm dev defaults still boot
 
 ---
 
 ## 9. Deployment
 
 - [ ] 9.1 Add `.github/workflows/strategy-server-deploy.yaml` for Cloud Run, modelled on `deploy.yaml` but **without** `--allow-unauthenticated` semantics leaking into app auth
-- [ ] 9.2 Set `ENVIRONMENT=production`, `AUTH_ENABLED=true`, and Zitadel vars; ensure `ZITADEL_DEBUG_TOKEN` is unset
+- [ ] 9.2 Set `ENV=production`, `AUTH_ENABLED=true`, and Zitadel vars; ensure `ZITADEL_DEBUG_TOKEN` is unset
 - [ ] 9.3 Confirm the Dockerfile's `EXPOSE 8090` matches the Cloud Run port config
 - [ ] 9.4 Document the MCP client config for a token holder (`type: "remote"`, `url`, `Authorization: Bearer est_...`)
 - [ ] 9.5 Deploy to a staging service and verify the guards actually abort on misconfiguration

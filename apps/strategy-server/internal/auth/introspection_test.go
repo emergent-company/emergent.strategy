@@ -27,10 +27,11 @@ func TestHashToken(t *testing.T) {
 
 func TestIntrospect_DebugToken(t *testing.T) {
 	intr, err := NewIntrospector(Config{
-		Issuer:     "https://auth.example.com",
-		ClientID:   "test-client",
-		DebugToken: "debug-secret",
-		CacheTTL:   time.Minute,
+		Issuer:          "https://auth.example.com",
+		ClientID:        "test-client",
+		DebugToken:      "debug-secret",
+		AllowDebugToken: true,
+		CacheTTL:        time.Minute,
 	}, nil)
 	if err != nil {
 		t.Fatalf("new introspector: %v", err)
@@ -152,5 +153,49 @@ func TestIntrospect_CircuitBreaker(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 	if intr.isCircuitOpen() {
 		t.Error("circuit should be closed after cooldown")
+	}
+}
+
+// TestIntrospect_DebugTokenIgnoredWhenNotAllowed is the second layer of the
+// production guard.
+//
+// ValidateProduction refuses to boot a production server with a debug token
+// configured, but that check lives in another package and could be bypassed
+// by any code constructing an Introspector directly. This asserts the bypass
+// is inert on its own terms: with AllowDebugToken false, the debug token is
+// just an unknown string and goes to the IdP like any other.
+func TestIntrospect_DebugTokenIgnoredWhenNotAllowed(t *testing.T) {
+	var reached bool
+	zitadel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached = true
+		w.WriteHeader(200)
+		_ = json.NewEncoder(w).Encode(map[string]any{"active": false})
+	}))
+	defer zitadel.Close()
+
+	intr, err := NewIntrospector(Config{
+		Issuer:     zitadel.URL,
+		ClientID:   "test-client",
+		DebugToken: "debug-secret",
+		// AllowDebugToken deliberately omitted — the zero value must be the
+		// safe one.
+		CacheTTL: time.Minute,
+	}, nil)
+	if err != nil {
+		t.Fatalf("new introspector: %v", err)
+	}
+
+	result, err := intr.Introspect(context.Background(), "debug-secret")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Active {
+		t.Error("the debug token was honoured despite AllowDebugToken being false")
+	}
+	if result.Sub == "debug-user" {
+		t.Error("the bypass produced its synthetic debug identity")
+	}
+	if !reached {
+		t.Error("the token short-circuited instead of being introspected normally")
 	}
 }

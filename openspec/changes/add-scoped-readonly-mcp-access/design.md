@@ -160,7 +160,7 @@ token must stop working.
 
 ## Key Decision 6: Production guards
 
-Three startup conditions abort the boot when `ENVIRONMENT=production`:
+Three startup conditions abort the boot when `ENV=production`:
 
 1. `AUTH_ENABLED=false` — currently the default, and combined with
    `EnsureDevMembershipForAllOrgs` (`domain/org/service.go:461`) it grants the

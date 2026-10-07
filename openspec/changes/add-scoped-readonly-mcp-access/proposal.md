@@ -87,7 +87,7 @@ Two further hazards make a naive deployment worse than it looks:
 - **`ZITADEL_DEBUG_TOKEN` environment-gated** — refuse to honour it, and refuse
   to boot, when the server is in production mode.
 - **Production safety check at startup** — refuse to boot with
-  `AUTH_ENABLED=false` when `ENVIRONMENT=production`.
+  `AUTH_ENABLED=false` when `ENV=production`.
 - **Token management surface** — MCP tools and CLI for mint/list/revoke,
   themselves requiring `org_admin`.
 - **Cloud deployment** — Cloud Run workflow for strategy-server (none exists;
