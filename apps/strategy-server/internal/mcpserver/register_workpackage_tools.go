@@ -36,6 +36,9 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		includeArchived := argString(req, "include_archived") == "true"
 		all, err := svc.Strategy.ListArtifactsFiltered(ctx, id, domain.ArtifactTypeWorkPackage, includeArchived)
 		if err != nil {
@@ -65,6 +68,9 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, argString(req, "work_package_key"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -79,6 +85,9 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		key := argString(req, "work_package_key")
@@ -102,7 +111,7 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded work_package payload (see work_package_schema.json)")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "work_package_key"), domain.ArtifactTypeWorkPackage, "create")
+		return stageArtifact(ctx, req, svc, argString(req, "work_package_key"), domain.ArtifactTypeWorkPackage, "create")
 	})
 
 	s.AddTool(mcp.NewTool("update_work_package",
@@ -112,7 +121,7 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded updated work_package payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "work_package_key"), domain.ArtifactTypeWorkPackage, "update")
+		return stageArtifact(ctx, req, svc, argString(req, "work_package_key"), domain.ArtifactTypeWorkPackage, "update")
 	})
 
 	s.AddTool(mcp.NewTool("approve_work_package",
@@ -142,6 +151,9 @@ func registerWorkPackageTools(s *server.MCPServer, svc Services) {
 func transitionWorkPackage(ctx context.Context, req mcp.CallToolRequest, svc Services, toStatus string) (*mcp.CallToolResult, error) {
 	instID, err := parseUUID(argString(req, "instance_id"))
 	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+	if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 		return toolErr(ctx, err), nil
 	}
 	key := argString(req, "work_package_key")

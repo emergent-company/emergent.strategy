@@ -346,7 +346,7 @@ func runServer(cfg *config.Config) error {
 		seedDevIdentity(log, db, auditWriter, userSvc, orgSvc, wsSvc)
 	}
 
-	// Auth middleware — injects User + ActorID.
+	// Auth middleware — injects Principal + ActorID.
 	e.Use(web.AuthMiddleware(cfg.AuthEnabled, introspector, ensureUser))
 
 	// Audit source middleware — sets source = mcp or web by path prefix.

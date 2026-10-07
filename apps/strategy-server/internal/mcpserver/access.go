@@ -2,7 +2,9 @@ package mcpserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 
@@ -29,17 +31,32 @@ func userOrgIDs(ctx context.Context, svc Services) []uuid.UUID {
 // workspace via org membership. Returns nil if access is granted, or an
 // ErrForbidden if the user does not belong to the workspace's org.
 //
-// Skips the check when:
-//   - org service is not available (dev mode)
-//   - user is not in context
-//   - workspace has no org_id set (unscoped legacy workspace)
+// # Fail closed
+//
+// This function used to return nil — allow — when the org service was nil or
+// no user was in context, on the reasoning that both mean "dev mode". That
+// reasoning held only by accident: absence of a principal is ambiguous, and
+// resolving ambiguity to "allow" means any future code path that reaches a
+// handler without populating context silently receives full access to every
+// tenant. Both conditions now deny.
+//
+// Dev mode is preserved by AuthMiddleware injecting an explicit DevUser when
+// AUTH_ENABLED=false, so dev is a *present* principal with wide authority
+// rather than an *absent* one. Callers that genuinely have no tenant context
+// (tool-listing, transport introspection) never reach here, because only
+// instance- and workspace-scoped tools call it.
 func assertWorkspaceAccess(ctx context.Context, svc Services, workspaceID uuid.UUID) error {
 	if svc.Org == nil {
-		return nil // org service not wired — dev mode
+		return apperror.ErrForbidden.WithDetail("authorisation unavailable: org service not wired")
 	}
 	u := web.UserFromContext(ctx)
 	if u == nil {
-		return nil // no user in context — auth disabled
+		// Middleware should always populate a principal. Reaching here is a
+		// server-side defect, not a client error — log it so it is findable,
+		// then deny.
+		slog.ErrorContext(ctx, "authorisation: no principal in context; denying",
+			"workspace_id", workspaceID)
+		return apperror.ErrForbidden.WithDetail("no authenticated principal")
 	}
 
 	orgID, err := svc.Workspace.OrgIDForWorkspace(ctx, workspaceID)
@@ -59,18 +76,40 @@ func assertWorkspaceAccess(ctx context.Context, svc Services, workspaceID uuid.U
 
 // assertInstanceAccess verifies the current user has access to the instance's
 // workspace via org membership.
+//
+// A caller who may not access an instance and a caller naming an instance that
+// does not exist receive the same error. Returning ErrInstanceNotFound for the
+// former and ErrForbidden for the latter would let anyone enumerate which
+// instance UUIDs are real by diffing the two responses. Since instance_id is
+// an untrusted tool argument, that is a live enumeration oracle, so both cases
+// collapse to not-found.
 func assertInstanceAccess(ctx context.Context, svc Services, instanceID uuid.UUID) error {
+	// Fail closed — see assertWorkspaceAccess for why absence is not consent.
 	if svc.Org == nil || svc.Instance == nil {
-		return nil
+		return apperror.ErrForbidden.WithDetail("authorisation unavailable: services not wired")
 	}
-	u := web.UserFromContext(ctx)
-	if u == nil {
-		return nil
+	p := web.PrincipalFromContext(ctx)
+	if p == nil || p.User == nil {
+		slog.ErrorContext(ctx, "authorisation: no principal in context; denying",
+			"instance_id", instanceID)
+		return apperror.ErrInstanceNotFound
 	}
 
 	inst, err := svc.Instance.GetInstance(ctx, instanceID)
 	if err != nil {
 		return err
 	}
-	return assertWorkspaceAccess(ctx, svc, inst.WorkspaceID)
+	if err := assertWorkspaceAccess(ctx, svc, inst.WorkspaceID); err != nil {
+		// Compare by code, not by errors.Is: AppError has no Is method, so
+		// errors.Is degrades to pointer equality, and assertWorkspaceAccess
+		// returns ErrForbidden.WithDetail(...) — a copy, never the sentinel
+		// pointer. A pointer comparison here would silently never match and
+		// the enumeration oracle would stay open.
+		var ae *apperror.AppError
+		if errors.As(err, &ae) && ae.Code == apperror.ErrForbidden.Code {
+			return apperror.ErrInstanceNotFound
+		}
+		return err
+	}
+	return nil
 }

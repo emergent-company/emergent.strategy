@@ -255,6 +255,7 @@ func buildSvcWithMemory(t *testing.T) (mcpserver.Services, *httptest.Server) {
 		Pack:      packSvc,
 		App:       appdom.NewService(db),
 		Semantic:  semanticSvc,
+		Org:       orgdom.NewService(db),
 	}, memorySrv
 }
 
@@ -609,6 +610,7 @@ func TestMCP_CommitBatch_TriggersIngest(t *testing.T) {
 		Pack:      packSvc,
 		App:       appdom.NewService(db),
 		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgdom.NewService(db),
 		Ingest:    mock,
 	}
 
@@ -822,6 +824,7 @@ func TestMCP_SemanticSearch_EmptyResults(t *testing.T) {
 			Project: "test",
 			Token:   "test",
 		}),
+		Org: orgdom.NewService(db),
 	}
 
 	_, instID := seedInstance(t, svc, "empty-owner", map[string]any{
