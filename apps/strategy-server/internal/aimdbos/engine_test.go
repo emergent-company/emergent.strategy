@@ -3,6 +3,7 @@ package aimdbos_test
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -83,12 +84,38 @@ func newEngineWithConfig(t *testing.T, abandonGatesAfter time.Duration, workflow
 	return engine
 }
 
+// awaitDeadline bounds the polling helpers below.
+//
+// These tests drive a real DBOS engine against a real Postgres, so the wait
+// is for genuine background work, not a fixed delay. 10s is ample locally
+// (the gated-discard case completes in ~0.6s) but has proved too tight in
+// CI: `go test ./...` defaults -p to NumCPU, so on a 2-core runner several
+// DB-backed packages contend for one Postgres container and the same run
+// took 11.76s — a 20x stretch, and an intermittent red build on changes that
+// touched no Go code at all.
+//
+// Scaled rather than simply raised, so a genuine hang still fails fast in
+// the common case instead of costing a minute per occurrence everywhere.
+// Override with AIMDBOS_AWAIT_TIMEOUT (a Go duration) when debugging under
+// heavy load.
+func awaitDeadline() time.Duration {
+	if v := os.Getenv("AIMDBOS_AWAIT_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	if os.Getenv("CI") != "" {
+		return 45 * time.Second
+	}
+	return 10 * time.Second
+}
+
 // awaitEngineStatus polls GetRun until it reaches want, since DBOSEngine
 // drives execution in the background.
 func awaitEngineStatus(t *testing.T, engine *aimdbos.DBOSEngine, runID uuid.UUID, want orchestration.RunStatus) *orchestration.Run {
 	t.Helper()
 
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(awaitDeadline())
 	var last orchestration.RunStatus
 	for time.Now().Before(deadline) {
 		run, err := engine.GetRun(t.Context(), runID)
@@ -107,7 +134,7 @@ func awaitEngineStatus(t *testing.T, engine *aimdbos.DBOSEngine, runID uuid.UUID
 func awaitEngineStep(t *testing.T, engine *aimdbos.DBOSEngine, runID uuid.UUID, wantStatus orchestration.RunStatus, wantStep string) *orchestration.Run {
 	t.Helper()
 
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(awaitDeadline())
 	var lastStatus orchestration.RunStatus
 	var lastStep string
 	for time.Now().Before(deadline) {
