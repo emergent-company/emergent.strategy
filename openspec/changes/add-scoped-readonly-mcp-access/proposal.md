@@ -129,3 +129,20 @@ a follow-up).
 **Security note.** Gap 4 (cross-tenant reads) is exploitable today, on any
 deployed instance, regardless of whether this change ships. Task section 6 is
 severable and should be landed first if this proposal stalls.
+
+## Follow-on: `deploy-strategy-server`
+
+Implementing the production guards in §8 required knowing what production
+looks like, and surfaced that **strategy-server has no deployment anywhere** —
+`deploy.yaml` ships `apps/epf-cli`, `strategy-server.yaml` is CI only.
+
+The deployment work originally scoped as §9, and the live end-to-end
+verification in §10.1–10.4 and §10.6, are therefore carried by the
+`deploy-strategy-server` change. They are infrastructure, not application
+behaviour, and they have open questions (GCP project, domain, shared vs
+standalone Postgres, production Zitadel tenant) that outlive this change.
+
+The consequence worth stating plainly: the feature this proposal delivers —
+a read-only MCP connection for an external party — is merged and tested but
+**not yet reachable by anyone outside a developer laptop**. It becomes usable
+when `deploy-strategy-server` lands.
