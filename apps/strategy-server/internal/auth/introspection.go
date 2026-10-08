@@ -35,6 +35,17 @@ type Config struct {
 	KeyPath    string // path to JWT key file
 	DebugToken string // bypass token for testing
 	CacheTTL   time.Duration
+
+	// AllowDebugToken must be set explicitly for DebugToken to be honoured.
+	//
+	// The bypass used to be governed only by a comment saying "non-production
+	// only". This makes the restriction a value the caller has to supply, and
+	// the zero value is the safe one: a Config built without thinking about
+	// it cannot accidentally enable a total authentication bypass.
+	//
+	// Policy lives with the caller (cmd_serve.go reads ENV); the auth package
+	// does not re-derive it, so there is one place to get it wrong.
+	AllowDebugToken bool
 }
 
 // Introspector verifies bearer tokens against Zitadel.
@@ -81,8 +92,12 @@ func NewIntrospector(cfg Config, db *bun.DB) (*Introspector, error) {
 // Introspect verifies a bearer token. Returns the introspection result or an error.
 // Uses the cache first, falls back to Zitadel, with circuit breaker protection.
 func (i *Introspector) Introspect(ctx context.Context, token string) (*IntrospectionResult, error) {
-	// Debug token bypass (non-production only).
-	if i.cfg.DebugToken != "" && token == i.cfg.DebugToken {
+	// Debug token bypass. Gated on AllowDebugToken, which cmd_serve.go sets
+	// only outside production. ValidateProduction already refuses to boot a
+	// production server with a debug token configured; this is the second
+	// layer, so the bypass is inert even if that check is ever bypassed or
+	// an Introspector is constructed elsewhere.
+	if i.cfg.AllowDebugToken && i.cfg.DebugToken != "" && token == i.cfg.DebugToken {
 		return &IntrospectionResult{
 			Active: true,
 			Sub:    "debug-user",

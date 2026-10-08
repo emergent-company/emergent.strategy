@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/server"
 
+	accesstokendom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/accesstoken"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
@@ -80,6 +81,7 @@ func NewMCPServerForIntrospection() *server.MCPServer {
 		Evidence:      &evidencedom.Service{},
 		Activity:      &activitydom.Service{},
 		Watchdog:      inertWatchdog{},
+		AccessToken:   &accesstokendom.Service{},
 	})
 }
 

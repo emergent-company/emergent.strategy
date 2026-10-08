@@ -60,6 +60,9 @@ func registerSkillLookupTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		filter := argString(req, "source_filter")
 		skills, err := svc.Pack.ListAvailableSkills(ctx, id, filter)
 		if err != nil {
@@ -79,6 +82,9 @@ func registerSkillLookupTools(s *server.MCPServer, svc Services) {
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		skillName := argString(req, "skill_name")
@@ -107,6 +113,9 @@ func registerSkillRunTool(s *server.MCPServer, svc Services) { //nolint:gocyclo
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		skillName := argString(req, "skill_name")
@@ -433,6 +442,9 @@ func registerPackInstallTools(s *server.MCPServer, svc Services) { //nolint:gocy
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		packYAML := argString(req, "pack_yaml")
 		if packYAML == "" {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("pack_yaml is required")), nil
@@ -491,6 +503,9 @@ func registerPackInstallTools(s *server.MCPServer, svc Services) { //nolint:gocy
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		packs, err := svc.Pack.ListInstalledPacks(ctx, id)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -526,6 +541,9 @@ func registerPackInspectionTools(s *server.MCPServer, svc Services) { //nolint:g
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		packName := argString(req, "pack_name")
@@ -584,6 +602,9 @@ func registerPackInspectionTools(s *server.MCPServer, svc Services) { //nolint:g
 		}
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		packName := argString(req, "pack_name")
@@ -667,6 +688,9 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		apps, err := svc.App.ListApps(ctx, id)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -683,6 +707,9 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		appName := argString(req, "app_name")

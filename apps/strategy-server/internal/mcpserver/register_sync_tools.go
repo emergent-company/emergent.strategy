@@ -39,6 +39,9 @@ func registerUpdateInstanceTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		params := instancedom.UpdateSettingsParams{}
 		// Only set fields that were explicitly provided.
@@ -161,6 +164,9 @@ func registerImportFromGithubTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		params := syncdom.ImportParams{
 			InstanceID: instID,
@@ -187,6 +193,9 @@ func registerGetSyncStateTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		result, err := svc.Sync.DetermineSyncState(ctx, instID, argString(req, "branch"))
 		if err != nil {
@@ -207,6 +216,9 @@ func registerSyncToGithubTool(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -288,6 +300,9 @@ func registerGetSyncStatusTool(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 

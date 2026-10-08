@@ -76,6 +76,9 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		vms, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "value_model")
 		if err != nil {

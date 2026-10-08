@@ -35,6 +35,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"gopkg.in/yaml.v3"
 
+	accesstokendom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/accesstoken"
 	activitydom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/activity"
 	aimdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/aim"
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
@@ -90,6 +91,7 @@ type Services struct {
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
+	AccessToken   *accesstokendom.Service  // optional — nil disables access-token management tools
 
 	// GithubAppInstallURL is the GitHub App installation URL, e.g.
 	// "https://github.com/apps/emergent-strategy/installations/new".
@@ -150,6 +152,12 @@ func NewMCPServer(svc Services) *server.MCPServer {
 		server.WithPromptCapabilities(true),
 		server.WithInstructions(agent.ServerInstructions()),
 		server.WithToolFilter(filterState.filterTools),
+		// Order matters. mcp-go applies tool middlewares outermost-first, so
+		// the write gate registered here runs before autoActivate: a refused
+		// write must not also activate its category as a side effect, which
+		// would let a read-only caller reshape its own tool list by probing
+		// tools it may not call.
+		server.WithToolHandlerMiddleware(writeGateMiddleware),
 		server.WithToolHandlerMiddleware(filterState.autoActivate(serverRef)),
 		server.WithHooks(hooks),
 	)
@@ -174,6 +182,7 @@ func NewMCPServer(svc Services) *server.MCPServer {
 	registerAIMTools(s, svc)
 	registerPackTools(s, svc)
 	registerOrgTools(s, svc)
+	registerTokenTools(s, svc)
 	registerPhase2cTools(s, svc)
 	registerVersionTools(s, svc)
 	registerSyncTools(s, svc)
@@ -404,12 +413,23 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 
 	registerFindInstanceByRepoTool(s, svc)
 
+	registerHealthCheckTool(s, svc)
+}
+
+// registerHealthCheckTool registers health_check. Split out of
+// registerInstanceReadTools to keep that function under the gocognit
+// threshold: health_check aggregates pack, schema, ripple, equilibrium and
+// watchdog status, each behind its own nil-service guard.
+func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("health_check",
 		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		inst, err := svc.Instance.GetInstance(ctx, id)
@@ -567,6 +587,9 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -580,6 +603,9 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "north_star")
@@ -597,6 +623,9 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "strategy_foundations")
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -612,6 +641,9 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "insight_analyses")
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -625,6 +657,9 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "roadmap_recipe")
@@ -647,6 +682,9 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		includeArchived := argString(req, "include_archived") == "true"
 		features, err := svc.Strategy.ListArtifactsFiltered(ctx, id, "feature", includeArchived)
 		if err != nil {
@@ -662,6 +700,9 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, argString(req, "feature_key"))
@@ -680,6 +721,9 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, argString(req, "artifact_type"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -694,6 +738,9 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		rels, err := svc.Strategy.ListRelationships(ctx, id, argString(req, "artifact_key"))
@@ -713,6 +760,9 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		includeStaged := argString(req, "include_staged") == "true"
@@ -753,8 +803,15 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
 		mcp.WithString("limit", mcp.Description("Max results (default 10)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		results, err := svc.Semantic.SearchStrategy(ctx,
-			argString(req, "instance_id"),
+			instID.String(),
 			argString(req, "query"),
 			argInt(req, "limit", 10),
 		)
@@ -768,7 +825,14 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithDescription("USE WHEN you need to scan for structural contradictions in the strategy graph."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		results, err := svc.Semantic.DetectContradictions(ctx, argString(req, "instance_id"))
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		results, err := svc.Semantic.DetectContradictions(ctx, instID.String())
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -780,8 +844,15 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("node_key", mcp.Required(), mcp.Description("Artifact key to expand (e.g. fd-001)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		results, err := svc.Semantic.GetNeighbors(ctx,
-			argString(req, "instance_id"),
+			instID.String(),
 			argString(req, "node_key"),
 		)
 		if err != nil {
@@ -796,8 +867,15 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("description", mcp.Required(), mcp.Description("What-if question or hypothesis")),
 		mcp.WithString("anchor_node", mcp.Description("Optional artifact key to anchor the scenario")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		scenarioID, err := svc.Semantic.RunScenario(ctx,
-			argString(req, "instance_id"),
+			instID.String(),
 			argString(req, "description"),
 			argString(req, "anchor_node"),
 		)
@@ -812,9 +890,16 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("scenario_id", mcp.Required(), mcp.Description("Scenario ID from run_scenario")),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		result, err := svc.Semantic.EvaluateScenario(ctx,
 			argString(req, "scenario_id"),
-			argString(req, "instance_id"),
+			instID.String(),
 		)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -827,9 +912,16 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("scenario_id", mcp.Required(), mcp.Description("Scenario ID from run_scenario")),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		batchID, err := svc.Semantic.CommitScenario(ctx,
 			argString(req, "scenario_id"),
-			argString(req, "instance_id"),
+			instID.String(),
 		)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -976,6 +1068,9 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		if err := svc.Instance.ActivateInstance(ctx, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -990,6 +1085,9 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		if err := svc.Instance.ArchiveInstance(ctx, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -1002,6 +1100,9 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		if err := svc.Instance.DeleteInstance(ctx, id); err != nil {
@@ -1036,7 +1137,7 @@ func registerMutationWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded north star payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, "north_star", "north_star", "update")
+		return stageArtifact(ctx, req, svc, "north_star", "north_star", "update")
 	})
 
 	s.AddTool(mcp.NewTool("create_feature",
@@ -1046,7 +1147,7 @@ func registerMutationWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded feature payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "feature_key"), "feature", "create")
+		return stageArtifact(ctx, req, svc, argString(req, "feature_key"), "feature", "create")
 	})
 
 	s.AddTool(mcp.NewTool("update_feature",
@@ -1056,7 +1157,7 @@ func registerMutationWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded updated feature payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "feature_key"), "feature", "update")
+		return stageArtifact(ctx, req, svc, argString(req, "feature_key"), "feature", "update")
 	})
 
 	s.AddTool(mcp.NewTool("archive_feature",
@@ -1065,7 +1166,7 @@ func registerMutationWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("feature_key", mcp.Required(), mcp.Description("Feature artifact key to archive")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "feature_key"), "feature", "archive")
+		return stageArtifact(ctx, req, svc, argString(req, "feature_key"), "feature", "archive")
 	})
 }
 
@@ -1237,6 +1338,9 @@ func registerAgentRuntimeTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, id); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		batches, err := svc.Strategy.ListPendingBatches(ctx, id)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -1308,7 +1412,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded strategy_foundations payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, "strategy_foundations", "strategy_foundations", "update")
+		return stageArtifact(ctx, req, svc, "strategy_foundations", "strategy_foundations", "update")
 	})
 
 	s.AddTool(mcp.NewTool("update_insight_analyses",
@@ -1317,7 +1421,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded insight_analyses payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, "insight_analyses", "insight_analyses", "update")
+		return stageArtifact(ctx, req, svc, "insight_analyses", "insight_analyses", "update")
 	})
 
 	s.AddTool(mcp.NewTool("update_strategy_formula",
@@ -1326,7 +1430,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded strategy_formula payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, "strategy_formula", "strategy_formula", "update")
+		return stageArtifact(ctx, req, svc, "strategy_formula", "strategy_formula", "update")
 	})
 
 	s.AddTool(mcp.NewTool("update_roadmap",
@@ -1335,7 +1439,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON-encoded roadmap_recipe payload")),
 		mcp.WithString("batch_id", mcp.Description("Existing batch UUID to append to")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, "roadmap_recipe", "roadmap_recipe", "update")
+		return stageArtifact(ctx, req, svc, "roadmap_recipe", "roadmap_recipe", "update")
 	})
 
 	// --- FIRE typed wrappers ---
@@ -1352,7 +1456,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("track is required")), nil
 		}
 		artifactKey := "value_model_" + track + ".value_model"
-		return stageArtifact(ctx, req, svc.Strategy, artifactKey, "value_model", "update")
+		return stageArtifact(ctx, req, svc, artifactKey, "value_model", "update")
 	})
 
 	// --- Generic escape hatch ---
@@ -1377,7 +1481,7 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 		if artifactType == "" || artifactKey == "" {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("artifact_type and artifact_key are required")), nil
 		}
-		return stageArtifact(ctx, req, svc.Strategy, artifactKey, artifactType, action)
+		return stageArtifact(ctx, req, svc, artifactKey, artifactType, action)
 	})
 
 	// --- Multi-artifact staging ---
@@ -1389,6 +1493,9 @@ func registerExpandedWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -1619,6 +1726,9 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
@@ -1656,6 +1766,9 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		payloadStr := argString(req, "payload")
 		if !json.Valid([]byte(payloadStr)) {
 			return toolErr(ctx, apperror.ErrBadRequest.WithDetail("payload must be valid JSON")), nil
@@ -1691,6 +1804,9 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		raw, err := svc.Strategy.GetLRA(ctx, instID, argString(req, "artifact_key"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -1708,6 +1824,9 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		payloadStr := argString(req, "payload")
@@ -1742,6 +1861,9 @@ func registerAIMTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		summary, err := svc.Strategy.GetAIMSummary(ctx, instID)
@@ -1810,6 +1932,9 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -1875,6 +2000,9 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -1967,6 +2095,9 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		artifactKey := argString(req, "artifact_key")
 		if artifactKey != "" {
@@ -2029,6 +2160,9 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		result, err := svc.Strategy.ExportInstance(ctx, instID)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2046,6 +2180,9 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		entry, err := svc.Strategy.ExportFeature(ctx, instID, argString(req, "feature_key"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2060,6 +2197,9 @@ func registerExportTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		report, err := svc.Strategy.ExportReport(ctx, instID)
@@ -2084,6 +2224,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		result, err := svc.Strategy.GetStrategicContextForFeature(ctx, instID, argString(req, "feature_key"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2098,6 +2241,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		paths, err := svc.Strategy.ExplainValuePath(ctx, instID, argString(req, "feature_key"))
@@ -2119,6 +2265,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		entries, err := svc.Strategy.GetCoverageAnalysis(ctx, instID)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2135,6 +2284,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		propositions, err := svc.Strategy.GetValuePropositions(ctx, instID)
@@ -2155,6 +2307,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		assumptions, err := svc.Strategy.GetAssumptions(ctx, instID)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2171,6 +2326,9 @@ func registerDerivedReadTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		graph, err := svc.Strategy.GetFeatureDependencies(ctx, instID)
@@ -2191,16 +2349,28 @@ func mustJSON(v any) (*mcp.CallToolResult, error) {
 }
 
 // stageArtifact is a shared helper that stages a mutation and returns the batch_id.
+//
+// Takes the full Services rather than just *strategy.Service so it can
+// authorise the caller against the target instance. This is the single write
+// path behind update_north_star, create_feature, update_feature,
+// archive_feature and the expanded artifact writers — every one of them
+// previously staged a mutation with no access check at all.
 func stageArtifact(
 	ctx context.Context,
 	req mcp.CallToolRequest,
-	svc *strategy.Service,
+	svc Services,
 	artifactKey string,
 	artifactType string,
 	action string,
 ) (*mcp.CallToolResult, error) {
 	instID, err := parseUUID(argString(req, "instance_id"))
 	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+	// Write, not merely access: this is the shared path behind every
+	// artifact-authoring tool, so a read-scoped credential must be refused
+	// here even though it may read the same instance freely.
+	if err := assertInstanceWrite(ctx, svc, instID); err != nil {
 		return toolErr(ctx, err), nil
 	}
 
@@ -2231,7 +2401,7 @@ func stageArtifact(
 		p.BatchID = &bID
 	}
 
-	batchID, err := svc.Stage(ctx, p)
+	batchID, err := svc.Strategy.Stage(ctx, p)
 	if err != nil {
 		return toolErr(ctx, err), nil
 	}

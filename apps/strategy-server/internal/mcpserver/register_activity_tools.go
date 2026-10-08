@@ -42,6 +42,9 @@ func registerActivityTools(s *server.MCPServer, svc Services) {
 			if err != nil {
 				return toolErr(ctx, err), nil //nolint:nilerr // MCP pattern: wrap business error in result body
 			}
+			if err := assertInstanceAccess(ctx, svc, instanceID); err != nil {
+				return toolErr(ctx, err), nil //nolint:nilerr // MCP pattern
+			}
 			limit := int(argFloat(req, "limit"))
 
 			events, err := svc.Activity.List(ctx, instanceID, limit)

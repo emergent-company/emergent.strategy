@@ -24,6 +24,9 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		ver, err := svc.Version.Publish(ctx, instID, argString(req, "label"), argString(req, "description"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -48,6 +51,9 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		versions, err := svc.Version.List(ctx, instID)
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -67,6 +73,9 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		verID, err := parseUUID(argString(req, "version_id"))
@@ -115,6 +124,9 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		fromID, err := parseUUID(argString(req, "from_version_id"))
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -158,6 +170,9 @@ func registerVersionTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		verID, err := parseUUID(argString(req, "version_id"))

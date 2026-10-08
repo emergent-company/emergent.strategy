@@ -26,6 +26,32 @@ type ImportCmd struct {
 	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"true" help:"Ingest artifacts into Memory graph after import (skipped when Memory is not configured)"`
 }
 
+// TokenCmd is the subcommand for access-token administration.
+//
+// This exists to bootstrap the first token: the MCP tools require an
+// authenticated org_admin, which is unavailable before anyone can connect.
+// It is also the recovery path if every admin credential is lost.
+type TokenCmd struct {
+	Mint   bool `arg:"--mint" help:"Mint a new access token"`
+	List   bool `arg:"--list" help:"List an org's access tokens"`
+	Revoke bool `arg:"--revoke" help:"Revoke an access token"`
+
+	OrgID   string   `arg:"--org-id" help:"Organisation UUID (required for all operations)"`
+	UserID  string   `arg:"--user-id" help:"Owning user UUID (required for --mint). Grants are validated against this user's access."`
+	Name    string   `arg:"--name" help:"Token label (required for --mint)"`
+	Grant   []string `arg:"--grant,separate" help:"Repeatable. Format: <instance-uuid>:<read|write>. Permission defaults to read."`
+	Expires string   `arg:"--expires" help:"RFC3339 expiry (default 90 days, max 365)"`
+	TokenID string   `arg:"--token-id" help:"Access token UUID (required for --revoke)"`
+
+	IncludeInactive bool `arg:"--include-inactive" help:"Include revoked and expired tokens in --list"`
+}
+
+// Recognised values for the ENV variable.
+const (
+	EnvDevelopment = "development"
+	EnvProduction  = "production"
+)
+
 // DBMode controls how strategy-server co-locates with emergent.memory's database.
 type DBMode string
 
@@ -48,6 +74,7 @@ type Config struct {
 	Server *ServerCmd `arg:"subcommand:server" help:"Start the HTTP and MCP server"`
 	DB     *DBCmd     `arg:"subcommand:db" help:"Database management commands"`
 	Import *ImportCmd `arg:"subcommand:import" help:"Import a local EPF instance into the database"`
+	Token  *TokenCmd  `arg:"subcommand:token" help:"Access token administration (bootstrap and recovery)"`
 
 	// General
 	LogLevel string `arg:"--log-level,env:LOG_LEVEL" default:"INFO" help:"Log level: DEBUG, INFO, WARN, ERROR"`
@@ -213,6 +240,61 @@ func (c *Config) PostgresDSN() string {
 // IsDev returns true when running in development mode.
 func (c *Config) IsDev() bool {
 	return c.Env == "development"
+}
+
+// IsProduction reports whether this is a production deployment.
+func (c *Config) IsProduction() bool {
+	return c.Env == EnvProduction
+}
+
+// ValidateProduction refuses to start in a configuration that would expose an
+// unauthenticated or bypassable endpoint.
+//
+// A warning is the wrong response to any of these. Each one produces a server
+// that boots cleanly and looks healthy while serving an all-tenant, full-admin
+// endpoint, and a log line at startup is read — if ever — long after the
+// exposure begins. Failing to boot is loud at exactly the moment someone can
+// still act on it.
+//
+// Kept as a pure method on Config so it is testable without a database, a
+// listener, or a DBOS engine; runServer is none of those things.
+func (c *Config) ValidateProduction() error {
+	// Anything that is not a recognised environment is treated as production.
+	// The alternative is that a typo — ENV=prod, ENV=Production — silently
+	// disables every guard below, which is the one failure mode these checks
+	// exist to prevent.
+	if c.Env == EnvDevelopment {
+		return nil
+	}
+	if c.Env != EnvProduction {
+		return fmt.Errorf(
+			"unrecognised ENV %q: expected %q or %q; refusing to start rather than "+
+				"guess which safety guards apply",
+			c.Env, EnvDevelopment, EnvProduction)
+	}
+
+	if !c.AuthEnabled {
+		return fmt.Errorf(
+			"ENV=production requires AUTH_ENABLED=true: with auth disabled the server " +
+				"injects a hardcoded dev user holding org_admin on every organisation " +
+				"in the database, and serves every MCP tool unauthenticated")
+	}
+
+	if c.ZitadelDebugToken != "" {
+		return fmt.Errorf(
+			"ENV=production forbids ZITADEL_DEBUG_TOKEN: it is a total authentication " +
+				"bypass that authenticates the bearer as a full user. Use a scoped access " +
+				"token (strategy-server token --mint) for external access instead")
+	}
+
+	if !c.ZitadelConfigured() {
+		return fmt.Errorf(
+			"ENV=production with AUTH_ENABLED=true requires ZITADEL_ISSUER and " +
+				"ZITADEL_CLIENT_ID: without them every interactive login returns 401 " +
+				"while the server otherwise appears healthy")
+	}
+
+	return nil
 }
 
 // GetDBMode returns the parsed database mode. Defaults to DBModeDev for invalid values.

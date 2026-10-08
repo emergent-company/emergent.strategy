@@ -179,6 +179,9 @@ func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
@@ -280,6 +283,9 @@ func registerPersonaDetailsTool(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -384,6 +390,9 @@ func registerAssumptionValidationTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 
 		assumptions, err := svc.Strategy.GetAssumptions(ctx, instID)
 		if err != nil {
@@ -444,7 +453,7 @@ func registerCalibrationTool(s *server.MCPServer, svc Services) {
 		mcp.WithString("payload", mcp.Required(), mcp.Description("Calibration memo JSON payload conforming to calibration_memo_schema")),
 		mcp.WithString("batch_id", mcp.Description("Optional batch UUID to group with other staged mutations")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return stageArtifact(ctx, req, svc.Strategy, argString(req, "artifact_key"), "calibration_memo", "create")
+		return stageArtifact(ctx, req, svc, argString(req, "artifact_key"), "calibration_memo", "create")
 	})
 }
 
@@ -465,6 +474,9 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -553,6 +565,9 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -646,6 +661,13 @@ func registerDiscardScenarioTool(s *server.MCPServer, svc Services) {
 		if instID == "" {
 			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_instance_id_required")), nil
 		}
+		instUUID, err := parseUUID(instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instUUID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		scenarioID := argString(req, "scenario_id")
 		if scenarioID == "" {
 			return mcp.NewToolResultError(langs.T(ctx, "error.mcp_scenario_id_required")), nil
@@ -655,7 +677,7 @@ func registerDiscardScenarioTool(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, apperror.ErrInternal.WithDetail("semantic engine not configured")), nil
 		}
 
-		err := svc.Semantic.DiscardScenario(ctx, instID, scenarioID)
+		err = svc.Semantic.DiscardScenario(ctx, instID, scenarioID)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}

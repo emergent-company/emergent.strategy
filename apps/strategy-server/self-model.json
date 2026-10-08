@@ -58,7 +58,7 @@
     {
       "name": "admin",
       "description": "Workspace, org, instance, version, and GitHub sync management",
-      "tool_count": 29
+      "tool_count": 32
     },
     {
       "name": "knowledge",
@@ -2009,6 +2009,27 @@
       }
     },
     {
+      "name": "list_access_tokens",
+      "description": "USE WHEN you need to audit which access tokens exist for an organisation, what they can reach, and when they were last used. Requires org_admin. Never returns token plaintext or hashes.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "include_inactive": {
+            "description": "Include revoked and expired tokens (default false)",
+            "type": "boolean"
+          },
+          "org_id": {
+            "description": "Organisation UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "list_activities",
       "description": "USE WHEN you need the recent activity stream for a strategy instance — shows proposal lifecycle events, cycle starts, evidence ingestion, assessments committed, and heartbeat triggers. Returns newest events first.",
       "category": "observability",
@@ -2580,6 +2601,37 @@
       }
     },
     {
+      "name": "mint_access_token",
+      "description": "USE WHEN you need to give an external party read-only (or scoped write) MCP access to specific strategy instances. Requires org_admin. Returns the token plaintext exactly once — it cannot be retrieved again.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "expires_at": {
+            "description": "RFC3339 expiry timestamp. Defaults to 90 days; maximum 365 days.",
+            "type": "string"
+          },
+          "grants": {
+            "description": "JSON array of grants, e.g. [{\"instance_id\":\"\u003cuuid\u003e\",\"permission\":\"read\"}]. Permission is \"read\" or \"write\". Every granted instance must belong to org_id, and the token owner must already have access to it.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable label, e.g. 'Acme Corp read-only'",
+            "type": "string"
+          },
+          "org_id": {
+            "description": "Organisation UUID that will own the token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "name",
+          "grants"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "propose_change",
       "description": "USE WHEN you want to preview the blast radius of a proposed change before committing.",
       "category": "ripple",
@@ -2721,6 +2773,28 @@
         "required": [
           "instance_id",
           "version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "revoke_access_token",
+      "description": "USE WHEN an access token is leaked, no longer needed, or its holder should lose access. Requires org_admin. Takes effect immediately on this server; revocation is permanent and cannot be undone.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "org_id": {
+            "description": "Organisation UUID that owns the token",
+            "type": "string"
+          },
+          "token_id": {
+            "description": "Access token UUID (from list_access_tokens)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "token_id"
         ],
         "type": "object"
       }

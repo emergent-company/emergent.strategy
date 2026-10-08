@@ -69,13 +69,8 @@ func registerOrgCrudTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Check caller is admin.
-		isMember, callerRole, err := svc.Org.IsMember(ctx, orgID, user.ID)
-		if err != nil {
+		if err := assertOrgAdmin(ctx, svc, orgID); err != nil {
 			return toolErr(ctx, err), nil
-		}
-		if !isMember || callerRole != "org_admin" {
-			return toolErr(ctx, apperror.ErrForbidden.WithDetail("org_admin role required")), nil
 		}
 
 		p := org.CreateParams{
@@ -109,13 +104,8 @@ func registerOrgCrudTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Check caller is admin of the target org.
-		isMember, callerRole, err := svc.Org.IsMember(ctx, orgID, user.ID)
-		if err != nil {
+		if err := assertOrgAdmin(ctx, svc, orgID); err != nil {
 			return toolErr(ctx, err), nil
-		}
-		if !isMember || callerRole != "org_admin" {
-			return toolErr(ctx, apperror.ErrForbidden.WithDetail("org_admin role required on target org")), nil
 		}
 
 		if err := svc.Workspace.ReassignOrg(ctx, wsID, orgID); err != nil {
@@ -168,13 +158,8 @@ func registerOrgMembershipTools(s *server.MCPServer, svc Services) {
 			role = "org_viewer"
 		}
 
-		// Check caller is admin.
-		isMember, callerRole, err := svc.Org.IsMember(ctx, orgID, user.ID)
-		if err != nil {
+		if err := assertOrgAdmin(ctx, svc, orgID); err != nil {
 			return toolErr(ctx, err), nil
-		}
-		if !isMember || callerRole != "org_admin" {
-			return toolErr(ctx, apperror.ErrForbidden.WithDetail("org_admin role required")), nil
 		}
 
 		if err := svc.Org.Invite(ctx, orgID, email, role, user.ID); err != nil {
@@ -201,13 +186,8 @@ func registerOrgMembershipTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Check caller is admin.
-		isMember, callerRole, err := svc.Org.IsMember(ctx, orgID, user.ID)
-		if err != nil {
+		if err := assertOrgAdmin(ctx, svc, orgID); err != nil {
 			return toolErr(ctx, err), nil
-		}
-		if !isMember || callerRole != "org_admin" {
-			return toolErr(ctx, apperror.ErrForbidden.WithDetail("org_admin role required")), nil
 		}
 
 		if err := svc.Org.RemoveMember(ctx, orgID, userID); err != nil {

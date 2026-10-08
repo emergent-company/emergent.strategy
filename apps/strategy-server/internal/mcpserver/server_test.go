@@ -42,6 +42,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
 
 // ---------------------------------------------------------------------------
@@ -57,15 +58,36 @@ type mcpClient struct {
 
 // newMCPClient creates a test HTTP server, initialises an MCP session, and
 // returns a client ready to call tools.
+// newMCPClient builds an MCP test client whose requests carry web.DevUser,
+// mirroring what AuthMiddleware injects when AUTH_ENABLED=false.
+//
+// Injecting the user is not optional scaffolding. assertWorkspaceAccess and
+// assertInstanceAccess fail closed: a request with no principal in context is
+// denied. Mounting the raw handler without this wrapper would exercise a
+// configuration that cannot occur in production — the middleware always
+// populates a principal — and every instance-scoped tool would return
+// not-found.
 func newMCPClient(t *testing.T, svc mcpserver.Services) *mcpClient {
 	t.Helper()
 	handler := mcpserver.New(svc)
-	ts := httptest.NewServer(handler)
+	ts := httptest.NewServer(withDevPrincipal(handler))
 	t.Cleanup(ts.Close)
 
 	c := &mcpClient{t: t, server: ts}
 	c.initialize()
 	return c
+}
+
+// withDevPrincipal wraps h so every request carries the dev principal and the
+// audit context the MCP handlers expect.
+func withDevPrincipal(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := web.ContextWithUser(r.Context(), web.DevUser)
+		ctx = audit.ContextWithActor(ctx, web.DevUser.ID)
+		ctx = audit.ContextWithSource(ctx, audit.SourceMCP)
+		ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+		h.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // initialize sends the MCP initialize handshake and captures the session ID.
@@ -251,7 +273,83 @@ func seedOrg(t *testing.T, db *bun.DB, ctx context.Context) uuid.UUID {
 	if _, err := db.NewInsert().Model(org).Exec(ctx); err != nil {
 		t.Fatalf("seed org: %v", err)
 	}
+
+	grantDevMembership(t, db, ctx, org.ID)
 	return org.ID
+}
+
+// grantDevMembership makes DevUser an admin of the given org.
+//
+// Tests drive the MCP handler as DevUser (see withDevPrincipal), and
+// authorisation fails closed — without a membership row every instance-scoped
+// tool returns not-found. Production does exactly this at startup via
+// org.EnsureDevMembershipForAllOrgs when AUTH_ENABLED=false, so granting it
+// here reproduces dev-mode behaviour rather than inventing a test-only bypass.
+func grantDevMembership(t *testing.T, db *bun.DB, ctx context.Context, orgID uuid.UUID) {
+	t.Helper()
+	if _, err := db.NewInsert().Model(&domain.User{
+		ID:    web.DevUser.ID,
+		Sub:   web.DevUser.Sub,
+		Email: web.DevUser.Email,
+	}).On("CONFLICT (id) DO NOTHING").Exec(ctx); err != nil {
+		t.Fatalf("seed dev user: %v", err)
+	}
+	if _, err := db.NewInsert().Model(&domain.OrgMembership{
+		ID:     uuid.New(),
+		OrgID:  orgID,
+		UserID: web.DevUser.ID,
+		Role:   domain.OrgRoleAdmin,
+	}).Exec(ctx); err != nil {
+		t.Fatalf("seed dev membership: %v", err)
+	}
+}
+
+// seedOrgWithoutDevMembership creates an org that DevUser does NOT belong to,
+// for asserting cross-tenant denial.
+func seedOrgWithoutDevMembership(t *testing.T, db *bun.DB, ctx context.Context) uuid.UUID {
+	t.Helper()
+	userID := uuid.New()
+	if _, err := db.NewInsert().Model(&domain.User{
+		ID:    userID,
+		Sub:   "other-" + userID.String()[:8],
+		Email: "other-" + userID.String()[:8] + "@test.local",
+	}).Exec(ctx); err != nil {
+		t.Fatalf("seed foreign user: %v", err)
+	}
+	org := &domain.Org{
+		ID:        uuid.New(),
+		Name:      "Foreign Org " + userID.String()[:8],
+		Slug:      "foreign-org-" + userID.String()[:8],
+		CreatedBy: &userID,
+	}
+	if _, err := db.NewInsert().Model(org).Exec(ctx); err != nil {
+		t.Fatalf("seed foreign org: %v", err)
+	}
+	return org.ID
+}
+
+// seedInstanceWithoutDevMembership creates a workspace + instance in an org
+// DevUser is not a member of, so access checks must refuse it.
+func seedInstanceWithoutDevMembership(t *testing.T, svc mcpserver.Services, githubOwner string) (uuid.UUID, uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	ctx = audit.ContextWithSource(ctx, audit.SourceSystem)
+	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
+
+	orgID := seedOrgWithoutDevMembership(t, svc.Strategy.DB(), ctx)
+	ws, err := svc.Workspace.CreateWorkspace(ctx, githubOwner, nil, orgID)
+	if err != nil {
+		t.Fatalf("seed foreign workspace: %v", err)
+	}
+	inst, err := svc.Instance.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID:     ws.ID,
+		Name:            "Foreign Instance",
+		InitialPayloads: map[string]any{"north_star": map[string]any{"vision": "tenant B secret"}},
+	})
+	if err != nil {
+		t.Fatalf("seed foreign instance: %v", err)
+	}
+	return ws.ID, inst.ID
 }
 
 // seedInstance creates a workspace + instance with the given payloads and
@@ -4111,10 +4209,16 @@ func TestMCP_EquilibriumAndConvergenceTools(t *testing.T) {
 		}
 	}
 
-	// Step 5: unknown instance → returns defaults (not an error, by design —
-	// get_equilibrium_status returns a zero-signal equilibrium for any UUID
-	// because auth is disabled in tests and there are no signals to count).
-	c.call(id, "get_equilibrium_status", map[string]any{"instance_id": uuid.New().String()}).assertOK()
+	// Step 5: an instance the caller has no access to is refused.
+	//
+	// This previously asserted the opposite — that any random UUID returned a
+	// zero-signal equilibrium — on the reasoning that "auth is disabled in
+	// tests". That was the fail-open behaviour: the tool answered questions
+	// about instances the caller could not see. Authorisation now fails
+	// closed, and an unknown UUID is indistinguishable from one belonging to
+	// another tenant, so both are not-found.
+	c.call(id, "get_equilibrium_status", map[string]any{"instance_id": uuid.New().String()}).
+		assertError().contains("not found")
 	_ = id
 
 	t.Log("✓ equilibrium and convergence history tools work correctly")
@@ -4355,12 +4459,13 @@ func TestMCP_SyncTools(t *testing.T) {
 	}
 	t.Logf("sync status: total_syncs=%v configured=%v", statusResult["total_syncs"], statusResult["configured"])
 
-	// get_sync_status for unknown instance → empty history (not an error).
-	var unknownStatus map[string]any
-	c.call(id, "get_sync_status", map[string]any{"instance_id": uuid.New().String()}).assertOK().decode(&unknownStatus)
-	if v, _ := unknownStatus["total_syncs"].(float64); int(v) != 0 {
-		t.Errorf("unknown instance: total_syncs=%v, want 0", unknownStatus["total_syncs"])
-	}
+	// get_sync_status for an instance the caller cannot access is refused.
+	//
+	// Previously this asserted an empty history came back for any UUID.
+	// Sync history leaks repo names and PR URLs, so answering for an
+	// arbitrary instance was a cross-tenant disclosure; it now fails closed.
+	c.call(id, "get_sync_status", map[string]any{"instance_id": uuid.New().String()}).
+		assertError().contains("not found")
 	_ = id
 
 	t.Log("✓ sync MCP tools work correctly")
