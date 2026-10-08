@@ -3,6 +3,7 @@ package sync_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -597,7 +598,13 @@ type scanMockReader struct {
 	installations  []syncdom.InstallationInfo
 	repos          []syncdom.RepoInfo
 	detectedByRepo map[string][]syncdom.DetectedEPFInstance
-	detectCalls    int
+
+	// detectCalls is atomic because ScanInstallationRepos fans out over
+	// repos with a 5-wide semaphore (scan.go), so DetectEPFInRepo is called
+	// from several goroutines at once. As a plain int this was a genuine
+	// data race: increments were lost, and the test asserting
+	// detectCalls == 3 failed intermittently in CI while passing locally.
+	detectCalls atomic.Int64
 }
 
 func (m *scanMockReader) ListInstallations(_ context.Context) ([]syncdom.InstallationInfo, error) {
@@ -628,7 +635,7 @@ func (m *scanMockReader) ListInstallationRepos(_ context.Context, _ string) ([]s
 }
 
 func (m *scanMockReader) DetectEPFInRepo(_ context.Context, _, _, repo, _ string) ([]syncdom.DetectedEPFInstance, []syncdom.SubmoduleRef, bool, syncdom.RepoCommitInfo, error) {
-	m.detectCalls++
+	m.detectCalls.Add(1)
 	if instances, ok := m.detectedByRepo[repo]; ok {
 		return instances, nil, false, syncdom.RepoCommitInfo{}, nil
 	}
@@ -696,8 +703,8 @@ func TestScanInstallationRepos_Basic(t *testing.T) {
 		t.Errorf("mono BasePath=%q, want docs/strategy", byName["mono"].DetectedInstances[0].BasePath)
 	}
 	// All 3 repos were scanned concurrently.
-	if reader.detectCalls != 3 {
-		t.Errorf("detectCalls=%d, want 3", reader.detectCalls)
+	if got := reader.detectCalls.Load(); got != 3 {
+		t.Errorf("detectCalls=%d, want 3", got)
 	}
 }
 
@@ -716,15 +723,15 @@ func TestScanInstallationRepos_CacheHit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first ScanInstallationRepos: %v", err)
 	}
-	callsAfterFirst := reader.detectCalls
+	callsAfterFirst := reader.detectCalls.Load()
 
 	// Second call within TTL should use cache.
 	_, err = svc.ScanInstallationRepos(ctx, "owner")
 	if err != nil {
 		t.Fatalf("second ScanInstallationRepos: %v", err)
 	}
-	if reader.detectCalls != callsAfterFirst {
-		t.Errorf("detectCalls increased on cache hit: was %d, now %d", callsAfterFirst, reader.detectCalls)
+	if got := reader.detectCalls.Load(); got != callsAfterFirst {
+		t.Errorf("detectCalls increased on cache hit: was %d, now %d", callsAfterFirst, got)
 	}
 }
 
