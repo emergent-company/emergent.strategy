@@ -117,22 +117,41 @@
 
 ## 9. Deployment
 
-- [ ] 9.1 Add `.github/workflows/strategy-server-deploy.yaml` for Cloud Run, modelled on `deploy.yaml` but **without** `--allow-unauthenticated` semantics leaking into app auth
-- [ ] 9.2 Set `ENV=production`, `AUTH_ENABLED=true`, and Zitadel vars; ensure `ZITADEL_DEBUG_TOKEN` is unset
-- [ ] 9.3 Confirm the Dockerfile's `EXPOSE 8090` matches the Cloud Run port config
-- [ ] 9.4 Document the MCP client config for a token holder (`type: "remote"`, `url`, `Authorization: Bearer est_...`)
-- [ ] 9.5 Deploy to a staging service and verify the guards actually abort on misconfiguration
+**Moved to the `deploy-strategy-server` change.**
+
+These tasks turned out not to be "write a workflow file". strategy-server has
+no deployment anywhere — `deploy.yaml` ships `apps/epf-cli`, and
+`strategy-server.yaml` is CI only. Completing them means provisioning a Cloud
+Run service, a managed Postgres, a runtime service account, secrets, and a
+production Zitadel tenant. That is infrastructure work this change revealed,
+not work this change should carry, and it has open questions (which GCP
+project, which domain, shared vs standalone DB) that need answering before any
+of it can start.
+
+- [x] 9.1 Deployment work extracted to `deploy-strategy-server` (§1–§3, §6 there)
+- [x] 9.2 Production guards implemented and unit-tested here (§8); asserting them against a real deploy is `deploy-strategy-server` §4
+- [x] 9.3 Dockerfile exposes 8090 — confirmed. Matching it to a Cloud Run `--port` is `deploy-strategy-server` §2.3, since no Cloud Run config exists yet to match against
+- [x] 9.4 MCP client documentation for token holders moved to `deploy-strategy-server` §6.1 — it must document a real URL
+- [x] 9.5 Staging guard verification moved to `deploy-strategy-server` §4
 
 ---
 
 ## 10. End-to-End Verification
 
-- [ ] 10.1 Mint a read-only token scoped to one instance against a live server
-- [ ] 10.2 Connect a real MCP client with that token; confirm `tools/list` responds
-- [ ] 10.3 Confirm reads succeed on the granted instance
-- [ ] 10.4 Confirm reads fail on a non-granted instance
-- [ ] 10.5 Confirm a write tool is denied, including one whose category is inactive
-- [ ] 10.6 Revoke the token and confirm the next call fails
-- [ ] 10.7 Run `go test ./...` and compare to the 0.1 baseline — no regressions
-- [ ] 10.8 Run `task lint` and compare to the 0.2 baseline
-- [ ] 10.9 Run `openspec validate add-scoped-readonly-mcp-access --strict`
+Tasks 10.1–10.4 and 10.6 require a live server and a real MCP client over a
+network boundary. Each has equivalent automated coverage already merged — the
+CLI mint/list/revoke cycle was exercised end-to-end against a real database,
+and the grant/deny matrix is covered by `register_token_tools_test.go`,
+`access_grants_test.go`, and `write_gate_test.go`. That coverage is not what
+these tasks ask for, so they are **not** ticked here; they are carried by
+`deploy-strategy-server` §5, which also ticks them back here when done.
+
+- [ ] 10.1 Mint a read-only token scoped to one instance against a live server — blocked on `deploy-strategy-server`
+- [ ] 10.2 Connect a real MCP client with that token; confirm `tools/list` responds — blocked on `deploy-strategy-server`
+- [ ] 10.3 Confirm reads succeed on the granted instance — blocked on `deploy-strategy-server`
+- [ ] 10.4 Confirm reads fail on a non-granted instance — blocked on `deploy-strategy-server`
+- [x] 10.5 Confirm a write tool is denied, including one whose category is inactive
+- [ ] 10.6 Revoke the token and confirm the next call fails — blocked on `deploy-strategy-server`
+- [x] 10.7 Run `go test ./...` and compare to the 0.1 baseline — no regressions
+- [x] 10.8 Run `task lint` and compare to the 0.2 baseline
+- [x] 10.9 Run `openspec validate add-scoped-readonly-mcp-access --strict`
