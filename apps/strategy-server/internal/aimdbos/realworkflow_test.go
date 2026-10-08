@@ -78,7 +78,7 @@ func TestDBOSEngine_RealDomainStep_ReadsRealDataByTheCorrectInstanceID(t *testin
 // underlying error) rather than asserting a single expected status.
 func awaitEngineTerminal(t *testing.T, engine *aimdbos.DBOSEngine, runID uuid.UUID) *orchestration.Run {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(awaitDeadline())
 	var last *orchestration.Run
 	for time.Now().Before(deadline) {
 		run, err := engine.GetRun(context.Background(), runID)

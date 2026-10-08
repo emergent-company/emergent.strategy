@@ -131,3 +131,62 @@ jobs:
       - name: Test
         run: go test ./...
         working-directory: apps/strategy-server
+
+  # Race detection, deliberately a separate non-blocking job.
+  #
+  # Added after a data race in domain/sync reached main and then failed an
+  # unrelated PR's CI: scanMockReader.detectCalls was a plain int incremented
+  # from the goroutines ScanInstallationRepos fans out over, so an increment
+  # was intermittently lost and the assertion saw 2 of 3 calls. `go test`
+  # without -race cannot see that; `go test -race` reports it directly.
+  #
+  # Separate from "Test & Build" so the required check keeps its current
+  # latency — -race roughly doubles wall time (267s vs ~100s measured locally
+  # on 10 cores; worse on a 2-core runner).
+  #
+  # continue-on-error while we learn its real cost and flake rate here. The
+  # intent is to make it required once it has a track record; until then it
+  # reports without blocking, so treat a red race job as a real finding and
+  # not as noise.
+  race:
+    name: Race Detector
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+
+    services:
+      # Must mirror the test job: the same hardcoded DSN in
+      # internal/aimdbos/restart_proof_test.go applies here too.
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: strategy
+          POSTGRES_PASSWORD: strategy
+          POSTGRES_DB: strategy
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U strategy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/strategy-server/go.mod
+          cache-dependency-path: |
+            apps/strategy-server/go.sum
+            go.work.sum
+
+      # -p 4 bounds how many packages compile and run at once. The default is
+      # NumCPU, which on a small runner has every DB-backed package contending
+      # for the single Postgres above; -race makes each one slower, which
+      # widens that contention window.
+      - name: Test with race detector
+        run: go test -race -p 4 ./...
+        working-directory: apps/strategy-server

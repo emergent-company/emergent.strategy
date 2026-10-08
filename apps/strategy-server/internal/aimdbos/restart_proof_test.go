@@ -115,7 +115,7 @@ func runRestartProofHelper() {
 		os.Exit(2)
 	}
 
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(awaitDeadline())
 	for time.Now().Before(deadline) {
 		got, err := engine.GetRun(ctx, run.ID)
 		if err == nil && got.Status == orchestration.StatusAwaitingHuman {
@@ -197,7 +197,7 @@ func TestDBOSEngine_SurvivesRealProcessKill(t *testing.T) {
 	}
 	defer killHelper()
 
-	runID := waitForReadyFile(t, readyFile, 10*time.Second)
+	runID := waitForReadyFile(t, readyFile, awaitDeadline())
 
 	// The actual crash: SIGKILL. No deferred function in the helper —
 	// including any that would call Stop() — ever runs.
@@ -326,7 +326,7 @@ func TestDBOSEngine_SurvivesDeployAcrossAnOpenGate(t *testing.T) {
 	}
 	defer killHelper()
 
-	runID := waitForReadyFile(t, readyFile, 10*time.Second)
+	runID := waitForReadyFile(t, readyFile, awaitDeadline())
 	killHelper()
 
 	store := aimdbos.NewRunStore(db)
@@ -427,7 +427,7 @@ func TestDBOSEngine_ApplicationVersionChange_OrphansOpenGate(t *testing.T) {
 	}
 	defer killHelper()
 
-	runID := waitForReadyFile(t, readyFile, 10*time.Second)
+	runID := waitForReadyFile(t, readyFile, awaitDeadline())
 	killHelper()
 
 	store := aimdbos.NewRunStore(db)
