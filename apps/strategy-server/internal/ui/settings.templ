@@ -25,6 +25,15 @@ type GithubSyncStatus struct {
 	LastDirection string              // "export" | "import" | ""
 	Workspaces           []WorkspaceScanItem // all workspaces for the move dropdown
 	CurrentWorkspaceID   string              // ID of the workspace this instance currently belongs to
+
+	// PushBlocked is set when the GitHub App cannot write to this repo, so the
+	// push button would fail. Surfaced up front rather than after the attempt:
+	// every write goes through the App, and the two ways it can be missing
+	// (not installed on the org, or installed without permissions) previously
+	// produced no visible signal at all — DetermineSyncState's error was
+	// discarded and the state badge simply rendered blank.
+	PushBlocked       bool
+	PushBlockedReason string // short, actionable — shown in the row
 }
 
 // MemoryHealthStatus represents the current connectivity to the Memory server.
@@ -434,13 +443,20 @@ templ githubSyncRow(inst GithubSyncStatus) {
 			<!-- Right: state badge + buttons -->
 			<div class="flex items-center gap-2 shrink-0">
 				@githubSyncStateBadge(inst.SyncState, inst.RepoLinked)
+				if inst.PushBlocked {
+					<span class="badge badge-xs badge-warning gap-1" title={ inst.PushBlockedReason }>
+						<span class="iconify lucide--lock size-3"></span>
+						{ langs.T(ctx, "settings.github.push_unavailable") }
+					</span>
+				}
 				if inst.Configured && inst.RepoLinked {
 					<!-- Push to GitHub button -->
 					<form method="POST" action="/settings/sync" class="inline">
 						<input type="hidden" name="instance_id" value={ inst.InstanceID }/>
 					<button type="submit"
+						disabled?={ inst.PushBlocked }
 						class="btn btn-xs btn-ghost border border-base-content/20 gap-1"
-						title="Push strategy artifacts to GitHub">
+						title={ pushButtonTitle(inst) }>
 						<span class="iconify lucide--upload size-3"></span>
 						{ langs.T(ctx, "settings.github.push_btn") }
 					</button>
@@ -596,4 +612,13 @@ templ langPickerCard(activeLang string) {
 			</form>
 		</div>
 	</div>
+}
+
+// pushButtonTitle explains why push is disabled, rather than leaving a dead
+// button with a generic tooltip.
+func pushButtonTitle(inst GithubSyncStatus) string {
+	if inst.PushBlocked {
+		return inst.PushBlockedReason
+	}
+	return "Push strategy artifacts to GitHub"
 }
