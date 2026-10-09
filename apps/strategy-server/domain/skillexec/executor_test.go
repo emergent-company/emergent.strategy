@@ -1091,6 +1091,31 @@ func TestCleanJSON(t *testing.T) {
 			input: "   \n\t  ",
 			want:  "",
 		},
+		{
+			name:  "reasoning block before json",
+			input: "<reasoning>The user wants JSON. Let me produce it.</reasoning>{\"key\": \"value\"}",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "reasoning block containing braces",
+			input: "<reasoning>Maybe {\"draft\": 1} first... no.</reasoning>{\"key\": \"value\"}. Done.",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "think block (qwen style)",
+			input: "<think>hmm {1,2,}</think>\n```json\n{\"key\": \"value\"}\n```",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "orphan closing reasoning tag",
+			input: "the plan is {\"a\": 1}...</reasoning>{\"key\": \"value\"}",
+			want:  `{"key": "value"}`,
+		},
+		{
+			name:  "unterminated reasoning tag keeps text",
+			input: "<reasoning>{\"key\": \"value\"}",
+			want:  `{"key": "value"}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1180,4 +1205,69 @@ func validStrategyFormulaJSON() string {
 			}
 		}
 	}`
+}
+
+// ---------------------------------------------------------------------------
+// fixMaxLengthViolations tests
+// ---------------------------------------------------------------------------
+
+func TestFixMaxLengthViolations(t *testing.T) {
+	t.Run("string inside array element", func(t *testing.T) {
+		long := strings.Repeat("x", 561)
+		artifact := map[string]any{
+			"strategic_insights": []any{long, "short"},
+		}
+		errs := []string{"assessment_report: at '/strategic_insights/0': maxLength: got 561, want 500"}
+		if n := fixMaxLengthViolations(artifact, errs); n != 1 {
+			t.Fatalf("fixed = %d, want 1", n)
+		}
+		got := artifact["strategic_insights"].([]any)[0].(string)
+		if len([]rune(got)) > 500 {
+			t.Errorf("string still %d runes after fix", len([]rune(got)))
+		}
+		if artifact["strategic_insights"].([]any)[1].(string) != "short" {
+			t.Errorf("untouched sibling was modified")
+		}
+	})
+
+	t.Run("string field nested under array of objects", func(t *testing.T) {
+		artifact := map[string]any{
+			"items": []any{map[string]any{"summary": strings.Repeat("y", 60)}},
+		}
+		errs := []string{"x: at '/items/0/summary': maxLength: got 60, want 40"}
+		if n := fixMaxLengthViolations(artifact, errs); n != 1 {
+			t.Fatalf("fixed = %d, want 1", n)
+		}
+		got := artifact["items"].([]any)[0].(map[string]any)["summary"].(string)
+		if len([]rune(got)) > 40 {
+			t.Errorf("string still %d runes after fix", len([]rune(got)))
+		}
+	})
+
+	t.Run("multibyte runes counted as code points", func(t *testing.T) {
+		artifact := map[string]any{"name": strings.Repeat("ø", 30)}
+		errs := []string{"x: at '/name': maxLength: got 30, want 20"}
+		if n := fixMaxLengthViolations(artifact, errs); n != 1 {
+			t.Fatalf("fixed = %d, want 1", n)
+		}
+		if got := artifact["name"].(string); len([]rune(got)) > 20 {
+			t.Errorf("string still %d runes after fix", len([]rune(got)))
+		}
+	})
+
+	t.Run("non-maxLength errors ignored", func(t *testing.T) {
+		artifact := map[string]any{"a": strings.Repeat("z", 100)}
+		errs := []string{"x: at '/a': maxItems: got 5, want 3"}
+		if n := fixMaxLengthViolations(artifact, errs); n != 0 {
+			t.Fatalf("fixed = %d, want 0", n)
+		}
+	})
+
+	t.Run("out of bounds index is a no-op", func(t *testing.T) {
+		artifact := map[string]any{"list": []any{"a"}}
+		errs := []string{"x: at '/list/5': maxLength: got 10, want 2"}
+		if n := fixMaxLengthViolations(artifact, errs); n != 0 {
+			t.Fatalf("fixed = %d, want 0", n)
+		}
+	})
 }
