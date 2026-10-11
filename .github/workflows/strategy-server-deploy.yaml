@@ -100,10 +100,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Required. The deploy fails loudly if any of these is missing rather
-          # than starting a server that cannot authenticate anyone.
+          # Required. The deploy fails loudly if this is missing rather than
+          # starting a server that cannot reach its database.
           SECRET_BINDINGS="PGPASSWORD=strategy-server-db-password:latest"
-          SECRET_BINDINGS+=",ZITADEL_CLIENT_ID=strategy-server-zitadel-client-id:latest"
+
+          # The Zitadel service-account key, mounted as a FILE rather than an
+          # env var: config reads ZITADEL_KEY_PATH, a path, not the key
+          # material. ZITADEL_CLIENT_ID is deliberately NOT here — a client id
+          # is a public identifier, not a secret, so it is a plain env var
+          # below. Putting it in Secret Manager would imply a confidentiality
+          # it does not have.
+          #
+          # Note: the key is currently loaded and never used — introspection
+          # sends client_id alone, which Zitadel rejects (#91). Mounting it now
+          # means the fix for #91 is a code change only, with no deploy change.
+          SECRET_VOLUMES="/etc/zitadel/key.json=strategy-server-zitadel-key:latest"
 
           # Optional. Absent means the subsystem is disabled, not broken:
           # /health reports it as "disabled" and still returns 200. This is the
@@ -128,6 +139,7 @@ jobs:
           done
 
           echo "secret_bindings=${SECRET_BINDINGS}" >> "$GITHUB_OUTPUT"
+          echo "secret_volumes=${SECRET_VOLUMES}" >> "$GITHUB_OUTPUT"
 
       - name: Assert no debug token in production config
         run: |
@@ -205,8 +217,8 @@ jobs:
             --memory=1Gi \
             --cpu=1 \
             --timeout=300 \
-            --set-env-vars="ENV=production,AUTH_ENABLED=true,STRATEGY_DB_MODE=standalone,PGHOST=/cloudsql/${CLOUDSQL_INSTANCE},PGUSER=strategy,PGDATABASE=strategy,ZITADEL_ISSUER=${{ vars.STRATEGY_ZITADEL_ISSUER }}" \
-            --set-secrets="${{ steps.secrets.outputs.secret_bindings }}" \
+            --set-env-vars="ENV=production,AUTH_ENABLED=true,STRATEGY_DB_MODE=standalone,PGHOST=/cloudsql/${CLOUDSQL_INSTANCE},PGUSER=strategy,PGDATABASE=strategy,ZITADEL_ISSUER=${{ vars.STRATEGY_ZITADEL_ISSUER }},ZITADEL_CLIENT_ID=${{ vars.STRATEGY_ZITADEL_CLIENT_ID }},ZITADEL_KEY_PATH=/etc/zitadel/key.json" \
+            --set-secrets="${{ steps.secrets.outputs.secret_bindings }},${{ steps.secrets.outputs.secret_volumes }}" \
             --cpu-boost \
             --execution-environment=gen2
 
