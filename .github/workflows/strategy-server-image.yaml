@@ -1,0 +1,110 @@
+name: Strategy Server Image
+
+# Builds and pushes the strategy-server container image to Artifact Registry.
+#
+# Deliberately separate from release.yaml, which builds epf-cli's `epf-server`
+# image on version tags. The two apps have independent release cadences —
+# epf-cli is in maintenance mode, strategy-server is in active development —
+# so coupling them to one tag would force a release of one to ship the other.
+# Different image name, different trigger, same registry repo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to publish (defaults to the short SHA)
+        required: false
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - "apps/strategy-server/**"
+      - ".github/workflows/strategy-server-image.yaml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: image-strategy-server-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: outblocks
+  GCP_REGION: europe-west1
+  REGISTRY_REPO: epf
+  IMAGE_NAME: strategy-server
+
+jobs:
+  build:
+    name: Build and push
+    runs-on: ubuntu-latest
+    outputs:
+      image_ref: ${{ steps.image.outputs.image_ref }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: meta
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ -z "${TAG}" ]]; then
+            TAG="$(git rev-parse --short HEAD)"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          # Build context is the module directory, matching release.yaml's
+          # `context: apps/epf-cli`. The Dockerfile does `COPY go.mod go.sum`
+          # then `COPY . .`, so it needs the module root and nothing above it.
+          # This only works because strategy-server no longer has a `replace`
+          # directive pointing at ../epf-cli — see #84 / #86.
+          context: apps/strategy-server
+          file: apps/strategy-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+          # amd64 only. Cloud Run runs amd64, and it is the sole consumer of
+          # this image; adding arm64 would roughly double build time to produce
+          # an artefact nothing pulls. The Dockerfile passes no build args.
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Capture immutable image reference
+        id: image
+        run: |
+          set -euo pipefail
+          REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REGISTRY_REPO}/${IMAGE_NAME}@${{ steps.build.outputs.digest }}"
+          echo "image_ref=${REF}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${REF}"
+          {
+            echo "### Strategy Server image"
+            echo ""
+            echo "- Tag: \`${{ steps.meta.outputs.tag }}\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo ""
+            echo "Deploy with the **Strategy Server Cloud Run Deploy** workflow,"
+            echo "passing this as \`image_ref\`."
+          } >> "$GITHUB_STEP_SUMMARY"
