@@ -2,12 +2,40 @@
 
 ## 0. Decisions (blocking — answer before writing any workflow)
 
-- [ ] 0.1 Decide GCP project: reuse `outblocks` or provision a separate project
-- [ ] 0.2 Decide domain: new subdomain, or inherit `strategy.emergent-company.ai` from epf-cli later
-- [ ] 0.3 Confirm whether a production Zitadel tenant exists; if not, create it (has independent lead time)
-- [ ] 0.4 Decide `STRATEGY_DB_MODE`: `shared` (one Postgres with Memory) or `standalone`
-- [ ] 0.5 Decide Memory: deploy alongside, point at existing, or run degraded initially
-- [ ] 0.6 Decide whether `ValidateProduction()` should also refuse `STRATEGY_DB_MODE=dev` in production — if yes, file it as a separate code change, do not edit it here
+Decided 2026-10-11. Recorded with reasoning so the workflow does not have to
+re-litigate them, and so a later reversal is a deliberate act rather than a
+quiet drift.
+
+- [x] 0.1 **GCP project: reuse `outblocks`.** Workload Identity federation,
+  Artifact Registry and the deploy pattern already work there, so the first
+  deploy tests the application rather than the plumbing. strategy-server still
+  gets its own service name, runtime service account and secrets, so IAM stays
+  least-privilege; only the project-level blast radius is shared. Revisit if
+  strategy-server and epf-cli ever need separate billing or quota boundaries.
+- [ ] 0.2 Decide domain: new subdomain, or inherit `strategy.emergent-company.ai`
+  from epf-cli later — **still open**, and not blocking: Cloud Run issues a
+  `*.run.app` URL that staging verification (§4) and the first token-holder
+  test (§5) can use unchanged.
+- [x] 0.3 **A production Zitadel tenant exists.** No provisioning lead time, so
+  §1 is not gated on it. `ZITADEL_ISSUER` and `ZITADEL_CLIENT_ID` must be set
+  or `ValidateProduction()` refuses to boot — that is the intended behaviour,
+  not an obstacle to work around.
+- [x] 0.4 **`STRATEGY_DB_MODE=standalone`, on Cloud SQL.** A dedicated managed
+  Postgres rather than one shared with Memory: independent sizing, upgrade
+  windows and backup policy, and no coupling of strategy-server's availability
+  to Memory's. This is the only copy of a customer's strategy graph, so
+  automated backups (§1.1) are not optional. `shared` remains viable later if
+  the two services are co-located and the operational coupling is accepted.
+- [x] 0.5 **Memory: run degraded initially.** The server is explicitly designed
+  to degrade when Memory is unreachable — semantic search, contradiction
+  detection and scenarios switch off, everything else works. Shipping the core
+  service first keeps the first deploy small and makes a Memory failure a
+  feature gap rather than an outage. Memory is a follow-up, not a prerequisite.
+- [ ] 0.6 Decide whether `ValidateProduction()` should also refuse
+  `STRATEGY_DB_MODE=dev` in production — **still open**. Given 0.4, the deploy
+  sets `standalone` explicitly, so this is defence in depth against a dropped
+  environment variable rather than a live gap. If adopted it is a code change
+  with its own tests; do not edit `ValidateProduction()` from this change.
 
 ---
 
@@ -23,7 +51,7 @@
 
 ## 2. Container Build
 
-- [ ] 2.1 Verify `apps/strategy-server/Dockerfile` builds in the monorepo context — it does `COPY . .` and the repo uses `go.work`
+- [x] 2.1 Verify `apps/strategy-server/Dockerfile` builds — **done**. It did not: the `replace` directive on `../epf-cli` could not resolve inside the build context, so `go mod download` failed and the image had never been built. Fixed by absorbing `pkg/decompose` into strategy-server (#86, closes #84). `docker build` now succeeds, and the resulting image was confirmed to enforce the §8 production guards (`ENV=production` + `AUTH_ENABLED=false` exits before binding a listener; unrecognised `ENV` is refused) — which also covers §4.2 and §4.6 below at the container level, though they still need re-checking against a real Cloud Run deploy
 - [ ] 2.2 Add an Artifact Registry push step for the strategy-server image, separate from epf-cli's `epf-server` image
 - [ ] 2.3 Confirm the built image serves on **8090** and that the deploy passes `--port=8090`, not 8080
 
