@@ -1,0 +1,246 @@
+name: Strategy Server Cloud Run Deploy
+
+# Deploys apps/strategy-server. Separate from deploy.yaml, which deploys the
+# epf-cli-based `epf-strategy` service. The two share a GCP project but nothing
+# else: distinct service, image, runtime service account, secrets and
+# concurrency group.
+#
+# Manual dispatch only for now. Promote to tag-driven once staging verification
+# (openspec/changes/deploy-strategy-server §4) has been run against a real
+# deploy at least once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_ref:
+        description: Full Artifact Registry image reference to deploy (digest preferred)
+        required: false
+        type: string
+      image_tag:
+        description: Artifact Registry tag to resolve to an immutable digest when image_ref is empty
+        required: false
+        type: string
+      run_migrations:
+        description: Run `db --migrate` as a pre-deploy Cloud Run job before switching traffic
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  id-token: write
+
+# Distinct from deploy.yaml's `deploy-epf-strategy` so the two services cannot
+# serialise against, or cancel, each other (tasks.md 3.4).
+concurrency:
+  group: deploy-strategy-server
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: outblocks
+  GCP_REGION: europe-west1
+  SERVICE_NAME: strategy-server
+  REGISTRY_REPO: epf
+  IMAGE_NAME: strategy-server
+  RUNTIME_SERVICE_ACCOUNT: strategy-server-runtime@outblocks.iam.gserviceaccount.com
+  CLOUDSQL_INSTANCE: outblocks:europe-west1:strategy-server
+  MIGRATE_JOB_NAME: strategy-server-migrate
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Resolve image reference
+        id: image
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${{ github.event.inputs.image_ref }}" && -z "${{ github.event.inputs.image_tag }}" ]]; then
+            echo "Provide image_ref or image_tag." >&2
+            exit 1
+          fi
+
+          if [[ -n "${{ github.event.inputs.image_ref }}" ]]; then
+            IMAGE_REF="${{ github.event.inputs.image_ref }}"
+          else
+            IMAGE_REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REGISTRY_REPO}/${IMAGE_NAME}:${{ github.event.inputs.image_tag }}"
+          fi
+
+          # Always deploy by digest. A tag can be repointed between the deploy
+          # and a later rollback, so a tag is not a reproducible reference.
+          if [[ "${IMAGE_REF}" == *@sha256:* ]]; then
+            RESOLVED_IMAGE_REF="${IMAGE_REF}"
+          else
+            DIGEST="$(gcloud artifacts docker images describe "${IMAGE_REF}" \
+              --project="${GCP_PROJECT_ID}" \
+              --format='value(image_summary.digest)')"
+
+            if [[ -z "${DIGEST}" ]]; then
+              echo "Could not resolve digest for ${IMAGE_REF}" >&2
+              exit 1
+            fi
+
+            RESOLVED_IMAGE_REF="${IMAGE_REF%%:*}@${DIGEST}"
+          fi
+
+          echo "image_ref=${RESOLVED_IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve Cloud Run secrets
+        id: secrets
+        run: |
+          set -euo pipefail
+
+          # Required. The deploy fails loudly if any of these is missing rather
+          # than starting a server that cannot authenticate anyone.
+          SECRET_BINDINGS="PGPASSWORD=strategy-server-db-password:latest"
+          SECRET_BINDINGS+=",ZITADEL_CLIENT_ID=strategy-server-zitadel-client-id:latest"
+
+          # Optional. Absent means the subsystem is disabled, not broken:
+          # /health reports it as "disabled" and still returns 200. This is the
+          # Memory-degraded posture chosen in §0.5 — semantic search,
+          # contradiction detection and scenarios switch off, the rest works.
+          for OPTIONAL in \
+            "EPF_MEMORY_TOKEN=strategy-server-memory-token" \
+            "LLM_API_KEY=strategy-server-llm-api-key"; do
+            ENV_NAME="${OPTIONAL%%=*}"
+            SECRET_NAME="${OPTIONAL#*=}"
+            SECRET_VERSION="$(gcloud secrets versions list "${SECRET_NAME}" \
+              --project="${GCP_PROJECT_ID}" \
+              --filter='state=enabled' \
+              --limit=1 \
+              --format='value(name)' 2>/dev/null || true)"
+
+            if [[ -n "${SECRET_VERSION}" ]]; then
+              SECRET_BINDINGS+=",${ENV_NAME}=${SECRET_NAME}:latest"
+            else
+              echo "Optional secret ${SECRET_NAME} not found — ${ENV_NAME} will be unset."
+            fi
+          done
+
+          echo "secret_bindings=${SECRET_BINDINGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Assert no debug token in production config
+        run: |
+          set -euo pipefail
+
+          # tasks.md 3.3. ValidateProduction() already refuses to boot if
+          # ZITADEL_DEBUG_TOKEN is set under ENV=production, so this is a second
+          # line of defence that fails the pipeline before a bad revision is
+          # ever created, rather than after it crash-loops.
+          BINDINGS="${{ steps.secrets.outputs.secret_bindings }}"
+          if grep -qi 'ZITADEL_DEBUG_TOKEN' <<<"${BINDINGS}"; then
+            echo "ZITADEL_DEBUG_TOKEN must never be bound in production." >&2
+            exit 1
+          fi
+          echo "OK: no debug token in secret bindings."
+
+      - name: Run database migrations
+        if: ${{ github.event.inputs.run_migrations != 'false' }}
+        run: |
+          set -euo pipefail
+
+          # §1.5: migrations run as an explicit pre-deploy job, never on
+          # container start. Cloud Run scales to multiple instances, so
+          # migrating at boot would race N containers against one schema.
+          # Deploying the same image the service will run keeps the migration
+          # and the code that depends on it in lockstep.
+          if gcloud run jobs describe "${MIGRATE_JOB_NAME}" \
+            --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}" >/dev/null 2>&1; then
+            VERB=update
+          else
+            VERB=create
+          fi
+
+          gcloud run jobs "${VERB}" "${MIGRATE_JOB_NAME}" \
+            --image="${{ steps.image.outputs.image_ref }}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --service-account="${RUNTIME_SERVICE_ACCOUNT}" \
+            --set-cloudsql-instances="${CLOUDSQL_INSTANCE}" \
+            --set-env-vars="ENV=production,PGHOST=/cloudsql/${CLOUDSQL_INSTANCE},PGUSER=strategy,PGDATABASE=strategy" \
+            --set-secrets="PGPASSWORD=strategy-server-db-password:latest" \
+            --args="db,--migrate" \
+            --max-retries=0 \
+            --task-timeout=10m
+
+          # --wait makes a migration failure fail the deploy. Without it the
+          # new revision would roll out against an un-migrated schema.
+          gcloud run jobs execute "${MIGRATE_JOB_NAME}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --wait
+
+      - name: Deploy to Cloud Run
+        run: |
+          set -euo pipefail
+
+          # Port: the container EXPOSEs 8090, but config.go reads
+          # `env:PORT`, and Cloud Run injects PORT. Verified locally that the
+          # server binds whatever PORT says (PORT=8080 -> `listening addr=:8080`).
+          # Leaving --port at Cloud Run's 8080 default is therefore correct and
+          # needs no override; 8090 is a local-dev convention only.
+          #
+          # ENV=production + AUTH_ENABLED=true are what ValidateProduction()
+          # requires; it aborts before binding a listener if they disagree.
+          gcloud run deploy "${SERVICE_NAME}" \
+            --image="${{ steps.image.outputs.image_ref }}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --service-account="${RUNTIME_SERVICE_ACCOUNT}" \
+            --set-cloudsql-instances="${CLOUDSQL_INSTANCE}" \
+            --min-instances=0 \
+            --max-instances=10 \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300 \
+            --set-env-vars="ENV=production,AUTH_ENABLED=true,STRATEGY_DB_MODE=standalone,PGHOST=/cloudsql/${CLOUDSQL_INSTANCE},PGUSER=strategy,PGDATABASE=strategy,ZITADEL_ISSUER=${{ vars.STRATEGY_ZITADEL_ISSUER }}" \
+            --set-secrets="${{ steps.secrets.outputs.secret_bindings }}" \
+            --cpu-boost \
+            --execution-environment=gen2
+
+      - name: Verify deployment health
+        run: |
+          set -euo pipefail
+
+          SERVICE_URL="$(gcloud run services describe "${SERVICE_NAME}" \
+            --region="${GCP_REGION}" \
+            --project="${GCP_PROJECT_ID}" \
+            --format='value(status.url)')"
+
+          echo "Service URL: ${SERVICE_URL}"
+
+          # /health returns 503 when Postgres is unreachable and 200 when it is
+          # up, independently of Memory and the LLM, which report "disabled"
+          # without failing the check. Verified locally by stopping Postgres
+          # under a running container: 200 -> 503. So --fail here is a real
+          # database-connectivity gate, not a liveness formality.
+          HTTP_CODE="$(curl --silent --show-error --max-time 30 \
+            --output /tmp/health.json --write-out '%{http_code}' \
+            "${SERVICE_URL}/health" || true)"
+
+          echo "GET /health -> ${HTTP_CODE}"
+          cat /tmp/health.json || true
+          echo ""
+
+          if [[ "${HTTP_CODE}" != "200" ]]; then
+            echo "Health check failed. Recent logs:" >&2
+            gcloud run services logs read "${SERVICE_NAME}" \
+              --region="${GCP_REGION}" --project="${GCP_PROJECT_ID}" --limit=50 >&2 || true
+            exit 1
+          fi
+
+          echo "Deploy complete"
+          echo "  Image: ${{ steps.image.outputs.image_ref }}"
+          echo "  URL:   ${SERVICE_URL}"

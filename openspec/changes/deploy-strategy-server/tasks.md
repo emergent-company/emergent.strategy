@@ -45,25 +45,25 @@ quiet drift.
 - [ ] 1.2 Create a dedicated runtime service account, least-privilege (Cloud SQL client, Secret Manager accessor)
 - [ ] 1.3 Create secrets: DB password, Zitadel client secret, LLM credentials
 - [ ] 1.4 Verify Workload Identity federation works for the new service account from GitHub Actions
-- [ ] 1.5 Decide and document the migration strategy: run `strategy-server db --migrate` as a pre-deploy step or Cloud Run job — never automatically on every container start
+- [x] 1.5 **Migration strategy: a pre-deploy Cloud Run job, never on container start.** Cloud Run scales to N instances, so migrating at boot races N containers against one schema. The job runs the *same image* the service will run, so migration and dependent code stay in lockstep, and `gcloud run jobs execute --wait` makes a migration failure fail the deploy before the new revision takes traffic. Verified the invocation against the real container: `db --migrate` under `ENV=production` with no Zitadel configured exits 0 (`ValidateProduction()` is called only from `cmd_serve.go`, so the job does not need auth config). Implemented in `.github/workflows/strategy-server-deploy.yaml`
 
 ---
 
 ## 2. Container Build
 
 - [x] 2.1 Verify `apps/strategy-server/Dockerfile` builds — **done**. It did not: the `replace` directive on `../epf-cli` could not resolve inside the build context, so `go mod download` failed and the image had never been built. Fixed by absorbing `pkg/decompose` into strategy-server (#86, closes #84). `docker build` now succeeds, and the resulting image was confirmed to enforce the §8 production guards (`ENV=production` + `AUTH_ENABLED=false` exits before binding a listener; unrecognised `ENV` is refused) — which also covers §4.2 and §4.6 below at the container level, though they still need re-checking against a real Cloud Run deploy
-- [ ] 2.2 Add an Artifact Registry push step for the strategy-server image, separate from epf-cli's `epf-server` image
-- [ ] 2.3 Confirm the built image serves on **8090** and that the deploy passes `--port=8090`, not 8080
+- [x] 2.2 Added `.github/workflows/strategy-server-image.yaml`, pushing `strategy-server` to the same Artifact Registry repo but as a distinct image from `epf-server`. Kept out of `release.yaml` deliberately: that workflow is driven by version tags for epf-cli, and the two apps have independent cadences — coupling them would force a release of one to ship the other. Builds `linux/amd64` only (Cloud Run is the sole consumer; arm64 would double build time for an artefact nothing pulls) and emits an immutable digest for the deploy workflow to consume
+- [x] 2.3 **Resolved — the premise was wrong, and `--port` must *not* be overridden.** The Dockerfile `EXPOSE`s 8090, but `config.go:95` reads `env:PORT`, and Cloud Run injects `PORT`. Confirmed against the built image: `PORT=8080` produces `listening addr=:8080`. 8090 is a local-dev default only. Forcing `--port=8090` would have been harmless but misleading; leaving Cloud Run's 8080 default is correct
 
 ---
 
 ## 3. Deploy Workflow
 
-- [ ] 3.1 Add `.github/workflows/strategy-server-deploy.yaml`, reusing `deploy.yaml`'s GCP plumbing (Workload Identity, digest resolution, secret resolution, health verification)
-- [ ] 3.2 Set `ENV=production`, `AUTH_ENABLED=true`, `STRATEGY_DB_MODE` per 0.4, and all Zitadel vars
-- [ ] 3.3 Assert `ZITADEL_DEBUG_TOKEN` is **not** set in any production configuration
-- [ ] 3.4 Use a `concurrency` group distinct from `deploy-epf-strategy` so the two deployments cannot serialise against each other
-- [ ] 3.5 Add a post-deploy health check against `/health`, matching `deploy.yaml`'s pattern
+- [x] 3.1 Added `.github/workflows/strategy-server-deploy.yaml`, reusing `deploy.yaml`'s WIF auth, digest resolution, optional-secret probing and health verification. Deploys by digest always, since a tag can be repointed between deploy and rollback
+- [x] 3.2 Sets `ENV=production`, `AUTH_ENABLED=true`, `STRATEGY_DB_MODE=standalone` (per 0.4) and `ZITADEL_ISSUER`; `ZITADEL_CLIENT_ID` comes from Secret Manager
+- [x] 3.3 Explicit pipeline assertion that no `ZITADEL_DEBUG_TOKEN` binding exists. `ValidateProduction()` already refuses to boot with one set; this fails the pipeline *before* a bad revision is created rather than after it crash-loops
+- [x] 3.4 `concurrency.group: deploy-strategy-server`, distinct from `deploy-epf-strategy`
+- [x] 3.5 Post-deploy `/health` gate that dumps the JSON body and the last 50 log lines on failure. Confirmed `/health` (`cmd_serve.go:383`) genuinely discriminates: stopping Postgres under a live container flipped it 200 -> 503, while Memory and the LLM report `disabled` without failing the check — matching the §0.5 degraded posture
 
 ---
 
