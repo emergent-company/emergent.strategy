@@ -118,17 +118,31 @@ unticked rather than marked done on the strength of something weaker.
 
 Once a staging service exists, that verification can be completed honestly.
 
-## Open Questions
+## Decisions Taken
 
-1. **Which GCP project?** `deploy.yaml` uses `outblocks`. Same project, or a
-   separate one for blast-radius isolation?
-2. **Which domain?** epf-cli holds `strategy.emergent-company.ai`. A new
-   subdomain, or does strategy-server eventually take that one over as part of
-   `retire-epf-cli`?
-3. **Does a production Zitadel tenant exist?** If not, that is a prerequisite
-   with its own lead time.
-4. **Cloud SQL sizing and backup policy** — unknown load, so start small, but
-   backups are not optional for the only copy of a customer's strategy graph.
-5. **Memory server** — semantic features need emergent.memory reachable.
-   Deploy alongside, point at an existing instance, or run degraded initially?
-   The server is designed to degrade gracefully, so degraded-first is viable.
+Resolved 2026-10-11; full reasoning in `tasks.md` §0.
+
+1. **GCP project — reuse `outblocks`.** WIF, Artifact Registry and the deploy
+   pattern already work there. Own service account and secrets keep IAM
+   least-privilege; only project-level blast radius is shared.
+2. **Database — Cloud SQL, `STRATEGY_DB_MODE=standalone`.** Dedicated managed
+   Postgres with automated backups, not shared with Memory. This is the only
+   copy of a customer's strategy graph.
+3. **Zitadel — a production tenant exists.** No lead time; nothing is gated on
+   provisioning it.
+4. **Memory — run degraded initially.** The server is designed to degrade when
+   Memory is unreachable; semantic features switch off and everything else
+   works. Memory is a follow-up, not a prerequisite.
+
+## Still Open
+
+1. **Domain.** epf-cli holds `strategy.emergent-company.ai`. Whether
+   strategy-server takes a new subdomain or inherits that one later is
+   undecided — but not blocking: Cloud Run issues a `*.run.app` URL that
+   staging verification (§4) and the first token-holder test (§5) can use.
+2. **Whether `ValidateProduction()` should refuse `STRATEGY_DB_MODE=dev` in
+   production.** With `standalone` set explicitly by the deploy, this is
+   defence in depth against a dropped variable rather than a live gap. It is a
+   code change with its own tests if adopted, not an edit from this change.
+3. **Cloud SQL sizing.** Load is unknown, so start small and resize. Backups
+   are not negotiable regardless of size.
