@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/navigation"
+	navigation "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfnavigation"
 )
 
 // decomposeNavigationGraph decomposes a navigation graph artifact into

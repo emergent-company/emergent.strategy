@@ -4,17 +4,17 @@ package navigation
 
 // Graph represents a parsed navigation graph artifact.
 type Graph struct {
-	Name         string        `yaml:"name" json:"name"`
-	Title        string        `yaml:"title" json:"title"`
-	Description  string        `yaml:"description,omitempty" json:"description,omitempty"`
-	EntryContext string        `yaml:"entry_context" json:"entry_context"`
-	Contexts     []Context     `yaml:"contexts" json:"contexts"`
-	Transitions  []Transition  `yaml:"transitions" json:"transitions"`
-	Guards       []Guard       `yaml:"guards,omitempty" json:"guards,omitempty"`
-	Groups       []Group       `yaml:"groups,omitempty" json:"groups,omitempty"`
-	Menus        []Menu        `yaml:"menus,omitempty" json:"menus,omitempty"`
-	Imports      []Import      `yaml:"imports,omitempty" json:"imports,omitempty"`
-	PortalEdges  []PortalEdge  `yaml:"portal_edges,omitempty" json:"portal_edges,omitempty"`
+	Name         string       `yaml:"name" json:"name"`
+	Title        string       `yaml:"title" json:"title"`
+	Description  string       `yaml:"description,omitempty" json:"description,omitempty"`
+	EntryContext string       `yaml:"entry_context" json:"entry_context"`
+	Contexts     []Context    `yaml:"contexts" json:"contexts"`
+	Transitions  []Transition `yaml:"transitions" json:"transitions"`
+	Guards       []Guard      `yaml:"guards,omitempty" json:"guards,omitempty"`
+	Groups       []Group      `yaml:"groups,omitempty" json:"groups,omitempty"`
+	Menus        []Menu       `yaml:"menus,omitempty" json:"menus,omitempty"`
+	Imports      []Import     `yaml:"imports,omitempty" json:"imports,omitempty"`
+	PortalEdges  []PortalEdge `yaml:"portal_edges,omitempty" json:"portal_edges,omitempty"`
 }
 
 // Context represents an interaction context — a meaningful place a user can be.
@@ -51,12 +51,12 @@ type Transition struct {
 
 // Guard represents a named precondition that governs transition access.
 type Guard struct {
-	ID         string `yaml:"id" json:"id"`
+	ID          string `yaml:"id" json:"id"`
 	Description string `yaml:"description" json:"description"`
-	Type       string `yaml:"type,omitempty" json:"type,omitempty"`
-	GuardGroup string `yaml:"guard_group,omitempty" json:"guard_group,omitempty"`
-	Fallback   string `yaml:"fallback,omitempty" json:"fallback,omitempty"`
-	Message    string `yaml:"message,omitempty" json:"message,omitempty"`
+	Type        string `yaml:"type,omitempty" json:"type,omitempty"`
+	GuardGroup  string `yaml:"guard_group,omitempty" json:"guard_group,omitempty"`
+	Fallback    string `yaml:"fallback,omitempty" json:"fallback,omitempty"`
+	Message     string `yaml:"message,omitempty" json:"message,omitempty"`
 }
 
 // Group represents a logical grouping of contexts.

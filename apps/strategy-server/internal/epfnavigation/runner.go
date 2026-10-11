@@ -57,8 +57,8 @@ func (p *GuardProfile) ToggleGuardGroup(group string) {
 
 // HistoryEntry records a single traversal step.
 type HistoryEntry struct {
-	FromContext   string    `json:"from_context"`
-	ToContext     string    `json:"to_context"`
+	FromContext  string    `json:"from_context"`
+	ToContext    string    `json:"to_context"`
 	TransitionID string    `json:"transition_id"`
 	Timestamp    time.Time `json:"timestamp"`
 }
@@ -156,10 +156,10 @@ func (r *Runner) Traverse(transitionID string) error {
 			}
 		}
 		r.history = append(r.history, HistoryEntry{
-			FromContext:   r.current,
-			ToContext:     t.To,
-			TransitionID:  t.ID,
-			Timestamp:     time.Now(),
+			FromContext:  r.current,
+			ToContext:    t.To,
+			TransitionID: t.ID,
+			Timestamp:    time.Now(),
 		})
 		r.current = t.To
 		return nil
@@ -182,14 +182,14 @@ type JourneyScenario struct {
 
 // JourneyResult reports the outcome of a scripted journey run.
 type JourneyResult struct {
-	Scenario    string `json:"scenario"`
-	Passed      bool   `json:"passed"`
-	FinalState  string `json:"final_state"`
-	StepsRun    int    `json:"steps_run"`
-	TotalSteps  int    `json:"total_steps"`
+	Scenario   string `json:"scenario"`
+	Passed     bool   `json:"passed"`
+	FinalState string `json:"final_state"`
+	StepsRun   int    `json:"steps_run"`
+	TotalSteps int    `json:"total_steps"`
 	// FailedAt is set when the journey fails — the step index (0-based) and reason.
-	FailedAt    int    `json:"failed_at,omitempty"`
-	FailReason  string `json:"fail_reason,omitempty"`
+	FailedAt   int    `json:"failed_at,omitempty"`
+	FailReason string `json:"fail_reason,omitempty"`
 }
 
 // RunScenario executes a journey scenario against the graph and returns the result.

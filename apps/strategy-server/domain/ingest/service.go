@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 

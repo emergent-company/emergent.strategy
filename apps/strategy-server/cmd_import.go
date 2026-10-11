@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
@@ -19,6 +18,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfimport"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"

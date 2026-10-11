@@ -30,7 +30,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/valuemodel"
+	valuemodel "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfvaluemodel"
 	"gopkg.in/yaml.v3"
 )
 

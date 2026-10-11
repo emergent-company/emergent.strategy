@@ -10,7 +10,7 @@ import (
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/labstack/echo/v4"
 
-	"github.com/emergent-company/emergent-strategy/apps/epf-cli/pkg/decompose"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"

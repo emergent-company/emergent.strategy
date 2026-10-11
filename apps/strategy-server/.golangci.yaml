@@ -55,6 +55,39 @@ linters:
           - errcheck
           - bodyclose
 
+      # Inherited from epf-cli — see issue #85.
+      #
+      # internal/{decompose,epfnavigation,epfvaluemodel} moved here verbatim
+      # from apps/epf-cli/pkg/ so strategy-server could drop its `replace`
+      # directive on the epf-cli module and build standalone (#84). The code is
+      # unchanged apart from import paths.
+      #
+      # It arrives with 16 findings because epf-cli's CI never ran
+      # golangci-lint — linting that module today reports 50 nilerr, 50
+      # staticcheck and 31 unused. This is pre-existing debt being made
+      # visible by the move, not debt the move created.
+      #
+      # Scoped to these three directories and left as a deliberate, bounded
+      # exception rather than fixed inline: rewriting ~7,000 lines of working
+      # decomposition logic inside a pure move would make the diff
+      # unreviewable and any regression unbisectable. Everything written for
+      # strategy-server stays at zero findings.
+      #
+      # The three nilerr hits are filepath.Walk callbacks returning nil to skip
+      # unreadable entries and continue the walk — intentional control flow,
+      # not the swallow-the-error pattern nilerr exists to catch. The rest are
+      # QF1012/S1039 style and three cognitive-complexity warnings.
+      #
+      # Remove this block when #85 is done.
+      - path: internal/(decompose|epfnavigation|epfvaluemodel)/
+        linters:
+          - nilerr
+          - staticcheck
+          - ineffassign
+          - gocognit
+          - gocyclo
+          - unused
+
 issues:
   # Stop after this many issues so output is readable.
   max-issues-per-linter: 50
