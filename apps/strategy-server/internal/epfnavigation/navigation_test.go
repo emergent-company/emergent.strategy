@@ -1217,8 +1217,8 @@ func TestMergeAndTraverse(t *testing.T) {
 	merged := composed.Merge()
 
 	// Merged graph should have contexts from both services
-	rootContexts := 7  // platform
-	subContexts := 8   // captable
+	rootContexts := 7 // platform
+	subContexts := 8  // captable
 	if len(merged.Contexts) != rootContexts+subContexts {
 		t.Errorf("merged contexts = %d, want %d", len(merged.Contexts), rootContexts+subContexts)
 	}
