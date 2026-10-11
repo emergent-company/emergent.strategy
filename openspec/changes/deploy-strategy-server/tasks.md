@@ -44,7 +44,7 @@ quiet drift.
 - [ ] 1.1 Provision Cloud SQL Postgres (or chosen equivalent) with automated backups enabled
 - [ ] 1.2 Create a dedicated runtime service account, least-privilege (Cloud SQL client, Secret Manager accessor)
 - [ ] 1.3 Create secrets: DB password, Zitadel client secret, LLM credentials
-- [ ] 1.4 Verify Workload Identity federation works for the new service account from GitHub Actions
+- [x] 1.4 **Workload Identity federation verified — it already works.** The first run of `strategy-server-image.yaml` on main authenticated via the existing `GCP_WIF_PROVIDER`/`GCP_SERVICE_ACCOUNT` secrets and pushed to Artifact Registry with no new setup (run `38171310102`, 2m54s). This validates decision 0.1 concretely: reusing `outblocks` meant the federation path was already proven. Published digest: `europe-west1-docker.pkg.dev/outblocks/epf/strategy-server@sha256:27c35eca…`. Note the *deploy* service account (`strategy-server-runtime@…`) is a different, still-unprovisioned identity — this task covers the CI push identity only
 - [x] 1.5 **Migration strategy: a pre-deploy Cloud Run job, never on container start.** Cloud Run scales to N instances, so migrating at boot races N containers against one schema. The job runs the *same image* the service will run, so migration and dependent code stay in lockstep, and `gcloud run jobs execute --wait` makes a migration failure fail the deploy before the new revision takes traffic. Verified the invocation against the real container: `db --migrate` under `ENV=production` with no Zitadel configured exits 0 (`ValidateProduction()` is called only from `cmd_serve.go`, so the job does not need auth config). Implemented in `.github/workflows/strategy-server-deploy.yaml`
 
 ---
