@@ -92,7 +92,25 @@ quiet drift.
 
 ## 6. Documentation
 
-- [ ] 6.1 Document the MCP client config for a token holder (`type: "remote"`, `url`, `Authorization: Bearer est_...`)
-- [ ] 6.2 Document the production environment variables and which are mandatory
-- [ ] 6.3 Document the deploy and rollback procedure
-- [ ] 6.4 Update `apps/strategy-server/AGENTS.md` to state where the service runs and how to deploy it
+- [x] 6.1 MCP client config for a token holder documented in `apps/strategy-server/docs/DEPLOYMENT.md` §5, including the `initialize` / `Mcp-Session-Id` handshake — calling `tools/list` without one returns `Invalid session ID`, which is a protocol error and reads like an auth failure if you do not know to expect it
+- [x] 6.2 Production environment variables documented in §2, with mandatory ones marked and the reason each is mandatory (they are what `ValidateProduction()` enforces). Includes why the Zitadel key is a mounted *volume* (`ZITADEL_KEY_PATH` is a path) and why `ZITADEL_CLIENT_ID` is deliberately *not* a secret
+- [x] 6.3 Deploy and rollback documented in §3–§4. Rollback is a Cloud Run traffic switch, with the sharp edge called out: **migrations do not roll back with the revision** — goose has no down-migrations here, so rolling back across a destructive migration needs a backup restore
+- [x] 6.4 `apps/strategy-server/AGENTS.md` now states where the service runs, the two workflows, the three easy-to-get-wrong details (`--port`, key-as-volume, client-id-not-secret) and the #91 caveat, linking to the full runbook
+
+---
+
+## 7. Verified Behaviour (evidence for §4/§5, captured locally)
+
+Run against a local server with `AUTH_ENABLED=true` and a real minted token,
+before any Cloud Run deploy exists. This is **not** a substitute for §4/§5,
+which must be re-run against staging — a container behaving correctly is not
+the same as a platform deploy behaving correctly. Recorded so the staging run
+is a confirmation rather than a first discovery.
+
+- [x] 7.1 `tools/list` with a read-only token returns the 14 core tools
+- [x] 7.2 Read on a **granted** instance succeeds
+- [x] 7.3 Read on a **non-granted** instance in the same org is refused, and reports *"Strategy instance not found"* rather than "forbidden" — so a token holder cannot enumerate instances they lack access to
+- [x] 7.4 A write tool in an **active** category (`commit_batch`) is denied: *"This access token is read-only and cannot call tools that modify strategy data"*
+- [x] 7.5 A write tool in an **inactive** category (`create_feature`) is denied identically — the write gate is independent of category filtering, so activating a category does not widen a read-only token
+- [x] 7.6 A request with no `Authorization` header is 401
+- [x] 7.7 After `token --revoke`, the token is 401 — but only after `accesstoken.CacheTTL` (60s) lapses, because the CLI revokes in a *different process* from the running server. Immediate on the replica that handles the revoke; up to 60s elsewhere. Documented, intended, and worth knowing when revoking in response to a leak
