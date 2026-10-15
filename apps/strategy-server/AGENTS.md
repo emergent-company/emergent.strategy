@@ -37,6 +37,41 @@ actively maintained — see the root `AGENTS.md` and `CONSTITUTION.md` for the
 full picture. Bug fixes to `apps/epf-cli/` are expected and welcome; this
 line only says strategy-server's own code shouldn't reach into it.
 
+## Where It Runs, and How To Deploy It
+
+**Cloud Run**, GCP project `outblocks`, region `europe-west1`, against a
+dedicated Cloud SQL Postgres (`STRATEGY_DB_MODE=standalone`). It shares the
+project and an Artifact Registry repo with epf-cli's `epf-strategy` service
+and nothing else — separate service, image, runtime service account, secrets
+and concurrency group.
+
+| Workflow | Trigger | Does |
+|---|---|---|
+| `.github/workflows/strategy-server-image.yaml` | push to `main` touching `apps/strategy-server/**` | Builds + pushes the image, prints the digest |
+| `.github/workflows/strategy-server-deploy.yaml` | manual (`workflow_dispatch`) | Migrates, deploys, health-gates |
+
+Deploy by **digest**, never a tag. Migrations run as a **pre-deploy Cloud Run
+job**, never on container start — Cloud Run scales to N instances, so migrating
+at boot races N containers against one schema.
+
+Three things that are easy to get wrong:
+
+- **Do not pass `--port`.** `config.go:95` reads `env:PORT`, which Cloud Run
+  injects. The Dockerfile's `EXPOSE 8090` is a local-dev convention.
+- **`ZITADEL_KEY_PATH` is a path**, so the Zitadel key is a mounted Secret
+  Manager *volume*, not an env var.
+- **`ZITADEL_CLIENT_ID` is not a secret** — it is a public identifier and is a
+  plain env var.
+
+**Known issue (#91): interactive Zitadel login does not work.** Introspection
+sends `client_id` alone, which Zitadel rejects, and the error is collapsed into
+a bare 401 while `ValidateProduction()` passes and `/health` returns 200.
+Scoped `est_` access tokens are unaffected — they resolve before introspection
+and never reach the IdP.
+
+Full runbook, including rollback and token-holder client config:
+**`docs/DEPLOYMENT.md`**.
+
 ## Local Development Setup
 
 **One command to start everything:**
