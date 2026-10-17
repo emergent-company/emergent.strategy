@@ -449,3 +449,78 @@ func TestModelSelector_DefaultReturnsConfiguredModel(t *testing.T) {
 		}
 	}
 }
+
+// TestReasoningModelAdaptation verifies the client self-heals against
+// reasoning-family models (gpt-5.x, o-series) that reject the legacy
+// max_tokens parameter and non-default temperature values, and that the
+// adaptation is sticky (subsequent calls send the adapted shape immediately).
+func TestReasoningModelAdaptation(t *testing.T) {
+	okBody := `{"choices":[{"message":{"content":"pong"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`
+
+	var calls int
+	var requests []chatRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var req chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		requests = append(requests, req)
+
+		w.Header().Set("Content-Type", "application/json")
+		if req.MaxTokens > 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":{"message":"Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}`))
+			return
+		}
+		if req.Temperature != 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":{"message":"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported."}}`))
+			return
+		}
+		w.Write([]byte(okBody))
+	}))
+	defer server.Close()
+
+	client := New(Config{BaseURL: server.URL, APIKey: "test-key", Model: "gpt-5.5"})
+
+	// Ping sets MaxTokens: first call is rejected, retry must carry
+	// max_completion_tokens instead.
+	if err := client.Ping(context.Background()); err != nil {
+		t.Fatalf("ping should succeed after adaptation: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d after Ping, want 2 (reject + adapted retry)", calls)
+	}
+	if requests[1].MaxTokens != 0 || requests[1].MaxCompletionTokens != requests[0].MaxTokens {
+		t.Errorf("retry request: max_tokens=%d max_completion_tokens=%d, want 0/%d",
+			requests[1].MaxTokens, requests[1].MaxCompletionTokens, requests[0].MaxTokens)
+	}
+
+	// Chat with a custom temperature: rejected once, then retried without it.
+	result, err := client.Chat(context.Background(), []ChatMessage{{Role: "user", Content: "ping"}}, 0.2)
+	if err != nil {
+		t.Fatalf("chat should succeed after temperature adaptation: %v", err)
+	}
+	if result.Content != "pong" {
+		t.Errorf("content=%q, want pong", result.Content)
+	}
+	if calls != 4 {
+		t.Fatalf("calls=%d after Chat, want 4 (temp reject + adapted retry)", calls)
+	}
+	if requests[3].Temperature != 0 {
+		t.Errorf("retry request still carries temperature=%v", requests[3].Temperature)
+	}
+
+	// Stickiness: both adaptations remembered — next Ping succeeds first try.
+	if err := client.Ping(context.Background()); err != nil {
+		t.Fatalf("second ping: %v", err)
+	}
+	if calls != 5 {
+		t.Fatalf("calls=%d after second Ping, want 5 (no extra rejection roundtrip)", calls)
+	}
+	if requests[4].MaxCompletionTokens == 0 || requests[4].MaxTokens != 0 {
+		t.Errorf("sticky request: max_tokens=%d max_completion_tokens=%d, want 0/nonzero",
+			requests[4].MaxTokens, requests[4].MaxCompletionTokens)
+	}
+}
