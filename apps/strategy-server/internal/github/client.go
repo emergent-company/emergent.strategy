@@ -27,6 +27,8 @@ type Client struct {
 	appID      int64
 	privateKey *rsa.PrivateKey
 	httpClient *http.Client // overridable for testing
+
+	tokens tokenCache
 }
 
 // Config holds the GitHub App credentials.
@@ -104,7 +106,19 @@ func (c *Client) generateJWT() (string, error) {
 
 // GetInstallationToken finds the App installation for the given owner (org or
 // user) and returns a short-lived installation access token.
+//
+// Tokens are cached per owner until shortly before they expire, and an owner
+// without an App installation is remembered briefly, so repeated callers (the
+// web UI resolves sync state on every page render) do not repeat the lookups.
 func (c *Client) GetInstallationToken(ctx context.Context, owner string) (string, error) {
+	now := time.Now()
+	if token, notInstalled, ok := c.tokens.get(owner, now); ok {
+		if notInstalled != nil {
+			return "", notInstalled
+		}
+		return token, nil
+	}
+
 	jwtToken, err := c.generateJWT()
 	if err != nil {
 		return "", fmt.Errorf("generate jwt: %w", err)
@@ -119,7 +133,11 @@ func (c *Client) GetInstallationToken(ctx context.Context, owner string) (string
 		// Try user installation as fallback.
 		installation, _, err = appClient.Apps.FindUserInstallation(ctx, owner)
 		if err != nil {
-			return "", fmt.Errorf("find github app installation for %q: %w", owner, err)
+			findErr := fmt.Errorf("find github app installation for %q: %w", owner, err)
+			if isNotFound(err) {
+				c.tokens.putNotInstalled(owner, findErr, now)
+			}
+			return "", findErr
 		}
 	}
 
@@ -129,7 +147,19 @@ func (c *Client) GetInstallationToken(ctx context.Context, owner string) (string
 		return "", fmt.Errorf("create installation token for %q: %w", owner, err)
 	}
 
+	c.tokens.put(owner, token.GetToken(), token.GetExpiresAt().Time, now)
 	return token.GetToken(), nil
+}
+
+func isNotFound(err error) bool {
+	var ger *gh.ErrorResponse
+	return errors.As(err, &ger) && ger.Response != nil && ger.Response.StatusCode == http.StatusNotFound
+}
+
+// InvalidateInstallationToken drops any cached token or negative result for
+// owner, e.g. after the App has just been installed on that org.
+func (c *Client) InvalidateInstallationToken(owner string) {
+	c.tokens.invalidate(owner)
 }
 
 // ---------------------------------------------------------------------------

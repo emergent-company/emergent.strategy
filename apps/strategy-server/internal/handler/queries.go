@@ -254,7 +254,7 @@ func (s *Server) loadInstanceStats(ctx context.Context, inst *domain.StrategyIns
 			defer wg.Done()
 			stateCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
-			result, err := s.syncSvc.DetermineSyncState(stateCtx, inst.ID, "")
+			result, err := s.syncSvc.DetermineSyncStateCached(stateCtx, inst.ID, "")
 			if err == nil {
 				stats.SyncState = string(result.State)
 				if len(result.RemoteSHA) >= 7 {

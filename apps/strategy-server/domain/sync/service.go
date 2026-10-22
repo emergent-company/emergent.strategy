@@ -86,6 +86,9 @@ type Service struct {
 	// Lazily initialised on first use via getScanCache().
 	scanCacheStore *scanCache
 	scanCacheMu    gosync.Mutex
+
+	// remote caches read-only GitHub lookups for DetermineSyncStateCached.
+	remote remoteCache
 }
 
 // NewService creates a new sync Service.
@@ -151,6 +154,7 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 	if err != nil {
 		return nil, apperror.ErrBadRequest.WithDetail(err.Error())
 	}
+	defer s.remote.invalidateRepo(owner, repo)
 
 	// Get files to push.
 	var files []FileEntry
@@ -311,6 +315,7 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 		slog.WarnContext(ctx, "aim auto-push: invalid repo slug", "repo", *inst.GithubRepo, "err", err)
 		return
 	}
+	defer s.remote.invalidateRepo(owner, repo)
 
 	token, err := s.writer.GetInstallationToken(ctx, owner)
 	if err != nil {

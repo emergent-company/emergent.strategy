@@ -193,7 +193,23 @@ type ImportResult struct {
 // DetermineSyncState computes the current sync state for an instance.
 // It fetches the remote HEAD SHA and compares it with the instance's tracked SHA.
 // Returns ErrGitHubNotConfigured when the reader is nil.
+//
+// The remote lookups always hit GitHub. Callers that make decisions from the
+// result (import, MCP get_sync_state) rely on that; display-only callers that
+// run on every page render should use DetermineSyncStateCached.
 func (s *Service) DetermineSyncState(ctx context.Context, instanceID uuid.UUID, branch string) (*SyncStateResult, error) {
+	return s.determineSyncState(ctx, instanceID, branch, false)
+}
+
+// DetermineSyncStateCached is DetermineSyncState for display purposes. The
+// remote HEAD SHA and default branch may be up to headSHATTL / defaultBranchTTL
+// old. Local state (tracked SHA, pending mutations) is always read live, and
+// the caches are cleared after import, sync and push.
+func (s *Service) DetermineSyncStateCached(ctx context.Context, instanceID uuid.UUID, branch string) (*SyncStateResult, error) {
+	return s.determineSyncState(ctx, instanceID, branch, true)
+}
+
+func (s *Service) determineSyncState(ctx context.Context, instanceID uuid.UUID, branch string, useCache bool) (*SyncStateResult, error) {
 	if s.reader == nil {
 		return nil, apperror.ErrBadRequest.WithDetail("GitHub App is not configured")
 	}
@@ -222,15 +238,31 @@ func (s *Service) DetermineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		targetBranch = *inst.GithubBranch
 	}
 	if targetBranch == "" {
-		targetBranch, err = s.reader.GetDefaultBranch(ctx, token, owner, repo)
-		if err != nil {
-			return nil, fmt.Errorf("get default branch: %w", err)
+		cached, hit := "", false
+		if useCache {
+			cached, hit = s.remote.defaultBranch(owner, repo)
+		}
+		if hit {
+			targetBranch = cached
+		} else {
+			targetBranch, err = s.reader.GetDefaultBranch(ctx, token, owner, repo)
+			if err != nil {
+				return nil, fmt.Errorf("get default branch: %w", err)
+			}
+			s.remote.putDefaultBranch(owner, repo, targetBranch)
 		}
 	}
 
-	remoteSHA, err := s.reader.GetHeadCommitSHA(ctx, token, owner, repo, targetBranch)
-	if err != nil {
-		return nil, fmt.Errorf("get remote HEAD SHA: %w", err)
+	remoteSHA, hit := "", false
+	if useCache {
+		remoteSHA, hit = s.remote.headSHA(owner, repo, targetBranch)
+	}
+	if !hit {
+		remoteSHA, err = s.reader.GetHeadCommitSHA(ctx, token, owner, repo, targetBranch)
+		if err != nil {
+			return nil, fmt.Errorf("get remote HEAD SHA: %w", err)
+		}
+		s.remote.putHeadSHA(owner, repo, targetBranch, remoteSHA)
 	}
 
 	localSHA := ""
@@ -526,6 +558,8 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 // doImport fetches YAML files from GitHub and reimports them into the instance.
 // Updates github_commit_sha and github_branch after successful import.
 func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, token, owner, repo, targetBranch, requestedBranch string, actorID *uuid.UUID) (int, error) {
+	defer s.remote.invalidateRepo(owner, repo)
+
 	basePath := ""
 	if inst.GithubBasePath != nil {
 		basePath = *inst.GithubBasePath
@@ -762,6 +796,7 @@ func (s *Service) CheckAndUpdateSyncStatus(ctx context.Context, instanceID uuid.
 
 		switch state {
 		case "merged":
+			s.remote.invalidateRepo(owner, repo)
 			s.updateSyncLog(ctx, log.ID, domain.SyncStatusMerged, nil, nil)
 			// Update the instance's commit SHA — it's now in sync at the merge commit.
 			// We can't easily get the merge commit SHA from the PR object here without

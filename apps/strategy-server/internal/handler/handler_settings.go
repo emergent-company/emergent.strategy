@@ -318,7 +318,7 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 				// Tightened to 3s timeout; App not installed returns quickly with error.
 				if s.syncSvc.IsConfigured() && status.RepoLinked {
 					stateCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-					stateResult, stateErr := s.syncSvc.DetermineSyncState(stateCtx, instID, "")
+					stateResult, stateErr := s.syncSvc.DetermineSyncStateCached(stateCtx, instID, "")
 					cancel()
 					if stateErr == nil {
 						status.SyncState = string(stateResult.State)
