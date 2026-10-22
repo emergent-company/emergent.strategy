@@ -363,6 +363,103 @@ func TestDetermineSyncState_Unlinked(t *testing.T) {
 	_ = reader
 }
 
+// countingReader counts remote lookups made through the RepoReader seam.
+type countingReader struct {
+	*mockRepoReader
+	heads, branches atomic.Int32
+}
+
+func (c *countingReader) GetHeadCommitSHA(ctx context.Context, token, owner, repo, branch string) (string, error) {
+	c.heads.Add(1)
+	return c.mockRepoReader.GetHeadCommitSHA(ctx, token, owner, repo, branch)
+}
+
+func (c *countingReader) GetDefaultBranch(ctx context.Context, token, owner, repo string) (string, error) {
+	c.branches.Add(1)
+	return c.mockRepoReader.GetDefaultBranch(ctx, token, owner, repo)
+}
+
+func TestDetermineSyncStateCached_SkipsGitHubOnRepeat(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+
+	svc, _, reader, _ := newTestSyncService(t, db)
+	counter := &countingReader{mockRepoReader: reader}
+	svc.WithReader(counter)
+
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "cached-state-org", nil, orgID)
+	repo := "test-org/strategy"
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: ws.ID,
+		Name:        "Cached State",
+		GithubRepo:  &repo,
+	})
+
+	for i := range 3 {
+		result, err := svc.DetermineSyncStateCached(ctx, inst.ID, "")
+		if err != nil {
+			t.Fatalf("call %d: %v", i, err)
+		}
+		if result.RemoteSHA != "remote123abc456" {
+			t.Fatalf("call %d: RemoteSHA=%q", i, result.RemoteSHA)
+		}
+	}
+	if got := counter.heads.Load(); got != 1 {
+		t.Errorf("HEAD lookups=%d, want 1 across 3 cached calls", got)
+	}
+	if got := counter.branches.Load(); got != 1 {
+		t.Errorf("default-branch lookups=%d, want 1 across 3 cached calls", got)
+	}
+
+	// The uncached variant is what import and the MCP tool rely on: it must
+	// always ask GitHub, and it refreshes the cache for later display calls.
+	if _, err := svc.DetermineSyncState(ctx, inst.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := counter.heads.Load(); got != 2 {
+		t.Errorf("HEAD lookups=%d, want 2 after an uncached call", got)
+	}
+}
+
+func TestDetermineSyncStateCached_ImportInvalidates(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+
+	svc, _, reader, _ := newTestSyncService(t, db)
+	counter := &countingReader{mockRepoReader: reader}
+	svc.WithReader(counter)
+
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "invalidate-org", nil, orgID)
+	repo := "test-org/strategy"
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{
+		WorkspaceID: ws.ID,
+		Name:        "Invalidate",
+		GithubRepo:  &repo,
+	})
+
+	if _, err := svc.DetermineSyncStateCached(ctx, inst.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ImportFromGithub(ctx, syncdom.ImportParams{InstanceID: inst.ID}); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	before := counter.heads.Load()
+
+	// The import cleared the cache, so the next display call must go to GitHub.
+	if _, err := svc.DetermineSyncStateCached(ctx, inst.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := counter.heads.Load(); got != before+1 {
+		t.Errorf("HEAD lookups=%d, want %d: cache was not invalidated by import", got, before+1)
+	}
+}
+
 func TestDetermineSyncState_GithubAhead_NeverSynced(t *testing.T) {
 	db := database.TestDB(t)
 	ctx := newCtx()
