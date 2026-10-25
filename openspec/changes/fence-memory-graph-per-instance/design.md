@@ -38,6 +38,8 @@ Verified in the Memory source at `c0589c1`:
 | `/api/graph/search` accepts `labels`, matched with **overlap** (`labels && …`, i.e. OR), plus `namespace`, `types`, `status`, `branchId` | `domain/graph/dto.go:514` `HybridSearchRequest`; `repository.go:2160` | Search can pre-filter by owner on the server with exactly one label, `instance:<uuid>`. Never pass two labels expecting AND. |
 | `ListObjects` accepts `label` / `labels` (same overlap semantics) | `handler.go` `ListObjects` | Ingest GC, contradiction detection and lifecycle can list one instance server-side. |
 | Single-object delete cascades to all live relationships of the object; bulk-action delete does not | `service.go:1536` `Delete` | Purge and GC use single deletes (#87 F5). |
+| Creating a branch writes the branch row and its lineage; it does not copy objects | `domain/branches/service.go:55` `Create`, `repository.go:3588` | A scenario branch is not a project-sized copy (an earlier draft assumed it was). |
+| `POST /api/graph/branches/:targetBranchId/merge` takes the **target** in the path; the body has `source_branch_id` and `execute` (default false). There is no `dry_run` field | `routes.go:80`, `dto.go:883`, `service.go:4538` | See risk 4: today's client call is a dry-run merge of a branch into itself. |
 
 ## Decision 1: Ownership stamp and key format
 
@@ -47,7 +49,7 @@ Every object the server writes gets:
   first 8 hex characters of the instance UUID, as decomposed keys already use
   (`domain/ingest/service.go:889`). Artifact-layer keys, unprefixed today
   (`:413`, `:493`), gain the same prefix.
-- **Collision-free prefix.** Migration 043 adds a unique index on
+- **Collision-free prefix.** Migration 045 adds a unique index on
   `left(id::text, 8)` over `strategy_instances` (all rows, deleted included,
   since purge can lag). Instance creation retries with a new UUID on a unique
   violation. If existing instances collide, the migration fails loudly; that is
@@ -76,12 +78,20 @@ history and re-embed everything on every ingest), Postgres records **which
 keys make up the current projection** of each instance. Visibility is
 membership in that manifest.
 
-**Schema (migration 043).**
+**Schema (migration 045).**
 
 - `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0`: increments
-  on every successful ingest; 0 means never ingested under this scheme. Used
-  for observability and ordering, not stored on objects.
-- `strategy_instances.memory_dirty_since TIMESTAMPTZ NULL`.
+  on every successful ingest; 0 means never ingested under this scheme, and
+  `HasManifest` is `memory_generation >= 1`. Used for observability and
+  ordering, not stored on objects. (An instance whose artifacts were all removed
+  has generation >= 1 and a valid, empty manifest.)
+- `strategy_instances.memory_dirty_since TIMESTAMPTZ NULL`: oldest unprocessed
+  change; the heartbeat uses it to find stale work.
+- `strategy_instances.memory_change_seq BIGINT NOT NULL DEFAULT 0`: incremented
+  by every change. An ingest clears the dirty flag only if the sequence is
+  unchanged since the ingest started. A timestamp cannot do this job: once set,
+  `COALESCE(memory_dirty_since, now())` never changes, so a change that arrives
+  mid-ingest would be indistinguishable from the one being processed.
 - `memory_projection(instance_id UUID, kind TEXT CHECK (kind IN ('object','relationship')), key TEXT, PRIMARY KEY (instance_id, kind, key))`.
   For objects `key` is the scoped Memory key. For relationships it is
   `<type>|<from scoped key>|<to scoped key>`. About 7.7k + 10.7k rows for the
@@ -90,10 +100,19 @@ membership in that manifest.
 **Full ingest of instance X:**
 
 1. Take a per-instance Postgres session advisory lock on a dedicated connection
-   (works across Cloud Run replicas and the CLI). Ingests of X are serialised;
-   different instances run in parallel.
-2. Read `memory_dirty_since` as `dirtyAt`. Export the instance and compute the
-   new manifest deterministically from the export (both layers, all
+   (`db.Conn`; works across Cloud Run replicas and the CLI). Ingests of X are
+   serialised; different instances run in parallel. Closing a `sql.Conn` returns
+   it to the pool and does **not** end the session, so the helper must call
+   `pg_advisory_unlock` explicitly and, if that fails, discard the connection
+   (return `driver.ErrBadConn` from `conn.Raw`) instead of pooling it with the
+   lock still held. The lock holds one of the 25 pool connections for the
+   duration of an ingest, which is acceptable with 2 workers. After taking the
+   lock, re-check: if the instance is not dirty, has `memory_generation >= 1`
+   and its content hash matches, another replica already ingested it; release
+   and return. (After the upgrade every replica's startup sweep enqueues every
+   instance; this keeps the second and third replica from repeating the work.)
+2. Read `memory_change_seq` as `seq0`. Export the instance and compute the new
+   manifest deterministically from the export (both layers, all
    relationships).
 3. Upsert every object and relationship in the new manifest. Unchanged objects
    are no-ops in Memory.
@@ -101,8 +120,9 @@ membership in that manifest.
    dirty, release the lock. Retry happens via Decision 4.
 5. In one transaction: replace X's `memory_projection` rows with the new
    manifest, `memory_generation += 1`, `memory_content_hash`, counts, and clear
-   `memory_dirty_since` **only if** it still equals `dirtyAt` (a change that
-   arrived mid-ingest keeps the instance dirty).
+   `memory_dirty_since` (set to NULL) **only if** `memory_change_seq` still
+   equals `seq0` (`UPDATE … WHERE id = ? AND memory_change_seq = ?`). A change
+   that arrived mid-ingest bumped the sequence and keeps the instance dirty.
 6. Garbage-collect, outside the transaction:
    - relationships in the old manifest but not the new one: resolve and delete;
    - objects in the old manifest but not the new one: single delete (cascades
@@ -124,10 +144,11 @@ Postgres stay visible, and objects rewritten in place show their newer content.
 All three converge on the next successful ingest (Decision 4 bounds the
 delay). No partially-built projection is ever visible.
 
-**Empty manifest.** An instance with no manifest rows (never ingested under
+**Not ready.** An instance with `memory_generation = 0` (never ingested under
 this scheme, including every instance right after upgrade) returns an empty
 result with a `graph_not_ready` hint from every semantic read, never an error
-and never other data.
+and never other data. An instance that has been ingested but has no artifacts
+has generation >= 1 and returns an empty result without the hint.
 
 **Cost.** One full ingest per change burst (coalesced, Decision 4). Unchanged
 objects cost a content-hash probe in Memory and no new version or embedding.
@@ -140,7 +161,7 @@ instance. Measure in task 8.3.
 depends on a narrow `ManifestSource` interface (implemented in
 `domain/ingest`), so the semantic service stays free of `*bun.DB`:
 
-- `HasManifest(ctx, X)`, and `Visible(ctx, X, keys) (set, error)` as one
+- `HasManifest(ctx, X)` (`memory_generation >= 1`), and `Visible(ctx, X, keys) (set, error)` as one
   `key = ANY(?)` query per read;
 - filters objects and relationships by the visibility rule;
 - counts dropped items and logs them at debug level, so leftover data shows up
@@ -161,8 +182,11 @@ Per read:
   the North Star by scoped key.
 - **Settings page counts** (`internal/handler/handler_settings.go:207`): per-
   instance counts from the instance row; the project-wide count goes.
-- **Scenarios**: branch reads go through the same helper; branch names keep the
-  instance UUID so purge can find them.
+- **Scenarios**: every scenario operation first checks that the branch belongs
+  to the instance (risk 4). Branch reads use the same helper but filter by
+  label `instance:<X>` and `properties.instance_id` only: the manifest describes
+  `main`, not a branch. Branch names keep the instance UUID so purge can find
+  them.
 
 **Enforcement.** An architecture test fails if any package other than
 `domain/semantic`, `domain/ingest` and the sweep calls a read method on
@@ -171,20 +195,56 @@ also asserts every `Search` call sets exactly one `instance:` label.
 
 ## Decision 4: One trigger, coalesced and durable
 
-Domain services that change an instance's artifacts set
-`memory_dirty_since = COALESCE(memory_dirty_since, now())` **inside** their
-transaction and call `ingest.Notifier.InstanceChanged(ctx, instanceID)` **after**
-commit. Known call sites:
+Every function that writes `strategy_artifacts` or `strategy_relationships`
+calls one `markChanged(instanceID)` step per operation, **after** its Postgres
+write has been committed, and then `Notifier.InstanceChanged(ctx, instanceID)`.
+`markChanged` is a single statement:
 
-| Path | Today | After |
-|---|---|---|
-| `strategy.CommitBatch` / `CommitAuto` (MCP `commit_batch`, web, pipeline, ripple) | `EnqueueBatch` from callers (`internal/mcpserver/server.go:1244`, `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`) | hook in the domain methods; caller calls removed |
-| `evidence.Ingest` (inserts artifacts directly, `domain/evidence/service.go:168`) | `EnqueueBatch` | hook |
-| `instance.ReimportArtifacts` (GitHub import, CLI) | nothing (#96) | hook |
-| `instance.ImportInstance` (web, MCP, CLI) | nothing (#99 N2) | hook |
-| `version.Restore` (MCP, web) | nothing (#99 N2) | hook |
-| `instance.DeleteInstance` | nothing (#87 F1) | purge (Decision 5) |
-| canonical install, `scaffold_instance`, pack/app install | to trace (task 1.2) | hook if they write artifacts outside `CommitBatch` |
+```sql
+UPDATE strategy_instances
+SET memory_dirty_since = COALESCE(memory_dirty_since, now()),
+    memory_change_seq  = memory_change_seq + 1
+WHERE id = ?
+```
+
+Writers that already run in a transaction (`ReimportArtifacts`,
+`version.Restore`) execute it inside that transaction. `CommitBatch` and
+`CommitAuto` do **not** run in a transaction today: every statement autocommits
+(`domain/strategy/service.go:344`, `:410`). This change does not wrap them; they
+call `markChanged` right after the derive loop. A crash between the write and
+`markChanged` loses the mark, and the startup sweep catches it, because it
+compares the artifact content hash with `memory_content_hash`
+(`EnqueueAllInstances`).
+
+The mark must come **after** the write, never before. An ingest that read the
+sequence before a not-yet-committed write would otherwise clear the dirty flag
+over that write.
+
+Call sites, traced in the code at `b38526a0` (task 1.2, done):
+
+| Path | What it writes | Today | After |
+|---|---|---|---|
+| `strategy.CommitBatch` (`:344`), `CommitAuto` (`:410`) | artifacts and relationships via `deriveIndex`, no transaction | callers call `EnqueueBatch` (`internal/mcpserver/server.go:1244`, `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`) | `markChanged` in the domain methods; caller calls removed |
+| `strategy.BackfillIndex` (`:632`) | via `deriveIndex` | nothing. Called after imports by `cmd_import.go:123`, `domain/sync/import.go:600` (GitHub and web import) and `internal/handler/handler_fire_definitions.go:129` (definition install) | `markChanged` once at the end; this one hook covers all three callers |
+| `strategy.commitAlignedValueModel` (`align.go:204`; AIM `stepAlignPortfolio`, consistency) | via `deriveIndex` | nothing | `markChanged` |
+| `instance.ReimportArtifacts` (`:233`) | deletes artifacts, relationships and mutations in a transaction, inserts mutations | nothing (#96 G1) | `markChanged` in the transaction; the `BackfillIndex` that follows marks again |
+| `version.Restore` (`:474`) | deletes and re-inserts artifacts and relationships in a transaction, directly (not via `deriveIndex`) | nothing (#99 N2) | `markChanged` in the transaction |
+| `evidence.Service.Ingest` (`:118`), `Update` (`:354`), `MarkProcessed` (`:439`), `Link` (`:370`) | artifacts or relationships directly, no transaction | `Ingest` calls `EnqueueBatch`; the other three nothing | `markChanged` in all four |
+| `instance.ImportInstance` (`:152`) | the instance and its mutations; **no** artifacts | nothing | no hook of its own; every caller that imports payloads runs `BackfillIndex` |
+| `instance.DeleteInstance` (`:371`), `workspace.DeleteWorkspace` (`:172`) | soft delete only (`deleted_at`); artifact rows stay | nothing (#87 F1) | purge (Decision 5) |
+| `pack.InstallPack`, `app.InstallApp` | `installed_skills`, `strategy_apps` only | n/a | none needed |
+| `Stage`, `DiscardBatch`, skill executor, AIM drafts, `add_relationship` | staged mutations only | n/a | none; they reach artifacts through `CommitBatch` |
+
+Two gaps found while tracing. They are in scope because I3 cannot hold without
+them:
+
+- `scaffold_instance` (`internal/mcpserver/server.go:996`) seeds mutations
+  through `ImportInstance` and never calls `BackfillIndex`. A scaffolded
+  instance therefore has no `strategy_artifacts` rows, and there is nothing to
+  ingest. It calls `BackfillIndex` after this change.
+- `internal/handler/handler_aim_agent.go:314` commits mutations with raw status
+  updates and no index derivation when `strategySvc == nil`. Task 4.8 checks
+  whether that branch can be reached in a running server and removes it if not.
 
 The ingest service coalesces: one in-flight job per instance plus a "dirty
 again" bit, re-run once after the current job. A full channel no longer loses
@@ -192,7 +252,8 @@ work, because the dirty flag lives in Postgres: the heartbeat
 (`RepairMemoryDrift`) re-enqueues every active instance with
 `memory_dirty_since` older than one heartbeat interval, and the startup sweep
 re-enqueues every active instance that is dirty, has a NULL content hash, or
-has no manifest.
+has no manifest. The heartbeat runs every 5 minutes by default
+(`HEARTBEAT_INTERVAL=300`), so a lost job converges within two intervals.
 
 The incremental `ingestBatch` path, `upsertGraphObject` and `deleteGraphObject`
 (which resolves by an unscoped key and can delete another instance's object,
@@ -201,7 +262,8 @@ The incremental `ingestBatch` path, `upsertGraphObject` and `deleteGraphObject`
 ## Decision 5: Deletion, sweep and migration
 
 **Delete.** `DeleteInstance` keeps soft-deleting in Postgres and enqueues a
-purge. Under the instance lock it deletes every object with label
+purge. `workspace.DeleteWorkspace` soft-deletes the workspace's instances the
+same way and enqueues a purge for each of them. Under the instance lock it deletes every object with label
 `instance:<uuid>` (single deletes cascade edges), every object in the
 instance's manifest, and every branch named `scenario-<uuid>-*`, then deletes
 the manifest rows and records the outcome on the row. The `delete_instance`
@@ -216,8 +278,10 @@ CLI `strategy-server memory sweep [--apply]`, both calling one domain function.
 It pages through every object in the project and classifies:
 
 - `no_owner`: no `instance_id` and no `instance:` label;
-- `unknown_owner`: owner is not an active instance (deleted or absent);
-- `not_in_manifest`: owned by an active instance with a manifest, but not in it;
+- `unknown_owner`: owner is a deleted or nonexistent instance. Archived
+  instances keep their data and count as owners;
+- `not_in_manifest`: owned by a non-deleted instance with
+  `memory_generation >= 1`, but not in its manifest;
 - `legacy_key`: key not in `<prefix>/…` format.
 
 It reports counts per class and, with `apply`, deletes them with single
@@ -226,7 +290,7 @@ have no manifest yet are skipped, so the sweep can never delete the only copy
 of an instance that has not been re-ingested. Dry run is the default; the MCP
 tool sits in the `admin` category and is write-gated.
 
-**Migration 043:** the columns and the `memory_projection` table from Decision 2,
+**Migration 045:** the columns and the `memory_projection` table from Decision 2,
 the prefix unique index from Decision 1, and `memory_content_hash = NULL` on
 active instances so the startup sweep re-ingests them.
 
@@ -250,18 +314,55 @@ Requirement text in the spec, plus tool descriptions:
 
 ## Risks and open questions
 
-1. **Memory version in deployments.** Facts above are from Memory v0.88.1.
-   The pilot must run a Memory version with `labels` on `/api/graph/search` and
-   the content-hash no-op on upsert. Task 2.1 finds the minimum version and the
-   runbook states it.
+1. **Memory version (resolved).** The facts above were verified at v0.88.1
+   (`c0589c1`). Checked back through the tags: the `labels` field on the hybrid
+   search request is present in v0.35.74, and the `labels && …` overlap filter
+   is present in the repository layer in v0.80.0. The upsert no-op for
+   unchanged properties ("No change - return existing") is present in
+   v0.35.74. The content-hash probe that makes that comparison cheap arrived in
+   **v0.85.0**. Earlier versions work but are slower. **Minimum: v0.85.0.**
+   strategy-server logs the Memory version at startup (task 2.1) and the
+   runbook states the minimum. docker-compose no longer contains a Memory
+   service; local development uses a standalone Memory installed by
+   `scripts/dev-setup.sh`.
 2. **Search hit quality under debris.** Foreign data is excluded server-side by
    label. Stale same-instance hits (removed artifacts) still consume slots
    until GC; the over-fetch absorbs normal amounts and the sweep removes the
    rest.
-3. **Relationship GC resolution.** Deleting a removed relationship needs its
-   Memory ID. Task 2.4 decides between resolving through `ObjectEdges` on the
-   source object and a relationship upsert that returns the ID.
-4. **Scenario branches** copy the whole project. Reads are filtered, but merge
-   (`CommitScenario`) acts on the branch as a whole. Task 4.6 checks whether a
-   merge can write foreign objects into main; if it can, `commit_scenario` is
-   gated until a follow-up.
+3. **Relationship GC resolution (decided).** `memory.Client` already has
+   `DeleteRelationship(id)` (`internal/memory/relationships.go:58`, currently
+   unused) and `ObjectEdges(objectID)`, which returns flat relationships with
+   `id`, type, `src_id` and `dst_id`. GC groups the removed tuples by source
+   object, calls `ObjectEdges` once per source object, matches `(type, dst_id)`
+   and deletes by ID. Edges of deleted objects are removed by the cascade of
+   the single delete, so only edges between surviving objects need this.
+   Object IDs and keys are resolved from the ingest's own key index or
+   `GetObjectByKey`.
+4. **Scenarios (resolved by code trace; the original assumption was wrong).**
+   - Creating a branch does not copy objects (facts table).
+   - `evaluate_scenario`, `commit_scenario` and `discard_scenario` take a
+     `scenario_id` and check access only to the `instance_id` in the request.
+     They never check that the branch belongs to that instance. A caller with
+     access to instance A can evaluate, merge or discard instance B's scenario
+     by ID. **This is an isolation hole and is in scope.**
+   - The client calls `POST /api/graph/branches/{scenarioID}/merge` with
+     `{source_branch_id, dry_run}`. Memory treats the path parameter as the
+     *target* branch and reads `execute` (default false); it ignores `dry_run`.
+     So today `commit_scenario` is a dry-run merge of the branch into itself and
+     never changes `main`. It therefore cannot write foreign objects into
+     `main`, and gating it is not needed. The tool description promises a
+     staging batch and the response puts the merge summary in `batch_id`; both
+     are wrong and out of scope here.
+   - **Decision.** (a) Every scenario operation requires the branch name to
+     start with `scenario-<instanceUUID>-`, checked through `GetBranch`; the
+     prefix is 46 characters and survives the 100-character truncation in
+     `RunScenario`. Otherwise respond as for a non-existent scenario. (b) Branch
+     reads are scoped as described in Decision 3. (c) A test pins that
+     `commit_scenario` never sends `execute: true`. (d) Follow-up issue: making
+     commit real must merge only the instance's own objects, because Memory's
+     merge acts on the whole branch.
+5. **Deployment posture.** The production deploy workflow runs in a
+   Memory-degraded posture by default: a placeholder `EPF_MEMORY_TOKEN`
+   (`.github/workflows/strategy-server-deploy.yaml:121`). This change only has an
+   effect where Memory is configured. Confirm that the pilot deployment has a
+   real Memory token and a Memory at v0.85.0 or later before the upgrade.

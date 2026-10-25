@@ -12,21 +12,35 @@ extend the mock where it cannot express labels, properties or deletes.
 
 Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 
+### Cut line
+
+If time runs short, ship **Tier 1** by 28 October and **Tier 2** before the
+3 November pilot start (or right after). Reads fail closed, so legacy debris is
+already invisible without the sweep; the sweep is cleanup, not protection.
+
+- **Tier 1 (blocks the pilot upgrade):** sections 1–4 (including the scenario
+  ownership check in 4.6), 6.1, 8.1–8.5, and every test in section 9 except 9.15.
+- **Tier 2 (follows):** section 5 (sweep tool, CLI and runbook entry for it;
+  9.15), 6.2, section 7.
+
+Tier 1 deliberately includes the provenance fields (3.3), since they are cheap
+and the pilot hit the confusion they prevent.
+
 ## 1. Groundwork (blocking)
 
-- [ ] 1.1 Migration `043_memory_projection.sql`: add
-      `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0` and
-      `memory_dirty_since TIMESTAMPTZ NULL`; create `memory_projection`
+- [ ] 1.1 Migration `045_memory_projection.sql` (044 is the latest on `main`;
+      re-check before merging): add
+      `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0`,
+      `memory_dirty_since TIMESTAMPTZ NULL` and
+      `memory_change_seq BIGINT NOT NULL DEFAULT 0`; create `memory_projection`
       (design Decision 2); unique index on `left(id::text, 8)` over
       `strategy_instances`; set `memory_content_hash = NULL` for active
       instances. Update `internal/domain` structs and the migration table in
       `apps/strategy-server/AGENTS.md`.
-- [ ] 1.2 Trace every path that writes `strategy_artifacts` outside
-      `strategy.CommitBatch` / `CommitAuto`. Known: `instance.ReimportArtifacts`,
-      `instance.ImportInstance`, `version.Restore`, `evidence.Ingest`. Still to
-      check: canonical-definition install (`internal/handler/handler_fire_definitions.go`),
-      `scaffold_instance`, `pack.InstallPack`, `app.InstallApp`. Record the
-      list in design.md Decision 4.
+- [x] 1.2 Trace every path that writes `strategy_artifacts` outside
+      `strategy.CommitBatch` / `CommitAuto`. Done; the result is the table in
+      design.md Decision 4. Re-run `grep -rn "strategy_artifacts\|strategy_relationships"`
+      over non-test Go code before merging, in case a writer was added.
 - [ ] 1.3 `domain/ingest`: `ScopedKey(instanceID uuid.UUID, key string) string`
       (8-character prefix, as today for decomposed keys) and `UnscopedKey`; the
       only place Memory keys are built. Test that the longest key the
@@ -39,13 +53,15 @@ Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 
 ## 2. Track A: write side (ingest)
 
-- [ ] 2.1 Determine the minimum emergent.memory version with `labels` on
-      `/api/graph/search` and the content-hash no-op on upsert (design risk 1);
-      compare with the version in `docker-compose.yml`. Write it into design.md
-      and the runbook.
+- [x] 2.1 (analysis) Minimum emergent.memory version: v0.85.0 (design risk 1).
+- [ ] 2.1b Log the Memory version at startup (`HealthDetailed` already returns
+      it) and warn when it is below v0.85.0. Put the minimum in the runbook.
 - [ ] 2.2 Per-instance advisory lock helper (`pg_advisory_lock` on a dedicated
-      connection, key derived from the instance UUID), with
-      `TryLock` for the sweep.
+      `db.Conn`, key derived from the instance UUID), with `TryLock` for the
+      sweep. Unlock explicitly; on unlock failure discard the connection instead
+      of returning it to the pool (design Decision 2, step 1). Test that a
+      second helper call for the same instance blocks until the first releases,
+      and that a failed unlock does not leak the lock.
 - [ ] 2.3 Rewrite `ReingestInstance` + `ReingestInstanceDecomposed` as one
       manifest ingest (design Decision 2, steps 1–7): compute the manifest from
       the export, write both layers stamped per Decision 1, abort without
@@ -54,11 +70,14 @@ Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
       label safety net). Write nothing per-ingest onto objects.
 - [ ] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
       keys only; remove the `objectKeyIndex` prefix heuristics that assumed
-      unscoped keys. Decide how GC resolves a removed relationship's Memory ID
-      (design risk 3).
+      unscoped keys. GC resolves a removed relationship's Memory ID through
+      `ObjectEdges` on the source object and deletes with the existing
+      `DeleteRelationship` (design risk 3, decided).
 - [ ] 2.5 Remove `ingestBatch`, `upsertGraphObject`, `deleteGraphObject` and
       `EnqueueBatch`. Replace with `InstanceChanged(ctx, instanceID)` plus
-      per-instance coalescing (one in flight, one "dirty again" bit).
+      per-instance coalescing (one in flight, one "dirty again" bit). After
+      taking the advisory lock, skip the ingest if the instance is clean and
+      already ingested (design Decision 2, step 1).
 - [ ] 2.6 `cmd_import.go`: delete `ingestDecomposed`; wire the exporter
       (`SetExporter`, as `cmd_serve.go:122`) and call the fenced ingest. Move any
       logic left in `cmd_import.go` into `domain/` (no business logic in
@@ -91,9 +110,15 @@ Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 
 ## 4. Track C: triggers, durability, lifecycle
 
-- [ ] 4.1 `ingest.Notifier` interface; domain services from 1.2 set
-      `memory_dirty_since = COALESCE(memory_dirty_since, now())` inside their
-      transaction and call `InstanceChanged` after commit.
+- [ ] 4.1 `ingest.Notifier` interface and one `markChanged` helper (design
+      Decision 4: sets `memory_dirty_since`, increments `memory_change_seq`).
+      Call it after the write in `CommitBatch`, `CommitAuto`, `BackfillIndex`,
+      `commitAlignedValueModel`, `evidence.Ingest/Update/MarkProcessed/Link`;
+      inside the existing transaction in `ReimportArtifacts` and
+      `version.Restore`. Call `InstanceChanged` after commit. `CommitBatch` and
+      `CommitAuto` are not wrapped in a transaction by this change.
+- [ ] 4.1b `scaffold_instance` calls `BackfillIndex` after `ImportInstance`
+      (design Decision 4, first gap).
 - [ ] 4.2 Remove caller-side `EnqueueBatch` calls (`internal/mcpserver/server.go:1244`,
       `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`,
       `domain/evidence/service.go:176`, `internal/mcpserver/introspection.go:120`).
@@ -102,13 +127,20 @@ Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 - [ ] 4.4 `RepairMemoryDrift` and the startup sweep: re-enqueue active
       instances that are dirty, have a NULL content hash, or have no manifest;
       add `deleted_at IS NULL` to their raw queries (#87 F2).
-- [ ] 4.5 `DeleteInstance`: enqueue purge (objects with label `instance:<uuid>`
-      and in the manifest, branches `scenario-<uuid>-*`, then manifest rows)
-      under the instance lock; record the outcome; correct the
-      `delete_instance` tool text (#87 F1).
-- [ ] 4.6 Scenarios: route branch reads through the scope helper; verify
-      whether `CommitScenario` can merge foreign objects into main. If it can,
-      gate `commit_scenario` with a clear error and open a follow-up issue.
+- [ ] 4.5 `DeleteInstance` and `workspace.DeleteWorkspace`: enqueue a purge per
+      instance (objects with label `instance:<uuid>` and in the manifest,
+      branches `scenario-<uuid>-*`, then manifest rows) under the instance
+      lock; record the outcome; correct the `delete_instance` tool text (#87 F1).
+- [ ] 4.6 Scenarios (design risk 4): `evaluate_scenario`, `commit_scenario` and
+      `discard_scenario` look the branch up with `GetBranch` and require its
+      name to start with `scenario-<instanceUUID>-`; otherwise respond as for a
+      non-existent scenario. Route branch reads through the scope helper
+      (label and `instance_id` only; the manifest describes `main`). Add a
+      test that `commit_scenario` never sends `execute: true`. Open a follow-up
+      issue: a real commit must merge only the instance's own objects.
+- [ ] 4.7 `internal/handler/handler_aim_agent.go:314`: decide whether the
+      `strategySvc == nil` commit fallback is reachable; remove it if not, or
+      route it through `CommitBatch`.
 
 ## 5. Track D: sweep and operations (after 2 and 3)
 
@@ -180,3 +212,15 @@ Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 - [ ] 9.17 Re-ingest with no artifact change sends no property or label change
       to Memory (mock asserts every upsert payload equals the previous one).
 - [ ] 9.18 Instance creation with a colliding key prefix gets a new UUID.
+- [ ] 9.19 Change arriving during an ingest: the instance is still dirty after
+      the ingest completes and a further ingest runs (`memory_change_seq`).
+- [ ] 9.20 `scaffold_instance` yields `strategy_artifacts` rows and a triggered
+      ingest.
+- [ ] 9.21 Scenario of instance B used through instance A (`evaluate`, `commit`,
+      `discard`): responds as not found; branch untouched.
+- [ ] 9.22 `commit_scenario` sends no `execute: true` to Memory.
+- [ ] 9.23 `DeleteWorkspace` purges the graph data of each of its instances.
+- [ ] 9.24 Advisory lock helper: second caller blocks until release; a failed
+      unlock does not return a locked connection to the pool.
+- [ ] 9.25 Second replica: an ingest that finds the instance clean and already
+      ingested does no Memory writes.

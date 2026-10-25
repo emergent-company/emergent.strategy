@@ -56,13 +56,20 @@ leftovers. This change also states that explicitly.
   returned, whoever wrote them. An architecture test keeps other packages from
   reading Memory directly.
 - **One durable trigger.** Every change to an instance's artifacts in Postgres
-  marks the instance `memory_dirty_since` and notifies the ingest service. The
+  marks the instance dirty (`memory_dirty_since`, plus a change sequence that
+  lets an ingest tell whether a change arrived while it ran) and notifies the
+  ingest service. Tracing the code found two writers the earlier draft missed
+  (`BackfillIndex`'s callers and `align`) and one that never populates the
+  index (`scaffold_instance`); all are covered. The
   incremental per-batch path is removed in favour of a coalesced, fenced full
   ingest per instance. The heartbeat re-enqueues dirty instances, so a dropped
   or lost job converges without restart.
-- **Lifecycle.** Instance deletion purges the instance's objects, relationships
-  and scenario branches. Deleted instances are excluded from the startup sweep
-  and drift repair.
+- **Lifecycle.** Instance and workspace deletion purge the instance's objects,
+  relationships and scenario branches. Deleted instances are excluded from the
+  startup sweep and drift repair.
+- **Scenario ownership.** `evaluate_scenario`, `commit_scenario` and
+  `discard_scenario` accept any scenario ID after checking access to an
+  unrelated instance ID. They now verify the branch belongs to the instance.
 - **Orphan sweep.** A dry-run-by-default admin tool and CLI command remove
   objects with no owner, an unknown or deleted owner, a position outside their
   owner's manifest, or a legacy key format. This cleans existing deployments.
@@ -76,20 +83,21 @@ all objects gain the instance label. On upgrade a migration forces a full
 re-ingest of every instance. Until an instance's first ingest under the new
 scheme completes, its semantic reads return no results (fail closed) with a
 hint. Operators then run the orphan sweep once to remove legacy objects. The
-deployment's emergent.memory must support `labels` on `/api/graph/search`
-(verified in v0.88.1; minimum version determined in the tasks).
+deployment's emergent.memory must be v0.85.0 or later (verified in v0.88.1;
+minimum determined in design risk 1).
 
 ## Impact
 
-- Affected spec: `strategy-semantic` (ingestion, search, neighbourhood,
+- Affected specs: `strategy-semantic` (ingestion, search, neighbourhood,
   contradictions; new isolation, consistency, purge and content-contract
-  requirements).
+  requirements) and, for scenario ownership, a modified requirement in the same
+  capability (`What-If Scenario Exploration`).
 - Affected code: `domain/ingest`, `domain/semantic`, `domain/instance`,
   `domain/version`, `domain/strategy`, `domain/sync`, `domain/evidence`,
-  `domain/ripple`, `domain/heartbeat`, `internal/mcpserver` (semantic tools,
+  `domain/workspace`, `domain/ripple`, `domain/heartbeat`, `internal/mcpserver` (semantic tools,
   lifecycle, new admin tool), `internal/handler` (settings counts, delete),
   `internal/pipeline`, `internal/memory`, `cmd_import.go`, `cmd_serve.go`, one
-  migration.
+  migration (045).
 - Out of scope, tracked in #99: durable queue on DBOS (D4 beyond the dirty
   flag), a Memory project per org (D1b), `epf-cli` changes beyond
   documentation.

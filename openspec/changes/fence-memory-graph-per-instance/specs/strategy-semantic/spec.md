@@ -123,6 +123,16 @@ instance. Ingests of one instance SHALL be serialised.
 - **THEN** the ingests run one after the other
 - **AND** the instance's generation counter strictly increases
 
+#### Scenario: Change during an ingest
+- **WHEN** an artifact changes while an ingest of the same instance is running
+- **THEN** the instance is still marked dirty after that ingest completes
+- **AND** a further ingest is triggered
+
+#### Scenario: Scaffolded instance
+- **WHEN** an instance is scaffolded from templates
+- **THEN** its artifacts are derived and an ingest is triggered, so semantic
+  reads cover the scaffolded content
+
 ---
 
 ### Requirement: Graph Purge and Orphan Sweep
@@ -135,7 +145,7 @@ owner that is not an active instance, an owner whose current projection does
 not include them, or a legacy key format.
 
 #### Scenario: Instance deletion
-- **WHEN** an instance is deleted
+- **WHEN** an instance is deleted, directly or through deleting its workspace
 - **THEN** its graph objects, relationships and scenario branches are deleted
   from emergent.memory
 - **AND** a server restart does not re-create them
@@ -177,6 +187,42 @@ strategy; semantic search SHALL be described to clients as discovery.
   instance's strategy
 
 ## MODIFIED Requirements
+
+### Requirement: What-If Scenario Exploration
+
+The system SHALL support what-if scenario exploration via emergent.memory graph branching.
+A scenario SHALL be usable only through the instance that created it.
+
+#### Scenario: Create scenario
+- **WHEN** a caller provides a scenario description and optional anchor node
+- **THEN** the system creates a graph branch in emergent.memory
+- **AND** a scenario record is stored in PostgreSQL with `status='active'`
+- **AND** a scenario ID is returned
+
+#### Scenario: Evaluate scenario
+- **WHEN** a caller requests scenario evaluation
+- **THEN** the system runs the propagation circuit on the scenario branch
+- **AND** returns: impact summary, affected nodes, propagation depth, confidence scores
+- **AND** only graph data owned by the requested instance is evaluated
+
+#### Scenario: Commit scenario to main
+- **WHEN** a caller commits a scenario
+- **THEN** the scenario branch is merged into the main graph
+- **AND** the scenario record in PostgreSQL transitions to `status='committed'`
+- **AND** corresponding strategy mutations are staged for human review
+
+#### Scenario: Discard scenario
+- **WHEN** a caller discards a scenario
+- **THEN** the graph branch is deleted from emergent.memory
+- **AND** the scenario record transitions to `status='discarded'`
+
+#### Scenario: Scenario of another instance
+- **WHEN** a caller with access to instance A evaluates, commits or discards a
+  scenario that was created for instance B
+- **THEN** the system responds as for a non-existent scenario
+- **AND** the scenario is not read, merged or deleted
+
+---
 
 ### Requirement: Strategy Graph Ingestion
 
