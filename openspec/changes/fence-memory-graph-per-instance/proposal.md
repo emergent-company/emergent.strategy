@@ -38,18 +38,21 @@ leftovers. This change also states that explicitly.
 ## What Changes
 
 - **Ownership stamp on every write.** All objects and relationships the server
-  writes carry the full instance UUID as key prefix, as `properties.instance_id`
-  and as label `instance:<uuid>`, plus `properties.memory_generation`. The CLI
+  writes carry the instance's key prefix (8 characters, made collision-free in
+  Postgres), `properties.instance_id` and the label `instance:<uuid>`. The CLI
   import uses the same ingest path as the server (its private decomposed
   writer is removed).
-- **Generation fencing.** Each instance has a current Memory generation in
-  Postgres. A full ingest, serialised per instance, writes the whole projection
-  (both layers) at generation N+1, then advances the pointer and
-  garbage-collects older generations. Reads accept only objects with
-  `generation >= current`, so stale objects become invisible as soon as an
-  ingest succeeds, even if garbage collection fails.
+- **Projection manifest.** Postgres records which keys make up each instance's
+  current projection. A full ingest, serialised per instance, writes the whole
+  projection, and only after every write succeeded replaces the manifest and
+  garbage-collects what fell out. Reads return only manifest members, so stale
+  objects become invisible as soon as an ingest succeeds, even if garbage
+  collection fails. Nothing per-ingest is written onto objects, so unchanged
+  content creates no new Memory versions and no re-embedding.
 - **Fail-closed reads.** Every Memory read goes through one scoped read helper
-  in `domain/semantic`. Objects without verifiable ownership are never
+  in `domain/semantic`: server-side filter on the `instance:<uuid>` label
+  (supported by `/api/graph/search` and object listing), then ownership and
+  manifest checks in the server. Objects without verifiable ownership are never
   returned, whoever wrote them. An architecture test keeps other packages from
   reading Memory directly.
 - **One durable trigger.** Every change to an instance's artifacts in Postgres
@@ -61,17 +64,20 @@ leftovers. This change also states that explicitly.
   and scenario branches. Deleted instances are excluded from the startup sweep
   and drift repair.
 - **Orphan sweep.** A dry-run-by-default admin tool and CLI command remove
-  objects with no owner, an unknown or deleted owner, a stale generation or a
-  legacy key format. This cleans existing deployments.
+  objects with no owner, an unknown or deleted owner, a position outside their
+  owner's manifest, or a legacy key format. This cleans existing deployments.
 - **Provenance.** Semantic results include `instance_id`, `layer` and
   `source_artifact`.
 - **Content contract.** No template fallback: placeholders are never served as
   strategy, and structured reads are authoritative. Tool descriptions say so.
 
-**BREAKING (operational):** Memory keys change format. On upgrade a migration
-forces a full re-ingest of every instance. Until an instance's first fenced
-ingest completes, its semantic reads return no results (fail closed) with a
-hint. Operators then run the orphan sweep once to remove legacy objects.
+**BREAKING (operational):** artifact-layer keys gain the instance prefix and
+all objects gain the instance label. On upgrade a migration forces a full
+re-ingest of every instance. Until an instance's first ingest under the new
+scheme completes, its semantic reads return no results (fail closed) with a
+hint. Operators then run the orphan sweep once to remove legacy objects. The
+deployment's emergent.memory must support `labels` on `/api/graph/search`
+(verified in v0.88.1; minimum version determined in the tasks).
 
 ## Impact
 
@@ -85,6 +91,7 @@ hint. Operators then run the orphan sweep once to remove legacy objects.
   `internal/pipeline`, `internal/memory`, `cmd_import.go`, `cmd_serve.go`, one
   migration.
 - Out of scope, tracked in #99: durable queue on DBOS (D4 beyond the dirty
-  flag), a Memory project per org (D1b), server-side search filters (blocked
-  on confirming the Memory search API), `epf-cli` changes beyond
+  flag), a Memory project per org (D1b), `epf-cli` changes beyond
   documentation.
+- Memory facts this change relies on were verified in the emergent.memory
+  source at `c0589c1` (v0.88.1); see design.md.

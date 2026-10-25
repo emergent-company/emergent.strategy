@@ -3,11 +3,10 @@
 ### Requirement: Instance Ownership of Graph Data
 
 The system SHALL stamp every graph object and relationship it writes to
-emergent.memory with its owning strategy instance: the key SHALL be prefixed
-with the full instance UUID, `properties.instance_id` SHALL hold the instance
-UUID, objects SHALL carry the label `instance:<uuid>`, and both objects and
-relationships SHALL carry `properties.memory_generation`. This SHALL hold for
-every write path, including the command-line import.
+emergent.memory with its owning strategy instance: the key SHALL carry the
+instance's collision-free key prefix, `properties.instance_id` SHALL hold the
+instance UUID, and objects SHALL carry the label `instance:<uuid>`. This SHALL
+hold for every write path, including the command-line import.
 
 #### Scenario: Shared artifact keys do not collide
 - **WHEN** two instances in the same Memory project both contain an artifact
@@ -18,17 +17,23 @@ every write path, including the command-line import.
 #### Scenario: CLI import stamps ownership
 - **WHEN** an instance is imported with `strategy-server import --reingest`
 - **THEN** every object it writes has the instance key prefix,
-  `properties.instance_id`, the `instance:<uuid>` label and a generation
+  `properties.instance_id` and the `instance:<uuid>` label
+
+#### Scenario: Key prefixes are unique
+- **WHEN** a new instance would receive a key prefix already used by another
+  instance
+- **THEN** the instance is created with a different identifier whose prefix is
+  unused
 
 ---
 
 ### Requirement: Fail-Closed Instance Isolation on Reads
 
 Every read the system performs against emergent.memory on behalf of an
-instance SHALL return only graph data owned by that instance and visible under
-the instance's current generation. Data with no owner, a different owner, or a
-generation older than the instance's current generation SHALL never be
-returned, regardless of which component or tool wrote it.
+instance SHALL return only graph data that is owned by that instance and
+belongs to its current projection. Data with no owner, a different owner, or
+outside the instance's current projection SHALL never be returned, regardless
+of which component or tool wrote it.
 
 #### Scenario: Foreign instance data is not returned
 - **WHEN** a caller searches, lists neighbours, detects contradictions or
@@ -37,13 +42,13 @@ returned, regardless of which component or tool wrote it.
 - **THEN** no object owned by B is returned or counted
 
 #### Scenario: Unowned data is not returned
-- **WHEN** the Memory project contains objects without `properties.instance_id`
-  (for example written by `epf-cli ingest` or an older server version)
+- **WHEN** the Memory project contains objects without an owner (for example
+  written by `epf-cli ingest` or an older server version)
 - **THEN** no read for any instance returns or counts them
 
 #### Scenario: Instance graph not yet built
-- **WHEN** a semantic read is requested for an instance that has never
-  completed a fenced ingest
+- **WHEN** a semantic read is requested for an instance that has no current
+  projection
 - **THEN** the system returns an empty result with a `graph_not_ready` hint
 - **AND** does not return data from any other source
 
@@ -56,10 +61,11 @@ returned, regardless of which component or tool wrote it.
 
 ### Requirement: Graph Projection Consistency
 
-The visible graph of an active instance SHALL equal the projection of its
-current active artifacts in PostgreSQL, as of its last successful ingest.
-Reads SHALL treat objects older than the instance's current generation as not
-present, and garbage-collection failure SHALL NOT affect visibility.
+The system SHALL record in PostgreSQL the set of graph objects and
+relationships that make up each instance's current projection, replacing it
+only after an ingest of the whole instance has succeeded. Reads SHALL treat
+graph data outside that set as not present, and garbage-collection failure
+SHALL NOT affect visibility.
 
 #### Scenario: Import removes an artifact
 - **WHEN** a GitHub import removes an artifact from an instance
@@ -83,11 +89,14 @@ present, and garbage-collection failure SHALL NOT affect visibility.
   objects reflect the change
 
 #### Scenario: Failed ingest
-- **WHEN** an ingest at generation N+1 fails part-way
-- **THEN** the instance's current generation stays N
+- **WHEN** an ingest fails part-way
+- **THEN** the instance's recorded projection is unchanged
 - **AND** the instance stays marked dirty
-- **AND** reads continue to return the generation-N projection, with any
-  objects already rewritten at N+1 visible in their newer form
+- **AND** no object added only by the failed attempt is returned by any read
+
+#### Scenario: Unchanged content
+- **WHEN** an instance is re-ingested without any change to its artifacts
+- **THEN** no graph object receives a new version or a new embedding
 
 ---
 
@@ -95,7 +104,7 @@ present, and garbage-collection failure SHALL NOT affect visibility.
 
 Every change to an instance's artifacts in PostgreSQL, by any path, SHALL mark
 the instance dirty in the same transaction and trigger a full ingest of that
-instance at a new generation. Ingests of one instance SHALL be serialised.
+instance. Ingests of one instance SHALL be serialised.
 
 #### Scenario: Paths that change artifacts
 - **WHEN** an instance's artifacts change through a commit, evidence ingest,
@@ -112,7 +121,7 @@ instance at a new generation. Ingests of one instance SHALL be serialised.
 #### Scenario: Concurrent changes
 - **WHEN** two changes to the same instance trigger ingests at the same time
 - **THEN** the ingests run one after the other
-- **AND** the instance's generation strictly increases
+- **AND** the instance's generation counter strictly increases
 
 ---
 
@@ -122,8 +131,8 @@ The system SHALL purge an instance's graph data (objects, relationships and
 scenario branches) when the instance is deleted, and SHALL NOT re-ingest
 deleted instances. The system SHALL provide an administrative sweep, dry-run by
 default, that reports and optionally deletes graph objects with no owner, an
-owner that is not an active instance, a stale generation, or a legacy key
-format.
+owner that is not an active instance, an owner whose current projection does
+not include them, or a legacy key format.
 
 #### Scenario: Instance deletion
 - **WHEN** an instance is deleted
@@ -134,13 +143,14 @@ format.
 #### Scenario: Sweep dry run
 - **WHEN** an administrator runs the sweep without `apply`
 - **THEN** the system reports counts per class (`no_owner`, `unknown_owner`,
-  `stale`, `legacy_key`)
+  `not_in_manifest`, `legacy_key`)
 - **AND** deletes nothing
 
 #### Scenario: Sweep apply
 - **WHEN** an administrator runs the sweep with `apply`
 - **THEN** the reported objects are deleted, with their relationships
-- **AND** instances with an ingest in progress are skipped
+- **AND** instances with an ingest in progress or without a recorded projection
+  are skipped
 
 ---
 
@@ -171,20 +181,20 @@ strategy; semantic search SHALL be described to clients as discovery.
 ### Requirement: Strategy Graph Ingestion
 
 The system SHALL keep the emergent.memory graph in sync with the PostgreSQL
-ledger by running a full, fenced ingest of an instance after every change to
-its artifacts, as defined by *Graph Projection Consistency*.
+ledger by running a full ingest of an instance after every change to its
+artifacts, as defined by *Graph Projection Consistency*.
 
 #### Scenario: Ingest on commit
 - **WHEN** a batch is committed
 - **THEN** the instance is marked dirty in the same transaction
-- **AND** a fenced full ingest of the instance is triggered asynchronously
+- **AND** a full ingest of the instance is triggered asynchronously
 - **AND** ingestion failure does not roll back the commit
 - **AND** ingestion errors are logged and the instance stays dirty until an
   ingest succeeds
 
 #### Scenario: Full re-ingest
 - **WHEN** an admin triggers a full re-ingest for an instance
-- **THEN** all current active artifacts are ingested at a new generation
+- **THEN** all current active artifacts are ingested
 - **AND** after completion the visible graph equals the projection of the
   current PostgreSQL state, with no objects from earlier states visible
 
@@ -192,8 +202,9 @@ its artifacts, as defined by *Graph Projection Consistency*.
 
 ### Requirement: Semantic Search
 
-The system SHALL proxy semantic search queries to emergent.memory and return
-ranked results owned by and visible for the requested instance.
+The system SHALL proxy semantic search queries to emergent.memory, restricted
+on the server side to the requested instance's objects, and return ranked
+results visible for that instance.
 
 #### Scenario: Natural language search
 - **WHEN** a caller queries with a natural-language string (e.g., "features
@@ -206,9 +217,9 @@ ranked results owned by and visible for the requested instance.
 #### Scenario: Limit results
 - **WHEN** a caller specifies a `limit` parameter
 - **THEN** at most `limit` results are returned
-- **AND** results filtered out for ownership or generation do not reduce the
-  count below `limit` while enough visible matches exist within the over-fetch
-  bound
+- **AND** results filtered out for ownership or projection membership do not
+  reduce the count below `limit` while enough visible matches exist within the
+  over-fetch bound
 
 ---
 

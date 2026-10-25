@@ -1,6 +1,7 @@
 # Design: Fence the Memory graph per instance
 
-Line references are against `main` @ `b38526a0`.
+Line references: strategy-server at `main` @ `b38526a0`; emergent.memory at
+`main` @ `c0589c1` (v0.88.1).
 
 ## Goals
 
@@ -8,9 +9,9 @@ The invariants from #99, all enforced by deterministic tests:
 
 | # | Invariant |
 |---|---|
-| I1 Ownership | Every object and relationship the server writes carries its instance in key prefix, `properties.instance_id` and label `instance:<uuid>`. |
-| I2 Fail-closed reads | Every Memory read returns only objects provably owned by the requested instance, whoever wrote the data. |
-| I3 Exact projection | Visible objects for an active instance equal the projection of its current active Postgres artifacts. |
+| I1 Ownership | Every object and relationship the server writes carries its instance in key prefix, `properties.instance_id` and (objects) label `instance:<uuid>`. |
+| I2 Fail-closed reads | Every Memory read returns only data provably owned by the requested instance and in its current projection, whoever wrote the data. |
+| I3 Exact projection | Visible objects and relationships for an active instance equal the projection of its current active Postgres artifacts. |
 | I4 Single trigger | Every Postgres change to an instance's artifacts triggers reconciliation through one domain hook. |
 | I5 Durability | Pending reconciliation survives restarts and dropped jobs. |
 | I6 Lifecycle | Deleting an instance purges its graph data; deleted instances are never re-ingested. |
@@ -18,168 +19,193 @@ The invariants from #99, all enforced by deterministic tests:
 
 ## Non-goals
 
-- A Memory project per org or per instance (#99 D1b). The shared project stays;
-  isolation is enforced by I1 + I2.
+- A Memory project per org or per instance (#99 D1b). The shared project stays.
 - A durable queue on DBOS. I5 is met with a dirty flag in Postgres plus the
   existing heartbeat; the in-memory channel stays as the fast path.
-- Server-side ownership filters on `/api/graph/search`. Not yet confirmed in
-  the Memory API; reads post-filter. Swapping to a server-side filter later
-  changes one helper.
 - Changes to `epf-cli`.
+
+## Facts about emergent.memory this design relies on
+
+Verified in the Memory source at `c0589c1`:
+
+| Fact | Where | Consequence |
+|---|---|---|
+| Object identity on the main branch is unique on `(project_id, type, key)`, **regardless of namespace** | `migrations/00017_…upsert_unique_index.sql` (`IDX_graph_objects_upsert_main`), still in force; `00107` adds a *second* namespace index but does not relax the first | Namespace cannot isolate instances. Two instances must never write the same `(type, key)`; the key prefix stays. |
+| `key` is at most 128 characters | `domain/graph/dto.go`, `CreateGraphObjectRequest.Key` (`max=128`) | A full 36-character UUID prefix risks overflowing long decomposed keys. Keep the 8-character prefix used since `4572524`, and make it collision-free in Postgres. |
+| Upsert replaces `labels` and `properties` (no merge) | `domain/graph/service.go:1030` `CreateOrUpdate` | Labels and properties written by an ingest are exactly what the object carries afterwards. |
+| An upsert whose properties, status and labels are unchanged is a no-op: no new version, no re-embed | `service.go` ~1185–1200 (content-hash probe) | Re-ingesting unchanged content is cheap **as long as nothing per-ingest is written onto objects**. |
+| Small numeric properties are part of the embedding text | `pkg/embeddingtext/embeddingtext.go:121` | A per-ingest generation number in `properties` would create a new version and re-embed every object on every ingest (the 13 GB bloat fixed in `4572524`, plus embedding cost). Generation must not live on objects. |
+| `/api/graph/search` accepts `labels`, matched with **overlap** (`labels && …`, i.e. OR), plus `namespace`, `types`, `status`, `branchId` | `domain/graph/dto.go:514` `HybridSearchRequest`; `repository.go:2160` | Search can pre-filter by owner on the server with exactly one label, `instance:<uuid>`. Never pass two labels expecting AND. |
+| `ListObjects` accepts `label` / `labels` (same overlap semantics) | `handler.go` `ListObjects` | Ingest GC, contradiction detection and lifecycle can list one instance server-side. |
+| Single-object delete cascades to all live relationships of the object; bulk-action delete does not | `service.go:1536` `Delete` | Purge and GC use single deletes (#87 F5). |
 
 ## Decision 1: Ownership stamp and key format
 
 Every object the server writes gets:
 
-- **Key** `<instance-uuid>/<original key>`, for both layers. The full UUID
-  replaces today's 8-character prefix on decomposed keys (`domain/ingest/service.go:889`)
-  and adds a prefix to artifact keys, which have none today (`:413`, `:493`).
-  Full UUIDs remove the collision risk of a short prefix, and since every key
-  changes anyway, both layers can move to one format in one step.
-- **Properties** `instance_id` (full UUID) and `memory_generation` (int64).
-- **Labels** existing `layer:artifact` / `layer:decomposed` plus
-  `instance:<uuid>`. The label lets ingest garbage-collect and contradiction
-  detection list one instance with the existing `ListObjects(Label)` server-side
-  filter (`internal/memory/objects.go:109`).
+- **Key** `<prefix>/<original key>` for both layers, where `<prefix>` is the
+  first 8 hex characters of the instance UUID, as decomposed keys already use
+  (`domain/ingest/service.go:889`). Artifact-layer keys, unprefixed today
+  (`:413`, `:493`), gain the same prefix.
+- **Collision-free prefix.** Migration 043 adds a unique index on
+  `left(id::text, 8)` over `strategy_instances` (all rows, deleted included,
+  since purge can lag). Instance creation retries with a new UUID on a unique
+  violation. If existing instances collide, the migration fails loudly; that is
+  intended.
+- **Properties** `instance_id` (full UUID). Constant per object, so it never
+  causes version churn after the first write.
+- **Labels** `layer:artifact` / `layer:decomposed` plus `instance:<uuid>`.
 
-Relationships get `properties.instance_id` and `properties.memory_generation`.
+Relationships get `properties.instance_id`.
 
-Key construction lives in one function in `domain/ingest` (`ScopedKey(instanceID, key)`)
-and its inverse (`UnscopedKey`). Nothing else builds Memory keys. Callers
-that pass keys in, such as `get_neighbors(node_key)`, keep passing unscoped
-keys; the semantic service scopes them.
+Key construction lives in one place in `domain/ingest` (`ScopedKey(instanceID, key)`,
+`UnscopedKey`). Callers that pass keys in, such as `get_neighbors(node_key)`,
+keep passing unscoped keys; the semantic service scopes them.
 
-**Why not rely on the key prefix alone for ownership?** Keys from other writers
-(`epf-cli`, old versions) do not follow the format, and a key can be forged by
-any writer to the project. Reads check `properties.instance_id` and the
-generation; the prefix exists to prevent write collisions.
+**Why the prefix is not the ownership check.** Other writers (`epf-cli`, older
+server versions) do not follow the format, and any writer to the project can
+forge a key. The prefix only prevents write collisions. Reads decide ownership
+from the `instance:<uuid>` label (server-side) and `properties.instance_id`
+(checked again in the server), and freshness from the manifest (Decision 2).
 
-## Decision 2: Generation fencing
+## Decision 2: Projection manifest in Postgres
 
-Postgres is the source of truth. The graph is a derived projection. The fence
-makes the projection's visible state switch atomically per instance, without
-deleting anything first.
+Postgres is the source of truth and the graph is a derived projection. Instead
+of stamping a generation onto objects (which, per the facts above, would bloat
+history and re-embed everything on every ingest), Postgres records **which
+keys make up the current projection** of each instance. Visibility is
+membership in that manifest.
 
-**Schema.** `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0`
-(0 = never fenced-ingested) and `strategy_instances.memory_dirty_since TIMESTAMPTZ NULL`.
+**Schema (migration 043).**
+
+- `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0`: increments
+  on every successful ingest; 0 means never ingested under this scheme. Used
+  for observability and ordering, not stored on objects.
+- `strategy_instances.memory_dirty_since TIMESTAMPTZ NULL`.
+- `memory_projection(instance_id UUID, kind TEXT CHECK (kind IN ('object','relationship')), key TEXT, PRIMARY KEY (instance_id, kind, key))`.
+  For objects `key` is the scoped Memory key. For relationships it is
+  `<type>|<from scoped key>|<to scoped key>`. About 7.7k + 10.7k rows for the
+  largest instance seen (`4572524`).
 
 **Full ingest of instance X:**
 
-1. Take a per-instance Postgres session advisory lock (`pg_advisory_lock` on a
-   key derived from X), on a dedicated connection. Works across Cloud Run
-   replicas and the CLI. Ingests of X are serialised; ingests of different
-   instances run in parallel.
-2. Read `current = memory_generation`, set `N = current + 1`. Read
-   `memory_dirty_since` as `dirtyAt`.
-3. Export the instance and write both layers, all objects stamped with
-   generation N (Decision 1), relationships likewise. Upsert keeps stable
-   keys, so objects that still exist are rewritten in place.
-4. If any object or relationship write failed: stop. Do not advance. Log, keep
-   the instance dirty, release the lock. (Retry happens via Decision 4.)
-5. In one transaction: `memory_generation = N`, `memory_content_hash = <hash>`,
-   counts, and clear `memory_dirty_since` **only if** it still equals
-   `dirtyAt` (a change that arrived during the ingest keeps the instance dirty).
-6. Garbage-collect: list `label = instance:<X>` and delete every object with
-   `memory_generation < N`, plus relationships the same way. Single deletes,
-   sequential, with retry (bulk delete does not cascade edges, #87 F5).
+1. Take a per-instance Postgres session advisory lock on a dedicated connection
+   (works across Cloud Run replicas and the CLI). Ingests of X are serialised;
+   different instances run in parallel.
+2. Read `memory_dirty_since` as `dirtyAt`. Export the instance and compute the
+   new manifest deterministically from the export (both layers, all
+   relationships).
+3. Upsert every object and relationship in the new manifest. Unchanged objects
+   are no-ops in Memory.
+4. If any write failed: stop without touching the manifest. Keep the instance
+   dirty, release the lock. Retry happens via Decision 4.
+5. In one transaction: replace X's `memory_projection` rows with the new
+   manifest, `memory_generation += 1`, `memory_content_hash`, counts, and clear
+   `memory_dirty_since` **only if** it still equals `dirtyAt` (a change that
+   arrived mid-ingest keeps the instance dirty).
+6. Garbage-collect, outside the transaction:
+   - relationships in the old manifest but not the new one: resolve and delete;
+   - objects in the old manifest but not the new one: single delete (cascades
+     their edges);
+   - safety net: `ListObjects(label = instance:<X>)` and delete any object whose
+     key is not in the manifest.
    GC failure is logged and left for the next ingest or the sweep; it never
    affects visibility.
 7. Release the lock.
 
-**Visibility rule:** an object is visible for instance X iff
-`properties.instance_id == X` **and** `properties.memory_generation >= current(X)`.
+**Visibility rule.** An object is visible for X iff it carries label
+`instance:<X>`, `properties.instance_id == X`, and its key is in X's object
+manifest. A relationship is visible iff both endpoints are visible and its
+tuple is in X's relationship manifest.
 
-Why `>=` and not `==`: a failed attempt N+1 has already rewritten some objects
-in place with generation N+1 (step 3, before step 4 stops). With `==` those
-objects would vanish until a retry succeeds. With `>=` they stay visible with
-newer content, objects not yet rewritten stay visible at N, and stale objects
-(< N) stay hidden. The only cost is that an artifact removed between N and a
-failed N+1 remains visible until N+1 succeeds, which is bounded by Decision 4.
+**Failure behaviour.** If an ingest fails part-way, the old manifest stays in
+force: objects added by the failed attempt stay invisible, objects removed in
+Postgres stay visible, and objects rewritten in place show their newer content.
+All three converge on the next successful ingest (Decision 4 bounds the
+delay). No partially-built projection is ever visible.
 
-Why per-instance serialisation is required: two concurrent ingests could
-interleave so that an older run re-stamps objects after a newer run advanced
-the pointer, hiding them. The lock rules this out; generations are strictly
-increasing per instance.
+**Empty manifest.** An instance with no manifest rows (never ingested under
+this scheme, including every instance right after upgrade) returns an empty
+result with a `graph_not_ready` hint from every semantic read, never an error
+and never other data.
 
-**Generation 0.** An instance that has never completed a fenced ingest has
-`current = 0`. Every legacy object lacks `memory_generation` and is treated as
-generation −1, so it is hidden. Semantic reads for such an instance return an
-empty result with a hint (`graph_not_ready`), not an error and not leaked data.
-
-**Cost.** A full ingest is about 7.7k objects and 10.7k relationships for the
-largest instance seen (commit `4572524`). The incremental per-batch path is
-removed (Decision 4); coalescing keeps this to one ingest per instance per
-burst of changes. If this proves too slow, an incremental fenced path can be
-added later without changing the visibility rule.
+**Cost.** One full ingest per change burst (coalesced, Decision 4). Unchanged
+objects cost a content-hash probe in Memory and no new version or embedding.
+The manifest replace is about 18k rows in one transaction for the largest
+instance. Measure in task 8.3.
 
 ## Decision 3: One scoped read path
 
-`domain/semantic` gets a private `scope` helper that every Memory read uses:
+`domain/semantic` gets a private `scope` helper that every Memory read uses. It
+depends on a narrow `ManifestSource` interface (implemented in
+`domain/ingest`), so the semantic service stays free of `*bun.DB`:
 
-- needs `current(X)` from Postgres; the semantic service gets a narrow
-  `GenerationSource` interface (implemented by the instance service), so it
-  stays free of `*bun.DB`;
-- filters objects by the visibility rule, and relationships by both endpoints
-  being visible;
-- counts dropped objects and logs them at debug level, so leftover data shows
-  up in operations.
+- `HasManifest(ctx, X)`, and `Visible(ctx, X, keys) (set, error)` as one
+  `key = ANY(?)` query per read;
+- filters objects and relationships by the visibility rule;
+- counts dropped items and logs them at debug level, so leftover data shows up
+  in operations.
 
 Per read:
 
-- **`SearchStrategy`**: over-fetch (`limit × 4`, capped at 200), filter, trim
-  to `limit`. Results gain `instance_id`, `layer`, `source_artifact`.
-- **`GetNeighbors`**: scope the caller's key, verify the root is visible
-  (else not found), filter the expansion.
-- **`DetectContradictions`**: list by `instance:<uuid>` and `layer:artifact`,
-  then filter.
+- **`SearchStrategy`**: send `labels: ["instance:<X>"]` (one label only, since
+  matching is OR). Over-fetch `limit × 2` (cap 100) to absorb stale same-instance
+  hits until GC runs, filter, trim to `limit`. Results gain `instance_id`,
+  `layer`, `source_artifact`.
+- **`GetNeighbors`**: scope the caller's key, return not-found for an invisible
+  root, filter the expansion.
+- **`DetectContradictions`**: `ListObjects(label = instance:<X>)`, keep
+  `layer:artifact` in the server, filter.
 - **Lifecycle `enrichWithSemantics`** (`internal/mcpserver/lifecycle.go:154`):
-  moves behind a semantic-service method that lists by instance label and
-  resolves the North Star by scoped key.
-- **Settings page counts** (`internal/handler/handler_settings.go:207`): use the
-  per-instance counts already stored on the instance row; drop the
-  project-wide count.
-- **Scenarios**: branch reads go through the same helper. Branch names keep
-  the instance UUID so purge can find them.
+  becomes a semantic-service method that lists by instance label and resolves
+  the North Star by scoped key.
+- **Settings page counts** (`internal/handler/handler_settings.go:207`): per-
+  instance counts from the instance row; the project-wide count goes.
+- **Scenarios**: branch reads go through the same helper; branch names keep the
+  instance UUID so purge can find them.
 
 **Enforcement.** An architecture test fails if any package other than
-`domain/semantic`, `domain/ingest` and the purge/sweep code imports
-`internal/memory` and calls a read method. This keeps I2 from eroding.
+`domain/semantic`, `domain/ingest` and the sweep calls a read method on
+`internal/memory`. The memory client's `SearchRequest` gains `Labels`; the test
+also asserts every `Search` call sets exactly one `instance:` label.
 
 ## Decision 4: One trigger, coalesced and durable
 
-Domain services that change an instance's artifacts call a single notifier,
-`ingest.Notifier.InstanceChanged(ctx, instanceID)`, **after** their
-transaction commits, and set `memory_dirty_since = COALESCE(memory_dirty_since, now())`
-**inside** it. Known call sites:
+Domain services that change an instance's artifacts set
+`memory_dirty_since = COALESCE(memory_dirty_since, now())` **inside** their
+transaction and call `ingest.Notifier.InstanceChanged(ctx, instanceID)` **after**
+commit. Known call sites:
 
 | Path | Today | After |
 |---|---|---|
-| `strategy.CommitBatch` / `CommitAuto` (MCP `commit_batch`, web, pipeline, ripple) | `EnqueueBatch` from callers (`internal/mcpserver/server.go:1244`, `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`) | hook in the domain methods; caller `EnqueueBatch` calls removed |
+| `strategy.CommitBatch` / `CommitAuto` (MCP `commit_batch`, web, pipeline, ripple) | `EnqueueBatch` from callers (`internal/mcpserver/server.go:1244`, `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`) | hook in the domain methods; caller calls removed |
 | `evidence.Ingest` (inserts artifacts directly, `domain/evidence/service.go:168`) | `EnqueueBatch` | hook |
 | `instance.ReimportArtifacts` (GitHub import, CLI) | nothing (#96) | hook |
 | `instance.ImportInstance` (web, MCP, CLI) | nothing (#99 N2) | hook |
 | `version.Restore` (MCP, web) | nothing (#99 N2) | hook |
-| `instance.DeleteInstance` | nothing (#87 F1) | purge hook (Decision 5) |
+| `instance.DeleteInstance` | nothing (#87 F1) | purge (Decision 5) |
 | canonical install, `scaffold_instance`, pack/app install | to trace (task 1.2) | hook if they write artifacts outside `CommitBatch` |
 
 The ingest service coalesces: one in-flight job per instance plus a "dirty
-again" bit. Notifications for an instance with a job in flight set the bit;
-the worker re-runs once after the current job. A full channel no longer loses
-work because the dirty flag is in Postgres: the heartbeat (`RepairMemoryDrift`)
-re-enqueues every active instance with `memory_dirty_since` older than one
-heartbeat interval, and the startup sweep does the same.
+again" bit, re-run once after the current job. A full channel no longer loses
+work, because the dirty flag lives in Postgres: the heartbeat
+(`RepairMemoryDrift`) re-enqueues every active instance with
+`memory_dirty_since` older than one heartbeat interval, and the startup sweep
+re-enqueues every active instance that is dirty, has a NULL content hash, or
+has no manifest.
 
-The incremental `ingestBatch` path, `deleteGraphObject` (which resolves by an
-unscoped key and can delete another instance's object, #99 N4) and
-`upsertGraphObject` are removed.
+The incremental `ingestBatch` path, `upsertGraphObject` and `deleteGraphObject`
+(which resolves by an unscoped key and can delete another instance's object,
+#99 N4) are removed.
 
 ## Decision 5: Deletion, sweep and migration
 
 **Delete.** `DeleteInstance` keeps soft-deleting in Postgres and enqueues a
-purge: under the instance lock, delete every object and relationship with
-label or property `instance:<uuid>`, and every branch named
-`scenario-<uuid>-*`. Record the purge result on the row. The tool text stops
-promising synchronous deletion. Fix the `delete_reason` → `reason` field
+purge. Under the instance lock it deletes every object with label
+`instance:<uuid>` (single deletes cascade edges), every object in the
+instance's manifest, and every branch named `scenario-<uuid>-*`, then deletes
+the manifest rows and records the outcome on the row. The `delete_instance`
+tool text stops promising synchronous deletion. Fix `delete_reason` → `reason`
 (#87 F5).
 
 **Startup sweep and drift repair** add `deleted_at IS NULL` to their raw
@@ -189,26 +215,29 @@ queries (#87 F2).
 CLI `strategy-server memory sweep [--apply]`, both calling one domain function.
 It pages through every object in the project and classifies:
 
-- `no_owner`: no `instance_id`;
-- `unknown_owner`: `instance_id` not an active instance (deleted or absent);
-- `stale`: owned, generation < current;
-- `legacy_key`: key not in `<uuid>/…` format;
+- `no_owner`: no `instance_id` and no `instance:` label;
+- `unknown_owner`: owner is not an active instance (deleted or absent);
+- `not_in_manifest`: owned by an active instance with a manifest, but not in it;
+- `legacy_key`: key not in `<prefix>/…` format.
 
-then reports counts per class and, with `apply`, deletes them under the same
-retry rules. Instances with a fenced ingest in progress are skipped (lock
-probe). Dry run is the default; the MCP tool is in the `admin` category and
-write-gated.
+It reports counts per class and, with `apply`, deletes them with single
+deletes and retry. Instances whose lock is held (ingest in progress) or that
+have no manifest yet are skipped, so the sweep can never delete the only copy
+of an instance that has not been re-ingested. Dry run is the default; the MCP
+tool sits in the `admin` category and is write-gated.
 
-**Migration 043:** add the two columns; set `memory_content_hash = NULL` on all
+**Migration 043:** the columns and the `memory_projection` table from Decision 2,
+the prefix unique index from Decision 1, and `memory_content_hash = NULL` on
 active instances so the startup sweep re-ingests them.
 
 **Upgrade runbook** (goes into `docs/DEPLOYMENT.md` and the PR description):
 
-1. Deploy. Startup sweep fence-ingests every active instance (generation 1).
-   Until each finishes, its semantic reads return `graph_not_ready`.
-2. Check each instance reports `memory_generation >= 1` (settings page, or
+1. Deploy. The startup sweep ingests every active instance under the new
+   scheme. Until an instance's first ingest completes, its semantic reads
+   return `graph_not_ready`.
+2. Check each instance reports `memory_generation >= 1` (settings page or
    `get_sync_status`).
-3. Run the sweep dry-run, check counts, run it with `--apply`.
+3. Run the sweep as a dry run, check the counts, then run it with `--apply`.
 
 ## Decision 6: Content contract
 
@@ -221,18 +250,18 @@ Requirement text in the spec, plus tool descriptions:
 
 ## Risks and open questions
 
-1. **Memory upsert semantics for labels and properties.** The design assumes an
-   upsert replaces the object's labels and properties. If it merges, the
-   `memory_generation` property is still overwritten (same key) and the
-   instance label is still added, so the design holds; verify in task 2.1
-   against the Memory version the pilot runs.
-2. **Re-embedding cost.** Upserting an unchanged object may re-embed it. Full
-   re-ingest already does this today; coalescing reduces how often. Measure in
-   task 8.
-3. **Search over-fetch on a project with much debris.** Until the sweep runs,
-   foreign hits can crowd out owned ones. The cap of 200 bounds latency; the
-   sweep removes the cause.
+1. **Memory version in deployments.** Facts above are from Memory v0.88.1.
+   The pilot must run a Memory version with `labels` on `/api/graph/search` and
+   the content-hash no-op on upsert. Task 2.1 finds the minimum version and the
+   runbook states it.
+2. **Search hit quality under debris.** Foreign data is excluded server-side by
+   label. Stale same-instance hits (removed artifacts) still consume slots
+   until GC; the over-fetch absorbs normal amounts and the sweep removes the
+   rest.
+3. **Relationship GC resolution.** Deleting a removed relationship needs its
+   Memory ID. Task 2.4 decides between resolving through `ObjectEdges` on the
+   source object and a relationship upsert that returns the ID.
 4. **Scenario branches** copy the whole project. Reads are filtered, but merge
-   (`CommitScenario`) acts on the branch as a whole. Verify in task 4.6 that a
-   merge cannot write foreign objects into main; if it can, gate
-   `commit_scenario` until a follow-up.
+   (`CommitScenario`) acts on the branch as a whole. Task 4.6 checks whether a
+   merge can write foreign objects into main; if it can, `commit_scenario` is
+   gated until a follow-up.
