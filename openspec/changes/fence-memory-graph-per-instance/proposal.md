@@ -94,7 +94,8 @@ minimum determined in design risk 1).
   capability (`What-If Scenario Exploration`).
 - Affected code: `domain/ingest`, `domain/semantic`, `domain/instance`,
   `domain/version`, `domain/strategy`, `domain/sync`, `domain/evidence`,
-  `domain/workspace`, `domain/ripple`, `domain/heartbeat`, `internal/mcpserver` (semantic tools,
+  `domain/workspace`, `domain/ripple` (reads Memory unscoped today; moves to a
+  scoped facade), `domain/heartbeat`, `internal/mcpserver` (semantic tools,
   lifecycle, new admin tool), `internal/handler` (settings counts, delete),
   `internal/pipeline`, `internal/memory`, `cmd_import.go`, `cmd_serve.go`, one
   migration (045).
