@@ -52,6 +52,9 @@ type StrategyInstance struct {
 	MemoryEdgeCount             *int       `bun:"memory_edge_count"                         json:"memory_edge_count,omitempty"`
 	MemoryDecomposedObjectCount *int       `bun:"memory_decomposed_object_count"            json:"memory_decomposed_object_count,omitempty"`
 	MemoryDecomposedEdgeCount   *int       `bun:"memory_decomposed_edge_count"              json:"memory_decomposed_edge_count,omitempty"`
+	MemoryGeneration            int64      `bun:"memory_generation,notnull,default:0"       json:"memory_generation"`
+	MemoryDirtySince            *time.Time `bun:"memory_dirty_since"                        json:"memory_dirty_since,omitempty"`
+	MemoryChangeSeq             int64      `bun:"memory_change_seq,notnull,default:0"       json:"-"`
 	CreatedBy                   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt                   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt                   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`

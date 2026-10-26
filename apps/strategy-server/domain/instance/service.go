@@ -15,6 +15,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
@@ -30,11 +31,24 @@ type PackEnsurer interface {
 type Service struct {
 	db          *bun.DB
 	packEnsurer PackEnsurer // optional; nil = no auto-install
+	newID       func() uuid.UUID
 }
+
+// maxKeyPrefixAttempts bounds the retries when a freshly generated instance ID
+// shares its 8-character key prefix with an existing instance. A collision has
+// probability about N/2^32 for N instances, so more than a couple of attempts
+// means something other than chance is wrong.
+const maxKeyPrefixAttempts = 5
 
 // NewService creates a new instance Service.
 func NewService(db *bun.DB) *Service {
-	return &Service{db: db}
+	return &Service{db: db, newID: uuid.New}
+}
+
+// SetIDGenerator replaces the instance ID generator. Tests use it to force key
+// prefix collisions.
+func (s *Service) SetIDGenerator(fn func() uuid.UUID) {
+	s.newID = fn
 }
 
 // WithPackEnsurer registers the pack service so new instances get the standard pack.
@@ -154,8 +168,50 @@ func (s *Service) ImportInstance(ctx context.Context, p ImportParams) (*domain.S
 	source := string(audit.SourceFromContext(ctx))
 
 	schemaVersion := strings.TrimSpace(embedded.Version)
+
+	var inst *domain.StrategyInstance
+	var err error
+	for attempt := 1; attempt <= maxKeyPrefixAttempts; attempt++ {
+		inst, err = s.importInstanceOnce(ctx, p, schemaVersion, actorID, source)
+		if err == nil || !database.IsKeyPrefixCollision(err) {
+			break
+		}
+		slog.WarnContext(ctx, "instance id key prefix collision, retrying with a new id",
+			"attempt", attempt)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_instance",
+		EntityID:   inst.ID,
+		Action:     "import",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    actorID,
+		Details:    map[string]any{"workspace_id": p.WorkspaceID},
+	})
+
+	// Post-commit: install the standard pack. Runs outside the transaction so a
+	// failure here does not roll back the instance creation (Decision 12).
+	if s.packEnsurer != nil {
+		if err := s.packEnsurer.EnsureStandardPack(ctx, inst.ID); err != nil {
+			// Non-fatal: log and continue. standard_pack_version stays NULL,
+			// which health_check surfaces as up_to_date: false.
+			slog.WarnContext(ctx, "standard pack auto-install failed",
+				"instance_id", inst.ID,
+				"err", err)
+		}
+	}
+
+	return inst, nil
+}
+
+// importInstanceOnce runs one attempt of ImportInstance's transaction with a
+// fresh instance ID.
+func (s *Service) importInstanceOnce(ctx context.Context, p ImportParams, schemaVersion string, actorID *uuid.UUID, source string) (*domain.StrategyInstance, error) {
 	inst := &domain.StrategyInstance{
-		ID:             uuid.New(),
+		ID:             s.newID(),
 		WorkspaceID:    p.WorkspaceID,
 		Name:           p.Name,
 		Description:    p.Description,
@@ -201,28 +257,6 @@ func (s *Service) ImportInstance(ctx context.Context, p ImportParams) (*domain.S
 	if err != nil {
 		return nil, err
 	}
-
-	audit.FromContext(ctx).Write(ctx, audit.Entry{
-		EntityType: "strategy_instance",
-		EntityID:   inst.ID,
-		Action:     "import",
-		Source:     audit.SourceFromContext(ctx),
-		ActorID:    actorID,
-		Details:    map[string]any{"workspace_id": p.WorkspaceID},
-	})
-
-	// Post-commit: install the standard pack. Runs outside the transaction so a
-	// failure here does not roll back the instance creation (Decision 12).
-	if s.packEnsurer != nil {
-		if err := s.packEnsurer.EnsureStandardPack(ctx, inst.ID); err != nil {
-			// Non-fatal: log and continue. standard_pack_version stays NULL,
-			// which health_check surfaces as up_to_date: false.
-			slog.WarnContext(ctx, "standard pack auto-install failed",
-				"instance_id", inst.ID,
-				"err", err)
-		}
-	}
-
 	return inst, nil
 }
 
