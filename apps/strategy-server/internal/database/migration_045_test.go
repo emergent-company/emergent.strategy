@@ -16,7 +16,7 @@ func TestMigration045_ProjectionSchema(t *testing.T) {
 	db := database.TestDB(t)
 	ctx := context.Background()
 
-	for _, col := range []string{"memory_generation", "memory_dirty_since", "memory_change_seq"} {
+	for _, col := range []string{"memory_generation", "memory_dirty_since", "memory_change_seq", "memory_purged_at"} {
 		var n int
 		err := db.NewRaw(
 			`SELECT count(*) FROM information_schema.columns

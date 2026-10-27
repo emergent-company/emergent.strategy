@@ -14,10 +14,14 @@
 --                     stale work.
 -- memory_change_seq   incremented by every change. An ingest clears the dirty flag
 --                     only if the sequence is unchanged since it started.
+-- memory_purged_at    when the graph objects of a deleted instance were removed;
+--                     NULL on a deleted, previously synced instance means the
+--                     purge is still owed and the heartbeat retries it.
 ALTER TABLE strategy_instances
     ADD COLUMN IF NOT EXISTS memory_generation  BIGINT      NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS memory_dirty_since TIMESTAMPTZ,
-    ADD COLUMN IF NOT EXISTS memory_change_seq  BIGINT      NOT NULL DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS memory_change_seq  BIGINT      NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS memory_purged_at   TIMESTAMPTZ;
 
 -- kind 'object': key is the scoped Memory object key.
 -- kind 'relationship': key is '<type>|<from scoped key>|<to scoped key>'.
@@ -44,6 +48,7 @@ UPDATE strategy_instances SET memory_content_hash = NULL WHERE deleted_at IS NUL
 DROP INDEX IF EXISTS strategy_instances_key_prefix_uq;
 DROP TABLE IF EXISTS memory_projection;
 ALTER TABLE strategy_instances
+    DROP COLUMN IF EXISTS memory_purged_at,
     DROP COLUMN IF EXISTS memory_change_seq,
     DROP COLUMN IF EXISTS memory_dirty_since,
     DROP COLUMN IF EXISTS memory_generation;

@@ -55,6 +55,7 @@ type StrategyInstance struct {
 	MemoryGeneration            int64      `bun:"memory_generation,notnull,default:0"       json:"memory_generation"`
 	MemoryDirtySince            *time.Time `bun:"memory_dirty_since"                        json:"memory_dirty_since,omitempty"`
 	MemoryChangeSeq             int64      `bun:"memory_change_seq,notnull,default:0"       json:"-"`
+	MemoryPurgedAt              *time.Time `bun:"memory_purged_at"                          json:"memory_purged_at,omitempty"`
 	CreatedBy                   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt                   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt                   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
