@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -73,16 +74,10 @@ var (
 	ErrNotFound = apperror.ErrNotFound
 )
 
-// MemoryEnqueuer is implemented by domain/ingest.Service; it allows the evidence
-// service to trigger async Memory ingestion without a direct package import.
-type MemoryEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
-
 // Service manages evidence items.
 type Service struct {
-	db      *bun.DB
-	enqueue MemoryEnqueuer // optional; nil = Memory ingestion disabled
+	db     *bun.DB
+	marker *changemark.Marker // optional; nil = Memory projection not tracked
 }
 
 // NewService creates an evidence Service.
@@ -90,10 +85,10 @@ func NewService(db *bun.DB) *Service {
 	return &Service{db: db}
 }
 
-// WithMemoryEnqueue attaches a Memory enqueuer so that newly ingested evidence
-// objects are pushed to the semantic graph asynchronously.
-func (s *Service) WithMemoryEnqueue(e MemoryEnqueuer) *Service {
-	s.enqueue = e
+// WithChangeMarker wires the marker that records evidence changes for the
+// Memory projection, so the semantic graph follows them asynchronously.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
 	return s
 }
 
@@ -169,12 +164,7 @@ func (s *Service) Ingest(ctx context.Context, req IngestRequest) (string, error)
 		return "", fmt.Errorf("insert evidence artifact: %w", err)
 	}
 
-	// Enqueue async Memory ingestion. The mutation ID acts as the batch ID —
-	// ingestBatch will load the committed mutation and upsert the evidence object
-	// with evidence-specific properties (tags, source, processing_status).
-	if s.enqueue != nil {
-		s.enqueue.EnqueueBatch(req.InstanceID, mutID)
-	}
+	s.marker.Changed(ctx, req.InstanceID)
 
 	return key, nil
 }
@@ -359,7 +349,11 @@ func (s *Service) Update(ctx context.Context, instanceID uuid.UUID, artifactKey 
 		Where("artifact_key = ?", artifactKey).
 		Where("artifact_type = ?", domain.ArtifactTypeEvidence).
 		Exec(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+	s.marker.Changed(ctx, instanceID)
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -390,6 +384,7 @@ func (s *Service) Link(ctx context.Context, instanceID uuid.UUID, evidenceKey, t
 	if err != nil {
 		return fmt.Errorf("link evidence %s → %s: %w", evidenceKey, targetKey, err)
 	}
+	s.marker.Changed(ctx, instanceID)
 	return nil
 }
 
@@ -405,6 +400,7 @@ func (s *Service) MarkProcessed(ctx context.Context, instanceID uuid.UUID, evide
 
 	now := time.Now().UTC()
 	nowStr := now.Format(time.RFC3339)
+	defer s.marker.Changed(ctx, instanceID)
 
 	for _, key := range evidenceKeys {
 		item, err := s.Get(ctx, instanceID, key)

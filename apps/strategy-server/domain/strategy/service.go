@@ -23,6 +23,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/index"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
@@ -30,12 +31,20 @@ import (
 
 // Service handles strategy authoring and reading.
 type Service struct {
-	db *bun.DB
+	db     *bun.DB
+	marker *changemark.Marker // optional; nil = Memory projection not tracked
 }
 
 // NewService creates a new strategy Service.
 func NewService(db *bun.DB) *Service {
 	return &Service{db: db}
+}
+
+// WithChangeMarker wires the marker that records artifact changes for the
+// Memory projection. Without it the service does not track changes.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
+	return s
 }
 
 // DB returns the underlying *bun.DB for use by sibling domain services.
@@ -382,6 +391,10 @@ func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, erro
 		}
 	}
 
+	if len(mutations) > 0 {
+		s.marker.Changed(ctx, mutations[0].InstanceID)
+	}
+
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",
 		Action:     "commit_batch",
@@ -443,6 +456,7 @@ func (s *Service) CommitAuto(ctx context.Context, p CommitAutoParams) (*domain.S
 		slog.WarnContext(ctx, "auto-commit: derive index failed",
 			"artifact_key", p.ArtifactKey, "err", err)
 	}
+	s.marker.Changed(ctx, p.InstanceID)
 
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",
@@ -648,6 +662,7 @@ func (s *Service) BackfillIndex(ctx context.Context, instanceID uuid.UUID) (int,
 		}
 		count++
 	}
+	s.marker.Changed(ctx, instanceID)
 
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",

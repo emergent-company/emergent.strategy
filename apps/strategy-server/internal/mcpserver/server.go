@@ -62,12 +62,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
-// IngestEnqueuer is the interface used to trigger async Memory graph ingestion
-// after a batch is committed.
-type IngestEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
-
 // Services bundles all domain services used by the MCP server.
 type Services struct {
 	Workspace     *workspace.Service
@@ -86,7 +80,6 @@ type Services struct {
 	SkillRun      *skillrundom.Service     // optional — nil disables skill run observability tools
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
-	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
 	Orchestration orchestration.EngineAPI  // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
@@ -1218,8 +1211,8 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 }
 
 // commitBatchHandler commits a staged batch and runs the post-commit pipeline
-// (Memory ingestion, orchestration resume, ripple analysis, schema-warning
-// surfacing, evidence processing). Extracted from the commit_batch tool handler.
+// (orchestration resume, ripple analysis, schema-warning surfacing, evidence
+// processing). Memory ingestion is triggered by the strategy service itself. Extracted from the commit_batch tool handler.
 func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	batchID, err := parseUUID(argString(req, "batch_id"))
 	if err != nil {
@@ -1237,11 +1230,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 	n, err := svc.Strategy.CommitBatch(ctx, batchID)
 	if err != nil {
 		return toolErr(ctx, err), nil
-	}
-
-	// Enqueue async Memory ingestion for the committed batch.
-	if svc.Ingest != nil && instanceID != uuid.Nil {
-		svc.Ingest.EnqueueBatch(instanceID, batchID)
 	}
 
 	// Resume any AIM orchestration run awaiting human review for this batch.
@@ -1266,7 +1254,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 			VersionSvc:  svc.Version,
 			SkillExec:   svc.SkillExecutor,
 			SchemaSvc:   svc.Schema,
-			Ingest:      svc.Ingest,
 			Resolver:    svc.Resolver,
 		}
 		pResult := p.Run(ctx, instanceID, batchID)

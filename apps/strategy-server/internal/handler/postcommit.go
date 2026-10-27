@@ -15,6 +15,3 @@ type PostCommitPipeline = pipeline.PostCommitPipeline
 
 // PostCommitResult summarises what the pipeline did.
 type PostCommitResult = pipeline.PostCommitResult
-
-// IngestEnqueuer is the interface for the Memory ingest enqueuer.
-type IngestEnqueuer = pipeline.IngestEnqueuer

@@ -15,6 +15,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
@@ -32,6 +33,7 @@ type Service struct {
 	db          *bun.DB
 	packEnsurer PackEnsurer // optional; nil = no auto-install
 	newID       func() uuid.UUID
+	marker      *changemark.Marker // optional; nil = Memory projection not tracked
 }
 
 // maxKeyPrefixAttempts bounds the retries when a freshly generated instance ID
@@ -43,6 +45,13 @@ const maxKeyPrefixAttempts = 5
 // NewService creates a new instance Service.
 func NewService(db *bun.DB) *Service {
 	return &Service{db: db, newID: uuid.New}
+}
+
+// WithChangeMarker wires the marker that records artifact changes for the
+// Memory projection.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
+	return s
 }
 
 // SetIDGenerator replaces the instance ID generator. Tests use it to force key
@@ -268,7 +277,7 @@ func (s *Service) ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads 
 	actorID := audit.ActorFromContext(ctx)
 	source := string(audit.SourceFromContext(ctx))
 
-	return s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		// Wipe existing derived state and mutations.
 		for _, table := range []string{
 			"strategy_relationships",
@@ -305,8 +314,13 @@ func (s *Service) ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads 
 				return fmt.Errorf("insert mutation for %q: %w", key, err)
 			}
 		}
-		return nil
+		return s.marker.Mark(ctx, tx, id)
 	})
+	if err != nil {
+		return err
+	}
+	s.marker.Notify(ctx, id)
+	return nil
 }
 
 // ActivateInstance sets an instance to active, demoting any currently active instance.

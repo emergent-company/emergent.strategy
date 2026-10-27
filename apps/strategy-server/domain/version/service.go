@@ -15,13 +15,22 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // Service manages strategy version lifecycle.
 type Service struct {
-	db *bun.DB
+	db     *bun.DB
+	marker *changemark.Marker // optional; nil = Memory projection not tracked
+}
+
+// WithChangeMarker wires the marker that records artifact changes for the
+// Memory projection.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
+	return s
 }
 
 // NewService creates a new version Service.
@@ -600,11 +609,12 @@ func (s *Service) Restore(ctx context.Context, instanceID, versionID uuid.UUID) 
 			return fmt.Errorf("insert restored version: %w", err)
 		}
 
-		return nil
+		return s.marker.Mark(ctx, tx, instanceID)
 	})
 	if err != nil {
 		return nil, err
 	}
+	s.marker.Notify(ctx, instanceID)
 
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_version",
