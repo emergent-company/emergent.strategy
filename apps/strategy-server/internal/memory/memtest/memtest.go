@@ -209,6 +209,14 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{})
 	case path == "/api/graph/branches" && r.Method == http.MethodGet:
 		writeJSON(w, s.Branches())
+	case path == "/api/graph/branches" && r.Method == http.MethodPost:
+		var req memory.CreateBranchRequest
+		_ = json.Unmarshal([]byte(body), &req)
+		id := s.AddBranch(req.Name)
+		w.WriteHeader(http.StatusCreated)
+		writeJSON(w, map[string]any{"id": id, "name": req.Name, "status": "active"})
+	case strings.HasPrefix(path, "/api/graph/branches/") && strings.HasSuffix(path, "/merge") && r.Method == http.MethodPost:
+		writeJSON(w, map[string]any{"objects_created": 0, "objects_updated": 0, "relationships_created": 0})
 	case strings.HasPrefix(path, "/api/graph/branches/") && r.Method == http.MethodGet:
 		s.mu.Lock()
 		b := s.branches[strings.TrimPrefix(path, "/api/graph/branches/")]

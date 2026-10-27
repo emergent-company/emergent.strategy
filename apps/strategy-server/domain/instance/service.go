@@ -435,6 +435,10 @@ func (s *Service) DeleteInstance(ctx context.Context, id uuid.UUID) error {
 		return apperror.ErrInstanceNotFound
 	}
 
+	// The graph objects of a deleted instance are removed by the ingest
+	// service, which treats a deleted instance as a purge job.
+	s.marker.Notify(ctx, id)
+
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_instance",
 		EntityID:   id,

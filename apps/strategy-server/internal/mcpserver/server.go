@@ -1039,6 +1039,12 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
+		// ImportInstance stores mutations only. Derive strategy_artifacts so the
+		// instance has current-state rows to read and to project into Memory.
+		if _, err := svc.Strategy.BackfillIndex(ctx, inst.ID); err != nil {
+			return toolErr(ctx, fmt.Errorf("scaffold: derive index: %w", err)), nil
+		}
+
 		return mustJSON(map[string]any{
 			"instance":   inst,
 			"scaffolded": true,
@@ -1088,7 +1094,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_instance",
-		mcp.WithDescription("USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance."),
+		mcp.WithDescription("USE WHEN you need to delete a strategy instance. The instance disappears immediately and cannot be restored through the API; its semantic-graph (Memory) objects and scenario branches are removed asynchronously by the ingest service, usually within seconds. Rows in the database are soft-deleted, not erased. Use archive_instance instead if you only want to hide the instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -1105,7 +1111,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_workspace",
-		mcp.WithDescription("USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed."),
+		mcp.WithDescription("USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))

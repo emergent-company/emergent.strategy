@@ -26,12 +26,6 @@ func (s *Service) PurgeInstance(ctx context.Context, instanceID uuid.UUID) error
 	return s.purgeLocked(ctx, instanceID)
 }
 
-// scenarioBranchPrefix is the name prefix of every scenario branch of an
-// instance. The scenario tools create and check branches by this prefix.
-func scenarioBranchPrefix(instanceID uuid.UUID) string {
-	return "scenario-" + instanceID.String() + "-"
-}
-
 // purgeLocked deletes every object carrying the instance's owner label (single
 // deletes, which also remove the objects' relationships) and every scenario
 // branch of the instance, then records memory_purged_at. An instance that was
@@ -64,7 +58,7 @@ func (s *Service) purgeLocked(ctx context.Context, instanceID uuid.UUID) error {
 		if err != nil {
 			return fmt.Errorf("purge %s: list branches: %w", instanceID, err)
 		}
-		prefix := scenarioBranchPrefix(instanceID)
+		prefix := memory.ScenarioBranchPrefix(instanceID)
 		for _, b := range branches {
 			if !strings.HasPrefix(b.Name, prefix) {
 				continue

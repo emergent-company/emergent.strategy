@@ -136,7 +136,8 @@ func TestInstanceLock_FailedUnlockDoesNotLeakTheLock(t *testing.T) {
 
 func TestInstanceLockKey_IsStablePerInstance(t *testing.T) {
 	id := uuid.New()
-	if instanceLockKey(id) != instanceLockKey(id) {
+	first := instanceLockKey(id)
+	if second := instanceLockKey(id); first != second {
 		t.Fatal("key not deterministic")
 	}
 	if instanceLockKey(id) == instanceLockKey(uuid.New()) {

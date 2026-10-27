@@ -27,6 +27,13 @@ func (r *Recorder) InstanceChanged(_ context.Context, id uuid.UUID) {
 	r.ids = append(r.ids, id)
 }
 
+// All returns every notified instance ID in order.
+func (r *Recorder) All() []uuid.UUID {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]uuid.UUID(nil), r.ids...)
+}
+
 // Count returns how many times id was notified.
 func (r *Recorder) Count(id uuid.UUID) int {
 	r.mu.Lock()

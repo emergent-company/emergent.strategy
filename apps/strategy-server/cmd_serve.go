@@ -133,7 +133,7 @@ func runServer(cfg *config.Config) error {
 	// GitHub sync — only available when GitHub App is configured.
 	syncSvc := setupGitHubSync(cfg, log, db, strategySvc, versionSvc, instSvc)
 
-	wsSvc := workspace.NewService(db)
+	wsSvc := workspace.NewService(db).WithChangeMarker(changeMarker)
 
 	// AIM agent loop service — delegates writing to canonical skills via SkillRunner.
 	aimSvc := aimdom.NewService(db).WithVersionPublisher(versionSvc)

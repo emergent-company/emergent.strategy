@@ -13,13 +13,22 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // Service manages workspace lifecycle.
 type Service struct {
-	db *bun.DB
+	db     *bun.DB
+	marker *changemark.Marker // optional; nil = Memory projection not tracked
+}
+
+// WithChangeMarker wires the marker used to tell the ingest service that the
+// instances of a deleted workspace must be purged from the Memory graph.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
+	return s
 }
 
 // NewService creates a new workspace Service.
@@ -173,7 +182,8 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 	actorID := audit.ActorFromContext(ctx)
 	now := time.Now().UTC()
 
-	return s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	var deleted []uuid.UUID
+	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		// Soft-delete the workspace.
 		res, err := tx.NewUpdate().
 			Model((*domain.Workspace)(nil)).
@@ -191,12 +201,14 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 			return apperror.ErrWorkspaceNotFound
 		}
 
-		// Cascade soft-delete to all instances.
-		_, err = tx.NewUpdate().
+		// Cascade soft-delete to all instances, remembering which ones so the
+		// Memory graph can be purged for each after commit.
+		err = tx.NewUpdate().
 			Model((*domain.StrategyInstance)(nil)).
 			Set("deleted_at = ?", now).
 			Where("workspace_id = ? AND deleted_at IS NULL", id).
-			Exec(ctx)
+			Returning("id").
+			Scan(ctx, &deleted)
 		if err != nil {
 			return fmt.Errorf("cascade delete instances: %w", err)
 		}
@@ -211,6 +223,13 @@ func (s *Service) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	for _, instID := range deleted {
+		s.marker.Notify(ctx, instID)
+	}
+	return nil
 }
 
 // OrgIDForWorkspace returns the org_id for a workspace.
