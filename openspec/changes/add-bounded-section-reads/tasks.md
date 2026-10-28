@@ -9,38 +9,39 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 ## 1. Slicer (pure domain logic, no infrastructure)
 
-- [ ] 1.1 `domain/strategy`: path parser for dot paths and the `[n]`, `[id=..]`
+- [x] 1.1 `domain/strategyread` (pure package): path parser for dot paths and the `[n]`, `[id=..]`
       and `[name=..]` selectors, with the root wrapper key transparent.
-- [ ] 1.2 Budgeter: serialised size, the over-budget rules in design D3 (object
+- [x] 1.2 Budgeter (`[n:]` continues a list): serialised size, the over-budget rules in design D3 (object
       returns children, array returns whole items plus next index, oversize item
       descends), default 12,000 and cap 40,000. Table-driven tests including an
       item larger than the cap, an empty section and an unknown path (returns the
       nearest valid children).
-- [ ] 1.3 Outline builder: sections, sizes, gist (first of `title`, `name`,
+- [x] 1.3 Outline builder: sections, sizes, gist (first of `title`, `name`,
       `statement`, `description`, truncated), and the read hint.
-- [ ] 1.4 Label extraction: objectives, key results, assumptions and definitions
+- [x] 1.4 Label extraction: objectives, key results, assumptions and definitions
       to readable names from the same instance. No labels for identifiers without
       a source. Cap the glossary.
-- [ ] 1.5 `cite_as` from artifact and path.
+- [x] 1.5 `cite_as` from artifact and path.
 
 ## 2. New tools
 
-- [ ] 2.1 `get_outline`, `get_section` with published output schemas and a
-      contract test in the style of `verdict_contract_test.go` (read envelope,
+- [~] 2.1 `get_outline`, `get_section`, `get_view` (tools and behaviour done and
+      tested through the MCP handler; published output schemas and the contract
+      test in the style of `verdict_contract_test.go` remain), originally: contract test in the style of `verdict_contract_test.go` (read envelope,
       separate from the verdict envelope).
-- [ ] 2.2 Access map: list the three tools as `AccessRead`. Test that a
+- [x] 2.2 Access map: list the three tools as `AccessRead`. Test that a
       read-only session can call them and that an unlisted tool still defaults to
       write.
-- [ ] 2.3 Add them to `core` in `tool_filter.go`. Update the expected-tools lists
+- [x] 2.3 Add them to `core` in `tool_filter.go`. Update the expected-tools lists
       in the tests. Run `task selfmodel:generate`.
-- [ ] 2.4 Integrity interaction: sections of an artifact classified as
+- [x] 2.4 Integrity interaction (implemented against the real classifier): sections of an artifact classified as
       `unmodified_template` or `canonical_reference` report `defined: false` with
       the reason (no-op until `add-instance-content-integrity` lands, with a test
       using a stubbed class).
 
 ## 3. Views
 
-- [ ] 3.1 `get_view` with `competitor`, `objectives`, `key_result` and
+- [x] 3.1 `get_view` with `competitor`, `objectives`, `key_result` and
       `personas`. Each part has its own `defined`.
 - [ ] 3.2 Test that every path a view reads exists in the embedded schema
       (`TestViewPathsMatchSchemas`).

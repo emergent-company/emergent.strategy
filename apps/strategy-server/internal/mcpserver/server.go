@@ -159,6 +159,7 @@ func NewMCPServer(svc Services) *server.MCPServer {
 	registerWorkspaceReadTools(s, svc)
 	registerInstanceReadTools(s, svc)
 	registerArtifactContextTools(s, svc)
+	registerBoundedReadTools(s, svc)
 	registerArtifactMutationTools(s, svc)
 	registerWorkPackageTools(s, svc)
 	registerSemanticReadTools(s, svc)

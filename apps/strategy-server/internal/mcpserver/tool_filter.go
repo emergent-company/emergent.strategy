@@ -66,6 +66,9 @@ var ToolCategories = map[string]string{
 	"list_pending_batches":  CategoryCore,
 	"describe_batch":        CategoryCore,
 	"search_strategy":       CategoryCore,
+	"get_outline":           CategoryCore,
+	"get_section":           CategoryCore,
+	"get_view":              CategoryCore,
 	"list_tool_categories":  CategoryCore,
 	"set_tool_filter":       CategoryCore,
 

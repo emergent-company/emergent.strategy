@@ -8,7 +8,7 @@
     {
       "name": "core",
       "description": "Always visible — routing, instance lookup, batch management, search",
-      "tool_count": 14
+      "tool_count": 17
     },
     {
       "name": "strategy",
@@ -1408,6 +1408,27 @@
       }
     },
     {
+      "name": "get_outline",
+      "description": "USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "artifact": {
+            "description": "Optional artifact key, e.g. strategy_formula. Describes that artifact's sections with a one-line gist each.",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "get_pack",
       "description": "USE WHEN you need full details of an installed pack including all skill names and apps.",
       "category": "packs",
@@ -1548,6 +1569,36 @@
         },
         "required": [
           "filename"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_section",
+      "description": "USE WHEN you need what the strategy says about one thing. Returns the stored content of one section of one artifact, authoritative and within a size budget (default 12000 characters, cap 40000). Every response says whether the section is defined, where it came from, how big it is and whether it was cut; it never cuts silently. Cite it with cite_as. If it is not defined, say so; do not fill it in. Use get_outline to find artifact names and paths.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "artifact": {
+            "description": "Artifact key, e.g. north_star, strategy_formula, roadmap_recipe, insight_analyses",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
+            "type": "string"
+          },
+          "path": {
+            "description": "Section path, e.g. \"mission.boundaries\" or \"tracks.commercial.okrs[id=okr-c-001]\". Array items by position [2], by field [id=x] or [name=x]; the rest of a list from [3:]. Empty reads the whole artifact within the budget.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact"
         ],
         "type": "object"
       }
@@ -1715,6 +1766,44 @@
         "required": [
           "instance_id",
           "version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_view",
+      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - objective and key result ids and text by track; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "description": "Key result id, for the key_result view, e.g. kr-c-001",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Shared response budget in characters (default 12000, cap 40000)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Competitor name, for the competitor view",
+            "type": "string"
+          },
+          "track": {
+            "description": "Roadmap track, for the objectives view",
+            "type": "string"
+          },
+          "view": {
+            "description": "One of: competitor, objectives, key_result, personas",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "view"
         ],
         "type": "object"
       }
