@@ -55,12 +55,13 @@ part. Section 5 follows 2 and 3.
 - [x] 2.4 Reclassify on startup for rows not checked with the current manifest
       (`integrity_checked_with`). A new manifest ships with a new binary, so a
       restart is the on-demand path; no separate admin call.
-- [ ] 2.5 `check_content_readiness`: scan all artifacts, emit `integrity.*`
+- [x] 2.5 `check_content_readiness`: scan all artifacts (`template_values` and
+      `near_canonical` rules not yet implemented), emit `integrity.*`
       findings (warning or info, aggregated for definitions), drop the score when
       there are zero features. Contract test: `ok` never changes because of
       integrity findings. Update the `outputSchema` description, `AGENTS.md` rule
       list and `task selfmodel:generate`.
-- [ ] 2.6 `health_check`: `content_integrity` block, counts per class.
+- [x] 2.6 `health_check`: `content_integrity` block, counts per class.
 - [ ] 2.7 Fixtures shared with `epf-cli` (section 3.6): both apps run the same
       cases.
 
@@ -98,9 +99,15 @@ part. Section 5 follows 2 and 3.
       value-model tools serve non-template content or framework content on
       purpose). Original text: single-artifact reads return a structured not-defined result for an
       unmodified template, with the reason.
-- [ ] 4.3 Ingest stamps property `integrity_class` and label
+- [~] 4.3 Ingest stamps property `integrity_class` and label on artifact-level
+      Memory objects (done, tested). Decomposed objects are NOT stamped yet: that
+      needs a source-file to class mapping through the exporter path. Original:
+      ingest stamps property `integrity_class` and label
       `integrity:<class>` on Memory objects, including decomposed objects.
-- [ ] 4.4 Search exclusion: through the scoped read helper once the fence change
+- [x] 4.4 Search exclusion (interim, done): `SearchStrategyScoped` over-fetches and
+      drops hits whose `integrity_class` is framework and hits whose `instance_id`
+      names another instance; hits without either property cannot be filtered
+      and wait for the fence change. Original: search exclusion: through the scoped read helper once the fence change
       lands. Interim: over-fetch and filter on the property in `SearchStrategy`.
       Test with a mock Memory that returns a flagged hit.
 - [ ] 4.5 Decide open question 2 (AIM domain and unmodified AIM templates) after
@@ -108,7 +115,7 @@ part. Section 5 follows 2 and 3.
 
 ## 5. Instructions, descriptions and evidence
 
-- [ ] 5.1 Rewrite `ServerInstructions()` and the descriptions of
+- [x] 5.1 Rewrite `ServerInstructions()` and the descriptions of
       `search_strategy`, `get_definition`, `list_definitions` and `get_template`
       (design D6). Test that the instruction text contains each rule and that
       the descriptions name their authority. Regenerate `self-model.json`.

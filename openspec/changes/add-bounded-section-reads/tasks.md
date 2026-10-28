@@ -45,7 +45,8 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
       `personas`. Each part has its own `defined`.
 - [ ] 3.2 Test that every path a view reads exists in the embedded schema
       (`TestViewPathsMatchSchemas`).
-- [ ] 3.3 Routing: add the keywords to `get_agent_for_task` so questions about
+- [x] 3.3 Routing (also: the no-match fallback is now `get_outline`, not
+      `search_strategy`): add the keywords to `get_agent_for_task` so questions about
       what the strategy says, who the personas are, dates and figures reach the
       reads.
 
@@ -70,18 +71,19 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 ## 5. Search
 
-- [ ] 5.1 Hits carry `artifact_type`, `path`, `section_size_chars` and
+- [x] 5.1 Hits carry `artifact_type`, `path`, `section_size_chars` and
       `read_with`, derived from the artifact key where possible and omitted where
       not. Extend the mocked-Memory test in `phase2d_test.go`.
-- [ ] 5.2 Rewrite the `search_strategy` description: discovery, then confirm with
+- [x] 5.2 Rewrite the `search_strategy` description (the response stays a plain
+      array so existing consumers do not break; exclusion counts are logged): discovery, then confirm with
       a section read. Coordinate with the fence change's description task.
 
 ## 6. Visibility
 
-- [ ] 6.1 Read-only sessions do not list write tools in `tools/list`. Decide
-      open question 4 (key on token scope or session option). Test that calling
+- [x] 6.1 Read-only sessions do not list write tools in `tools/list`. Open
+      question 4 decided: keyed on the principal's read-only scope. Test that calling
       a hidden write tool is still refused by the access gate.
-- [ ] 6.2 Test that the first `tools/list` of a fresh session contains the three
+- [x] 6.2 Test that the first `tools/list` of a fresh session contains the three
       reads with no filter call.
 
 ## 7. Contract, acceptance and evidence

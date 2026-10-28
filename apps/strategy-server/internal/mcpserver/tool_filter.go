@@ -31,6 +31,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 )
 
 // ToolCategory groups related tools under a human-readable label.
@@ -360,8 +362,17 @@ func (s *toolFilterState) filterTools(ctx context.Context, tools []mcp.Tool) []m
 	}
 	activeCats := s.activeCategories(sessionID)
 
+	// A read-only credential is refused every write by writeGateMiddleware, so
+	// listing write tools only invites attempts. Leave them out. This shapes the
+	// list and nothing else: the gate still refuses the call.
+	p := web.PrincipalFromContext(ctx)
+	readOnly := p != nil && p.ReadOnly
+
 	var filtered []mcp.Tool
 	for _, tool := range tools {
+		if readOnly && AccessFor(tool.Name) == AccessWrite {
+			continue
+		}
 		cat, ok := ToolCategories[tool.Name]
 		if !ok {
 			// Unknown tool — include it (safety net for tools not yet categorized)

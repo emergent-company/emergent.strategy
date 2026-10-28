@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -93,4 +94,12 @@ func viewList() string {
 		out += v
 	}
 	return out
+}
+
+// readWithCall renders the get_section call that reads a section.
+func readWithCall(artifact, path string) string {
+	if path == "" {
+		return fmt.Sprintf("get_section(artifact=%q)", artifact)
+	}
+	return fmt.Sprintf("get_section(artifact=%q, path=%q)", artifact, path)
 }

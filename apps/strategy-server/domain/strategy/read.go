@@ -412,3 +412,24 @@ func (s *Service) ReadAuthoredPayload(ctx context.Context, instanceID uuid.UUID,
 	}
 	return json.RawMessage(row.Payload), nil, nil
 }
+
+// SectionSize returns the size in characters of a stored section and whether it
+// is defined. It is for pointing a search hit at the read that returns it.
+func (s *Service) SectionSize(ctx context.Context, instanceID uuid.UUID, artifact, path string) (int, bool) {
+	row, err := s.currentRow(ctx, instanceID, artifact)
+	if err != nil || row == nil {
+		return 0, false
+	}
+	if _, framework := frameworkReason(row); framework {
+		return 0, false
+	}
+	payload, err := decodePayload(row)
+	if err != nil {
+		return 0, false
+	}
+	slice, err := strategyread.Read(row.ArtifactType, payload, path, 1)
+	if err != nil || !slice.Defined {
+		return 0, false
+	}
+	return slice.SizeChars, true
+}
