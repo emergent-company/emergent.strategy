@@ -857,6 +857,9 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 			argInt(req, "limit", 10),
 		)
 		if err != nil {
+			if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
+				return mcp.NewToolResultError(apperror.LocalizeErr(ctx, err) + ". Search is not available. That says nothing about whether the strategy covers your topic: find the section with get_outline and read it with get_section."), nil
+			}
 			return toolErr(ctx, err), nil
 		}
 		if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 {

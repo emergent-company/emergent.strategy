@@ -72,3 +72,30 @@ func TestMCP_SearchStrategy_FiltersFrameworkAndPointsAtTheRead(t *testing.T) {
 		t.Errorf("read_with = %q", hits[0].ReadWith)
 	}
 }
+
+func TestMCP_SearchStrategy_WhenUnavailableSaysHowToReadInstead(t *testing.T) {
+	db := database.TestDB(t)
+	packSvc := pack.NewService(db)
+	instSvc := instance.NewService(db)
+	instSvc.WithPackEnsurer(packSvc)
+	svc := mcpserver.Services{
+		Workspace: workspace.NewService(db),
+		Instance:  instSvc,
+		Strategy:  strategy.NewService(db),
+		Pack:      packSvc,
+		App:       appdom.NewService(db),
+		Semantic:  semantic.NewService(semantic.Config{}),
+		Org:       orgdom.NewService(db),
+	}
+	_, id := seedInstance(t, svc, "search-off", brPayloads(t))
+	c := newMCPClient(t, svc)
+
+	r := c.call(1, "search_strategy", map[string]any{"instance_id": id.String(), "query": "anything"}).assertError()
+
+	if !strings.Contains(r.text, "get_outline") || !strings.Contains(r.text, "get_section") {
+		t.Errorf("an unavailable search should say how to find the section instead: %q", r.text)
+	}
+	if !strings.Contains(r.text, "not configured") {
+		t.Errorf("the underlying reason was lost: %q", r.text)
+	}
+}
