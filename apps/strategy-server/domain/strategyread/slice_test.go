@@ -2,6 +2,7 @@ package strategyread_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -357,4 +358,45 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func TestRead_UnknownLeafNameSuggestsWhereASectionOfThatNameExists(t *testing.T) {
+	payload := decode(t, `{"strategy":{"competitive_moat":{"vs_competitors":[{"competitor":"A"}]},"business_model":{"growth_engines":[{"n":1}]},"other":{"growth_engines":"x"}}}`)
+
+	got, err := strategyread.Read("strategy_formula", payload, "vs_competitors", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Defined || got.Content != nil {
+		t.Fatalf("a shorthand must not be silently resolved: %+v", got)
+	}
+	if len(got.Suggestions) != 1 || got.Suggestions[0] != "competitive_moat.vs_competitors" {
+		t.Errorf("suggestions = %v, want the full path", got.Suggestions)
+	}
+
+	got, _ = strategyread.Read("strategy_formula", payload, "growth_engines", 0)
+	if len(got.Suggestions) != 2 {
+		t.Errorf("suggestions = %v, want both places the name exists", got.Suggestions)
+	}
+
+	got, _ = strategyread.Read("strategy_formula", payload, "business_model.nope", 0)
+	if len(got.Suggestions) != 0 {
+		t.Errorf("suggestions = %v for a name that exists nowhere", got.Suggestions)
+	}
+}
+
+func TestRead_SuggestionsAreCapped(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString(`{"strategy":{`)
+	for i := 0; i < 20; i++ {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(fmt.Sprintf(`"s%02d":{"dup":1}`, i))
+	}
+	sb.WriteString(`}}`)
+	got, _ := strategyread.Read("strategy_formula", decode(t, sb.String()), "dup", 0)
+	if len(got.Suggestions) != strategyread.MaxSuggestions {
+		t.Errorf("suggestions = %d, want the cap of %d", len(got.Suggestions), strategyread.MaxSuggestions)
+	}
 }

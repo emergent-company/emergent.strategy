@@ -276,6 +276,8 @@ func (s *Service) ReadSection(ctx context.Context, instanceID uuid.UUID, artifac
 func sectionHints(res *SectionResult, artifact string) []string {
 	var hints []string
 	switch {
+	case !res.Defined && len(res.Suggestions) > 0:
+		hints = append(hints, "that path does not exist; suggestions lists where a section with that name does")
 	case !res.Defined && len(res.Children) > 0:
 		hints = append(hints, "that path does not exist; children lists the nearest valid sections")
 	case res.Truncated && res.NextIndex != nil:

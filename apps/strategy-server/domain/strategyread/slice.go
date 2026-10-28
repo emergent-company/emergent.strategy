@@ -19,6 +19,10 @@ const (
 	HardMaxChars = 40000
 
 	gistMaxChars = 120
+
+	// MaxSuggestions caps the paths offered for an unknown section name.
+	MaxSuggestions  = 5
+	suggestMaxDepth = 8
 )
 
 // Child describes one section, one level down, so a caller can decide what to
@@ -50,6 +54,10 @@ type Slice struct {
 	// an over-budget string its first MaxChars characters. It is nil when only
 	// Children are returned.
 	Content any `json:"content,omitempty"`
+	// Suggestions lists paths where a section named like the last part of an
+	// unknown path does exist. Nothing is resolved for the caller: it must read
+	// one of them.
+	Suggestions []string `json:"suggestions,omitempty"`
 	// Children lists the sections of an over-budget object (or of an oversize
 	// array item) with sizes.
 	Children []Child `json:"children,omitempty"`
@@ -280,6 +288,7 @@ func Read(artifactType string, payload any, path string, maxChars int) (Slice, e
 	if !res.found {
 		out.Reason = res.reason
 		out.Children = childrenOf(res.nearest, res.nearestPath, 0)
+		out.Suggestions = suggestPaths(artifactType, payload, path)
 		return out, nil
 	}
 	out.Defined = true
@@ -476,4 +485,48 @@ func sizeOf(v any) int {
 		return 0
 	}
 	return utf8.RuneCount(bytes.TrimRight(buf.Bytes(), "\n"))
+}
+
+// suggestPaths finds where a section named like the last key of path exists
+// anywhere in the artifact. Callers often know a section by its leaf name
+// ("vs_competitors") and not by its parent ("competitive_moat").
+func suggestPaths(artifactType string, payload any, path string) []string {
+	steps, err := ParsePath(path)
+	if err != nil || len(steps) == 0 {
+		return nil
+	}
+	leaf := ""
+	for i := len(steps) - 1; i >= 0; i-- {
+		if steps[i].Key != "" {
+			leaf = steps[i].Key
+			break
+		}
+	}
+	if leaf == "" {
+		return nil
+	}
+	var found []string
+	walkKeys(view(artifactType, payload), "", 0, leaf, &found)
+	sort.Strings(found)
+	if len(found) > MaxSuggestions {
+		found = found[:MaxSuggestions]
+	}
+	return found
+}
+
+func walkKeys(v any, prefix string, depth int, leaf string, out *[]string) {
+	m, ok := v.(map[string]any)
+	if !ok || depth > suggestMaxDepth {
+		return
+	}
+	for k, child := range m {
+		p := k
+		if prefix != "" {
+			p = prefix + "." + k
+		}
+		if k == leaf {
+			*out = append(*out, p)
+		}
+		walkKeys(child, p, depth+1, leaf, out)
+	}
 }
