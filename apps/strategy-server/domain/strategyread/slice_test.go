@@ -392,7 +392,7 @@ func TestRead_SuggestionsAreCapped(t *testing.T) {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		sb.WriteString(fmt.Sprintf(`"s%02d":{"dup":1}`, i))
+		fmt.Fprintf(&sb, `"s%02d":{"dup":1}`, i)
 	}
 	sb.WriteString(`}}`)
 	got, _ := strategyread.Read("strategy_formula", decode(t, sb.String()), "dup", 0)
