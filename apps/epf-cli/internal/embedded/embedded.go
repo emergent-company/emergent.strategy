@@ -68,6 +68,12 @@ var Version string
 //go:embed MANIFEST.txt
 var Manifest string
 
+// IntegrityManifest contains integrity-manifest.json: normalised hashes of
+// canonical templates and definitions per release. See internal/integrity.
+//
+//go:embed integrity-manifest.json
+var IntegrityManifest []byte
+
 // AgentsMD contains the comprehensive AGENTS.md file for epf-cli.
 // This file provides AI agents with complete instructions for using epf-cli
 // in product repositories. It is distributed by `epf-cli init` to each instance.
