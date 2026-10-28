@@ -13,7 +13,7 @@ import (
 )
 
 // ViewNames lists the question-shaped views, in documentation order.
-var ViewNames = []string{"competitor", "objectives", "key_result", "personas"}
+var ViewNames = []string{"competitor", "objectives", "key_result", "personas", "competitive_position"}
 
 // ViewPart is one source of a view. A part that is not defined is reported with
 // its reason, never skipped.
@@ -53,6 +53,8 @@ func (s *Service) ReadView(ctx context.Context, instanceID uuid.UUID, view strin
 		err = s.keyResultView(ctx, instanceID, args, budget, out)
 	case "personas":
 		err = s.personasView(ctx, instanceID, budget, out)
+	case "competitive_position":
+		err = s.competitivePositionView(ctx, instanceID, budget, out)
 	default:
 		return nil, apperror.ErrBadRequest.WithDetail(fmt.Sprintf("unknown view %q; valid views: %s", view, strings.Join(ViewNames, ", ")))
 	}
@@ -285,5 +287,26 @@ func (s *Service) keyResultView(ctx context.Context, instanceID uuid.UUID, args 
 		out.Hints = append(out.Hints, "the key result is larger than max_chars; raise max_chars")
 	}
 	out.Parts = append(out.Parts, part)
+	return nil
+}
+
+func (s *Service) competitivePositionView(ctx context.Context, instanceID uuid.UUID, budget int, out *ViewResult) error {
+	sources := []struct {
+		part, artifact, path string
+	}{
+		{"landscape", "insight_analyses", "competitive_landscape"},
+		{"positioning_by_competitor", "strategy_formula", "competitive_moat.vs_competitors"},
+		{"positioning_statement", "strategy_formula", "positioning"},
+	}
+	b := &sharer{remaining: budget, left: len(sources)}
+	for _, src := range sources {
+		res, err := s.ReadSection(ctx, instanceID, src.artifact, src.path, b.next())
+		if err != nil {
+			return err
+		}
+		part := ViewPart{Name: src.part, SectionResult: res}
+		out.Parts = append(out.Parts, part)
+		b.spend(part)
+	}
 	return nil
 }

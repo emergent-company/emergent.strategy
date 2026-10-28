@@ -1130,12 +1130,16 @@
     },
     {
       "name": "get_competitive_position",
-      "description": "USE WHEN you need the competitive analysis for a strategy instance.",
+      "description": "USE WHEN you need the competitive analysis for a strategy instance: the competitive landscape from the insight analyses, our positioning against each named competitor from the strategy formula, and the positioning statement, within a size budget. For one competitor use get_view with view=competitor. For other insight sections use get_section.",
       "category": "strategy",
       "input_schema": {
         "properties": {
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Shared response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1473,12 +1477,16 @@
     },
     {
       "name": "get_personas",
-      "description": "USE WHEN you need target personas and their pain points for a strategy instance.",
+      "description": "USE WHEN you need the target personas and their problems for a strategy instance. Reads the target users of the insight analyses, within a size budget; reports when none are defined. Same as get_view with view=personas.",
       "category": "strategy",
       "input_schema": {
         "properties": {
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1541,12 +1549,20 @@
     },
     {
       "name": "get_roadmap",
-      "description": "USE WHEN you need the full roadmap recipe for a strategy instance.",
+      "description": "USE WHEN you need the roadmap recipe for a strategy instance. Returns the roadmap within a size budget; when it is larger, returns its sections with sizes instead. Read one track with get_section (path tracks.\u003ctrack\u003e), or the objectives and key results with get_view view=objectives. Pass full=true to raise the budget to the 40000-character cap.",
       "category": "strategy",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the full 40000-character cap instead of the default 12000.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1661,12 +1677,20 @@
     },
     {
       "name": "get_strategy_context",
-      "description": "USE WHEN you need full strategic context: vision, personas, and competitive position.",
+      "description": "USE WHEN you need to know what strategy an instance defines. Returns an outline by default: which strategy documents exist, their sections and sizes, and what is not defined. It does not return the documents; read a section with get_section, or answer a cross-document question with get_view. Unmodified framework templates and definitions are counted, never returned as the company's strategy. Pass full=true for the authored documents' payloads, up to a 40000-character cap; anything left out is listed.",
       "category": "strategy",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to include authored payloads, bounded by max_chars (default and cap 40000).",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Payload budget in characters when full=true (cap 40000)",
             "type": "string"
           }
         },
@@ -1797,7 +1821,7 @@
             "type": "string"
           },
           "view": {
-            "description": "One of: competitor, objectives, key_result, personas",
+            "description": "One of: competitor, objectives, key_result, personas, competitive_position",
             "type": "string"
           }
         },
@@ -2185,16 +2209,36 @@
     },
     {
       "name": "list_artifacts",
-      "description": "USE WHEN you need to list strategy artifacts of any type (commercial_def, org_ops_def, strategy_def, value_model, etc.) with their index fields (name, track, status).",
+      "description": "USE WHEN you need to list an instance's strategy artifacts with their index fields (type, key, name, track, status, size). Returns a page of index rows without payloads; read content with get_section. Unmodified framework content (canonical definitions, templates, packaged value models) is excluded and counted in framework_excluded; pass include_framework=true to list it with its integrity class. Pass full=true to include payloads up to a 40000-character cap; any omitted are marked.",
       "category": "features",
       "input_schema": {
         "properties": {
           "artifact_type": {
-            "description": "Filter by artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model, feature",
+            "description": "Filter by artifact type, e.g. feature, value_model, roadmap_recipe",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor (next_cursor from a previous response)",
+            "type": "string"
+          },
+          "full": {
+            "description": "Set to \"true\" to include payloads, bounded by max_chars.",
+            "type": "string"
+          },
+          "include_framework": {
+            "description": "Set to \"true\" to include unmodified framework content.",
             "type": "string"
           },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Page size (1-200, default 50)",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Payload budget in characters when full=true (cap 40000)",
             "type": "string"
           }
         },

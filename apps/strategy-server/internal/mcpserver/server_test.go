@@ -203,6 +203,16 @@ type toolResult struct {
 	isError bool
 }
 
+// decodeArtifactRows decodes a list_artifacts page and returns its rows.
+func decodeArtifactRows[T any](r toolResult) []T {
+	r.t.Helper()
+	var page struct {
+		Artifacts []T `json:"artifacts"`
+	}
+	r.decode(&page)
+	return page.Artifacts
+}
+
 // assertOK fatals if the tool returned an error response.
 func (r toolResult) assertOK() toolResult {
 	r.t.Helper()
@@ -644,12 +654,10 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 				},
 			},
 		},
-		"strategy_foundations": map[string]any{
-			"personas": []any{
-				map[string]any{"name": "Strategic Manager", "role": "Head of Product"},
-			},
-		},
 		"insight_analyses": map[string]any{
+			"target_users": []any{
+				map[string]any{"persona": "Strategic Manager", "description": "Head of Product"},
+			},
 			"competitive_landscape": map[string]any{
 				"summary": "No direct competitor treats strategy as a live semantic system.",
 			},
@@ -663,16 +671,27 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 	})
 	instIDStr := instID.String()
 
-	// get_strategy_context — all artifacts
-	var artifacts []map[string]any
-	c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&artifacts)
+	// get_strategy_context — an outline by default, not the payloads
+	var outline struct {
+		Artifacts []map[string]any `json:"artifacts"`
+	}
+	ctxResult := c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr}).
+		assertOK().decode(&outline)
 	id++
 
-	if len(artifacts) == 0 {
-		t.Error("get_strategy_context: returned no artifacts")
+	if len(outline.Artifacts) == 0 {
+		t.Error("get_strategy_context: the outline lists no artifacts")
 	}
-	t.Logf("get_strategy_context: %d artifacts", len(artifacts))
+	if strings.Contains(ctxResult.text, "semantic strategy runtime") {
+		t.Error("get_strategy_context: the default must be an outline, not the artifact payloads")
+	}
+	t.Logf("get_strategy_context: %d artifacts in the outline", len(outline.Artifacts))
+
+	// get_strategy_context full=true — the authored payloads, bounded
+	c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr, "full": "true"}).
+		assertOK().
+		contains("semantic strategy runtime")
+	id++
 
 	// get_product_vision — north_star
 	c.call(id, "get_product_vision", map[string]any{"instance_id": instIDStr}).
@@ -680,13 +699,13 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 		contains("semantic strategy runtime")
 	id++
 
-	// get_personas — strategy_foundations
+	// get_personas — the insight analyses' target users
 	c.call(id, "get_personas", map[string]any{"instance_id": instIDStr}).
 		assertOK().
 		contains("Strategic Manager")
 	id++
 
-	// get_competitive_position — insight_analyses
+	// get_competitive_position — landscape plus per-competitor positioning
 	c.call(id, "get_competitive_position", map[string]any{"instance_id": instIDStr}).
 		assertOK().
 		contains("semantic system")
@@ -1504,9 +1523,8 @@ func TestMCP_StrategicIndex_MultiTypeEPFInstance(t *testing.T) {
 		Track        *string `json:"track,omitempty"`
 		Status       string  `json:"status"`
 	}
-	var all []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&all)
+	all := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 
 	if len(all) != 5 {
 		t.Fatalf("list_artifacts: expected 5 artifacts, got %d", len(all))
@@ -1746,11 +1764,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// commercial_def filter — must return exactly 2, all with track=commercial
-	var commercialDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	commercialDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "commercial_def",
-	}).assertOK().decode(&commercialDefs)
+	}).assertOK())
 	id++
 
 	if len(commercialDefs) != 2 {
@@ -1766,11 +1783,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// org_ops_def filter — must return exactly 2, all with track=org_ops
-	var orgopsDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	orgopsDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "org_ops_def",
-	}).assertOK().decode(&orgopsDefs)
+	}).assertOK())
 	id++
 
 	if len(orgopsDefs) != 2 {
@@ -1783,11 +1799,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// strategy_def filter — must return exactly 1
-	var stratDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	stratDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&stratDefs)
+	}).assertOK())
 	id++
 
 	if len(stratDefs) != 1 {
@@ -1800,9 +1815,8 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// Unfiltered total: should be 6
-	var allArtifacts []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&allArtifacts)
+	allArtifacts := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 
 	if len(allArtifacts) != 6 {
 		t.Errorf("unfiltered artifact count: got %d, want 6", len(allArtifacts))
@@ -1874,11 +1888,10 @@ func TestMCP_StrategyDefAuthoringCycle(t *testing.T) {
 		Track        *string `json:"track,omitempty"`
 		Status       string  `json:"status"`
 	}
-	var stratDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	stratDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&stratDefs)
+	}).assertOK())
 	id++
 
 	if len(stratDefs) != 1 {
@@ -1940,11 +1953,10 @@ func TestMCP_StrategyDefAuthoringCycle(t *testing.T) {
 	}
 
 	// Index must reflect the new status.
-	var updatedDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	updatedDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&updatedDefs)
+	}).assertOK())
 
 	if len(updatedDefs) != 1 {
 		t.Fatalf("strategy_def count after update: got %d, want 1", len(updatedDefs))
@@ -2303,9 +2315,8 @@ func TestMCP_ExpandedWriteTools(t *testing.T) {
 		Name         *string `json:"name,omitempty"`
 		Track        *string `json:"track,omitempty"`
 	}
-	var all []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&all)
+	all := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 	id++
 
 	if len(all) != 6 {

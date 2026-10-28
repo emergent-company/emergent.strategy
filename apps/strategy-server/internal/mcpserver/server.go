@@ -50,6 +50,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
 	skillrundom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
@@ -574,8 +575,10 @@ func registerFindInstanceByRepoTool(s *server.MCPServer, svc Services) {
 
 func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("get_strategy_context",
-		mcp.WithDescription("USE WHEN you need full strategic context: vision, personas, and competitive position."),
+		mcp.WithDescription("USE WHEN you need to know what strategy an instance defines. Returns an outline by default: which strategy documents exist, their sections and sizes, and what is not defined. It does not return the documents; read a section with get_section, or answer a cross-document question with get_view. Unmodified framework templates and definitions are counted, never returned as the company's strategy. Pass full=true for the authored documents' payloads, up to a 40000-character cap; anything left out is listed."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include authored payloads, bounded by max_chars (default and cap 40000).`)),
+		mcp.WithString("max_chars", mcp.Description("Payload budget in characters when full=true (cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -584,11 +587,20 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
+		if argString(req, "full") != "true" {
+			out, err := svc.Strategy.ReadOutline(ctx, id, "")
+			if err != nil {
+				return toolErr(ctx, err), nil
+			}
+			return mustJSON(out)
+		}
+		page, err := svc.Strategy.ListArtifactPage(ctx, id, strategy.ListOptions{
+			WithPayload: true, MaxPayloadChars: argInt(req, "max_chars", 0), Limit: 200,
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(artifacts)
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("get_product_vision",
@@ -602,16 +614,20 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "north_star")
+		raw, notDefined, err := svc.Strategy.ReadAuthoredPayload(ctx, id, "north_star")
 		if err != nil {
 			return toolErr(ctx, err), nil
+		}
+		if notDefined != nil {
+			return mustJSON(notDefined)
 		}
 		return mcp.NewToolResultText(string(raw)), nil
 	})
 
 	s.AddTool(mcp.NewTool("get_personas",
-		mcp.WithDescription("USE WHEN you need target personas and their pain points for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the target personas and their problems for a strategy instance. Reads the target users of the insight analyses, within a size budget; reports when none are defined. Same as get_view with view=personas."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -620,16 +636,13 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "strategy_foundations")
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return readViewTool(ctx, svc, id, req, "personas")
 	})
 
 	s.AddTool(mcp.NewTool("get_competitive_position",
-		mcp.WithDescription("USE WHEN you need the competitive analysis for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the competitive analysis for a strategy instance: the competitive landscape from the insight analyses, our positioning against each named competitor from the strategy formula, and the positioning statement, within a size budget. For one competitor use get_view with view=competitor. For other insight sections use get_section."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("max_chars", mcp.Description("Shared response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -638,16 +651,14 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "insight_analyses")
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return readViewTool(ctx, svc, id, req, "competitive_position")
 	})
 
 	s.AddTool(mcp.NewTool("get_roadmap",
-		mcp.WithDescription("USE WHEN you need the full roadmap recipe for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the roadmap recipe for a strategy instance. Returns the roadmap within a size budget; when it is larger, returns its sections with sizes instead. Read one track with get_section (path tracks.<track>), or the objectives and key results with get_view view=objectives. Pass full=true to raise the budget to the 40000-character cap."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the full 40000-character cap instead of the default 12000.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -656,13 +667,27 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "roadmap_recipe")
+		budget := argInt(req, "max_chars", 0)
+		if argString(req, "full") == "true" {
+			budget = strategyread.HardMaxChars
+		}
+		out, err := svc.Strategy.ReadSection(ctx, id, "roadmap_recipe", "", budget)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return mustJSON(out)
 	})
 
+}
+
+// readViewTool serves a tool that is a named view with only a budget argument.
+// The caller has already checked access to the instance.
+func readViewTool(ctx context.Context, svc Services, id uuid.UUID, req mcp.CallToolRequest, view string) (*mcp.CallToolResult, error) {
+	out, err := svc.Strategy.ReadView(ctx, id, view, nil, argInt(req, "max_chars", 0))
+	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+	return mustJSON(out)
 }
 
 // registerArtifactMutationTools registers feature and mutation read tools.
@@ -707,9 +732,14 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("list_artifacts",
-		mcp.WithDescription("USE WHEN you need to list strategy artifacts of any type (commercial_def, org_ops_def, strategy_def, value_model, etc.) with their index fields (name, track, status)."),
+		mcp.WithDescription("USE WHEN you need to list an instance's strategy artifacts with their index fields (type, key, name, track, status, size). Returns a page of index rows without payloads; read content with get_section. Unmodified framework content (canonical definitions, templates, packaged value models) is excluded and counted in framework_excluded; pass include_framework=true to list it with its integrity class. Pass full=true to include payloads up to a 40000-character cap; any omitted are marked."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
-		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model, feature")),
+		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. feature, value_model, roadmap_recipe")),
+		mcp.WithString("include_framework", mcp.Description(`Set to "true" to include unmodified framework content.`)),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include payloads, bounded by max_chars.`)),
+		mcp.WithString("max_chars", mcp.Description("Payload budget in characters when full=true (cap 40000)")),
+		mcp.WithString("limit", mcp.Description("Page size (1-200, default 50)")),
+		mcp.WithString("cursor", mcp.Description("Pagination cursor (next_cursor from a previous response)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -718,11 +748,18 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, argString(req, "artifact_type"))
+		page, err := svc.Strategy.ListArtifactPage(ctx, id, strategy.ListOptions{
+			ArtifactType:     argString(req, "artifact_type"),
+			IncludeFramework: argString(req, "include_framework") == "true",
+			WithPayload:      argString(req, "full") == "true",
+			MaxPayloadChars:  argInt(req, "max_chars", 0),
+			Limit:            argInt(req, "limit", 0),
+			Cursor:           argString(req, "cursor"),
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(artifacts)
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("list_relationships",

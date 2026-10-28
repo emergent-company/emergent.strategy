@@ -138,3 +138,24 @@ func TestReadView_SharesOneBudget(t *testing.T) {
 		t.Errorf("parts returned %d characters of content, over the shared budget of 150", total)
 	}
 }
+
+func TestReadView_CompetitivePositionIncludesPerCompetitorPositioning(t *testing.T) {
+	svc, _, inst := seedRead(t)
+	res, err := svc.ReadView(context.Background(), inst, "competitive_position", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]string{}
+	for _, p := range res.Parts {
+		byName[p.Name] = mustMarshal(t, p.Content)
+		if !p.Defined && p.Name != "positioning_statement" {
+			t.Errorf("part %s not defined: %s", p.Name, p.Reason)
+		}
+	}
+	if !strings.Contains(byName["landscape"], "Large traceability vendor") {
+		t.Errorf("landscape = %s", byName["landscape"])
+	}
+	if !strings.Contains(byName["positioning_by_competitor"], "Offline first") {
+		t.Errorf("the formula's per-competitor positioning must be included: %s", byName["positioning_by_competitor"])
+	}
+}

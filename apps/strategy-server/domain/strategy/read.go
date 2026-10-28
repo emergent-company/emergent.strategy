@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -110,7 +111,7 @@ func (s *Service) ReadOutline(ctx context.Context, instanceID uuid.UUID, artifac
 		out.Artifacts = append(out.Artifacts, ArtifactOutline{
 			Artifact:     row.ArtifactKey,
 			ArtifactType: row.ArtifactType,
-			SizeChars:    len(row.Payload),
+			SizeChars:    utf8.RuneCount(row.Payload),
 			Children:     strategyread.Outline(row.ArtifactType, payload),
 			ReadWith:     readWith(row.ArtifactKey, "<path>"),
 		})
@@ -149,7 +150,7 @@ func (s *Service) ReadOutline(ctx context.Context, instanceID uuid.UUID, artifac
 		out.Artifacts = append(out.Artifacts, ArtifactOutline{
 			Artifact:     row.ArtifactKey,
 			ArtifactType: row.ArtifactType,
-			SizeChars:    len(row.Payload),
+			SizeChars:    utf8.RuneCount(row.Payload),
 			Sections:     sections,
 			ReadWith:     readWith(row.ArtifactKey, "<section>"),
 		})
@@ -385,4 +386,29 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// ReadAuthoredPayload returns the raw payload of an artifact the company
+// authored. For an unmodified template or other framework content it returns a
+// structured not-defined result instead, so a template is never read as the
+// company's strategy. A missing artifact is an apperror not-found, as before.
+func (s *Service) ReadAuthoredPayload(ctx context.Context, instanceID uuid.UUID, key string) (json.RawMessage, *SectionResult, error) {
+	row, err := s.currentRow(ctx, instanceID, key)
+	if err != nil {
+		return nil, nil, err
+	}
+	if row == nil {
+		return nil, nil, apperror.ErrNotFound.WithDetail(fmt.Sprintf("no artifact %q for instance %s", key, instanceID))
+	}
+	if reason, ok := frameworkReason(row); ok {
+		res := &SectionResult{
+			Source:    SectionSource{InstanceID: instanceID, ArtifactType: row.ArtifactType, ArtifactKey: key},
+			CiteAs:    strategyread.CiteAs(row.ArtifactType, ""),
+			Integrity: &IntegrityInfo{Class: deref(row.IntegrityClass), Ref: deref(row.IntegrityRef)},
+			Hints:     []string{"this is framework content, not something this company wrote; do not present it as their strategy"},
+		}
+		res.Reason = reason
+		return nil, res, nil
+	}
+	return json.RawMessage(row.Payload), nil, nil
 }

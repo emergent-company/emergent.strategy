@@ -87,11 +87,16 @@ part. Section 5 follows 2 and 3.
 
 ## 4. Answer-facing reads (strategy-server)
 
-- [ ] 4.1 `ListArtifactsFiltered` option to include framework content. Default
+- [x] 4.1 (as `ListArtifactPage` with `IncludeFramework`; `ListCurrentArtifacts` and
+      therefore export, versioning, ripple, watchdog and align are unchanged, so
+      export output cannot change). Original text: `ListArtifactsFiltered` option to include framework content. Default
       excludes it for `get_strategy_context` and `list_artifacts`. Export,
       versioning, ripple, watchdog and align pass include-all. Test that export
       output is byte-identical before and after.
-- [ ] 4.2 Single-artifact reads return a structured not-defined result for an
+- [~] 4.2 `get_product_vision` returns a structured not-defined result for an
+      unmodified template (other single-artifact reads: `get_feature` and the
+      value-model tools serve non-template content or framework content on
+      purpose). Original text: single-artifact reads return a structured not-defined result for an
       unmodified template, with the reason.
 - [ ] 4.3 Ingest stamps property `integrity_class` and label
       `integrity:<class>` on Memory objects, including decomposed objects.

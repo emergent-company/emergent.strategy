@@ -51,14 +51,18 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 ## 4. Existing tools
 
-- [ ] 4.0 Find every caller of `get_strategy_context`, `list_artifacts` and
+- [x] 4.0 Find every caller (in this repository: `ListCurrentArtifacts` has ~10
+      internal callers (export/GitHub push, align, value-model tools, coverage,
+      health) and is unchanged; only the MCP tools changed. Callers outside this
+      repository, such as opencode-harness, are NOT checked and are the open risk.
+      Original text: find every caller of `get_strategy_context`, `list_artifacts` and
       `get_roadmap` (the harness, the web UI, agents, skills) and record them
       here. Decide the release note.
-- [ ] 4.1 `get_personas` reads `target_users` from the insights artifact (bug
+- [x] 4.1 `get_personas` reads `target_users` from the insights artifact (bug
       fix, with a test using the pilot-shaped fixture).
-- [ ] 4.2 `get_competitive_position` includes the formula's per-competitor
+- [x] 4.2 `get_competitive_position` includes the formula's per-competitor
       positioning.
-- [ ] 4.3 `get_strategy_context`, `list_artifacts` and `get_roadmap` return an
+- [x] 4.3 `get_strategy_context`, `list_artifacts` and `get_roadmap` return an
       outline by default. `full` returns payloads up to the cap with explicit
       truncation. `list_artifacts` paginates. Update descriptions. Check
       `ExportInstance`, ripple, watchdog and align still use the unbounded
