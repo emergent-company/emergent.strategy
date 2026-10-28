@@ -87,6 +87,11 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	forceStr, _ := request.RequireString("force")
 	force := strings.ToLower(forceStr) == "true"
 
+	// no_definitions skips copying the canonical definitions (sd-*, pd-*, cd-*)
+	// into the instance and records that in the anchor. Default: installed.
+	noDefsStr, _ := request.RequireString("no_definitions")
+	noDefinitions := strings.ToLower(noDefsStr) == "true"
+
 	// Validate product name
 	if !isValidProductName(productName) {
 		return mcp.NewToolResultError(fmt.Sprintf(
@@ -145,15 +150,15 @@ func (s *Server) handleInitInstance(ctx context.Context, request mcp.CallToolReq
 	}
 
 	if mode == "standalone" {
-		return s.handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, result)
+		return s.handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, noDefinitions, result)
 	}
 
-	return s.handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, result)
+	return s.handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType, force, dryRun, isGit, noDefinitions, result)
 }
 
 // handleInitStandalone creates an EPF instance directly at the given path (no docs/EPF/ wrapper).
 // This is for repositories that ARE the EPF instance (e.g., dedicated strategy repos).
-func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
+func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit, noDefinitions bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
 	if dryRun {
 		result.FilesCreated = []string{
 			filepath.Join(instanceDir, "_epf.yaml"),
@@ -176,7 +181,7 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 			filepath.Join(instanceDir, "outputs", ".gitkeep"),
 		}
 		// Add canonical definitions to dry_run listing
-		if defs, err := embedded.ListCanonicalDefinitions(); err == nil {
+		if defs, err := embedded.ListCanonicalDefinitions(); err == nil && !noDefinitions {
 			for _, def := range defs {
 				dstDir := filepath.Join(instanceDir, "READY", "definitions", def.Track)
 				if def.Category != "" {
@@ -214,7 +219,7 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 	}
 
 	// Create instance structure directly at path (no wrapper)
-	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType)
+	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType, noDefinitions)
 	if err != nil {
 		result.Success = false
 		result.Error = fmt.Sprintf("Failed to create instance structure: %s", err.Error())
@@ -259,7 +264,7 @@ func (s *Server) handleInitStandalone(absPath, instanceDir, productName, epfVers
 
 // handleInitIntegrated creates an EPF instance with the docs/EPF/ wrapper structure.
 // This is the default mode for product repositories.
-func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
+func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName, epfVersion, structureType string, force, dryRun, isGit, noDefinitions bool, result *InitInstanceResult) (*mcp.CallToolResult, error) {
 	if dryRun {
 		// Simulate what would be created
 		result.FilesCreated = []string{
@@ -286,7 +291,7 @@ func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName,
 			filepath.Join(instanceDir, "outputs", ".gitkeep"),
 		}
 		// Add canonical definitions to dry_run listing
-		if defs, err := embedded.ListCanonicalDefinitions(); err == nil {
+		if defs, err := embedded.ListCanonicalDefinitions(); err == nil && !noDefinitions {
 			for _, def := range defs {
 				dstDir := filepath.Join(instanceDir, "READY", "definitions", def.Track)
 				if def.Category != "" {
@@ -336,7 +341,7 @@ func (s *Server) handleInitIntegrated(absPath, epfDir, instanceDir, productName,
 	}
 
 	// Create instance structure
-	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType)
+	createdFiles, err := s.createInstanceStructure(instanceDir, productName, epfVersion, structureType, noDefinitions)
 	if err != nil {
 		result.Success = false
 		result.Error = fmt.Sprintf("Failed to create instance structure: %s", err.Error())
@@ -505,7 +510,7 @@ Thumbs.db
 	return path, nil
 }
 
-func (s *Server) createInstanceStructure(instanceDir, productName, epfVersion, structureType string) ([]string, error) {
+func (s *Server) createInstanceStructure(instanceDir, productName, epfVersion, structureType string, noDefinitions bool) ([]string, error) {
 	var createdFiles []string
 
 	// Create phase directories
@@ -539,12 +544,18 @@ func (s *Server) createInstanceStructure(instanceDir, productName, epfVersion, s
 	templateFiles := s.copyTemplatesFromEmbedded(instanceDir)
 	createdFiles = append(createdFiles, templateFiles...)
 
-	// Copy canonical definitions (strategy, org_ops, commercial tracks)
-	defFiles := s.copyCanonicalDefinitionsFromEmbedded(instanceDir)
-	createdFiles = append(createdFiles, defFiles...)
+	// Copy canonical definitions (strategy, org_ops, commercial tracks) unless
+	// the caller asked for an instance without them.
+	if !noDefinitions {
+		defFiles := s.copyCanonicalDefinitionsFromEmbedded(instanceDir)
+		createdFiles = append(createdFiles, defFiles...)
+	}
 
 	// Create anchor file (_epf.yaml)
 	anchorFile := anchor.NewWithOptions(productName, "", epfVersion)
+	if noDefinitions {
+		anchorFile.CanonicalDefinitions = anchor.CanonicalDefinitionsOmitted
+	}
 	anchorFile.Structure = &anchor.StructureInfo{
 		Type:     structureType,
 		Location: instanceDir,

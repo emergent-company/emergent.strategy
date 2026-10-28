@@ -17,15 +17,21 @@ part. Section 5 follows 2 and 3.
       `apps/epf-cli/scripts/gen-integrity-manifest` on `internal/integrity`, not as
       a script in canonical-epf, so the normalisation exists in Go once and both
       apps are tested against shared vectors. Output `integrity-manifest.json`.
-- [ ] 1.2 Anchor schema: `canonical_definitions: installed | omitted` and
+- [~] 1.2 Anchor schema (done on branch `integrity-anchor-fields` of the canonical
+      repo, staged but NOT committed: its commit hook requires a version bump, a
+      release decision for the canonical owner, MINOR 2.32.0 as it adds optional
+      fields; the pin in `.epf-canonical-version` moves when it merges): `canonical_definitions: installed | omitted` and
       `adopted_canonical: [ids]`.
-- [ ] 1.3 Shipped templates: replace sample values (`Example Product Objective`,
+- [ ] 1.3 (NOT STARTED, needs owner review: it changes template content and every
+      template hash) Shipped templates: replace sample values (`Example Product Objective`,
       `Example ... Key Result`, `TBD`, `Your Organization Name`,
       `YYYY-MM-DD`) with `not_defined` where the schema allows, and keep the
       `PLACEHOLDER:` convention where it does not.
-- [ ] 1.3b Product value model, AIM templates: header comment and status say
+- [ ] 1.3b (NOT STARTED) Product value model, AIM templates: header comment and status say
       template. Do not reuse real-looking IDs and outcomes in the AIM templates.
-- [ ] 1.4 Distributed `AGENTS.md`: authoring rules (cite a source per claim, use
+- [~] 1.4 `apps/epf-cli/AGENTS.md` detected-patterns list corrected to match the
+      code; the authoring rules (cite a source per claim, `PLACEHOLDER:`, ask rather
+      than fill in, prune) are NOT written yet. Original: distributed `AGENTS.md`: authoring rules (cite a source per claim, use
       `PLACEHOLDER:` for unknowns, ask rather than fill in, prune files you do not
       use, definitions are reference). Fix the claim that unsupported patterns are
       detected.
@@ -67,22 +73,31 @@ part. Section 5 follows 2 and 3.
 
 ## 3. epf-cli (maintenance mode: additive, defaults unchanged)
 
-- [ ] 3.1 Bug fixes: `canonical.go` matches `.value_model.yaml` (keep old forms,
+- [x] 3.1 Bug fixes (shared markers appended to both lists from
+      `internal/integrity`; the dead `^example:` entry removed; `e.g.,` deliberately
+      not flagged): `canonical.go` matches `.value_model.yaml` (keep old forms,
       add cases to `canonical_test.go`); add the missing patterns to
       `internal/validation/patterns.go` and `internal/checks/instance.go`, from one
       shared list; fix the shadowed `^example:` pattern.
-- [ ] 3.2 `ContentIntegrity` on `ContentReadinessResult`, computed inside the
+- [x] 3.2 `ContentIntegrity` on `ContentReadinessResult`, computed inside the
       existing walk after the canonical exclusion step. Structural equality via
       `yaml.v3` into `interface{}`. Score and default exit code unchanged.
-- [ ] 3.3 Print it in `health`, include it in `report` and in both MCP health
+- [~] 3.3 Print it in `health` (done); it reaches `report` and both MCP health
+      handlers through the shared struct; `required_next_tool_calls` suggestion
+      added to the MCP health handler. Original: print it in `health`, include it in `report` and in both MCP health
       handlers; add the `ToolCallSuggestion` naming the files.
-- [ ] 3.4 `--strict-integrity` for `health`.
-- [ ] 3.5 `init --no-definitions` and the `epf_init_instance` parameter (string,
+- [x] 3.4 `--strict-integrity` for `health`.
+- [~] 3.5 `init --no-definitions` (CLI and MCP) and the anchor field, and
+      `sync-canonical` and the completeness diagnostic respect `omitted`. NOT done:
+      the wizard/agent routing keywords for populate/import (epf-cli routes keywords
+      to agents, not skills). Original: `init --no-definitions` and the `epf_init_instance` parameter (string,
       like `dry_run`); write `canonical_definitions` to the anchor; make
       `sync-canonical` and the `aim-canonical-incomplete` and
       missing-canonical diagnostics respect `omitted`. Add populate/import keywords
       to the wizard routing so they reach `draft-*`.
-- [ ] 3.6 Shared fixture corpus under `testdata/content-integrity/` (input
+- [x] 3.6 Shared fixture corpus (`classification-cases.json` and `hash-vectors.json`,
+      identical in both apps, each app builds its own manifest from them). Original:
+      shared fixture corpus under `testdata/content-integrity/` (input
       artifact, expected class, expected rule id) and a test in each app that
       runs it.
 

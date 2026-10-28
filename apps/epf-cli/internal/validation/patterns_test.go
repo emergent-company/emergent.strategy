@@ -164,3 +164,14 @@ func TestPlaceholderPatterns_CaseInsensitive(t *testing.T) {
 		})
 	}
 }
+
+func TestPlaceholderPatterns_IncludeTheSharedAdditionalMarkers(t *testing.T) {
+	for _, line := range []string{"[FILL IN]", "20XX", "Your Organization Name", "Product Name Here", "Example Product Objective"} {
+		if !IsTemplateContent(line) {
+			t.Errorf("%q is not detected as template content", line)
+		}
+	}
+	if IsTemplateContent("We sell traceability to cocoa buyers") {
+		t.Error("authored content flagged")
+	}
+}

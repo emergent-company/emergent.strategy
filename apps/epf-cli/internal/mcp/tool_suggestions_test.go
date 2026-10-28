@@ -772,3 +772,45 @@ func TestLoopThreshold(t *testing.T) {
 		t.Errorf("Expected loopThreshold=2, got %d", loopThreshold)
 	}
 }
+
+func TestGenerateHealthCheckSuggestions_UnmodifiedTemplatesNameTheFiles(t *testing.T) {
+	result := &HealthCheckSummary{
+		InstancePath: "/test/path",
+		ContentReadiness: &checks.ContentReadinessResult{
+			Score: 100,
+			ContentIntegrity: &checks.ContentIntegrity{
+				Counts: map[string]int{"unmodified_template": 1, "canonical_reference": 40},
+				Files: []checks.IntegrityFile{
+					{File: "READY/00_north_star.yaml", Class: "unmodified_template", Rule: "integrity.unmodified_template"},
+				},
+			},
+		},
+	}
+
+	var found *ToolCallSuggestion
+	for _, s := range generateHealthCheckSuggestions(result) {
+		if strings.Contains(s.Reason, "READY/00_north_star.yaml") {
+			s := s
+			found = &s
+		}
+	}
+	if found == nil {
+		t.Fatal("expected a suggestion that names the unmodified template")
+	}
+	if found.Tool != "epf_get_agent_for_task" || found.Priority != "recommended" {
+		t.Errorf("suggestion = %+v", found)
+	}
+}
+
+func TestGenerateHealthCheckSuggestions_CanonicalDefinitionsAloneSuggestNothing(t *testing.T) {
+	result := &HealthCheckSummary{
+		InstancePath: "/test/path",
+		ContentReadiness: &checks.ContentReadinessResult{
+			Score:            100,
+			ContentIntegrity: &checks.ContentIntegrity{Counts: map[string]int{"canonical_reference": 131}, CanonicalDefinitions: 131},
+		},
+	}
+	if got := generateHealthCheckSuggestions(result); len(got) != 0 {
+		t.Errorf("installed definitions are expected and must not prompt work: %+v", got)
+	}
+}

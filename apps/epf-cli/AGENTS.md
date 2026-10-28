@@ -1012,10 +1012,15 @@ template_warnings:
 **Detected patterns include:**
 
 - `TBD`, `TODO`, `FIXME`, `XXX`
-- `[INSERT...]`, `[YOUR...]`, `[FILL...]`
-- `Example:`, `e.g.,`
-- `Your Organization`, `Product Name Here`
+- `[INSERT...]`, `[PLACEHOLDER...]`, `[YOUR...]`, `[FILL...]`, and angle-bracket forms
+- `Your Organization (Name)`, `Product Name Here`, `Example Product`, `Example Key Result`, `Example Objective`
 - Date placeholders: `YYYY-MM-DD`, `20XX`
+- The word `placeholder`, `lorem ipsum`, and "your ... here"
+
+`e.g.,` and `Example:` are **not** flagged: they appear in ordinary prose and would flag authored
+content. Detection is by pattern, so it also cannot tell sample content that matches no pattern
+from your own. `epf-cli health` reports files that are byte-for-byte (structurally) identical to
+a canonical template, and `--strict-integrity` turns unmodified templates into errors.
 
 #### Semantic Alignment Warnings (v0.14.0)
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 	"github.com/spf13/cobra"
 	"os"
@@ -82,6 +83,18 @@ func runSyncCanonical(cmd *cobra.Command, args []string) {
 	if err := EnsurePathNotCanonical(instanceDir, "sync canonical artifacts"); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
+	}
+
+	// An instance that omitted the canonical definitions on purpose is not synced
+	// unless the caller forces it: re-adding them would undo that choice.
+	if a, loadErr := anchor.Load(instanceDir); loadErr == nil && a.DefinitionsOmitted() && !syncForce {
+		if syncJSON {
+			fmt.Println(`{"success":true,"skipped":true,"reason":"canonical_definitions is omitted in the anchor; pass --force to install anyway"}`)
+		} else {
+			fmt.Println("Nothing synced: this instance omits the canonical definitions (_epf.yaml canonical_definitions: omitted).")
+			fmt.Println("Pass --force to install them anyway.")
+		}
+		return
 	}
 
 	// Check available canonical artifacts

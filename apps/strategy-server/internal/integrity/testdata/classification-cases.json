@@ -1,0 +1,20 @@
+{
+  "current_release": "2.0.0",
+  "releases": ["1.0.0", "2.0.0"],
+  "canonical": [
+    {"kind": "definition", "ref": "definitions/product/pd-001.yaml", "releases": ["1.0.0", "2.0.0"], "yaml": "id: pd-001\nname: Thing\n"},
+    {"kind": "template", "ref": "templates/READY/00_north_star.yaml", "releases": ["2.0.0"], "yaml": "north_star:\n  organization: PLACEHOLDER\n"},
+    {"kind": "value_model", "ref": "templates/FIRE/value_models/product.value_model.yaml", "releases": ["1.0.0"], "yaml": "id: vm\nlayers: []\n"},
+    {"kind": "aim_template", "ref": "templates/AIM/assessment_report.yaml", "releases": ["2.0.0"], "yaml": "assessment: {}\n"}
+  ],
+  "cases": [
+    {"name": "definition, reformatted with a comment and reordered keys", "yaml": "# a comment\nname: Thing\nid: pd-001\n", "class": "canonical_reference", "rule": "integrity.canonical_reference", "current": true, "ref": "definitions/product/pd-001.yaml@2.0.0"},
+    {"name": "definition with one added key is the company's own", "yaml": "id: pd-001\nname: Thing\nextra: yes\n", "class": ""},
+    {"name": "template exactly as copied", "yaml": "north_star:\n  organization: PLACEHOLDER\n", "class": "unmodified_template", "rule": "integrity.unmodified_template", "current": true, "ref": "templates/READY/00_north_star.yaml@2.0.0"},
+    {"name": "value model matching only an older release", "yaml": "layers: []\nid: vm\n", "class": "packaged_default", "rule": "integrity.packaged_default", "current": false, "ref": "templates/FIRE/value_models/product.value_model.yaml@1.0.0"},
+    {"name": "AIM template", "yaml": "assessment: {}\n", "class": "unmodified_template", "rule": "integrity.unmodified_template", "current": true, "ref": "templates/AIM/assessment_report.yaml@2.0.0"},
+    {"name": "authored north star", "yaml": "north_star:\n  organization: Acme\n", "class": ""},
+    {"name": "unparseable yaml is not classified", "yaml": "a: [unclosed\n", "class": ""},
+    {"name": "empty document is not classified", "yaml": "\n", "class": ""}
+  ]
+}
