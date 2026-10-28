@@ -17,6 +17,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity/embeddedclassifier"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -551,6 +552,7 @@ func (s *Service) Restore(ctx context.Context, instanceID, versionID uuid.UUID) 
 				Payload:      payload,
 				MutationID:   mut.ID,
 			}
+			art.IntegrityClass, art.IntegrityRef, art.IntegrityCheckedWith = embeddedclassifier.Default().Columns(payload)
 			if _, err := tx.NewInsert().Model(art).Exec(ctx); err != nil {
 				return fmt.Errorf("insert artifact for %q: %w", key, err)
 			}

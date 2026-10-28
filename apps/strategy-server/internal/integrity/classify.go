@@ -115,6 +115,15 @@ func parseUsable(raw []byte) (*manifest, bool) {
 	return &m, true
 }
 
+// Version identifies the content this classifier matches against. It is stored
+// with each classification so that a new canonical release can be detected.
+func (c *Classifier) Version() string {
+	if c.fallback {
+		return "fallback:embedded"
+	}
+	return fmt.Sprintf("manifest:%s:%d", c.current, len(c.entries))
+}
+
 // FallbackUsed reports whether matching uses the current embedded content
 // because no usable manifest was available.
 func (c *Classifier) FallbackUsed() bool { return c.fallback }
@@ -182,4 +191,25 @@ func kindForPath(p string) string {
 	default:
 		return kindTemplate
 	}
+}
+
+// Columns classifies a stored payload into the values written to the
+// integrity_* columns. class and ref are nil for authored content; checkedWith
+// is nil only for a nil classifier, which means "never classified". It is safe
+// to call on a nil Classifier.
+func (c *Classifier) Columns(payload []byte) (class, ref, checkedWith *string) {
+	if c == nil {
+		return nil, nil, nil
+	}
+	v := c.Version()
+	checkedWith = &v
+	if res, ok := c.Classify(payload); ok {
+		cl := string(res.Class)
+		class = &cl
+		if res.Ref != "" {
+			r := res.Ref
+			ref = &r
+		}
+	}
+	return class, ref, checkedWith
 }

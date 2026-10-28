@@ -11,10 +11,12 @@ part. Section 5 follows 2 and 3.
 
 ## 1. canonical-epf (separate repository)
 
-- [ ] 1.1 Manifest generator: for every release tag, normalised-content hash per
-      template, definition, value model and AIM file. Output
-      `integrity-manifest.json`. Document the normalisation (parse, JSON
-      round-trip, key sort, SHA-256) so both apps implement it identically.
+- [x] 1.1 Manifest generator: normalised-content hash per template, definition,
+      value model and AIM file, for every release commit (canonical has no tags;
+      releases are `Release: Bump version to X` commits). Implemented as
+      `apps/epf-cli/scripts/gen-integrity-manifest` on `internal/integrity`, not as
+      a script in canonical-epf, so the normalisation exists in Go once and both
+      apps are tested against shared vectors. Output `integrity-manifest.json`.
 - [ ] 1.2 Anchor schema: `canonical_definitions: installed | omitted` and
       `adopted_canonical: [ids]`.
 - [ ] 1.3 Shipped templates: replace sample values (`Example Product Objective`,
@@ -27,23 +29,32 @@ part. Section 5 follows 2 and 3.
       `PLACEHOLDER:` for unknowns, ask rather than fill in, prune files you do not
       use, definitions are reference). Fix the claim that unsupported patterns are
       detected.
-- [ ] 1.5 `make sync-embedded` into both apps. Never edit `internal/embedded/`
+- [x] 1.5 `sync-embedded` (both apps) copies the manifest from canonical if it
+      ships one, else generates it from canonical's git history, else writes an
+      empty stub so the build never breaks. `make sync-embedded` into both apps. Never edit `internal/embedded/`
       by hand.
 
 ## 2. strategy-server
 
-- [ ] 2.1 `internal/embedded`: classifier (normalise, hash, manifest lookup,
+- [~] 2.1 `internal/integrity` (exact-match part done: normalise, hash, manifest
+      lookup, fallback and report, every embedded file classifies as itself;
+      near-match, `template_values` and the placeholder patterns remain):
+      classifier (normalise, hash, manifest lookup,
       near-match, fallback and report), rule-id constants, and the placeholder
       patterns ported from `epf-cli`. Unit tests over every embedded template and
       definition (each classifies as itself).
-- [ ] 2.2 Migration: `integrity_class`, `integrity_ref` on `strategy_artifacts`,
+- [x] 2.2 Migration (046; adds `integrity_checked_with` too): `integrity_class`, `integrity_ref` on `strategy_artifacts`,
       partial index. Next free number at merge (045 belongs to the fence change).
       Update `domain.StrategyArtifact` and the migration table in `AGENTS.md`.
-- [ ] 2.3 `deriveIndex` sets the class. Explicit calls in `restore_version`,
+- [x] 2.3 `deriveIndex` sets the class (verified by running tests: restore and
+      scaffold done; evidence stamped; align reaches `deriveIndex`; aim and
+      skillexec have no direct `strategy_artifacts` writes). `scaffold_instance`
+      did not index at all: fixed. Original text: `deriveIndex` sets the class. Explicit calls in `restore_version`,
       `scaffold_instance` (also run `BackfillIndex`), and the direct seed paths in
       design appendix A. Test that each listed writer leaves the column set.
-- [ ] 2.4 Reclassify on startup when the stored manifest version differs, and an
-      on-demand admin call.
+- [x] 2.4 Reclassify on startup for rows not checked with the current manifest
+      (`integrity_checked_with`). A new manifest ships with a new binary, so a
+      restart is the on-demand path; no separate admin call.
 - [ ] 2.5 `check_content_readiness`: scan all artifacts, emit `integrity.*`
       findings (warning or info, aggregated for definitions), drop the score when
       there are zero features. Contract test: `ok` never changes because of
