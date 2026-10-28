@@ -459,7 +459,13 @@ func runServer(cfg *config.Config) error {
 
 	go func() {
 		log.Info("listening", "addr", srv.Addr)
-		if err := e.StartServer(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		// Use srv.ListenAndServe directly instead of e.StartServer(srv): Echo wraps
+		// the listener in its own tcpKeepAliveListener, whose Accept() returns
+		// setsockopt(SO_KEEPALIVE) errors (EINVAL on macOS when a client resets a
+		// connection immediately after connect) as fatal Listener.Accept() errors,
+		// tearing down the entire HTTP server. Go's net.Listen already configures
+		// TCP keep-alives without propagating per-connection setsockopt errors.
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("server error", "err", err)
 			stop()
 		}
@@ -470,7 +476,7 @@ func runServer(cfg *config.Config) error {
 	log.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := e.Shutdown(shutdownCtx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("graceful shutdown: %w", err)
 	}
 
