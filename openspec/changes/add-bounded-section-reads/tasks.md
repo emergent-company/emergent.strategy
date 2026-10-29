@@ -104,8 +104,9 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
       (3.6 MB, an export by design), `list_mutations` (0.9 to 1.4 MB, every mutation
       with its payload), `list_installed_skills` (557 KB), `validate_instance`
       (405 KB) and `validate_with_plan` (127 KB), the last two on synthetic content
-      that produces many findings. Bounding the four that are not exports is
-      follow-up work. Tools that need more than an instance id are not covered.
+      that produces many findings. Tools that need more than an instance id are not covered.
+      The four that are not exports are now bounded (task 8.1); the list holds only
+      `export_instance_yaml`.
 - [ ] 7.2 Acceptance table: parse the question bank's "where it lives" entries
       into a test data file. For each, assert the location is reachable in two
       calls or fewer within the default budget and returns the fact the gold
@@ -117,3 +118,32 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
       after, three or more runs per condition on isolated Memory projects. Record
       silent truncations (expected zero).
 - [ ] 7.5 `openspec validate add-bounded-section-reads --strict`; archive on merge.
+
+
+## 8. Remaining unbounded reads
+
+- [x] 8.1 `list_mutations`, `list_installed_skills`, `validate_instance` and
+      `validate_with_plan` return bounded defaults, with `full` and `max_chars`.
+      On the pilot-shaped fixture: `list_mutations` 3.2 MB on one page, now 12 KB
+      by default and 39 KB with `full`; `list_installed_skills` 557 KB, now 11 KB;
+      `validate_instance` text 405 KB, now 4 KB; `validate_with_plan` text 127 KB,
+      now 4 KB.
+      - `list_mutations` is a summary (no payload, `size_chars` per row) and its
+        payloads come with `full`. It no longer returns `instance_id` and
+        `batch_metadata`; `get_mutation` returns the whole record. It declares
+        `since_mutation_id`, which it already read.
+      - `list_installed_skills` returns `{skills, total, truncated, max_chars,
+        hints}` and no longer a bare array, with no prompt, YAML or script.
+      - The validation tools keep the full text when it fits. Otherwise the text
+        lists the invalid artifacts with their first five errors each and says what
+        it left out. The verdict in `structuredContent` is unchanged and complete:
+        it is a public contract that consumers baseline on, so it is not cut. On the
+        fixture it is still 263 KB; whether a client forwards `structuredContent`
+        to the model is not verified.
+- [x] 8.2 Found and fixed while doing 8.1: `list_mutations` paging lost rows. The
+      cursor was the first row of the next page, but the next query asked for rows
+      strictly older than it, so that row and every row sharing its timestamp were
+      skipped; rows committed in one batch always share one. Paging with a page of 2
+      over 7 mutations returned 4. The cursor is now the last row returned and the
+      comparison is on `(created_at, id)`. `since_mutation_id` compares timestamps
+      only and has the same weakness at ties; not changed here.

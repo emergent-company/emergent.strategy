@@ -131,6 +131,45 @@ name the section reads.
 - **THEN** the roadmap payload is returned up to the hard cap
 - **AND** any truncation is flagged
 
+### Requirement: History, Skill And Validation Reads Return Bounded Defaults
+
+`list_mutations`, `list_installed_skills`, `validate_instance` and
+`validate_with_plan` SHALL return no more than the default budget unless asked
+for more with `full` or `max_chars`, which remain subject to the hard cap, and
+SHALL say when they left something out. `list_mutations` SHALL return a summary
+without payloads by default and SHALL page without skipping or repeating a
+mutation, including mutations that share a timestamp. `list_installed_skills`
+SHALL return a catalog without prompts or definitions. The validation tools SHALL
+keep the verdict in `structuredContent` complete and SHALL keep their full text
+when it fits the budget.
+
+#### Scenario: Change history on a large instance
+
+- **WHEN** a client calls `list_mutations` on an instance whose mutations carry
+  more than 1 MB of payloads
+- **THEN** the page is within the default budget and carries no payloads
+- **AND** following `next_cursor` returns every mutation exactly once
+
+#### Scenario: Skill catalog
+
+- **WHEN** a client calls `list_installed_skills`
+- **THEN** each skill is listed with its description, type, execution mode and
+  source, and without its prompt
+- **AND** the response names `get_installed_skill` for the full definition
+
+#### Scenario: Validation of an instance with many findings
+
+- **WHEN** a client calls `validate_instance` on an instance with a backlog of
+  invalid artifacts
+- **THEN** the text is within the default budget and says it is truncated, with
+  the number of artifacts it did not list
+- **AND** `structuredContent.findings` lists every finding
+
+#### Scenario: Validation of a small instance
+
+- **WHEN** the per-artifact detail fits the budget
+- **THEN** the text is the full detail, as before
+
 ### Requirement: Search Results Point To Reads
 
 Each `search_strategy` hit SHALL carry the artifact type, the path, the size of

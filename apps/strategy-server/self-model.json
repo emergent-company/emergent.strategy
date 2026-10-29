@@ -2400,12 +2400,20 @@
     },
     {
       "name": "list_installed_skills",
-      "description": "USE WHEN you need to list all skills available to an instance, with source provenance (installed | canonical | generator-alias). Use source_filter to narrow to installed-only.",
+      "description": "USE WHEN you need to list the skills available to an instance, with source provenance (installed | canonical | generator-alias). Returns a catalog: name, one-line description, type, execution mode, source, pack and whether it is trusted, without the prompt or definition. Read one skill in full with get_installed_skill. Use source_filter to narrow to installed-only. A list cut at the budget says truncated; raise max_chars (cap 40000) or narrow with source_filter.",
       "category": "packs",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the 40000-character cap instead of the default 12000.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           },
           "source_filter": {
@@ -2463,7 +2471,7 @@
     },
     {
       "name": "list_mutations",
-      "description": "USE WHEN you need the change history for a strategy instance.",
+      "description": "USE WHEN you need the change history for a strategy instance. Returns a page of changes, newest first, as a summary: what changed, when, by whom, and size_chars of the payload, without the payload itself. Pass full=true to include payloads, up to the 40000-character cap; read one change in full with get_mutation. A page cut at the budget says truncated and gives next_cursor to continue.",
       "category": "features",
       "input_schema": {
         "properties": {
@@ -2473,6 +2481,10 @@
           },
           "cursor": {
             "description": "Pagination cursor (mutation ID) from a previous response",
+            "type": "string"
+          },
+          "full": {
+            "description": "Set to \"true\" to include payloads, up to the 40000-character cap.",
             "type": "string"
           },
           "include_staged": {
@@ -2485,6 +2497,14 @@
           },
           "limit": {
             "description": "Max results per page (1–200, default 50)",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
+            "type": "string"
+          },
+          "since_mutation_id": {
+            "description": "Only mutations newer than this mutation, for polling",
             "type": "string"
           }
         },
@@ -3838,12 +3858,20 @@
     },
     {
       "name": "validate_instance",
-      "description": "USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`.",
+      "description": "USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent, always complete. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`. The text is the per-artifact detail when it fits max_chars (default 12000, cap 40000); when it does not, a summary of the invalid artifacts with their first errors, saying truncated.",
       "category": "validation",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the 40000-character cap instead of the default 12000 for the text.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Budget for the text in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -4111,12 +4139,20 @@
     },
     {
       "name": "validate_with_plan",
-      "description": "USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent; the prioritised fix plan itself stays in the text content.",
+      "description": "USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent, always complete; the prioritised fix plan stays in the text content, in full when it fits max_chars (default 12000, cap 40000) and otherwise as a summary with the first errors of each artifact, saying truncated.",
       "category": "validation",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the 40000-character cap instead of the default 12000 for the text.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Budget for the text in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },

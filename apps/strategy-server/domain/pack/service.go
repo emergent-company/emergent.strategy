@@ -545,6 +545,16 @@ func normalizeExecutionMode(raw string) string {
 	}
 }
 
+// Description is the skill's one-line description from its YAML, or empty when
+// it has none or writes it as a multi-line block.
+func (r *ResolvedSkill) Description() string {
+	d := extractField(r.SkillYAML, "description")
+	if strings.HasPrefix(d, ">") || strings.HasPrefix(d, "|") {
+		return ""
+	}
+	return d
+}
+
 // extractField does a simple line-scan for a top-level YAML scalar field.
 func extractField(yamlSrc, field string) string {
 	prefix := field + ": "

@@ -126,7 +126,7 @@ func TestMCP_SkillPackInstallAndList(t *testing.T) {
 	}
 
 	// list_installed_skills should include my-test-skill with source: installed.
-	var skillList []map[string]any
+	var skillList skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{"instance_id": instID.String()}).
 		assertOK().decode(&skillList)
 	id++
@@ -308,7 +308,7 @@ func TestMCP_SkillPackUninstall(t *testing.T) {
 	id++
 
 	// Confirm installed.
-	var beforeList []map[string]any
+	var beforeList skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{"instance_id": instID.String()}).
 		assertOK().decode(&beforeList)
 	id++
@@ -335,7 +335,7 @@ func TestMCP_SkillPackUninstall(t *testing.T) {
 	}
 
 	// Verify skill no longer listed with source=installed.
-	var afterList []map[string]any
+	var afterList skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{"instance_id": instID.String()}).
 		assertOK().decode(&afterList)
 	id++
@@ -1196,7 +1196,7 @@ func TestMCP_SourceFilterCanonicalExcludesInstalled(t *testing.T) {
 	id++
 
 	// source_filter=canonical should NOT include novel-installed-skill-abc.
-	var canonicalList []map[string]any
+	var canonicalList skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{
 		"instance_id":   instID.String(),
 		"source_filter": "canonical",
@@ -1213,7 +1213,7 @@ func TestMCP_SourceFilterCanonicalExcludesInstalled(t *testing.T) {
 	}
 
 	// source_filter=installed should include it.
-	var installedList []map[string]any
+	var installedList skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{
 		"instance_id":   instID.String(),
 		"source_filter": "installed",
