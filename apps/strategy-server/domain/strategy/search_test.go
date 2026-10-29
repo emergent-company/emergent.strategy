@@ -25,13 +25,13 @@ func searchAuthored(t *testing.T, svc *strategy.Service, inst uuid.UUID, q strin
 func TestSearchAuthored_FindsSectionsAcrossArtifactsAndPointsAtTheRead(t *testing.T) {
 	svc, _, inst := seedRead(t)
 
-	hits := searchAuthored(t, svc, inst, "Koltiva offline", 0)
+	hits := searchAuthored(t, svc, inst, "Rivalco offline", 0)
 	if len(hits) < 2 {
 		t.Fatalf("hits = %+v, want the formula entry and the insights entry", hits)
 	}
 	best := hits[0]
 	if best.ArtifactKey != "strategy_formula" || best.Path != "competitive_moat.vs_competitors[0]" {
-		t.Errorf("best hit = %s %s, want the formula's Koltiva entry first", best.ArtifactKey, best.Path)
+		t.Errorf("best hit = %s %s, want the formula's Rivalco entry first", best.ArtifactKey, best.Path)
 	}
 	if best.ArtifactType != "strategy_formula" || best.SizeChars <= 0 || best.Snippet == "" || best.Score <= 0 {
 		t.Errorf("incomplete hit: %+v", best)

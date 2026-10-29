@@ -33,11 +33,11 @@ func TestQueryTerms(t *testing.T) {
 		in   string
 		want []string
 	}{
-		{"Cargill 2027 dates", []string{"cargill", "2027", "dates"}},
+		{"Acme 2027 dates", []string{"acme", "2027", "dates"}},
 		{"what is the", nil},
 		{"hva er det", nil},
 		{"a b c", nil},
-		{"Cargill cargill CARGILL", []string{"cargill"}},
+		{"Acme acme ACME", []string{"acme"}},
 		{"kr-c-005", []string{"kr", "005"}},
 	}
 	for _, c := range cases {

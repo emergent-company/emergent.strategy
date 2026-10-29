@@ -98,7 +98,7 @@ func requireKeywordHit(t *testing.T, c *mcpClient, instID string, hits []searchH
 func TestMCP_SearchStrategy_NoMemoryUsesKeywordSearch(t *testing.T) {
 	c, instID, _ := keywordClient(t, nil)
 	var hits []searchHit
-	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Koltiva offline"}).assertOK().decode(&hits)
+	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Rivalco offline"}).assertOK().decode(&hits)
 	requireKeywordHit(t, c, instID, hits)
 }
 
@@ -107,7 +107,7 @@ func TestMCP_SearchStrategy_MemoryErrorFallsBackToKeyword(t *testing.T) {
 		http.Error(w, "boom", http.StatusInternalServerError)
 	}))
 	var hits []searchHit
-	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Koltiva offline"}).assertOK().decode(&hits)
+	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Rivalco offline"}).assertOK().decode(&hits)
 	if calls.Load() == 0 {
 		t.Error("auto mode did not try Memory first")
 	}
@@ -125,7 +125,7 @@ func TestMCP_SearchStrategy_OnlyFrameworkAndForeignHitsFallBackToKeyword(t *test
 	c, id, _ := keywordClient(t, mem)
 	instID = id
 	var hits []searchHit
-	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Koltiva offline"}).assertOK().decode(&hits)
+	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Rivalco offline"}).assertOK().decode(&hits)
 	if strings.Contains(r.text, "framework text") || strings.Contains(r.text, "foreign text") {
 		t.Error("a framework or foreign hit leaked")
 	}
@@ -135,7 +135,7 @@ func TestMCP_SearchStrategy_OnlyFrameworkAndForeignHitsFallBackToKeyword(t *test
 func TestMCP_SearchStrategy_KeywordModeNeverCallsMemory(t *testing.T) {
 	c, instID, calls := keywordClient(t, memoryReturning())
 	var hits []searchHit
-	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Koltiva offline", "mode": "keyword"}).assertOK().decode(&hits)
+	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Rivalco offline", "mode": "keyword"}).assertOK().decode(&hits)
 	if calls.Load() != 0 {
 		t.Errorf("Memory was called %d times in keyword mode", calls.Load())
 	}
@@ -144,7 +144,7 @@ func TestMCP_SearchStrategy_KeywordModeNeverCallsMemory(t *testing.T) {
 
 func TestMCP_SearchStrategy_SemanticModeStillErrorsWithoutMemoryAndSaysWhatToDo(t *testing.T) {
 	c, instID, _ := keywordClient(t, nil)
-	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Koltiva", "mode": "semantic"}).assertError()
+	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "Rivalco", "mode": "semantic"}).assertError()
 	if !strings.Contains(r.text, "not configured") {
 		t.Errorf("the reason was lost: %q", r.text)
 	}
