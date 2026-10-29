@@ -28,17 +28,11 @@ type ConvergenceSummary struct {
 	LLMOutputTokens int `json:"llm_output_tokens,omitempty"`
 }
 
-// IngestEnqueuer is the interface for triggering async Memory ingestion.
-type IngestEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
-
 // ConvergenceServices bundles the dependencies the convergence loop needs.
 type ConvergenceServices struct {
 	DB       *bun.DB
 	Ripple   *Service
 	Mem      *memory.Client
-	Ingest   IngestEnqueuer // optional — nil when Memory is not configured
 	Resolver SignalResolver // optional — nil = agent-orchestrated mode (detection only)
 	// CommitAutoFn writes a resolved fix as an autonomous mutation and derives the index.
 	// When nil, auto-commits are disabled even if Resolver produces fixes.
@@ -286,11 +280,6 @@ func resolveAutonomousSignal(
 	if _, resolveSignalErr := svc.Ripple.ResolveSignal(ctx, sig.ID, nil); resolveSignalErr != nil {
 		slog.WarnContext(ctx, "convergence: failed to resolve signal after auto-commit",
 			"signal", sig.ID, "error", resolveSignalErr)
-	}
-
-	// Trigger Memory ingestion for the auto-committed artifact.
-	if svc.Ingest != nil {
-		svc.Ingest.EnqueueBatch(instanceID, sig.ID) // signal ID as batch proxy
 	}
 
 	slog.InfoContext(ctx, "convergence: auto-resolved signal",

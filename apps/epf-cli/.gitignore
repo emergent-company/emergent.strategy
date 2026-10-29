@@ -21,4 +21,5 @@ internal/embedded/wizards/
 internal/embedded/outputs/
 internal/embedded/VERSION
 internal/embedded/MANIFEST.txt
+internal/embedded/integrity-manifest.json
 dist/

@@ -17,6 +17,7 @@ import (
 	strategysvc "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
@@ -78,7 +79,10 @@ func runImport(cfg *config.Config) error {
 	}
 
 	// --- Import the instance (upsert: reuse existing if name+workspace match) ---
-	instSvc := instance.NewService(db)
+	// No notifier: the CLI only marks the instance dirty. A running server's
+	// heartbeat picks it up, and --reingest ingests it directly below.
+	changeMarker := changemark.New(db)
+	instSvc := instance.NewService(db).WithChangeMarker(changeMarker)
 
 	// Check for an existing active instance with the same name in this workspace.
 	var existingInst domain.StrategyInstance
@@ -119,7 +123,7 @@ func runImport(cfg *config.Config) error {
 	// so we must run the backfill explicitly to populate strategy_artifacts and
 	// strategy_relationships from the imported mutations.
 	slog.Info("deriving strategic index")
-	stratSvc := strategysvc.NewService(db)
+	stratSvc := strategysvc.NewService(db).WithChangeMarker(changeMarker)
 	indexed, err := stratSvc.BackfillIndex(ctx, inst.ID)
 	if err != nil {
 		return fmt.Errorf("backfill index: %w", err)

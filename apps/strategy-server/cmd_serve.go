@@ -44,6 +44,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/aimdbos"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/auth"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
@@ -95,7 +96,10 @@ func runServer(cfg *config.Config) error {
 
 	// Domain services.
 	packSvc := pack.NewService(db)
-	instSvc := instance.NewService(db)
+	// changeMarker records artifact changes in Postgres and tells the ingest
+	// service to reconcile the Memory graph. Every writer of artifacts shares it.
+	changeMarker := changemark.New(db)
+	instSvc := instance.NewService(db).WithChangeMarker(changeMarker)
 	instSvc.WithPackEnsurer(packSvc) // post-commit standard pack auto-install
 
 	semanticSvc := setupSemantic(cfg, log)
@@ -104,6 +108,7 @@ func runServer(cfg *config.Config) error {
 	ingestSvc := ingest.NewService(db, semanticSvc.Client())
 	ingestSvc.Start(2) // 2 worker goroutines
 	defer ingestSvc.Stop()
+	changeMarker.SetNotifier(ingestSvc)
 
 	// Startup sweep: enqueue a full re-ingest for every active instance so that
 	// Memory stays in sync after server restarts or first-time setup.
@@ -113,9 +118,21 @@ func runServer(cfg *config.Config) error {
 
 	orgSvc := org.NewService(db)
 	accessTokenSvc := accesstoken.NewService(db, orgSvc)
-	versionSvc := versiondom.NewService(db)
-	strategySvc := strategy.NewService(db)
+	versionSvc := versiondom.NewService(db).WithChangeMarker(changeMarker)
+	strategySvc := strategy.NewService(db).WithChangeMarker(changeMarker)
 	rippleSvc := rippledom.NewService(db)
+
+	// Classify artifact rows that predate the integrity columns or were checked
+	// against an older manifest. A new manifest ships with a new binary, so a
+	// restart is the on-demand path.
+	go func() {
+		n, err := strategySvc.ReclassifyIntegrity(context.Background(), nil)
+		if err != nil {
+			log.Error("integrity reclassification failed", "classified", n, "err", err)
+			return
+		}
+		log.Info("integrity reclassification complete", "classified", n)
+	}()
 
 	// Wire the strategy exporter into the ingest service for decomposed-layer sync.
 	if semanticSvc.IsAvailable() {
@@ -128,7 +145,7 @@ func runServer(cfg *config.Config) error {
 	// GitHub sync — only available when GitHub App is configured.
 	syncSvc := setupGitHubSync(cfg, log, db, strategySvc, versionSvc, instSvc)
 
-	wsSvc := workspace.NewService(db)
+	wsSvc := workspace.NewService(db).WithChangeMarker(changeMarker)
 
 	// AIM agent loop service — delegates writing to canonical skills via SkillRunner.
 	aimSvc := aimdom.NewService(db).WithVersionPublisher(versionSvc)
@@ -138,7 +155,7 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// Evidence service — created early so heartbeat can use it for proposal context.
-	evidenceSvc := evidencedom.NewService(db).WithMemoryEnqueue(ingestSvc)
+	evidenceSvc := evidencedom.NewService(db).WithChangeMarker(changeMarker)
 
 	// Activity stream — records significant loop events; feeds SSE fanout.
 	activitySvc := activitydom.NewService(db)
@@ -273,7 +290,6 @@ func runServer(cfg *config.Config) error {
 		SkillRun:            skillRunSvc,
 		Heartbeat:           heartbeatSvc,
 		Resolver:            rippledom.NewLLMResolver(llmClient, db),
-		Ingest:              ingestSvc,
 		Orchestration:       orchEngine,
 		Evidence:            evidenceSvc,
 		Activity:            activitySvc,

@@ -294,32 +294,22 @@ func (s *Server) handleDraftCommit(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
-	if s.strategySvc != nil {
-		if _, err = s.strategySvc.CommitBatch(ctx, batchID); err != nil {
-			// Treat "batch not found" as an idempotent success — the batch was
-			// already committed by a prior request (double-submit).
-			if errors.Is(err, apperror.ErrBatchNotFound) {
-				s.log.Info("draft batch already committed (double-submit)", "batch_id", batchIDStr)
-				// Still resume any orchestration run waiting on this batch —
-				// the original commit may have lost the resume signal.
-				s.resumeOrchestrationForBatch(context.Background(), batchIDStr, true)
-				return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
-			}
-			s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
+	if s.strategySvc == nil {
+		s.log.Error("strategySvc not wired; refusing to commit a batch without index derivation", "batch_id", batchIDStr)
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
+	}
+	if _, err = s.strategySvc.CommitBatch(ctx, batchID); err != nil {
+		// Treat "batch not found" as an idempotent success — the batch was
+		// already committed by a prior request (double-submit).
+		if errors.Is(err, apperror.ErrBatchNotFound) {
+			s.log.Info("draft batch already committed (double-submit)", "batch_id", batchIDStr)
+			// Still resume any orchestration run waiting on this batch —
+			// the original commit may have lost the resume signal.
+			s.resumeOrchestrationForBatch(context.Background(), batchIDStr, true)
+			return c.Redirect(http.StatusSeeOther, "/strategies/"+instanceID+"/aim")
 		}
-	} else {
-		// Fallback: raw SQL only (no index derivation) — strategySvc should always be wired.
-		s.log.Warn("strategySvc not wired — strategic index will not be updated", "batch_id", batchIDStr)
-		_, err = s.db.NewUpdate().
-			Model((*domain.StrategyMutation)(nil)).
-			Set("status = ?", domain.MutationStatusCommitted).
-			Where("batch_id = ? AND status = ?", batchID, domain.MutationStatusStaged).
-			Exec(ctx)
-		if err != nil {
-			s.log.Error("failed to commit draft batch (fallback)", "batch_id", batchIDStr, "err", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
-		}
+		s.log.Error("failed to commit draft batch", "batch_id", batchIDStr, "err", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, langs.T(ctx, "error.commit_failed"))
 	}
 
 	// Look up any orchestration run waiting on this batch and resume it

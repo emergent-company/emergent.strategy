@@ -53,9 +53,31 @@ type Anchor struct {
 	// Structure describes the EPF directory structure in use
 	Structure *StructureInfo `yaml:"structure,omitempty" json:"structure,omitempty"`
 
+	// CanonicalDefinitions says whether the canonical track definitions (sd-*,
+	// pd-*, cd-*) were copied into this instance: "installed" (also when absent)
+	// or "omitted". When omitted, tools do not offer to re-add them or report
+	// them as missing.
+	CanonicalDefinitions string `yaml:"canonical_definitions,omitempty" json:"canonical_definitions,omitempty"`
+
+	// AdoptedCanonical lists canonical definitions this instance adopts
+	// unmodified as its own policy; they are treated as authored.
+	AdoptedCanonical []string `yaml:"adopted_canonical,omitempty" json:"adopted_canonical,omitempty"`
+
 	// Deployment describes how this instance is used across repositories.
 	// Optional, but recommended for submodule-based EPF instances.
 	Deployment *Deployment `yaml:"deployment,omitempty" json:"deployment,omitempty"`
+}
+
+// Values of Anchor.CanonicalDefinitions.
+const (
+	CanonicalDefinitionsInstalled = "installed"
+	CanonicalDefinitionsOmitted   = "omitted"
+)
+
+// DefinitionsOmitted reports whether the instance deliberately carries no
+// canonical definitions.
+func (a *Anchor) DefinitionsOmitted() bool {
+	return a != nil && a.CanonicalDefinitions == CanonicalDefinitionsOmitted
 }
 
 // StructureInfo describes the EPF directory structure

@@ -57,6 +57,17 @@ Every object the server writes gets:
 - **Properties** `instance_id` (full UUID). Constant per object, so it never
   causes version churn after the first write.
 - **Labels** `layer:artifact` / `layer:decomposed` plus `instance:<uuid>`.
+- **Integrity stamp** (from `add-instance-content-integrity`) on **both layers**:
+  property `integrity_class` (and `integrity_ref` when set) and label
+  `integrity:<class>`, present only when the source artifact is classified
+  `canonical_reference`, `unmodified_template` or `packaged_default`. Authored
+  content carries neither. A decomposed object takes the class of the artifact it
+  was derived from, which the ingest already holds as the artifact row. The
+  upsert replaces properties and labels (see the facts above), so an artifact
+  that stops being a template, because the user edited it, loses the stamp on
+  its next ingest. Today only the artifact layer is stamped
+  (`integrityMetadata` in `domain/ingest/service.go`); the rewrite must not drop
+  that and must extend it to the decomposed layer.
 
 Relationships get `properties.instance_id`.
 
@@ -172,7 +183,13 @@ Per read:
 - **`SearchStrategy`**: send `labels: ["instance:<X>"]` (one label only, since
   matching is OR). Over-fetch `limit × 2` (cap 100) to absorb stale same-instance
   hits until GC runs, filter, trim to `limit`. Results gain `instance_id`,
-  `layer`, `source_artifact`.
+  `layer`, `source_artifact`. **Framework hits stay excluded**: the scoped
+  search keeps dropping hits whose `integrity_class` is a framework class, and
+  keeps reporting how many it dropped, as `SearchStrategyScoped` does today.
+  Memory's label filter can only include (a hit matching any label), never
+  exclude, so this is a filter in the server on the property after the
+  over-fetch, not a query option. Without it, replacing `SearchStrategyScoped`
+  would silently bring canonical definitions and templates back into answers.
 - **`GetNeighbors`**: scope the caller's key, return not-found for an invisible
   root, filter the expansion.
 - **`DetectContradictions`**: `ListObjects(label = instance:<X>)`, keep

@@ -203,6 +203,16 @@ type toolResult struct {
 	isError bool
 }
 
+// decodeArtifactRows decodes a list_artifacts page and returns its rows.
+func decodeArtifactRows[T any](r toolResult) []T {
+	r.t.Helper()
+	var page struct {
+		Artifacts []T `json:"artifacts"`
+	}
+	r.decode(&page)
+	return page.Artifacts
+}
+
 // assertOK fatals if the tool returned an error response.
 func (r toolResult) assertOK() toolResult {
 	r.t.Helper()
@@ -644,12 +654,10 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 				},
 			},
 		},
-		"strategy_foundations": map[string]any{
-			"personas": []any{
-				map[string]any{"name": "Strategic Manager", "role": "Head of Product"},
-			},
-		},
 		"insight_analyses": map[string]any{
+			"target_users": []any{
+				map[string]any{"persona": "Strategic Manager", "description": "Head of Product"},
+			},
 			"competitive_landscape": map[string]any{
 				"summary": "No direct competitor treats strategy as a live semantic system.",
 			},
@@ -663,16 +671,27 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 	})
 	instIDStr := instID.String()
 
-	// get_strategy_context — all artifacts
-	var artifacts []map[string]any
-	c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&artifacts)
+	// get_strategy_context — an outline by default, not the payloads
+	var outline struct {
+		Artifacts []map[string]any `json:"artifacts"`
+	}
+	ctxResult := c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr}).
+		assertOK().decode(&outline)
 	id++
 
-	if len(artifacts) == 0 {
-		t.Error("get_strategy_context: returned no artifacts")
+	if len(outline.Artifacts) == 0 {
+		t.Error("get_strategy_context: the outline lists no artifacts")
 	}
-	t.Logf("get_strategy_context: %d artifacts", len(artifacts))
+	if strings.Contains(ctxResult.text, "semantic strategy runtime") {
+		t.Error("get_strategy_context: the default must be an outline, not the artifact payloads")
+	}
+	t.Logf("get_strategy_context: %d artifacts in the outline", len(outline.Artifacts))
+
+	// get_strategy_context full=true — the authored payloads, bounded
+	c.call(id, "get_strategy_context", map[string]any{"instance_id": instIDStr, "full": "true"}).
+		assertOK().
+		contains("semantic strategy runtime")
+	id++
 
 	// get_product_vision — north_star
 	c.call(id, "get_product_vision", map[string]any{"instance_id": instIDStr}).
@@ -680,13 +699,13 @@ func TestMCP_ReadStrategyContext(t *testing.T) {
 		contains("semantic strategy runtime")
 	id++
 
-	// get_personas — strategy_foundations
+	// get_personas — the insight analyses' target users
 	c.call(id, "get_personas", map[string]any{"instance_id": instIDStr}).
 		assertOK().
 		contains("Strategic Manager")
 	id++
 
-	// get_competitive_position — insight_analyses
+	// get_competitive_position — landscape plus per-competitor positioning
 	c.call(id, "get_competitive_position", map[string]any{"instance_id": instIDStr}).
 		assertOK().
 		contains("semantic system")
@@ -1205,17 +1224,24 @@ func TestMCP_SemanticToolsUnavailable(t *testing.T) {
 	_, instID := seedInstance(t, svc, "test-org-sem-"+uuid.New().String()[:8], nil)
 	instIDStr := instID.String()
 
-	// search_strategy → should return error (Memory not configured), not panic
+	// search_strategy in semantic mode → error (Memory not configured), not panic.
 	result := c.call(id, "search_strategy", map[string]any{
 		"instance_id": instIDStr,
 		"query":       "semantic propagation",
+		"mode":        "semantic",
 	})
 	id++
-	// Memory is NOT configured → semantic tools must return isError=true.
 	if !result.isError {
-		t.Errorf("search_strategy: expected error response when Memory is not configured, got success: %s",
+		t.Errorf("search_strategy(mode=semantic): expected error response when Memory is not configured, got success: %s",
 			result.text[:min(len(result.text), 100)])
 	}
+
+	// In auto mode the same search succeeds through keyword search.
+	c.call(id, "search_strategy", map[string]any{
+		"instance_id": instIDStr,
+		"query":       "semantic propagation",
+	}).assertOK()
+	id++
 
 	// detect_contradictions → same expectation
 	result2 := c.call(id, "detect_contradictions", map[string]any{
@@ -1504,9 +1530,8 @@ func TestMCP_StrategicIndex_MultiTypeEPFInstance(t *testing.T) {
 		Track        *string `json:"track,omitempty"`
 		Status       string  `json:"status"`
 	}
-	var all []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&all)
+	all := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 
 	if len(all) != 5 {
 		t.Fatalf("list_artifacts: expected 5 artifacts, got %d", len(all))
@@ -1746,11 +1771,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// commercial_def filter — must return exactly 2, all with track=commercial
-	var commercialDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	commercialDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "commercial_def",
-	}).assertOK().decode(&commercialDefs)
+	}).assertOK())
 	id++
 
 	if len(commercialDefs) != 2 {
@@ -1766,11 +1790,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// org_ops_def filter — must return exactly 2, all with track=org_ops
-	var orgopsDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	orgopsDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "org_ops_def",
-	}).assertOK().decode(&orgopsDefs)
+	}).assertOK())
 	id++
 
 	if len(orgopsDefs) != 2 {
@@ -1783,11 +1806,10 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// strategy_def filter — must return exactly 1
-	var stratDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	stratDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&stratDefs)
+	}).assertOK())
 	id++
 
 	if len(stratDefs) != 1 {
@@ -1800,9 +1822,8 @@ func TestMCP_CrossTrackQuery_ListArtifactsByType(t *testing.T) {
 	}
 
 	// Unfiltered total: should be 6
-	var allArtifacts []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&allArtifacts)
+	allArtifacts := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 
 	if len(allArtifacts) != 6 {
 		t.Errorf("unfiltered artifact count: got %d, want 6", len(allArtifacts))
@@ -1874,11 +1895,10 @@ func TestMCP_StrategyDefAuthoringCycle(t *testing.T) {
 		Track        *string `json:"track,omitempty"`
 		Status       string  `json:"status"`
 	}
-	var stratDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	stratDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&stratDefs)
+	}).assertOK())
 	id++
 
 	if len(stratDefs) != 1 {
@@ -1940,11 +1960,10 @@ func TestMCP_StrategyDefAuthoringCycle(t *testing.T) {
 	}
 
 	// Index must reflect the new status.
-	var updatedDefs []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{
+	updatedDefs := decodeArtifactRows[artifactSummary](c.call(id, "list_artifacts", map[string]any{
 		"instance_id":   instIDStr,
 		"artifact_type": "strategy_def",
-	}).assertOK().decode(&updatedDefs)
+	}).assertOK())
 
 	if len(updatedDefs) != 1 {
 		t.Fatalf("strategy_def count after update: got %d, want 1", len(updatedDefs))
@@ -2303,9 +2322,8 @@ func TestMCP_ExpandedWriteTools(t *testing.T) {
 		Name         *string `json:"name,omitempty"`
 		Track        *string `json:"track,omitempty"`
 	}
-	var all []artifactSummary
-	c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).
-		assertOK().decode(&all)
+	all := decodeArtifactRows[artifactSummary](
+		c.call(id, "list_artifacts", map[string]any{"instance_id": instIDStr}).assertOK())
 	id++
 
 	if len(all) != 6 {
@@ -3541,16 +3559,19 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	t.Logf("Step 10 — batch %s committed", batchID)
 
 	// ── Step 11: verify north_star is retrievable ─────────────────────────────
-	var vision map[string]any
+	var vision struct {
+		Defined bool           `json:"defined"`
+		Content map[string]any `json:"content"`
+	}
 	c.call(id, "get_product_vision", map[string]any{
 		"instance_id": inst.ID,
 	}).assertOK().decode(&vision)
 	id++
 
-	if vision["north_star"] == nil && vision["vision"] == nil && vision["organization"] == nil {
-		t.Errorf("Step 11 — get_product_vision: north_star content not found in response: %v", vision)
+	if !vision.Defined || vision.Content["organization"] != "Acme Corp" {
+		t.Errorf("Step 11 — get_product_vision: want the committed north star in content, got defined=%v content=%v", vision.Defined, vision.Content)
 	}
-	t.Logf("Step 11 — product vision retrieved (keys: %v)", mapKeys(vision))
+	t.Logf("Step 11 — product vision retrieved (keys: %v)", mapKeys(vision.Content))
 
 	// ── Step 12: get_personas — verify foundations committed ─────────────────
 	var personasResult map[string]any
@@ -3680,7 +3701,7 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	t.Logf("Step 18 — list_packs: %d packs, emergent-standard present=%v", len(packs), standardPackFound)
 
 	// ── Step 19: list_installed_skills — verify canonical skills accessible ───
-	var skills []map[string]any
+	var skills skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{
 		"instance_id": inst.ID,
 	}).assertOK().decode(&skills)
@@ -3823,7 +3844,7 @@ func TestMCP_Scenario_ArchiveFeature(t *testing.T) {
 
 // TestMCP_Scenario_SemanticSearch covers the semantic search user journey.
 // Since Memory is not configured in tests, the scenario validates:
-//   - search_strategy degrades gracefully (returns error, not panic)
+//   - search_strategy falls back to keyword search when Memory is not configured
 //   - get_neighbors degrades gracefully
 //   - When Memory IS configured (future), results would be non-empty
 //
@@ -3840,16 +3861,19 @@ func TestMCP_Scenario_SemanticSearch(t *testing.T) {
 	})
 	instIDStr := instID.String()
 
-	// Step 1 — search_strategy: Memory unavailable → must return error, not panic
-	r1 := c.call(id, "search_strategy", map[string]any{
+	// Step 1 — search_strategy: Memory unavailable → falls back to keyword
+	// search over the instance's own text, and says so in match.
+	var hits []struct {
+		ArtifactKey string `json:"artifact_key"`
+		Match       string `json:"match"`
+	}
+	c.call(id, "search_strategy", map[string]any{
 		"instance_id": instIDStr,
 		"query":       "features targeting enterprise",
-	})
+	}).assertOK().decode(&hits)
 	id++
-	// Memory is NOT configured → semantic tools must return isError=true.
-	if !r1.isError {
-		t.Errorf("Step 1 — search_strategy: expected error when Memory unconfigured, got success: %s",
-			r1.text[:min(len(r1.text), 120)])
+	if len(hits) != 1 || hits[0].ArtifactKey != "fd-001" || hits[0].Match != "keyword" {
+		t.Errorf("Step 1 — search_strategy: want one keyword hit on fd-001, got %+v", hits)
 	}
 
 	// Step 2 — get_neighbors: same expectation

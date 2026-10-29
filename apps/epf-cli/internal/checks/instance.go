@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/integrity"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/navigation"
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/template"
 	"gopkg.in/yaml.v3"
@@ -664,6 +666,12 @@ func (c *InstanceChecker) checkCanonicalCompleteness(summary *CheckSummary) {
 
 	expectedVMs := embedded.ListCanonicalValueModels()
 
+	// An instance that omitted the definitions on purpose (anchor
+	// canonical_definitions: omitted) is not missing them.
+	if a, loadErr := anchor.Load(c.instancePath); loadErr == nil && a.DefinitionsOmitted() {
+		expectedDefs = nil
+	}
+
 	// Count missing definitions
 	var missingDefs []string
 	missingByTrack := make(map[string]int)
@@ -810,12 +818,17 @@ var PlaceholderPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)<PLACEHOLDER[^>]*>`),       // <PLACEHOLDER> or <placeholder>
 	regexp.MustCompile(`(?i)<YOUR[^>]*>`),              // <YOUR something> or <your something>
 	regexp.MustCompile(`(?i)<[^>]*\bhere\b[^>]*>`),     // <... here ...> - angle brackets with "here" inside
-	regexp.MustCompile(`(?i)^example:`),                // Lines starting with "example:" (YAML key)
 	regexp.MustCompile(`(?i)\bplaceholder\b`),          // Word "placeholder"
 	regexp.MustCompile(`YYYY-MM-DD`),                   // Date placeholder
 	regexp.MustCompile(`(?i)lorem ipsum`),              // Lorem ipsum
 	regexp.MustCompile(`(?i)your .{1,30} here\b`),      // "your X here" pattern
 	regexp.MustCompile(`XXX+`),                         // XXX placeholders
+}
+
+func init() {
+	// See internal/validation/patterns.go: the dead "^example:" entry is gone and
+	// the shared markers are appended so the two lists cannot drift.
+	PlaceholderPatterns = append(PlaceholderPatterns, integrity.AdditionalPlaceholderPatterns...)
 }
 
 // ExclusionPatterns are patterns that should not be flagged as placeholders
@@ -924,6 +937,10 @@ type ContentReadinessResult struct {
 	// Canonical artifact tracking — canonical files are excluded from scoring
 	CanonicalFiles        int                `json:"canonical_files"`
 	CanonicalPlaceholders []PlaceholderMatch `json:"canonical_placeholders,omitempty"`
+
+	// ContentIntegrity reports unmodified framework content in the instance. It
+	// is advisory and does not affect Score.
+	ContentIntegrity *ContentIntegrity `json:"content_integrity,omitempty"`
 }
 
 // Check runs the content readiness check
@@ -933,6 +950,8 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		Placeholders:          make([]PlaceholderMatch, 0),
 		CanonicalPlaceholders: make([]PlaceholderMatch, 0),
 	}
+
+	integ := newIntegrityRecorder()
 
 	// Walk all YAML files
 	err := filepath.Walk(c.path, func(path string, info os.FileInfo, err error) error {
@@ -969,6 +988,9 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 		}
 
 		result.FilesChecked++
+		if rel, relErr := filepath.Rel(c.path, path); relErr == nil {
+			integ.record(filepath.ToSlash(rel), data)
+		}
 		lines := strings.Split(string(data), "\n")
 
 		// Track YAML field path context
@@ -1017,6 +1039,8 @@ func (c *ContentReadinessChecker) Check() (*ContentReadinessResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	result.ContentIntegrity = integ.finish()
 
 	// Validate navigation graphs found in the instance
 	result.NavigationIssues = c.checkNavigationGraphs()

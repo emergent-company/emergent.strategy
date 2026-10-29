@@ -175,3 +175,37 @@ func TestRouteTask_Phase2cTools(t *testing.T) {
 		})
 	}
 }
+
+func TestRouteTask_StrategyQuestionsGoToTheBoundedReads(t *testing.T) {
+	tests := []struct {
+		task     string
+		wantTool string
+	}{
+		{"what does our strategy say about pricing", "get_outline"},
+		{"according to the strategy, who do we serve", "get_outline"},
+		{"what are the key results for the commercial track", "get_view"},
+		{"list our OKRs", "get_view"},
+		{"what trade-offs have we accepted", "get_section"},
+		{"what are our constraints", "get_section"},
+		{"what is outside our boundaries", "get_section"},
+		{"what are the growth engines", "get_section"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.task, func(t *testing.T) {
+			got := RouteTask(tt.task)
+			if got.Type != "direct_tool" || got.ToolName != tt.wantTool {
+				t.Errorf("route = %s/%s, want direct_tool/%s", got.Type, got.ToolName, tt.wantTool)
+			}
+		})
+	}
+}
+
+func TestRouteTask_UnknownQuestionStartsWithTheOutline(t *testing.T) {
+	got := RouteTask("zzz qqq")
+	if got.ToolName != "get_outline" {
+		t.Errorf("fallback = %q, want get_outline: the first move for an unknown question is to see what the strategy defines, not to search", got.ToolName)
+	}
+	if got.Confidence >= 0.5 {
+		t.Errorf("fallback confidence = %f", got.Confidence)
+	}
+}

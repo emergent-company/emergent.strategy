@@ -5,9 +5,16 @@ package semantic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"path/filepath"
+	"strings"
 
+	"github.com/google/uuid"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfimport"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -26,11 +33,36 @@ func (c Config) IsConfigured() bool {
 }
 
 // SearchResult is a single semantic search hit.
+//
+// A hit is discovery, not the authoritative text. Artifact and Path name the
+// stored section it came from, when that can be derived, so a client can read
+// the whole section with get_section before answering.
 type SearchResult struct {
 	ArtifactType string  `json:"artifact_type"`
 	ArtifactKey  string  `json:"artifact_key"`
 	Snippet      string  `json:"snippet"`
 	Score        float64 `json:"score"`
+	// Artifact and Path locate the section in the instance's strategy.
+	Artifact string `json:"artifact,omitempty"`
+	Path     string `json:"path,omitempty"`
+	// SectionSizeChars and ReadWith are filled in by the caller that can read
+	// the section.
+	SectionSizeChars int    `json:"section_size_chars,omitempty"`
+	ReadWith         string `json:"read_with,omitempty"`
+	// Match says how the hit was found: "semantic" or "keyword".
+	Match string `json:"match,omitempty"`
+}
+
+// SearchOutcome is a search result with what was filtered out, so the filtering
+// is visible.
+type SearchOutcome struct {
+	Results []*SearchResult `json:"results"`
+	// ExcludedFramework counts hits on unmodified framework content.
+	ExcludedFramework int `json:"excluded_framework,omitempty"`
+	// ExcludedOtherInstance counts hits whose instance_id property names another
+	// instance. Memory does not scope the search by instance; the fence change
+	// does that at the source. This is a second line of defence.
+	ExcludedOtherInstance int `json:"excluded_other_instance,omitempty"`
 }
 
 // Neighbor represents a connected graph node.
@@ -124,41 +156,97 @@ func (s *Service) requireClient() error {
 	return nil
 }
 
-// SearchStrategy performs semantic search over the strategy graph.
+// searchOverFetch is how many hits are requested per hit wanted, so filtering
+// framework and foreign hits cannot leave the page short.
+const searchOverFetch = 3
+
+// SearchStrategy performs semantic search over the strategy graph and returns
+// the hits that survive filtering. See SearchStrategyScoped for the counts.
 func (s *Service) SearchStrategy(ctx context.Context, instanceID, query string, limit int) ([]*SearchResult, error) {
+	out, err := s.SearchStrategyScoped(ctx, instanceID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	return out.Results, nil
+}
+
+// SearchStrategyScoped searches the strategy graph, drops hits on unmodified
+// framework content and hits that belong to another instance, and reports how
+// many it dropped. It over-fetches so that dropping does not starve the page.
+func (s *Service) SearchStrategyScoped(ctx context.Context, instanceID, query string, limit int) (*SearchOutcome, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
+	}
+	if limit <= 0 {
+		limit = 10
 	}
 
 	results, err := s.client.Search(ctx, memory.SearchRequest{
 		Query: query,
-		Limit: limit,
+		Limit: limit * searchOverFetch,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search strategy: %w", err)
 	}
 
-	out := make([]*SearchResult, 0, len(results))
+	out := &SearchOutcome{Results: make([]*SearchResult, 0, limit)}
 	for _, r := range results {
-		// Extract artifact metadata from Memory object properties.
-		artifactType, _ := r.Object.Properties["artifact_type"].(string)
-		snippet, _ := r.Object.Properties["snippet"].(string)
+		props := r.Object.Properties
+		if hitInstance, _ := props["instance_id"].(string); hitInstance != "" && hitInstance != instanceID {
+			out.ExcludedOtherInstance++
+			continue
+		}
+		if class, _ := props["integrity_class"].(string); isFrameworkClass(class) {
+			out.ExcludedFramework++
+			continue
+		}
+		if len(out.Results) >= limit {
+			continue
+		}
+		artifactType, _ := props["artifact_type"].(string)
+		snippet, _ := props["snippet"].(string)
 		if snippet == "" {
 			// Fallback: use the object's name or description property.
-			if name, ok := r.Object.Properties["name"].(string); ok {
+			if name, ok := props["name"].(string); ok {
 				snippet = name
 			}
 		}
-
-		out = append(out, &SearchResult{
+		artifact, path := sectionOf(r.Object.Key, props)
+		out.Results = append(out.Results, &SearchResult{
 			ArtifactType: artifactType,
 			ArtifactKey:  r.Object.Key,
 			Snippet:      snippet,
 			Score:        r.Score,
+			Artifact:     artifact,
+			Path:         path,
 		})
 	}
-
 	return out, nil
+}
+
+// isFrameworkClass reports whether an integrity class marks framework content.
+func isFrameworkClass(class string) bool {
+	switch class {
+	case "canonical_reference", "unmodified_template", "packaged_default":
+		return true
+	}
+	return false
+}
+
+// sectionOf derives the stored section a hit came from: a decomposed object
+// names its source file and section path; an artifact-level object is the
+// artifact itself. It returns empty values when neither can be established.
+func sectionOf(key string, props map[string]any) (artifact, path string) {
+	if src, _ := props["source_artifact"].(string); src != "" {
+		path, _ = props["section_path"].(string)
+		return epfimport.ArtifactKey(src, filepath.Base(src)), path
+	}
+	_, hasType := props["artifact_type"].(string)
+	_, hasInstance := props["instance_id"].(string)
+	if hasType && hasInstance {
+		return key, ""
+	}
+	return "", ""
 }
 
 // GetNeighbors returns the semantic graph neighbourhood of a node.
@@ -329,6 +417,7 @@ func (s *Service) RunScenario(ctx context.Context, instanceID, description, anch
 		return "", err
 	}
 
+	// The name carries the owner. Every other scenario operation checks it.
 	branchName := fmt.Sprintf("scenario-%s-%s", instanceID, description)
 	if len(branchName) > 100 {
 		branchName = branchName[:100]
@@ -344,16 +433,39 @@ func (s *Service) RunScenario(ctx context.Context, instanceID, description, anch
 	return branch.ID, nil
 }
 
+// ownedBranch loads a scenario branch and returns it only if it belongs to the
+// instance, judged by the branch name prefix RunScenario gives it. A branch that
+// does not exist, is not a scenario branch, or belongs to another instance all
+// produce the same ErrScenarioNotFound, so callers learn nothing about other
+// instances' branches.
+func (s *Service) ownedBranch(ctx context.Context, instanceID, scenarioID string) (*memory.Branch, error) {
+	id, err := uuid.Parse(instanceID)
+	if err != nil {
+		return nil, apperror.ErrBadRequest.WithDetail("invalid instance id")
+	}
+	branch, err := s.client.GetBranch(ctx, scenarioID)
+	if err != nil {
+		var apiErr *memory.APIError
+		if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusNotFound || apiErr.StatusCode == http.StatusBadRequest) {
+			return nil, apperror.ErrScenarioNotFound
+		}
+		return nil, fmt.Errorf("get scenario branch: %w", err)
+	}
+	if !strings.HasPrefix(branch.Name, memory.ScenarioBranchPrefix(id)) {
+		return nil, apperror.ErrScenarioNotFound
+	}
+	return branch, nil
+}
+
 // EvaluateScenario assesses the impact of a what-if scenario on the strategy graph.
 func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID string) (map[string]any, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
 	}
 
-	// Get the branch to verify it exists.
-	branch, err := s.client.GetBranch(ctx, scenarioID)
+	branch, err := s.ownedBranch(ctx, instanceID, scenarioID)
 	if err != nil {
-		return nil, fmt.Errorf("evaluate scenario: get branch: %w", err)
+		return nil, err
 	}
 
 	// Use a branch-scoped client to list objects on the scenario branch.
@@ -381,10 +493,17 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 	}, nil
 }
 
-// CommitScenario promotes a what-if scenario's mutations into the main graph.
-// Returns the batch_id equivalent (merge result summary).
+// CommitScenario reports what merging a what-if scenario into the main graph
+// would change. It is a dry run: MergeBranchRequest has no execute flag, and
+// Memory only merges for real when the request says execute:true. A real
+// merge would copy objects of every instance into main, so it stays disabled
+// until a commit exists that merges only the instance's own objects.
+// Returns the merge result summary.
 func (s *Service) CommitScenario(ctx context.Context, scenarioID, instanceID string) (string, error) {
 	if err := s.requireClient(); err != nil {
+		return "", err
+	}
+	if _, err := s.ownedBranch(ctx, instanceID, scenarioID); err != nil {
 		return "", err
 	}
 
@@ -404,6 +523,9 @@ func (s *Service) CommitScenario(ctx context.Context, scenarioID, instanceID str
 // DiscardScenario removes a what-if scenario branch without merging.
 func (s *Service) DiscardScenario(ctx context.Context, instanceID, scenarioID string) error {
 	if err := s.requireClient(); err != nil {
+		return err
+	}
+	if _, err := s.ownedBranch(ctx, instanceID, scenarioID); err != nil {
 		return err
 	}
 	if err := s.client.DeleteBranch(ctx, scenarioID); err != nil {

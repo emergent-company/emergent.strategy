@@ -557,6 +557,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `040_aim_cycle_runs_replan.sql` | `replan_requested` flag backing `DBOSEngine.Replan`'s mid-cycle re-plan signal |
 | `041_aim_cycle_runs_dbos_workflow_id.sql` | `dbos_workflow_id` on `aim_cycle_runs` |
 | `042_instance_consumer_repos.sql` | `instance_consumer_repos` — repos that *consume* an instance (submodule mounts), distinct from `strategy_instances.github_repo`, which is its single *home* (sync source and AIM push target) |
+| `046_artifact_integrity.sql` | `integrity_class`, `integrity_ref`, `integrity_checked_with` on `strategy_artifacts`: marks unmodified canonical content (definitions, templates, packaged value models). NULL class = authored; `integrity_checked_with` tells authored from never-classified and names the manifest used. 045 belongs to the fence change |
 
 ### Home repo vs consumer repos — do not conflate these
 

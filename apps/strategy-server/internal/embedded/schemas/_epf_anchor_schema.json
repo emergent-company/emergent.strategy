@@ -42,6 +42,16 @@
       "type": "string",
       "description": "Brief description of the instance."
     },
+    "canonical_definitions": {
+      "type": "string",
+      "enum": ["installed", "omitted"],
+      "description": "Whether the canonical track definitions (sd-*, pd-*, cd-*) were copied into this instance. 'omitted' means the instance deliberately does not carry them: tools must not offer to re-add them or report them as missing. Absent means 'installed'."
+    },
+    "adopted_canonical": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Ids of canonical definitions this instance adopts unmodified as its own policy. An adopted definition is treated as authored, not as unmodified framework content."
+    },
     "structure": {
       "type": "object",
       "additionalProperties": false,

@@ -50,6 +50,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillexec"
 	skillrundom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
@@ -61,12 +62,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
-
-// IngestEnqueuer is the interface used to trigger async Memory graph ingestion
-// after a batch is committed.
-type IngestEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
 
 // Services bundles all domain services used by the MCP server.
 type Services struct {
@@ -86,7 +81,6 @@ type Services struct {
 	SkillRun      *skillrundom.Service     // optional — nil disables skill run observability tools
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
-	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
 	Orchestration orchestration.EngineAPI  // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
@@ -166,6 +160,7 @@ func NewMCPServer(svc Services) *server.MCPServer {
 	registerWorkspaceReadTools(s, svc)
 	registerInstanceReadTools(s, svc)
 	registerArtifactContextTools(s, svc)
+	registerBoundedReadTools(s, svc)
 	registerArtifactMutationTools(s, svc)
 	registerWorkPackageTools(s, svc)
 	registerSemanticReadTools(s, svc)
@@ -422,7 +417,7 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 // watchdog status, each behind its own nil-service guard.
 func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("health_check",
-		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance."),
+		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -485,6 +480,16 @@ func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 			"lifecycle":            lifecycle,
 			"standard_pack_status": standardPackStatus,
 			"schema_status":        schemaStatus,
+		}
+
+		// How much of artifact_count is unmodified framework content rather than
+		// the company's own. Counts only: this block has no verdict.
+		if integ, integErr := svc.Strategy.ReportIntegrity(ctx, id); integErr == nil {
+			result["content_integrity"] = map[string]any{
+				"counts":  integ.Counts,
+				"scanned": integ.Scanned,
+				"source":  integ.Source,
+			}
 		}
 
 		// Add ripple signal summary when available.
@@ -580,8 +585,10 @@ func registerFindInstanceByRepoTool(s *server.MCPServer, svc Services) {
 
 func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("get_strategy_context",
-		mcp.WithDescription("USE WHEN you need full strategic context: vision, personas, and competitive position."),
+		mcp.WithDescription("USE WHEN you need to know what strategy an instance defines. Returns an outline by default: which strategy documents exist, their sections and sizes, and what is not defined. It does not return the documents; read a section with get_section, or answer a cross-document question with get_view. Unmodified framework templates and definitions are counted, never returned as the company's strategy. Pass full=true for the authored documents' payloads, up to a 40000-character cap; anything left out is listed."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include authored payloads, bounded by max_chars (default and cap 40000).`)),
+		mcp.WithString("max_chars", mcp.Description("Payload budget in characters when full=true (cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -590,16 +597,27 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, "")
+		if argString(req, "full") != "true" {
+			out, err := svc.Strategy.ReadOutline(ctx, id, "")
+			if err != nil {
+				return toolErr(ctx, err), nil
+			}
+			return mustJSON(out)
+		}
+		page, err := svc.Strategy.ListArtifactPage(ctx, id, strategy.ListOptions{
+			WithPayload: true, MaxPayloadChars: argInt(req, "max_chars", 0), Limit: 200,
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(artifacts)
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("get_product_vision",
-		mcp.WithDescription("USE WHEN you need the north star vision for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the north star vision for a strategy instance. Returns the north star within a size budget; when it is larger, returns its sections with sizes instead (read one with get_section). Reports when the north star is not defined, for example an unmodified template. Pass full=true to raise the budget to the 40000-character cap."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the full 40000-character cap instead of the default 12000.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -608,16 +626,21 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "north_star")
+		budget := argInt(req, "max_chars", 0)
+		if argString(req, "full") == "true" {
+			budget = strategyread.HardMaxChars
+		}
+		out, err := svc.Strategy.ReadSection(ctx, id, "north_star", "", budget)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return mustJSON(out)
 	})
 
 	s.AddTool(mcp.NewTool("get_personas",
-		mcp.WithDescription("USE WHEN you need target personas and their pain points for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the target personas and their problems for a strategy instance. Reads the target users of the insight analyses, within a size budget; reports when none are defined. Same as get_view with view=personas."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -626,16 +649,13 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "strategy_foundations")
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return readViewTool(ctx, svc, id, req, "personas")
 	})
 
 	s.AddTool(mcp.NewTool("get_competitive_position",
-		mcp.WithDescription("USE WHEN you need the competitive analysis for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the competitive analysis for a strategy instance: the competitive landscape from the insight analyses, our positioning against each named competitor from the strategy formula, and the positioning statement, within a size budget. For one competitor use get_view with view=competitor. For other insight sections use get_section."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("max_chars", mcp.Description("Shared response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -644,16 +664,14 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "insight_analyses")
-		if err != nil {
-			return toolErr(ctx, err), nil
-		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return readViewTool(ctx, svc, id, req, "competitive_position")
 	})
 
 	s.AddTool(mcp.NewTool("get_roadmap",
-		mcp.WithDescription("USE WHEN you need the full roadmap recipe for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the roadmap recipe for a strategy instance. Returns the roadmap within a size budget; when it is larger, returns its sections with sizes instead. Read one track with get_section (path tracks.<track>), or the objectives and key results with get_view view=objectives. Pass full=true to raise the budget to the 40000-character cap."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the full 40000-character cap instead of the default 12000.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -662,13 +680,27 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, err := svc.Strategy.GetCurrentArtifact(ctx, id, "roadmap_recipe")
+		budget := argInt(req, "max_chars", 0)
+		if argString(req, "full") == "true" {
+			budget = strategyread.HardMaxChars
+		}
+		out, err := svc.Strategy.ReadSection(ctx, id, "roadmap_recipe", "", budget)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return mustJSON(out)
 	})
 
+}
+
+// readViewTool serves a tool that is a named view with only a budget argument.
+// The caller has already checked access to the instance.
+func readViewTool(ctx context.Context, svc Services, id uuid.UUID, req mcp.CallToolRequest, view string) (*mcp.CallToolResult, error) {
+	out, err := svc.Strategy.ReadView(ctx, id, view, nil, argInt(req, "max_chars", 0))
+	if err != nil {
+		return toolErr(ctx, err), nil
+	}
+	return mustJSON(out)
 }
 
 // registerArtifactMutationTools registers feature and mutation read tools.
@@ -713,9 +745,14 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("list_artifacts",
-		mcp.WithDescription("USE WHEN you need to list strategy artifacts of any type (commercial_def, org_ops_def, strategy_def, value_model, etc.) with their index fields (name, track, status)."),
+		mcp.WithDescription("USE WHEN you need to list an instance's strategy artifacts with their index fields (type, key, name, track, status, size). Returns a page of index rows without payloads; read content with get_section. Unmodified framework content (canonical definitions, templates, packaged value models) is excluded and counted in framework_excluded; pass include_framework=true to list it with its integrity class. Pass full=true to include payloads up to a 40000-character cap; any omitted are marked."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
-		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model, feature")),
+		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. feature, value_model, roadmap_recipe")),
+		mcp.WithString("include_framework", mcp.Description(`Set to "true" to include unmodified framework content.`)),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include payloads, bounded by max_chars.`)),
+		mcp.WithString("max_chars", mcp.Description("Payload budget in characters when full=true (cap 40000)")),
+		mcp.WithString("limit", mcp.Description("Page size (1-200, default 50)")),
+		mcp.WithString("cursor", mcp.Description("Pagination cursor (next_cursor from a previous response)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -724,11 +761,18 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, id, argString(req, "artifact_type"))
+		page, err := svc.Strategy.ListArtifactPage(ctx, id, strategy.ListOptions{
+			ArtifactType:     argString(req, "artifact_type"),
+			IncludeFramework: argString(req, "include_framework") == "true",
+			WithPayload:      argString(req, "full") == "true",
+			MaxPayloadChars:  argInt(req, "max_chars", 0),
+			Limit:            argInt(req, "limit", 0),
+			Cursor:           argString(req, "cursor"),
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(artifacts)
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("list_relationships",
@@ -751,12 +795,15 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("list_mutations",
-		mcp.WithDescription("USE WHEN you need the change history for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the change history for a strategy instance. Returns a page of changes, newest first, as a summary: what changed, when, by whom, and size_chars of the payload, without the payload itself. Pass full=true to include payloads, up to the 40000-character cap; read one change in full with get_mutation. A page cut at the budget says truncated and gives next_cursor to continue."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. feature")),
 		mcp.WithString("include_staged", mcp.Description("true to include staged (uncommitted) mutations")),
 		mcp.WithString("limit", mcp.Description("Max results per page (1–200, default 50)")),
 		mcp.WithString("cursor", mcp.Description("Pagination cursor (mutation ID) from a previous response")),
+		mcp.WithString("since_mutation_id", mcp.Description("Only mutations newer than this mutation, for polling")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include payloads, up to the 40000-character cap.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -765,15 +812,19 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		includeStaged := argString(req, "include_staged") == "true"
-		limit := req.GetInt("limit", 50)
-		cursor := argString(req, "cursor")
-		sinceMutationID := argString(req, "since_mutation_id")
-		mutations, nextCursor, err := svc.Strategy.ListMutations(ctx, id, argString(req, "artifact_type"), includeStaged, limit, cursor, sinceMutationID)
+		page, err := svc.Strategy.ListMutationPage(ctx, id, strategy.MutationListOptions{
+			ArtifactType:    argString(req, "artifact_type"),
+			IncludeStaged:   argString(req, "include_staged") == "true",
+			Cursor:          argString(req, "cursor"),
+			SinceMutationID: argString(req, "since_mutation_id"),
+			Limit:           req.GetInt("limit", 50),
+			WithPayload:     argString(req, "full") == "true",
+			MaxChars:        requestBudget(req),
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(map[string]any{"mutations": mutations, "next_cursor": nextCursor})
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("get_mutation",
@@ -798,10 +849,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 
 func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("search_strategy",
-		mcp.WithDescription("USE WHEN you need semantic search across the strategy graph for an instance."),
+		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
-		mcp.WithString("limit", mcp.Description("Max results (default 10)")),
+		mcp.WithString("limit", mcp.Description("Max results (default 10, at most 25 for keyword search)")),
+		mcp.WithString("mode", mcp.Description("auto (default): semantic search, then keyword search if it is unavailable or finds nothing of the instance's own. semantic: Memory only. keyword: match the words in the instance's authored text only.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -810,15 +862,20 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		results, err := svc.Semantic.SearchStrategy(ctx,
-			instID.String(),
-			argString(req, "query"),
-			argInt(req, "limit", 10),
-		)
+		mode := argString(req, "mode")
+		switch mode {
+		case "":
+			mode = searchModeAuto
+		case searchModeAuto, searchModeSemantic, searchModeKeyword:
+		default:
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail(
+				fmt.Sprintf("mode %q is not one of auto, semantic, keyword", mode))), nil
+		}
+		hits, err := searchStrategy(ctx, svc, instID, argString(req, "query"), argInt(req, "limit", 10), mode)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(results)
+		return mustJSON(hits)
 	})
 
 	s.AddTool(mcp.NewTool("detect_contradictions",
@@ -1046,6 +1103,12 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
+		// ImportInstance stores mutations only. Derive strategy_artifacts so the
+		// instance has current-state rows to read and to project into Memory.
+		if _, err := svc.Strategy.BackfillIndex(ctx, inst.ID); err != nil {
+			return toolErr(ctx, fmt.Errorf("scaffold: derive index: %w", err)), nil
+		}
+
 		return mustJSON(map[string]any{
 			"instance":   inst,
 			"scaffolded": true,
@@ -1095,7 +1158,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_instance",
-		mcp.WithDescription("USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance."),
+		mcp.WithDescription("USE WHEN you need to delete a strategy instance. The instance disappears immediately and cannot be restored through the API; its semantic-graph (Memory) objects and scenario branches are removed asynchronously by the ingest service, usually within seconds. Rows in the database are soft-deleted, not erased. Use archive_instance instead if you only want to hide the instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -1112,7 +1175,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_workspace",
-		mcp.WithDescription("USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed."),
+		mcp.WithDescription("USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
@@ -1218,8 +1281,8 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 }
 
 // commitBatchHandler commits a staged batch and runs the post-commit pipeline
-// (Memory ingestion, orchestration resume, ripple analysis, schema-warning
-// surfacing, evidence processing). Extracted from the commit_batch tool handler.
+// (orchestration resume, ripple analysis, schema-warning surfacing, evidence
+// processing). Memory ingestion is triggered by the strategy service itself. Extracted from the commit_batch tool handler.
 func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	batchID, err := parseUUID(argString(req, "batch_id"))
 	if err != nil {
@@ -1237,11 +1300,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 	n, err := svc.Strategy.CommitBatch(ctx, batchID)
 	if err != nil {
 		return toolErr(ctx, err), nil
-	}
-
-	// Enqueue async Memory ingestion for the committed batch.
-	if svc.Ingest != nil && instanceID != uuid.Nil {
-		svc.Ingest.EnqueueBatch(instanceID, batchID)
 	}
 
 	// Resume any AIM orchestration run awaiting human review for this batch.
@@ -1266,7 +1324,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 			VersionSvc:  svc.Version,
 			SkillExec:   svc.SkillExecutor,
 			SchemaSvc:   svc.Schema,
-			Ingest:      svc.Ingest,
 			Resolver:    svc.Resolver,
 		}
 		pResult := p.Run(ctx, instanceID, batchID)
@@ -1598,7 +1655,7 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 
 	// --- Templates ---
 	s.AddTool(mcp.NewTool("list_templates",
-		mcp.WithDescription("USE WHEN you need to see all available EPF artifact templates across READY, FIRE, and AIM phases."),
+		mcp.WithDescription("USE WHEN you need to see the EPF artifact templates that ship with the framework across READY, FIRE, and AIM phases. These are FRAMEWORK templates with sample content, not any company's strategy: to answer what a company's strategy says, use get_outline and get_section."),
 	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		paths, err := embedded.ListTemplates()
 		if err != nil {
@@ -1608,7 +1665,7 @@ func registerEmbeddedKnowledgeTools(s *server.MCPServer) {
 	})
 
 	s.AddTool(mcp.NewTool("get_template",
-		mcp.WithDescription("USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure."),
+		mcp.WithDescription("USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure. This is FRAMEWORK sample content, not the company's strategy: do not present it as an answer about the company. For what a company's strategy says, use get_outline and get_section."),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Template path relative to templates root, e.g. READY/00_north_star.yaml")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetTemplate(argString(req, "path"))
@@ -1924,8 +1981,10 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 
 	// validate_instance — validate all artifacts in an instance against their schemas.
 	s.AddTool(mcp.NewTool("validate_instance",
-		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`."),
+		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent, always complete. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`. The text is the per-artifact detail when it fits max_chars (default 12000, cap 40000); when it does not, a summary of the invalid artifacts with their first errors, saying truncated."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the 40000-character cap instead of the default 12000 for the text.`)),
+		mcp.WithString("max_chars", mcp.Description("Budget for the text in characters (default 12000, cap 40000)")),
 		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
@@ -1976,16 +2035,54 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 			findings = append(findings, findingsFromValidation(results[i].ArtifactKey, results[i].ValidationResult)...)
 		}
 
-		return verdictResult(
-			verdict.New(len(artifacts), findings).
-				WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts)),
-			map[string]any{
-				"instance_id":    instID,
-				"artifact_count": len(artifacts),
-				"valid_count":    totalValid,
-				"invalid_count":  totalInvalid,
-				"results":        results,
+		v := verdict.New(len(artifacts), findings).
+			WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts))
+		detail := map[string]any{
+			"instance_id":    instID,
+			"artifact_count": len(artifacts),
+			"valid_count":    totalValid,
+			"invalid_count":  totalInvalid,
+			"results":        results,
+		}
+		budget, capped := strategyread.NormaliseBudget(requestBudget(req))
+		if fitsBudget(detail, budget) {
+			return verdictResult(v, detail)
+		}
+
+		type compactResult struct {
+			ArtifactKey   string   `json:"artifact_key"`
+			ArtifactType  string   `json:"artifact_type"`
+			SchemaFile    string   `json:"schema_file,omitempty"`
+			ErrorCount    int      `json:"error_count"`
+			Errors        []string `json:"errors"`
+			ErrorsOmitted int      `json:"errors_omitted,omitempty"`
+		}
+		invalid := make([]compactResult, 0, totalInvalid)
+		for _, r := range results {
+			if r.Valid {
+				continue
+			}
+			errs, omitted := compactErrors(r.Errors)
+			invalid = append(invalid, compactResult{
+				ArtifactKey: r.ArtifactKey, ArtifactType: r.ArtifactType, SchemaFile: r.SchemaFile,
+				ErrorCount: len(r.Errors), Errors: errs, ErrorsOmitted: omitted,
 			})
+		}
+		shown := strategyread.FitPrefix(invalid, budget-validationFixedChars)
+		hints := append(validationHints(len(invalid)-shown, "invalid artifacts", capped),
+			"valid artifacts are counted in valid_count and not listed")
+		return verdictResult(v, map[string]any{
+			"instance_id":     instID,
+			"artifact_count":  len(artifacts),
+			"valid_count":     totalValid,
+			"invalid_count":   totalInvalid,
+			"results":         invalid[:shown],
+			"results_shown":   shown,
+			"results_omitted": len(invalid) - shown,
+			"truncated":       true,
+			"max_chars":       budget,
+			"hints":           hints,
+		})
 	})
 
 	// validate_relationships — check cross-artifact reference integrity.
@@ -2086,7 +2183,7 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 
 	// check_content_readiness — score content quality for one or all artifacts.
 	s.AddTool(mcp.NewTool("check_content_readiness",
-		mcp.WithDescription("USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings."),
+		mcp.WithDescription("USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance, and to scan every artifact for unmodified framework content: integrity.unmodified_template and integrity.packaged_default are warnings, integrity.canonical_reference is one aggregated info finding per track. With no features the summary reports no score. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("artifact_key", mcp.Description("Optional artifact key. If omitted, scores all features.")),
 		withVerdictOutput(),
@@ -2134,15 +2231,32 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 			findings = append(findings, readinessFindings(r)...)
 		}
 
+		// Readiness is scored for features only, which says nothing about an
+		// instance whose content is unmodified framework templates. Scan every
+		// artifact for that. The findings are advisory: ok is unchanged.
+		integ, err := svc.Strategy.ReportIntegrity(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		findings = append(findings, integrityFindings(integ.Findings)...)
+
+		summary := fmt.Sprintf("no features defined; %d integrity findings across %d artifacts (%s)",
+			len(integ.Findings), integ.Scanned, integ.Source)
+		detail := map[string]any{
+			"instance_id":       instID,
+			"feature_count":     len(artifacts),
+			"reports":           reports,
+			"content_integrity": integ,
+		}
+		if len(artifacts) > 0 {
+			summary = fmt.Sprintf("average readiness %d/100 across %d features; %d integrity findings across %d artifacts",
+				avgScore, len(artifacts), len(integ.Findings), integ.Scanned)
+			detail["average_score"] = avgScore
+		}
+
 		return verdictResult(
-			verdict.New(len(artifacts), findings).
-				WithSummary("average readiness %d/100 across %d features", avgScore, len(artifacts)),
-			map[string]any{
-				"instance_id":   instID,
-				"feature_count": len(artifacts),
-				"average_score": avgScore,
-				"reports":       reports,
-			})
+			verdict.New(integ.Scanned, findings).WithSummary("%s", summary),
+			detail)
 	})
 }
 
@@ -2413,4 +2527,75 @@ func stageArtifact(
 		"action":       action,
 		"note":         "Present this batch_id to the user for review. Call commit_batch only after explicit confirmation.",
 	})
+}
+
+const (
+	searchModeAuto     = "auto"
+	searchModeSemantic = "semantic"
+	searchModeKeyword  = "keyword"
+)
+
+// searchStrategy runs the search the mode asks for. In auto mode it tries
+// semantic search first and falls back to keyword search when semantic search
+// fails or leaves nothing that belongs to the instance, so a client gets an
+// answer whether or not Memory is up.
+func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int, mode string) ([]*semantic.SearchResult, error) {
+	if mode != searchModeKeyword {
+		hits, err := semanticSearch(ctx, svc, instID, query, limit)
+		switch {
+		case err == nil && (len(hits) > 0 || mode == searchModeSemantic):
+			return hits, nil
+		case err != nil && mode == searchModeSemantic:
+			if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
+				return nil, apperror.ErrSemanticUnavailable.WithDetail(
+					"emergent.memory not configured; call search_strategy without mode, or with mode=keyword, to search the text directly")
+			}
+			return nil, err
+		case err != nil:
+			slog.WarnContext(ctx, "search_strategy: semantic search failed, using keyword search",
+				"instance_id", instID, "err", err)
+		}
+	}
+
+	found, err := svc.Strategy.SearchAuthored(ctx, instID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*semantic.SearchResult, 0, len(found))
+	for _, h := range found {
+		out = append(out, &semantic.SearchResult{
+			ArtifactType:     h.ArtifactType,
+			ArtifactKey:      h.ArtifactKey,
+			Snippet:          h.Snippet,
+			Score:            h.Score,
+			Artifact:         h.ArtifactKey,
+			Path:             h.Path,
+			SectionSizeChars: h.SizeChars,
+			ReadWith:         h.ReadWith,
+			Match:            searchModeKeyword,
+		})
+	}
+	return out, nil
+}
+
+func semanticSearch(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int) ([]*semantic.SearchResult, error) {
+	outcome, err := svc.Semantic.SearchStrategyScoped(ctx, instID.String(), query, limit)
+	if err != nil {
+		return nil, err
+	}
+	if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 {
+		slog.InfoContext(ctx, "search_strategy filtered hits",
+			"instance_id", instID, "framework", outcome.ExcludedFramework, "other_instance", outcome.ExcludedOtherInstance)
+	}
+	for _, hit := range outcome.Results {
+		hit.Match = searchModeSemantic
+		if hit.Artifact == "" {
+			continue
+		}
+		if size, ok := svc.Strategy.SectionSize(ctx, instID, hit.Artifact, hit.Path); ok {
+			hit.SectionSizeChars = size
+			hit.ReadWith = readWithCall(hit.Artifact, hit.Path)
+		}
+	}
+	return outcome.Results, nil
 }

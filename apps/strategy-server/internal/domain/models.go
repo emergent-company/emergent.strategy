@@ -52,6 +52,10 @@ type StrategyInstance struct {
 	MemoryEdgeCount             *int       `bun:"memory_edge_count"                         json:"memory_edge_count,omitempty"`
 	MemoryDecomposedObjectCount *int       `bun:"memory_decomposed_object_count"            json:"memory_decomposed_object_count,omitempty"`
 	MemoryDecomposedEdgeCount   *int       `bun:"memory_decomposed_edge_count"              json:"memory_decomposed_edge_count,omitempty"`
+	MemoryGeneration            int64      `bun:"memory_generation,notnull,default:0"       json:"memory_generation"`
+	MemoryDirtySince            *time.Time `bun:"memory_dirty_since"                        json:"memory_dirty_since,omitempty"`
+	MemoryChangeSeq             int64      `bun:"memory_change_seq,notnull,default:0"       json:"-"`
+	MemoryPurgedAt              *time.Time `bun:"memory_purged_at"                          json:"memory_purged_at,omitempty"`
 	CreatedBy                   *uuid.UUID `bun:"created_by,type:uuid"               json:"created_by,omitempty"`
 	CreatedAt                   time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
 	UpdatedAt                   time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
@@ -120,8 +124,15 @@ type StrategyArtifact struct {
 	Status       string          `bun:"status,notnull,default:'active'"  json:"status"`
 	Payload      json.RawMessage `bun:"payload,notnull,type:jsonb"       json:"payload"`
 	MutationID   uuid.UUID       `bun:"mutation_id,notnull,type:uuid"    json:"mutation_id"`
-	CreatedAt    time.Time       `bun:"created_at,notnull,default:now()" json:"created_at"`
-	UpdatedAt    time.Time       `bun:"updated_at,notnull,default:now()" json:"updated_at"`
+	// IntegrityClass is set when the payload is unmodified canonical content
+	// (see internal/integrity). Nil means authored or not yet classified.
+	IntegrityClass *string `bun:"integrity_class"         json:"integrity_class,omitempty"`
+	// IntegrityRef names the canonical file and release the payload matches.
+	IntegrityRef *string `bun:"integrity_ref"           json:"integrity_ref,omitempty"`
+	// IntegrityCheckedWith identifies the manifest used for the last classification.
+	IntegrityCheckedWith *string   `bun:"integrity_checked_with"  json:"integrity_checked_with,omitempty"`
+	CreatedAt            time.Time `bun:"created_at,notnull,default:now()" json:"created_at"`
+	UpdatedAt            time.Time `bun:"updated_at,notnull,default:now()" json:"updated_at"`
 }
 
 // StrategyRelationship is a single cross-artifact reference extracted from a payload.

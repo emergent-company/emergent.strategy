@@ -83,6 +83,9 @@ var ToolAccess = map[string]string{
 	"list_pending_batches":  AccessRead,
 	"describe_batch":        AccessWrite, // UPDATEs strategy_mutations
 	"search_strategy":       AccessRead,
+	"get_outline":           AccessRead,
+	"get_section":           AccessRead,
+	"get_view":              AccessRead,
 
 	// ── Strategy reads ──────────────────────────────────────────────────
 	"get_strategy_context":              AccessRead,

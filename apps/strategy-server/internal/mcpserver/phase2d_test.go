@@ -16,10 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
-
-	"github.com/google/uuid"
 
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
@@ -30,6 +27,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark/changemarktest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
@@ -38,31 +36,6 @@ import (
 // ---------------------------------------------------------------------------
 // Helpers — Phase 2d
 // ---------------------------------------------------------------------------
-
-// mockIngestEnqueuer records enqueued batches for verification.
-type mockIngestEnqueuer struct {
-	mu      sync.Mutex
-	batches []enqueuedJob
-}
-
-type enqueuedJob struct {
-	InstanceID uuid.UUID
-	BatchID    uuid.UUID
-}
-
-func (m *mockIngestEnqueuer) EnqueueBatch(instanceID, batchID uuid.UUID) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.batches = append(m.batches, enqueuedJob{InstanceID: instanceID, BatchID: batchID})
-}
-
-func (m *mockIngestEnqueuer) jobs() []enqueuedJob {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	cp := make([]enqueuedJob, len(m.batches))
-	copy(cp, m.batches)
-	return cp
-}
 
 // memoryMux builds an http.ServeMux that mocks the emergent.memory REST API
 // with canned data suitable for semantic tool tests.
@@ -595,23 +568,22 @@ func TestMCP_OrgRemoveMember_LastAdmin(t *testing.T) {
 // Scenario: Ingest pipeline triggered by commit_batch
 // ---------------------------------------------------------------------------
 
-func TestMCP_CommitBatch_TriggersIngest(t *testing.T) {
+func TestMCP_CommitBatch_MarksInstanceForIngest(t *testing.T) {
 	db := database.TestDB(t)
 	packSvc := pack.NewService(db)
 	instSvc := instance.NewService(db)
 	instSvc.WithPackEnsurer(packSvc)
 
-	mock := &mockIngestEnqueuer{}
+	marker, rec := changemarktest.New(db)
 
 	svc := mcpserver.Services{
 		Workspace: workspace.NewService(db),
 		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
+		Strategy:  strategy.NewService(db).WithChangeMarker(marker),
 		Pack:      packSvc,
 		App:       appdom.NewService(db),
 		Semantic:  semantic.NewService(semantic.Config{}),
 		Org:       orgdom.NewService(db),
-		Ingest:    mock,
 	}
 
 	_, instID := seedInstance(t, svc, "ingest-owner", map[string]any{
@@ -619,6 +591,9 @@ func TestMCP_CommitBatch_TriggersIngest(t *testing.T) {
 	})
 	c := newMCPClient(t, svc)
 	id := 1
+	// Seeding ran BackfillIndex through the same marked service; start clean.
+	changemarktest.Reset(t, db, instID)
+	seeded := rec.Count(instID)
 
 	// Stage a feature.
 	featurePayload, _ := json.Marshal(map[string]any{
@@ -647,20 +622,13 @@ func TestMCP_CommitBatch_TriggersIngest(t *testing.T) {
 	})
 	r.assertOK()
 
-	// Verify ingest was enqueued.
-	jobs := mock.jobs()
-	if len(jobs) == 0 {
-		t.Fatal("commit_batch did not trigger ingest enqueue")
+	// The commit must mark the instance changed and notify the ingest service
+	// exactly once; the domain service does it, not the MCP handler.
+	if n := rec.Count(instID) - seeded; n != 1 {
+		t.Errorf("instance notified %d times by commit_batch, want 1", n)
 	}
-	if jobs[0].InstanceID != instID {
-		t.Errorf("enqueued instance_id = %s, want %s", jobs[0].InstanceID, instID)
-	}
-	batchUUID, err := uuid.Parse(staged.BatchID)
-	if err != nil {
-		t.Fatalf("invalid batch_id %q: %v", staged.BatchID, err)
-	}
-	if jobs[0].BatchID != batchUUID {
-		t.Errorf("enqueued batch_id = %s, want %s", jobs[0].BatchID, batchUUID)
+	if s := changemarktest.Load(t, db, instID); s.Dirty == nil {
+		t.Error("commit_batch did not mark the instance dirty")
 	}
 }
 

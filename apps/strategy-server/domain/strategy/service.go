@@ -23,19 +23,30 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/index"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // Service handles strategy authoring and reading.
 type Service struct {
-	db *bun.DB
+	db         *bun.DB
+	marker     *changemark.Marker // optional; nil = Memory projection not tracked
+	classifier *integrity.Classifier
 }
 
 // NewService creates a new strategy Service.
 func NewService(db *bun.DB) *Service {
 	return &Service{db: db}
+}
+
+// WithChangeMarker wires the marker that records artifact changes for the
+// Memory projection. Without it the service does not track changes.
+func (s *Service) WithChangeMarker(m *changemark.Marker) *Service {
+	s.marker = m
+	return s
 }
 
 // DB returns the underlying *bun.DB for use by sibling domain services.
@@ -138,12 +149,27 @@ func (s *Service) ListMutations(ctx context.Context, instanceID uuid.UUID, artif
 		limit = 50
 	}
 
-	q := s.db.NewSelect().
-		Model((*domain.StrategyMutation)(nil)).
-		Where("instance_id = ?", instanceID).
-		OrderExpr("created_at DESC, id DESC").
-		Limit(limit + 1)
+	q := mutationFilter(
+		s.db.NewSelect().Model((*domain.StrategyMutation)(nil)),
+		instanceID, artifactType, includeStaged, cursor, sinceMutationID,
+	).OrderExpr("created_at DESC, id DESC").Limit(limit + 1)
 
+	var mutations []*domain.StrategyMutation
+	if err := q.Scan(ctx, &mutations); err != nil {
+		return nil, "", fmt.Errorf("list mutations: %w", err)
+	}
+
+	var nextCursor string
+	if len(mutations) > limit {
+		mutations = mutations[:limit]
+		nextCursor = mutations[limit-1].ID.String()
+	}
+	return mutations, nextCursor, nil
+}
+
+// mutationFilter applies the filters shared by the mutation lists.
+func mutationFilter(q *bun.SelectQuery, instanceID uuid.UUID, artifactType string, includeStaged bool, cursor, sinceMutationID string) *bun.SelectQuery {
+	q = q.Where("instance_id = ?", instanceID)
 	if artifactType != "" {
 		q = q.Where("artifact_type = ?", artifactType)
 	}
@@ -157,22 +183,14 @@ func (s *Service) ListMutations(ctx context.Context, instanceID uuid.UUID, artif
 	// sinceMutationID: agent polling — return only mutations newer than the given ID
 	if sinceMutationID != "" {
 		q = q.Where("created_at > (SELECT created_at FROM strategy_mutations WHERE id = ?::uuid)", sinceMutationID)
-	} else if cursor != "" {
-		// cursor: page-based browsing — return mutations older than cursor
-		q = q.Where("created_at < (SELECT created_at FROM strategy_mutations WHERE id = ?::uuid)", cursor)
 	}
-
-	var mutations []*domain.StrategyMutation
-	if err := q.Scan(ctx, &mutations); err != nil {
-		return nil, "", fmt.Errorf("list mutations: %w", err)
+	// cursor: page-based browsing — return mutations after the cursor row in
+	// (created_at, id) order. Rows committed in one batch share a created_at,
+	// so the timestamp alone would skip or repeat rows at a page boundary.
+	if cursor != "" {
+		q = q.Where("(created_at, id) < (SELECT created_at, id FROM strategy_mutations WHERE id = ?::uuid)", cursor)
 	}
-
-	var nextCursor string
-	if len(mutations) > limit {
-		nextCursor = mutations[limit].ID.String()
-		mutations = mutations[:limit]
-	}
-	return mutations, nextCursor, nil
+	return q
 }
 
 // GetMutation returns a single mutation by ID.
@@ -382,6 +400,10 @@ func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, erro
 		}
 	}
 
+	if len(mutations) > 0 {
+		s.marker.Changed(ctx, mutations[0].InstanceID)
+	}
+
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",
 		Action:     "commit_batch",
@@ -443,6 +465,7 @@ func (s *Service) CommitAuto(ctx context.Context, p CommitAutoParams) (*domain.S
 		slog.WarnContext(ctx, "auto-commit: derive index failed",
 			"artifact_key", p.ArtifactKey, "err", err)
 	}
+	s.marker.Changed(ctx, p.InstanceID)
 
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",
@@ -548,18 +571,22 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 		name = &fields.Name
 	}
 
+	class, ref, checkedWith := s.integrityColumns(m.Payload)
 	artifact := &domain.StrategyArtifact{
-		ID:           uuid.New(),
-		InstanceID:   m.InstanceID,
-		ArtifactType: m.ArtifactType,
-		ArtifactKey:  m.ArtifactKey,
-		Track:        track,
-		Name:         name,
-		Status:       fields.Status,
-		Payload:      m.Payload,
-		MutationID:   m.ID,
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    time.Now().UTC(),
+		ID:                   uuid.New(),
+		InstanceID:           m.InstanceID,
+		ArtifactType:         m.ArtifactType,
+		ArtifactKey:          m.ArtifactKey,
+		Track:                track,
+		Name:                 name,
+		Status:               fields.Status,
+		Payload:              m.Payload,
+		MutationID:           m.ID,
+		IntegrityClass:       class,
+		IntegrityRef:         ref,
+		IntegrityCheckedWith: checkedWith,
+		CreatedAt:            m.CreatedAt,
+		UpdatedAt:            time.Now().UTC(),
 	}
 
 	_, err := s.db.NewInsert().
@@ -571,6 +598,9 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 			"status = EXCLUDED.status, " +
 			"payload = EXCLUDED.payload, " +
 			"mutation_id = EXCLUDED.mutation_id, " +
+			"integrity_class = EXCLUDED.integrity_class, " +
+			"integrity_ref = EXCLUDED.integrity_ref, " +
+			"integrity_checked_with = EXCLUDED.integrity_checked_with, " +
 			"updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
 	if err != nil {
@@ -648,6 +678,7 @@ func (s *Service) BackfillIndex(ctx context.Context, instanceID uuid.UUID) (int,
 		}
 		count++
 	}
+	s.marker.Changed(ctx, instanceID)
 
 	audit.FromContext(ctx).Write(ctx, audit.Entry{
 		EntityType: "strategy_mutation",

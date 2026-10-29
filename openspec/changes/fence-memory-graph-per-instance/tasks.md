@@ -83,6 +83,9 @@ and the pilot hit the confusion they prevent.
       touching the manifest on any write failure, replace manifest + generation
       + conditional dirty clear in one transaction, then GC (manifest diff, then
       label safety net). Write nothing per-ingest onto objects.
+      Keep the integrity stamp on the artifact layer (`integrityMetadata`) and
+      add it to decomposed objects, taking the class of the source artifact
+      (design Decision 1, "Integrity stamp"; tests 9.28 and 9.29).
 - [ ] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
       keys only; remove the `objectKeyIndex` prefix heuristics that assumed
       unscoped keys. GC resolves a removed relationship's Memory ID through
@@ -109,7 +112,10 @@ and the pilot hit the confusion they prevent.
       debug count of dropped items, `graph_not_ready` without a manifest.
 - [ ] 3.3 `SearchStrategy`: send exactly one label `instance:<X>`; over-fetch
       (`limit × 2`, cap 100), filter, trim. Add `instance_id`, `layer`,
-      `source_artifact` to `SearchResult`.
+      `source_artifact` to `SearchResult`. Keep dropping hits with a framework
+      `integrity_class` and keep reporting the count (`ExcludedFramework` today);
+      the label filter cannot exclude, so this stays a server-side filter after
+      the over-fetch (design Decision 3; test 9.30).
 - [ ] 3.4 `GetNeighbors`: scope the caller key, not-found for invisible root,
       filter expansion.
 - [ ] 3.5 `DetectContradictions`: list by `instance:<uuid>` + `layer:artifact`,
@@ -258,3 +264,13 @@ and the pilot hit the confusion they prevent.
       another instance's objects.
 - [ ] 9.27 Lifecycle "vision connected" is true for a scaffolded instance and for
       an imported one, and false when only another instance has a North Star.
+- [ ] 9.28 Decomposed objects of an unmodified template carry `integrity_class`
+      and `integrity:<class>`, equal to their artifact's; objects of an authored
+      artifact carry neither.
+- [ ] 9.29 A template edited into authored content, then re-ingested: no object
+      of it carries a marking, and search returns it.
+- [ ] 9.30 Search over authored and framework objects (artifact and decomposed
+      layers): framework hits are dropped and counted, authored hits are
+      returned, and the over-fetch still fills the page.
+- [ ] 9.31 Architecture check: the scoped search path applies the framework
+      filter (a mock Memory returning a flagged hit must not surface it).

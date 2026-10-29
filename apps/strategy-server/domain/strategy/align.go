@@ -228,6 +228,7 @@ func (s *Service) commitAlignedValueModel(
 		slog.WarnContext(ctx, "align-portfolio: derive index failed",
 			"artifact_key", vm.ArtifactKey, "err", err)
 	}
+	s.marker.Changed(ctx, instanceID)
 }
 
 // ── KR target extraction ─────────────────────────────────────────────────────

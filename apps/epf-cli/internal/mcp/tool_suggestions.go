@@ -69,6 +69,23 @@ func generateHealthCheckSuggestions(result *HealthCheckSummary) []ToolCallSugges
 		})
 	}
 
+	// Unmodified templates hold sample content, not the company's strategy. Name
+	// the files so the agent can author or remove them. Installed canonical
+	// definitions are expected and prompt nothing.
+	if ci := result.ContentReadiness; ci != nil && ci.ContentIntegrity != nil && len(ci.ContentIntegrity.Files) > 0 {
+		names := make([]string, 0, len(ci.ContentIntegrity.Files))
+		for _, f := range ci.ContentIntegrity.Files {
+			names = append(names, f.File)
+		}
+		suggestions = append(suggestions, ToolCallSuggestion{
+			Tool:   "epf_get_agent_for_task",
+			Params: map[string]string{"task": "populate or remove unmodified template files"},
+			Reason: fmt.Sprintf("%d file(s) are unmodified framework templates holding sample content, not your own: %s. Author them from your sources (cite where each claim comes from, mark unknowns with PLACEHOLDER:) or delete the files you do not use",
+				len(names), strings.Join(names, ", ")),
+			Priority: "recommended",
+		})
+	}
+
 	// Relationship errors → validate relationships for details
 	if result.Relationships != nil && result.Relationships.InvalidPaths > 0 {
 		suggestions = append(suggestions, ToolCallSuggestion{

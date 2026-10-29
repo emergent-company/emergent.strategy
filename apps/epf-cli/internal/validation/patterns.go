@@ -1,6 +1,10 @@
 package validation
 
-import "regexp"
+import (
+	"regexp"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/integrity"
+)
 
 // PlaceholderPatterns are patterns that indicate placeholder/template content
 // These patterns are shared between content readiness checking (health command)
@@ -17,12 +21,18 @@ var PlaceholderPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)<PLACEHOLDER[^>]*>`),       // <PLACEHOLDER> or <placeholder>
 	regexp.MustCompile(`(?i)<YOUR[^>]*>`),              // <YOUR something> or <your something>
 	regexp.MustCompile(`(?i)<[^>]*\bhere\b[^>]*>`),     // <... here ...> - angle brackets with "here" inside
-	regexp.MustCompile(`(?i)^example:`),                // Lines starting with "example:" (YAML key)
 	regexp.MustCompile(`(?i)\bplaceholder\b`),          // Word "placeholder"
 	regexp.MustCompile(`YYYY-MM-DD`),                   // Date placeholder
 	regexp.MustCompile(`(?i)lorem ipsum`),              // Lorem ipsum
 	regexp.MustCompile(`(?i)your .{1,30} here\b`),      // "your X here" pattern
 	regexp.MustCompile(`XXX+`),                         // XXX placeholders
+}
+
+func init() {
+	// The "^example:" entry that used to be here could never match: the exclusion
+	// "example.*:" matches every line it matches. The shared markers below are
+	// the ones the distributed AGENTS.md claimed were detected.
+	PlaceholderPatterns = append(PlaceholderPatterns, integrity.AdditionalPlaceholderPatterns...)
 }
 
 // ExclusionPatterns are patterns that should not be flagged as placeholders

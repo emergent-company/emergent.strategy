@@ -185,6 +185,24 @@ fi
 echo ""
 echo "EPF version: $(cat "$EMBEDDED_DIR/VERSION")"
 
+# Integrity manifest: normalised hashes of every canonical template, definition,
+# value model and AIM template at every release. Used to recognise unmodified
+# canonical content inside an instance. Preference order: a manifest shipped by
+# canonical, one generated from canonical's git history, an empty stub (the
+# classifier then falls back to the embedded current content and says so).
+echo ""
+echo "Preparing integrity manifest..."
+MANIFEST_OUT="$EMBEDDED_DIR/integrity-manifest.json"
+if [ -f "$CANONICAL_EPF/integrity-manifest.json" ]; then
+    cp "$CANONICAL_EPF/integrity-manifest.json" "$MANIFEST_OUT"
+    echo "  Copied integrity-manifest.json from canonical EPF"
+elif [ -d "$CANONICAL_EPF/.git" ] && (cd "$SERVER_DIR/../epf-cli" && go run ./scripts/gen-integrity-manifest -canonical "$CANONICAL_EPF" -out "$MANIFEST_OUT"); then
+    echo "  Generated integrity-manifest.json from canonical git history"
+else
+    echo '{"manifest_version":1,"normalisation":"yaml-json-sortedkeys-sha256-v1","current_release":"unknown","releases":[],"entries":{}}' > "$MANIFEST_OUT"
+    echo "  Warning: could not build an integrity manifest; wrote an empty stub"
+fi
+
 # Verify the source is checked out at the pinned commit (if pin file exists).
 # epf-canonical has no tags/releases, so the pin is a commit SHA (first
 # line of the pin file), not a version string.

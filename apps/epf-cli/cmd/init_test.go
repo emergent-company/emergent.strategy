@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/anchor"
@@ -402,4 +403,46 @@ func TestCreateInstanceStructure_IntegratedMode(t *testing.T) {
 			t.Error("outputs directory not found under instance dir")
 		}
 	})
+}
+
+func TestCreateInstanceStructure_NoDefinitionsOmitsThemAndRecordsIt(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		noDefinitions bool
+		wantDefs      bool
+		wantAnchor    string
+	}{
+		{"default installs definitions", false, true, ""},
+		{"no-definitions omits them", true, false, "omitted"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prev := initNoDefinitions
+			initNoDefinitions = tc.noDefinitions
+			t.Cleanup(func() { initNoDefinitions = prev })
+
+			dir := filepath.Join(t.TempDir(), "inst")
+			if err := createInstanceStructure(dir, "acme", "", true); err != nil {
+				t.Fatalf("createInstanceStructure: %v", err)
+			}
+
+			found := false
+			_ = filepath.Walk(filepath.Join(dir, "FIRE", "definitions"), func(p string, info os.FileInfo, err error) error {
+				if err == nil && !info.IsDir() && strings.HasSuffix(p, ".yaml") && !strings.Contains(p, "/product/") {
+					found = true
+				}
+				return nil
+			})
+			if found != tc.wantDefs {
+				t.Errorf("canonical definitions present = %v, want %v", found, tc.wantDefs)
+			}
+
+			a, err := anchor.Load(dir)
+			if err != nil {
+				t.Fatalf("anchor: %v", err)
+			}
+			if a.CanonicalDefinitions != tc.wantAnchor {
+				t.Errorf("anchor canonical_definitions = %q, want %q", a.CanonicalDefinitions, tc.wantAnchor)
+			}
+		})
+	}
 }

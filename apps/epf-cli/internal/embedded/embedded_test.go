@@ -1,6 +1,8 @@
 package embedded
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -350,5 +352,45 @@ func TestGetAgentsMD(t *testing.T) {
 	}
 	if len(data) == 0 {
 		t.Fatal("GetAgentsMD returned empty data")
+	}
+}
+
+// The embedded AGENTS.md is a copy made by scripts/sync-embedded.sh. A copy that
+// lags its source ships stale instructions to every instance, so they must match.
+func TestEmbeddedAgentsMDMatchesItsSource(t *testing.T) {
+	embeddedCopy, err := GetAgentsMD()
+	if err != nil {
+		t.Fatalf("GetAgentsMD: %v", err)
+	}
+	source, err := os.ReadFile(filepath.Join("..", "..", "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("read source AGENTS.md: %v", err)
+	}
+	if string(embeddedCopy) != string(source) {
+		t.Error("internal/embedded/AGENTS.md differs from apps/epf-cli/AGENTS.md: run scripts/sync-embedded.sh or copy the file")
+	}
+}
+
+func TestAgentsMDStatesTheAuthoringRules(t *testing.T) {
+	data, err := GetAgentsMD()
+	if err != nil {
+		t.Fatalf("GetAgentsMD: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		"Authoring Content Discipline",
+		"PLACEHOLDER:",
+		"Never invent",
+		"ask",
+		"unmodified template",
+		"--strict-integrity",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("AGENTS.md does not mention %q in its authoring rules", want)
+		}
+	}
+	if !strings.Contains(text, "every AI agent session MUST follow these five protocols") &&
+		!strings.Contains(text, "MUST follow these five protocols") {
+		t.Error("the Quick Protocol heading still counts four protocols")
 	}
 }

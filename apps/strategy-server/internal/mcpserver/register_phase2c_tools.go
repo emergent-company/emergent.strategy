@@ -24,6 +24,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
@@ -106,7 +107,7 @@ func registerPhaseArtifactTools(s *server.MCPServer) {
 func registerDefinitionTools(s *server.MCPServer) {
 	// list_definitions — list canonical track definition templates from FIRE/definitions/.
 	s.AddTool(mcp.NewTool("list_definitions",
-		mcp.WithDescription("USE WHEN you need to see all canonical track definition templates (commercial, org_ops, strategy). Optionally filter by track name."),
+		mcp.WithDescription("USE WHEN you need to see the canonical track definitions that ship with the EPF framework (commercial, org_ops, strategy). This is FRAMEWORK reference content, not any company's strategy: to answer what a company's strategy says, use get_outline and get_section. Optionally filter by track name."),
 		mcp.WithString("track", mcp.Description("Filter by track: commercial, org_ops, strategy. Omit for all.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		allTemplates, err := embedded.ListTemplates()
@@ -154,7 +155,7 @@ func registerDefinitionTools(s *server.MCPServer) {
 
 	// get_definition — return the full YAML template for a specific definition.
 	s.AddTool(mcp.NewTool("get_definition",
-		mcp.WithDescription("USE WHEN you need the full YAML template for a specific canonical track definition. Use list_definitions to find the path first."),
+		mcp.WithDescription("USE WHEN you need the full text of one canonical track definition from the EPF framework. This is FRAMEWORK reference content, not the company's own decision: do not present it as their strategy. For what a company's strategy says, use get_outline and get_section. Use list_definitions to find the path first."),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Template path from list_definitions, e.g. FIRE/definitions/commercial/financing/cd-010-investor-pitch-decks.yaml")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetTemplate(argString(req, "path"))
@@ -171,8 +172,10 @@ func registerDefinitionTools(s *server.MCPServer) {
 
 func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("validate_with_plan",
-		mcp.WithDescription("USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent; the prioritised fix plan itself stays in the text content."),
+		mcp.WithDescription("USE WHEN you have a large number of validation errors and need a prioritized fix plan. Validates all artifacts in an instance and groups errors by severity with suggested fix order. Returns a verdict in structuredContent, always complete; the prioritised fix plan stays in the text content, in full when it fits max_chars (default 12000, cap 40000) and otherwise as a summary with the first errors of each artifact, saying truncated."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the 40000-character cap instead of the default 12000 for the text.`)),
+		mcp.WithString("max_chars", mcp.Description("Budget for the text in characters (default 12000, cap 40000)")),
 		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
@@ -246,16 +249,51 @@ func registerValidateWithPlanTool(s *server.MCPServer, svc Services) {
 			}
 		}
 
-		return verdictResult(
-			verdict.New(len(artifacts), findings).
-				WithSummary("%d of %d artifacts need fixes", len(plan), len(artifacts)),
-			map[string]any{
-				"instance_id":     instID,
-				"total_artifacts": len(artifacts),
-				"errors_found":    len(plan),
-				"fix_plan":        plan,
-				"suggestion":      "Work through the fix plan in order — critical items first. Use get_schema to see required fields for each artifact type.",
+		v := verdict.New(len(artifacts), findings).
+			WithSummary("%d of %d artifacts need fixes", len(plan), len(artifacts))
+		const suggestion = "Work through the fix plan in order — critical items first. Use get_schema to see required fields for each artifact type."
+		detail := map[string]any{
+			"instance_id":     instID,
+			"total_artifacts": len(artifacts),
+			"errors_found":    len(plan),
+			"fix_plan":        plan,
+			"suggestion":      suggestion,
+		}
+		budget, capped := strategyread.NormaliseBudget(requestBudget(req))
+		if fitsBudget(detail, budget) {
+			return verdictResult(v, detail)
+		}
+
+		type compactFix struct {
+			ArtifactKey   string   `json:"artifact_key"`
+			ArtifactType  string   `json:"artifact_type"`
+			Priority      string   `json:"priority"`
+			ErrorCount    int      `json:"error_count"`
+			Errors        []string `json:"errors"`
+			ErrorsOmitted int      `json:"errors_omitted,omitempty"`
+			FixHint       string   `json:"fix_hint"`
+		}
+		compact := make([]compactFix, 0, len(plan))
+		for _, item := range plan {
+			errs, omitted := compactErrors(item.Errors)
+			compact = append(compact, compactFix{
+				ArtifactKey: item.ArtifactKey, ArtifactType: item.ArtifactType, Priority: item.Priority,
+				ErrorCount: len(item.Errors), Errors: errs, ErrorsOmitted: omitted, FixHint: item.FixHint,
 			})
+		}
+		shown := strategyread.FitPrefix(compact, budget-validationFixedChars)
+		return verdictResult(v, map[string]any{
+			"instance_id":      instID,
+			"total_artifacts":  len(artifacts),
+			"errors_found":     len(plan),
+			"fix_plan":         compact[:shown],
+			"fix_plan_shown":   shown,
+			"fix_plan_omitted": len(compact) - shown,
+			"truncated":        true,
+			"max_chars":        budget,
+			"suggestion":       suggestion,
+			"hints":            validationHints(len(compact)-shown, "artifacts in the fix plan", capped),
+		})
 	})
 }
 
