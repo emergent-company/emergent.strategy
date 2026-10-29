@@ -49,6 +49,8 @@ type SearchResult struct {
 	// the section.
 	SectionSizeChars int    `json:"section_size_chars,omitempty"`
 	ReadWith         string `json:"read_with,omitempty"`
+	// Match says how the hit was found: "semantic" or "keyword".
+	Match string `json:"match,omitempty"`
 }
 
 // SearchOutcome is a search result with what was filtered out, so the filtering

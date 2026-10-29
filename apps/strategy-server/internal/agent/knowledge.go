@@ -608,12 +608,15 @@ marked failed. Re-trigger with aim_start_cycle.
 	},
 	{
 		Topic: "Semantic search and contradiction detection",
-		Body: `Two semantic tools require EPF Memory configuration (EPF_MEMORY_URL,
-EPF_MEMORY_PROJECT, EPF_MEMORY_TOKEN). They return empty results or an
-availability error when Memory is not configured.
+		Body: `Two semantic tools use EPF Memory (EPF_MEMORY_URL, EPF_MEMORY_PROJECT,
+EPF_MEMORY_TOKEN). detect_contradictions returns an availability error when
+Memory is not configured; search_strategy falls back to keyword search.
 
-  - search_strategy(instance_id, query, limit?) — semantic search across the
-    strategy graph. Returns ranked artifact excerpts matching the query.
+  - search_strategy(instance_id, query, limit?, mode?) — semantic search across the
+    strategy graph. Returns ranked artifact excerpts matching the query. When
+    Memory is unavailable, or finds nothing of the instance's own, it falls
+    back to keyword search over the instance's authored text (mode=keyword
+    forces it). Each hit says how it was found in match.
   - detect_contradictions(instance_id) — scans for structural contradictions
     (e.g. a feature that contributes_to a value path that does not exist, or
     two features with conflicting assumptions). Returns contradiction records

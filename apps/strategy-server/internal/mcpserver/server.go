@@ -839,10 +839,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 
 func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("search_strategy",
-		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. An empty result does not mean the strategy is silent; check get_outline."),
+		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
-		mcp.WithString("limit", mcp.Description("Max results (default 10)")),
+		mcp.WithString("limit", mcp.Description("Max results (default 10, at most 25 for keyword search)")),
+		mcp.WithString("mode", mcp.Description("auto (default): semantic search, then keyword search if it is unavailable or finds nothing of the instance's own. semantic: Memory only. keyword: match the words in the instance's authored text only.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -851,31 +852,20 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		outcome, err := svc.Semantic.SearchStrategyScoped(ctx,
-			instID.String(),
-			argString(req, "query"),
-			argInt(req, "limit", 10),
-		)
+		mode := argString(req, "mode")
+		switch mode {
+		case "":
+			mode = searchModeAuto
+		case searchModeAuto, searchModeSemantic, searchModeKeyword:
+		default:
+			return toolErr(ctx, apperror.ErrBadRequest.WithDetail(
+				fmt.Sprintf("mode %q is not one of auto, semantic, keyword", mode))), nil
+		}
+		hits, err := searchStrategy(ctx, svc, instID, argString(req, "query"), argInt(req, "limit", 10), mode)
 		if err != nil {
-			if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
-				return mcp.NewToolResultError(apperror.LocalizeErr(ctx, err) + ". Search is not available. That says nothing about whether the strategy covers your topic: find the section with get_outline and read it with get_section."), nil
-			}
 			return toolErr(ctx, err), nil
 		}
-		if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 {
-			slog.InfoContext(ctx, "search_strategy filtered hits",
-				"instance_id", instID, "framework", outcome.ExcludedFramework, "other_instance", outcome.ExcludedOtherInstance)
-		}
-		for _, hit := range outcome.Results {
-			if hit.Artifact == "" {
-				continue
-			}
-			if size, ok := svc.Strategy.SectionSize(ctx, instID, hit.Artifact, hit.Path); ok {
-				hit.SectionSizeChars = size
-				hit.ReadWith = readWithCall(hit.Artifact, hit.Path)
-			}
-		}
-		return mustJSON(outcome.Results)
+		return mustJSON(hits)
 	})
 
 	s.AddTool(mcp.NewTool("detect_contradictions",
@@ -2487,4 +2477,75 @@ func stageArtifact(
 		"action":       action,
 		"note":         "Present this batch_id to the user for review. Call commit_batch only after explicit confirmation.",
 	})
+}
+
+const (
+	searchModeAuto     = "auto"
+	searchModeSemantic = "semantic"
+	searchModeKeyword  = "keyword"
+)
+
+// searchStrategy runs the search the mode asks for. In auto mode it tries
+// semantic search first and falls back to keyword search when semantic search
+// fails or leaves nothing that belongs to the instance, so a client gets an
+// answer whether or not Memory is up.
+func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int, mode string) ([]*semantic.SearchResult, error) {
+	if mode != searchModeKeyword {
+		hits, err := semanticSearch(ctx, svc, instID, query, limit)
+		switch {
+		case err == nil && (len(hits) > 0 || mode == searchModeSemantic):
+			return hits, nil
+		case err != nil && mode == searchModeSemantic:
+			if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
+				return nil, apperror.ErrSemanticUnavailable.WithDetail(
+					"emergent.memory not configured; call search_strategy without mode, or with mode=keyword, to search the text directly")
+			}
+			return nil, err
+		case err != nil:
+			slog.WarnContext(ctx, "search_strategy: semantic search failed, using keyword search",
+				"instance_id", instID, "err", err)
+		}
+	}
+
+	found, err := svc.Strategy.SearchAuthored(ctx, instID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*semantic.SearchResult, 0, len(found))
+	for _, h := range found {
+		out = append(out, &semantic.SearchResult{
+			ArtifactType:     h.ArtifactType,
+			ArtifactKey:      h.ArtifactKey,
+			Snippet:          h.Snippet,
+			Score:            h.Score,
+			Artifact:         h.ArtifactKey,
+			Path:             h.Path,
+			SectionSizeChars: h.SizeChars,
+			ReadWith:         h.ReadWith,
+			Match:            searchModeKeyword,
+		})
+	}
+	return out, nil
+}
+
+func semanticSearch(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int) ([]*semantic.SearchResult, error) {
+	outcome, err := svc.Semantic.SearchStrategyScoped(ctx, instID.String(), query, limit)
+	if err != nil {
+		return nil, err
+	}
+	if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 {
+		slog.InfoContext(ctx, "search_strategy filtered hits",
+			"instance_id", instID, "framework", outcome.ExcludedFramework, "other_instance", outcome.ExcludedOtherInstance)
+	}
+	for _, hit := range outcome.Results {
+		hit.Match = searchModeSemantic
+		if hit.Artifact == "" {
+			continue
+		}
+		if size, ok := svc.Strategy.SectionSize(ctx, instID, hit.Artifact, hit.Path); ok {
+			hit.SectionSizeChars = size
+			hit.ReadWith = readWithCall(hit.Artifact, hit.Path)
+		}
+	}
+	return outcome.Results, nil
 }
