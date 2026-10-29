@@ -124,8 +124,15 @@ type StrategyArtifact struct {
 	Status       string          `bun:"status,notnull,default:'active'"  json:"status"`
 	Payload      json.RawMessage `bun:"payload,notnull,type:jsonb"       json:"payload"`
 	MutationID   uuid.UUID       `bun:"mutation_id,notnull,type:uuid"    json:"mutation_id"`
-	CreatedAt    time.Time       `bun:"created_at,notnull,default:now()" json:"created_at"`
-	UpdatedAt    time.Time       `bun:"updated_at,notnull,default:now()" json:"updated_at"`
+	// IntegrityClass is set when the payload is unmodified canonical content
+	// (see internal/integrity). Nil means authored or not yet classified.
+	IntegrityClass *string `bun:"integrity_class"         json:"integrity_class,omitempty"`
+	// IntegrityRef names the canonical file and release the payload matches.
+	IntegrityRef *string `bun:"integrity_ref"           json:"integrity_ref,omitempty"`
+	// IntegrityCheckedWith identifies the manifest used for the last classification.
+	IntegrityCheckedWith *string   `bun:"integrity_checked_with"  json:"integrity_checked_with,omitempty"`
+	CreatedAt            time.Time `bun:"created_at,notnull,default:now()" json:"created_at"`
+	UpdatedAt            time.Time `bun:"updated_at,notnull,default:now()" json:"updated_at"`
 }
 
 // StrategyRelationship is a single cross-artifact reference extracted from a payload.

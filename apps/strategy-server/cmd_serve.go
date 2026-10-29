@@ -122,6 +122,18 @@ func runServer(cfg *config.Config) error {
 	strategySvc := strategy.NewService(db).WithChangeMarker(changeMarker)
 	rippleSvc := rippledom.NewService(db)
 
+	// Classify artifact rows that predate the integrity columns or were checked
+	// against an older manifest. A new manifest ships with a new binary, so a
+	// restart is the on-demand path.
+	go func() {
+		n, err := strategySvc.ReclassifyIntegrity(context.Background(), nil)
+		if err != nil {
+			log.Error("integrity reclassification failed", "classified", n, "err", err)
+			return
+		}
+		log.Info("integrity reclassification complete", "classified", n)
+	}()
+
 	// Wire the strategy exporter into the ingest service for decomposed-layer sync.
 	if semanticSvc.IsAvailable() {
 		ingestSvc.SetExporter(&strategyExporterAdapter{svc: strategySvc})

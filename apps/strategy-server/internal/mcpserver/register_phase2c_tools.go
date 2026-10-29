@@ -106,7 +106,7 @@ func registerPhaseArtifactTools(s *server.MCPServer) {
 func registerDefinitionTools(s *server.MCPServer) {
 	// list_definitions — list canonical track definition templates from FIRE/definitions/.
 	s.AddTool(mcp.NewTool("list_definitions",
-		mcp.WithDescription("USE WHEN you need to see all canonical track definition templates (commercial, org_ops, strategy). Optionally filter by track name."),
+		mcp.WithDescription("USE WHEN you need to see the canonical track definitions that ship with the EPF framework (commercial, org_ops, strategy). This is FRAMEWORK reference content, not any company's strategy: to answer what a company's strategy says, use get_outline and get_section. Optionally filter by track name."),
 		mcp.WithString("track", mcp.Description("Filter by track: commercial, org_ops, strategy. Omit for all.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		allTemplates, err := embedded.ListTemplates()
@@ -154,7 +154,7 @@ func registerDefinitionTools(s *server.MCPServer) {
 
 	// get_definition — return the full YAML template for a specific definition.
 	s.AddTool(mcp.NewTool("get_definition",
-		mcp.WithDescription("USE WHEN you need the full YAML template for a specific canonical track definition. Use list_definitions to find the path first."),
+		mcp.WithDescription("USE WHEN you need the full text of one canonical track definition from the EPF framework. This is FRAMEWORK reference content, not the company's own decision: do not present it as their strategy. For what a company's strategy says, use get_outline and get_section. Use list_definitions to find the path first."),
 		mcp.WithString("path", mcp.Required(), mcp.Description("Template path from list_definitions, e.g. FIRE/definitions/commercial/financing/cd-010-investor-pitch-decks.yaml")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		data, err := embedded.GetTemplate(argString(req, "path"))

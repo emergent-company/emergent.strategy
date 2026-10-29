@@ -538,6 +538,20 @@ func (s *Service) collectGarbage(ctx context.Context, instanceID uuid.UUID, arti
 	}
 }
 
+// integrityMetadata returns the Memory property and label that mark an artifact
+// as unmodified framework content, so search can exclude it. Authored content
+// carries neither.
+func integrityMetadata(a domain.StrategyArtifact) (labels []string, props map[string]any) {
+	if a.IntegrityClass == nil || *a.IntegrityClass == "" {
+		return nil, nil
+	}
+	props = map[string]any{"integrity_class": *a.IntegrityClass}
+	if a.IntegrityRef != nil && *a.IntegrityRef != "" {
+		props["integrity_ref"] = *a.IntegrityRef
+	}
+	return []string{"integrity:" + *a.IntegrityClass}, props
+}
+
 // artifactToSubgraphObject converts a strategy artifact into a SubgraphObject
 // for use in CreateSubgraph. The _ref is caller-assigned for cross-linking.
 func artifactToSubgraphObject(a domain.StrategyArtifact, ref string) memory.SubgraphObject {
@@ -570,12 +584,18 @@ func artifactToSubgraphObject(a domain.StrategyArtifact, ref string) memory.Subg
 	if a.Name != nil {
 		props["name"] = *a.Name
 	}
+	labels := []string{"layer:artifact"}
+	intLabels, intProps := integrityMetadata(a)
+	labels = append(labels, intLabels...)
+	for k, v := range intProps {
+		props[k] = v
+	}
 	return memory.SubgraphObject{
 		Ref:        ref,
 		Type:       a.ArtifactType,
 		Key:        a.ArtifactKey,
 		Status:     a.Status,
-		Labels:     []string{"layer:artifact"},
+		Labels:     labels,
 		Properties: props,
 	}
 }

@@ -64,7 +64,7 @@ func IsCanonicalDefinitionID(id string) bool {
 // Detection is based on:
 //   - Definition file prefix (sd-*, pd-*, cd-* in filename)
 //   - Parent directory indicating a canonical track (definitions/strategy/, etc.)
-//   - Value model track (value_models/strategy_value_model.yaml, etc.)
+//   - Value model track (value_models/strategy.value_model.yaml, or the older strategy_value_model.yaml)
 func IsCanonicalArtifact(filePath string) bool {
 	// Normalize path separators (handle both / and \ regardless of OS)
 	normalized := strings.ReplaceAll(filePath, "\\", "/")
@@ -84,6 +84,7 @@ func IsCanonicalArtifact(filePath string) bool {
 	lowerBase := strings.ToLower(base)
 	for trackName := range CanonicalValueModelTracks {
 		if strings.Contains(lowerBase, trackName+"_value_model") ||
+			strings.Contains(lowerBase, trackName+".value_model") ||
 			strings.Contains(lowerBase, trackName+"_vm") {
 			return true
 		}

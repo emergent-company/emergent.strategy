@@ -14,6 +14,8 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity/integritytest"
 )
 
 func seedTestOrg(t *testing.T, db *bun.DB) uuid.UUID {
@@ -280,4 +282,50 @@ func TestRestore(t *testing.T) {
 	}
 
 	t.Logf("restored version: %d, label: %v", restored.Version, restored.Label)
+}
+
+func TestRestore_ReclassifiesCanonicalContent(t *testing.T) {
+	ctx, stratSvc, verSvc, instID := seedInstance(t)
+
+	if _, err := stratSvc.CommitAuto(ctx, strategy.CommitAutoParams{
+		InstanceID:   instID,
+		ArtifactType: "definition",
+		ArtifactKey:  "sd-restored",
+		Action:       "create",
+		Payload:      integritytest.Payload(t, "FIRE/definitions/strategy/"),
+	}); err != nil {
+		t.Fatalf("CommitAuto: %v", err)
+	}
+	ver, err := verSvc.Publish(ctx, instID, "v1", "with a definition")
+	if err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+	if _, err := verSvc.Restore(ctx, instID, ver.ID); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+
+	var rows []domain.StrategyArtifact
+	if err := stratSvc.DB().NewSelect().Model(&rows).
+		Where("instance_id = ?", instID).Scan(ctx); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	byKey := map[string]domain.StrategyArtifact{}
+	for _, r := range rows {
+		byKey[r.ArtifactKey] = r
+	}
+	def, ok := byKey["sd-restored"]
+	if !ok {
+		t.Fatal("restored instance lost the definition")
+	}
+	if def.IntegrityClass == nil || *def.IntegrityClass != "canonical_reference" {
+		t.Errorf("restored definition class = %v, want canonical_reference", def.IntegrityClass)
+	}
+	for _, key := range []string{"north_star", "fd-001"} {
+		if byKey[key].IntegrityClass != nil {
+			t.Errorf("restored authored artifact %s is classified as %s", key, *byKey[key].IntegrityClass)
+		}
+		if byKey[key].IntegrityCheckedWith == nil {
+			t.Errorf("restored artifact %s was never checked", key)
+		}
+	}
 }

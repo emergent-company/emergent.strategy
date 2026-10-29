@@ -18,6 +18,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 )
@@ -101,6 +102,20 @@ func readinessFindings(r embedded.ReadinessReport) []verdict.Finding {
 			Message: fmt.Sprintf("recommended field %q is empty or missing (readiness %d/100, %s)",
 				field, r.Score, r.Level),
 		})
+	}
+	return out
+}
+
+// integrityFindings maps the domain's advisory findings onto verdict findings.
+// Integrity findings are warning or info, so they never change a verdict's ok.
+func integrityFindings(in []strategy.IntegrityFinding) []verdict.Finding {
+	out := make([]verdict.Finding, 0, len(in))
+	for _, f := range in {
+		sev := verdict.SeverityInfo
+		if f.Severity == "warning" {
+			sev = verdict.SeverityWarning
+		}
+		out = append(out, verdict.Finding{Severity: sev, Key: f.Key, Rule: f.Rule, Message: f.Message})
 	}
 	return out
 }

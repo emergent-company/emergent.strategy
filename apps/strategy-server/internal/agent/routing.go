@@ -45,6 +45,29 @@ var routingTable = []routeEntry{
 			Reason: "Health check is a direct read tool.",
 		},
 	},
+	// Questions about what the company's strategy says. These reach the bounded,
+	// authoritative reads before search or an authoring agent.
+	{
+		keywords: []string{"what does our strategy", "what does the strategy", "strategy say", "according to our strategy", "according to the strategy", "what do we say about", "what does the company"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_outline",
+			Reason: "Start with get_outline to see what this strategy defines, then read the section that answers the question with get_section and cite it. If a part is not defined, say so.",
+		},
+	},
+	{
+		keywords: []string{"key result", "okr", "objective"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_view",
+			Reason: "Use get_view with view=objectives (optionally track=<name>) for objectives and key results, or view=key_result with id=<kr id> for one key result with its objective, assumptions and dependencies.",
+		},
+	},
+	{
+		keywords: []string{"trade-off", "tradeoff", "trade off", "constraint", "boundar", "growth engine", "unit economic", "weakness", "white space", "confidence gap", "core belief", "business model"},
+		result: RoutingResult{
+			Type: "direct_tool", ToolName: "get_section",
+			Reason: "Use get_section on the stored section: strategy_formula for trade_offs, constraints, business_model and growth engines; north_star for mission.boundaries and core_beliefs; insight_analyses for weaknesses, white_spaces and confidence_gaps. Call get_outline first if unsure of the path.",
+		},
+	},
 	{
 		keywords: []string{"search", "find", "look for", "query"},
 		result: RoutingResult{
@@ -457,9 +480,9 @@ func RouteTask(taskDescription string) RoutingResult {
 		// No match — return a low-confidence suggestion.
 		return RoutingResult{
 			Type:       "direct_tool",
-			ToolName:   "search_strategy",
+			ToolName:   "get_outline",
 			Confidence: 0.2,
-			Reason:     "No specific tool match found. Try searching the strategy graph first.",
+			Reason:     "No specific tool match found. Start with get_outline to see what the strategy defines; use search_strategy to discover where something is mentioned.",
 		}
 	}
 

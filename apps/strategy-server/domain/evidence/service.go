@@ -24,6 +24,7 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity/embeddedclassifier"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -160,6 +161,7 @@ func (s *Service) Ingest(ctx context.Context, req IngestRequest) (string, error)
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
+	art.IntegrityClass, art.IntegrityRef, art.IntegrityCheckedWith = embeddedclassifier.Default().Columns(raw)
 	if _, err := s.db.NewInsert().Model(art).Exec(ctx); err != nil {
 		return "", fmt.Errorf("insert evidence artifact: %w", err)
 	}

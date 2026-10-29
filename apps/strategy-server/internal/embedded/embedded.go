@@ -56,6 +56,12 @@ var Version string
 //go:embed MANIFEST.txt
 var Manifest string
 
+// IntegrityManifest contains integrity-manifest.json: normalised hashes of
+// canonical templates and definitions per release.
+//
+//go:embed integrity-manifest.json
+var IntegrityManifest []byte
+
 // ---------------------------------------------------------------------------
 // Schemas
 // ---------------------------------------------------------------------------

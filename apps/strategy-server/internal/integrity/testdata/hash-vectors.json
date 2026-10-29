@@ -1,0 +1,49 @@
+[
+  {
+    "name": "plain mapping",
+    "yaml": "id: pd-001\nname: Example\n",
+    "hash": "be2bb7d748643f4e0aca3e2578eae9f978d9eab81e1e047e446946114a2d9fb8"
+  },
+  {
+    "name": "same content, comments, quoting and key order",
+    "yaml": "# header\nname: \"Example\"\nid: pd-001\n",
+    "hash": "be2bb7d748643f4e0aca3e2578eae9f978d9eab81e1e047e446946114a2d9fb8"
+  },
+  {
+    "name": "nested lists and maps",
+    "yaml": "tracks:\n  product:\n    okrs:\n      - id: okr-p-001\n        key_results: [kr-p-001, kr-p-002]\n",
+    "hash": "01ce974416d293c58062d46efa94016f5c6244e35a5898f618b755ad07418415"
+  },
+  {
+    "name": "date becomes a timestamp string",
+    "yaml": "id: x\nlast_updated: 2026-01-02\n",
+    "stored_json": "{\"id\":\"x\",\"last_updated\":\"2026-01-02T00:00:00Z\"}",
+    "hash": "0dec8973c73d832ce737138b020ff7b45ee1126fe4aebd7283000b77ddccf141"
+  },
+  {
+    "name": "float with trailing zero equals integer",
+    "yaml": "score: 1.0\n",
+    "stored_json": "{\"score\":1}",
+    "hash": "9b9b3a1471309177261cfe65ea9c298e0dd372e4b5d087f8d35d7b732485373d"
+  },
+  {
+    "name": "non-string keys",
+    "yaml": "1: a\n2: b\n",
+    "hash": "a71fc868af5e004c2efbfdf16bb2b679c348f2e25065b30b06df846eb32074a5"
+  },
+  {
+    "name": "html significant characters",
+    "yaml": "text: \"a \u003c b \u0026\u0026 c \u003e d\"\n",
+    "hash": "b9538c7eefd030f8272b361a967525b20bbb428b87931d3d135ffc0898ad3e45"
+  },
+  {
+    "name": "unicode",
+    "yaml": "text: \"Bøndernes kooperativ – Farm™\"\n",
+    "hash": "de841b86f4ef719fc42066aec9299c83bcd49aefb188db1903f0475c1d97d680"
+  },
+  {
+    "name": "null and booleans",
+    "yaml": "a: null\nb: true\nc: false\n",
+    "hash": "17073ac6186d8c60c0c0da712ce30cdb52ed5a9155f616983da39a9785dce715"
+  }
+]

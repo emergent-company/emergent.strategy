@@ -8,7 +8,7 @@
     {
       "name": "core",
       "description": "Always visible — routing, instance lookup, batch management, search",
-      "tool_count": 14
+      "tool_count": 17
     },
     {
       "name": "strategy",
@@ -351,7 +351,7 @@
     },
     {
       "name": "check_content_readiness",
-      "description": "USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings.",
+      "description": "USE WHEN you need to score the content quality of an artifact — checks for presence of recommended fields and returns a 0-100 readiness score. Omit artifact_key to check all features in the instance, and to scan every artifact for unmodified framework content: integrity.unmodified_template and integrity.packaged_default are warnings, integrity.canonical_reference is one aggregated info finding per track. With no features the summary reports no score. Returns a verdict in structuredContent, where every missing field is a WARNING finding — readiness never reports `ok: false`, because which score counts as failing is your policy, not the server's. Gate on counts.warning or findings.",
       "category": "validation",
       "input_schema": {
         "properties": {
@@ -1130,12 +1130,16 @@
     },
     {
       "name": "get_competitive_position",
-      "description": "USE WHEN you need the competitive analysis for a strategy instance.",
+      "description": "USE WHEN you need the competitive analysis for a strategy instance: the competitive landscape from the insight analyses, our positioning against each named competitor from the strategy formula, and the positioning statement, within a size budget. For one competitor use get_view with view=competitor. For other insight sections use get_section.",
       "category": "strategy",
       "input_schema": {
         "properties": {
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Shared response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1189,7 +1193,7 @@
     },
     {
       "name": "get_definition",
-      "description": "USE WHEN you need the full YAML template for a specific canonical track definition. Use list_definitions to find the path first.",
+      "description": "USE WHEN you need the full text of one canonical track definition from the EPF framework. This is FRAMEWORK reference content, not the company's own decision: do not present it as their strategy. For what a company's strategy says, use get_outline and get_section. Use list_definitions to find the path first.",
       "category": "features",
       "input_schema": {
         "properties": {
@@ -1408,6 +1412,27 @@
       }
     },
     {
+      "name": "get_outline",
+      "description": "USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "artifact": {
+            "description": "Optional artifact key, e.g. strategy_formula. Describes that artifact's sections with a one-line gist each.",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "get_pack",
       "description": "USE WHEN you need full details of an installed pack including all skill names and apps.",
       "category": "packs",
@@ -1452,12 +1477,16 @@
     },
     {
       "name": "get_personas",
-      "description": "USE WHEN you need target personas and their pain points for a strategy instance.",
+      "description": "USE WHEN you need the target personas and their problems for a strategy instance. Reads the target users of the insight analyses, within a size budget; reports when none are defined. Same as get_view with view=personas.",
       "category": "strategy",
       "input_schema": {
         "properties": {
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1520,12 +1549,20 @@
     },
     {
       "name": "get_roadmap",
-      "description": "USE WHEN you need the full roadmap recipe for a strategy instance.",
+      "description": "USE WHEN you need the roadmap recipe for a strategy instance. Returns the roadmap within a size budget; when it is larger, returns its sections with sizes instead. Read one track with get_section (path tracks.\u003ctrack\u003e), or the objectives and key results with get_view view=objectives. Pass full=true to raise the budget to the 40000-character cap.",
       "category": "strategy",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the full 40000-character cap instead of the default 12000.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },
@@ -1548,6 +1585,36 @@
         },
         "required": [
           "filename"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_section",
+      "description": "USE WHEN you need what the strategy says about one thing. Returns the stored content of one section of one artifact, authoritative and within a size budget (default 12000 characters, cap 40000). Every response says whether the section is defined, where it came from, how big it is and whether it was cut; it never cuts silently. Cite it with cite_as. If it is not defined, say so; do not fill it in. Use get_outline to find artifact names and paths.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "artifact": {
+            "description": "Artifact key, e.g. north_star, strategy_formula, roadmap_recipe, insight_analyses",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
+            "type": "string"
+          },
+          "path": {
+            "description": "Section path, e.g. \"mission.boundaries\" or \"tracks.commercial.okrs[id=okr-c-001]\". Array items by position [2], by field [id=x] or [name=x]; the rest of a list from [3:]. Empty reads the whole artifact within the budget.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "artifact"
         ],
         "type": "object"
       }
@@ -1610,12 +1677,20 @@
     },
     {
       "name": "get_strategy_context",
-      "description": "USE WHEN you need full strategic context: vision, personas, and competitive position.",
+      "description": "USE WHEN you need to know what strategy an instance defines. Returns an outline by default: which strategy documents exist, their sections and sizes, and what is not defined. It does not return the documents; read a section with get_section, or answer a cross-document question with get_view. Unmodified framework templates and definitions are counted, never returned as the company's strategy. Pass full=true for the authored documents' payloads, up to a 40000-character cap; anything left out is listed.",
       "category": "strategy",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to include authored payloads, bounded by max_chars (default and cap 40000).",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Payload budget in characters when full=true (cap 40000)",
             "type": "string"
           }
         },
@@ -1665,7 +1740,7 @@
     },
     {
       "name": "get_template",
-      "description": "USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure.",
+      "description": "USE WHEN you need the YAML template for a specific EPF artifact to scaffold a new artifact or understand its structure. This is FRAMEWORK sample content, not the company's strategy: do not present it as an answer about the company. For what a company's strategy says, use get_outline and get_section.",
       "category": "knowledge",
       "input_schema": {
         "properties": {
@@ -1715,6 +1790,44 @@
         "required": [
           "instance_id",
           "version_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_view",
+      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - objective and key result ids and text by track; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
+      "category": "core",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "description": "Key result id, for the key_result view, e.g. kr-c-001",
+            "type": "string"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Shared response budget in characters (default 12000, cap 40000)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Competitor name, for the competitor view",
+            "type": "string"
+          },
+          "track": {
+            "description": "Roadmap track, for the objectives view",
+            "type": "string"
+          },
+          "view": {
+            "description": "One of: competitor, objectives, key_result, personas, competitive_position",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "view"
         ],
         "type": "object"
       }
@@ -1799,7 +1912,7 @@
     },
     {
       "name": "health_check",
-      "description": "USE WHEN you need a health report and artifact completeness summary for an instance.",
+      "description": "USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -2096,16 +2209,36 @@
     },
     {
       "name": "list_artifacts",
-      "description": "USE WHEN you need to list strategy artifacts of any type (commercial_def, org_ops_def, strategy_def, value_model, etc.) with their index fields (name, track, status).",
+      "description": "USE WHEN you need to list an instance's strategy artifacts with their index fields (type, key, name, track, status, size). Returns a page of index rows without payloads; read content with get_section. Unmodified framework content (canonical definitions, templates, packaged value models) is excluded and counted in framework_excluded; pass include_framework=true to list it with its integrity class. Pass full=true to include payloads up to a 40000-character cap; any omitted are marked.",
       "category": "features",
       "input_schema": {
         "properties": {
           "artifact_type": {
-            "description": "Filter by artifact type, e.g. commercial_def, org_ops_def, strategy_def, value_model, feature",
+            "description": "Filter by artifact type, e.g. feature, value_model, roadmap_recipe",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "Pagination cursor (next_cursor from a previous response)",
+            "type": "string"
+          },
+          "full": {
+            "description": "Set to \"true\" to include payloads, bounded by max_chars.",
+            "type": "string"
+          },
+          "include_framework": {
+            "description": "Set to \"true\" to include unmodified framework content.",
             "type": "string"
           },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "limit": {
+            "description": "Page size (1-200, default 50)",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Payload budget in characters when full=true (cap 40000)",
             "type": "string"
           }
         },
@@ -2155,7 +2288,7 @@
     },
     {
       "name": "list_definitions",
-      "description": "USE WHEN you need to see all canonical track definition templates (commercial, org_ops, strategy). Optionally filter by track name.",
+      "description": "USE WHEN you need to see the canonical track definitions that ship with the EPF framework (commercial, org_ops, strategy). This is FRAMEWORK reference content, not any company's strategy: to answer what a company's strategy says, use get_outline and get_section. Optionally filter by track name.",
       "category": "features",
       "input_schema": {
         "properties": {
@@ -2507,7 +2640,7 @@
     },
     {
       "name": "list_templates",
-      "description": "USE WHEN you need to see all available EPF artifact templates across READY, FIRE, and AIM phases.",
+      "description": "USE WHEN you need to see the EPF artifact templates that ship with the framework across READY, FIRE, and AIM phases. These are FRAMEWORK templates with sample content, not any company's strategy: to answer what a company's strategy says, use get_outline and get_section.",
       "category": "knowledge",
       "input_schema": {
         "properties": {},
@@ -2974,7 +3107,7 @@
     },
     {
       "name": "search_strategy",
-      "description": "USE WHEN you need semantic search across the strategy graph for an instance.",
+      "description": "USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. An empty result does not mean the strategy is silent; check get_outline.",
       "category": "core",
       "input_schema": {
         "properties": {

@@ -110,6 +110,12 @@ func TestIsCanonicalArtifact(t *testing.T) {
 		{"commercial value model", "FIRE/value_models/commercial_value_model.yaml", true},
 		{"product value model", "FIRE/value_models/product_value_model.yaml", false},
 
+		// The real canonical files use a dot: strategy.value_model.yaml
+		{"dotted strategy value model", "FIRE/value_models/strategy.value_model.yaml", true},
+		{"dotted org_ops value model", "FIRE/value_models/org_ops.value_model.yaml", true},
+		{"dotted commercial value model", "FIRE/value_models/commercial.value_model.yaml", true},
+		{"dotted product value model", "FIRE/value_models/product.value_model.yaml", false},
+
 		// Definition directory detection
 		{"file in strategy definitions dir", "definitions/strategy/some-file.yaml", true},
 		{"file in org_ops definitions dir", "definitions/org_ops/some-file.yaml", true},

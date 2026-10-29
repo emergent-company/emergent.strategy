@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	initForce bool
-	initMode  string // "integrated" (default), "standalone", or "submodule"
+	initForce         bool
+	initMode          string // "integrated" (default), "standalone", or "submodule"
+	initNoDefinitions bool   // skip the canonical sd-*, pd-*, cd-* definitions
 )
 
 var initCmd = &cobra.Command{
@@ -47,7 +48,8 @@ Prerequisites:
 Examples:
   epf-cli init my-product                    # Integrated mode (default)
   epf-cli init acme --force                  # Overwrite existing instance
-  epf-cli init my-strategy --mode standalone # Standalone instance at current dir`,
+  epf-cli init my-strategy --mode standalone # Standalone instance at current dir
+  epf-cli init acme --no-definitions         # Without the canonical definitions`,
 	Args: cobra.ExactArgs(1),
 	Run:  runInit,
 }
@@ -678,11 +680,17 @@ func createInstanceStructure(instanceDir, productName, canonicalPath string, use
 	// Copy canonical definitions (sd-*, pd-*, cd-*) — these are framework-provided
 	// definitions for strategy, org_ops, and commercial tracks.
 	// Loading priority: instance > canonical_path > embedded
-	copyCanonicalDefinitions(instanceDir, canonicalPath, useEmbedded)
+	// --no-definitions leaves them out; the anchor records the choice.
+	if !initNoDefinitions {
+		copyCanonicalDefinitions(instanceDir, canonicalPath, useEmbedded)
+	}
 
 	// Create anchor file (_epf.yaml) - the authoritative EPF instance marker
 	epfVersion := "2.12.0" // Default EPF version
 	anchorFile := anchor.NewWithOptions(productName, "", epfVersion)
+	if initNoDefinitions {
+		anchorFile.CanonicalDefinitions = anchor.CanonicalDefinitionsOmitted
+	}
 	// Set structure info to indicate the instance location
 	anchorFile.Structure = &anchor.StructureInfo{
 		Type:     "phased",
@@ -1021,4 +1029,5 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing instance")
 	initCmd.Flags().StringVar(&initMode, "mode", "integrated", "Instance mode: integrated, standalone, or submodule")
+	initCmd.Flags().BoolVar(&initNoDefinitions, "no-definitions", false, "do not copy the canonical track definitions (sd-*, pd-*, cd-*) into the instance; the anchor records canonical_definitions: omitted")
 }

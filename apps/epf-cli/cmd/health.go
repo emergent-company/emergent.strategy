@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	healthJSON    bool
-	healthVerbose bool
+	healthJSON            bool
+	healthVerbose         bool
+	healthStrictIntegrity bool
 )
 
 var healthCmd = &cobra.Command{
@@ -38,6 +39,7 @@ var healthCmd = &cobra.Command{
   - Cross-reference validation (feature dependencies)
   - Relationships validation (contributes_to paths, KR targets)
   - Content readiness (placeholder detection)
+  - Content integrity (unmodified templates and framework definitions)
   - Field coverage analysis (TRL, persona narratives)
   - Version alignment (artifact vs schema versions)
 
@@ -58,7 +60,8 @@ Examples:
   epf-cli health --instance emergent                  # Specify instance by name
   epf-cli health docs/EPF/_instances/emergent/        # Specify instance by path
   epf-cli health --json                               # Output as JSON
-  epf-cli health --verbose                            # Show detailed output`,
+  epf-cli health --verbose                            # Show detailed output
+  epf-cli health --strict-integrity                   # Fail when templates are left unmodified`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get instance path (auto-detected or from args)
@@ -137,9 +140,12 @@ type HealthResult struct {
 	CrossReferences  *checks.CrossReferenceResult   `json:"cross_references,omitempty"`
 	Relationships    *checks.RelationshipsResult    `json:"relationships,omitempty"`
 	ContentReadiness *checks.ContentReadinessResult `json:"content_readiness,omitempty"`
-	FieldCoverage    *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
-	VersionAlignment *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
-	MigrationStatus  *migration.MigrationStatus     `json:"migration_status,omitempty"`
+	// StrictIntegrityFailures lists unmodified templates when --strict-integrity
+	// is set. Without the flag, integrity is advisory and this is empty.
+	StrictIntegrityFailures []checks.IntegrityFile         `json:"strict_integrity_failures,omitempty"`
+	FieldCoverage           *checks.FieldCoverageResult    `json:"field_coverage,omitempty"`
+	VersionAlignment        *checks.VersionAlignmentResult `json:"version_alignment,omitempty"`
+	MigrationStatus         *migration.MigrationStatus     `json:"migration_status,omitempty"`
 
 	// Value model quality assessment
 	ValueModelQuality *valuemodel.QualityReport `json:"value_model_quality,omitempty"`
@@ -548,6 +554,12 @@ func runHealthCheck(instancePath string, schemasPath string) *HealthResult {
 		result.ContentReadiness = contentResult
 		if contentResult.Score < 70 {
 			result.HasWarnings = true
+		}
+		if healthStrictIntegrity {
+			if failures := contentResult.ContentIntegrity.StrictFailures(); len(failures) > 0 {
+				result.StrictIntegrityFailures = failures
+				result.HasErrors = true
+			}
 		}
 	}
 
@@ -1395,6 +1407,8 @@ func printContentReadinessSummary(result *checks.ContentReadinessResult) {
 		}
 	}
 
+	printContentIntegritySummary(result.ContentIntegrity)
+
 	// Surface canonical artifact info for transparency
 	if result.CanonicalFiles > 0 {
 		if len(result.CanonicalPlaceholders) > 0 {
@@ -1403,6 +1417,30 @@ func printContentReadinessSummary(result *checks.ContentReadinessResult) {
 		} else {
 			fmt.Printf("    • %d canonical artifacts excluded from scoring\n", result.CanonicalFiles)
 		}
+	}
+}
+
+// printContentIntegritySummary reports unmodified framework content. It is
+// advisory: it prints nothing for an instance with none, and it never changes
+// the exit code unless --strict-integrity is set.
+func printContentIntegritySummary(ci *checks.ContentIntegrity) {
+	if ci == nil || len(ci.Counts) == 0 {
+		return
+	}
+	templates := ci.Counts["unmodified_template"]
+	defaults := ci.Counts["packaged_default"]
+	if templates > 0 || defaults > 0 {
+		fmt.Printf("    • content integrity: %d unmodified template(s) and %d packaged default value model(s) hold sample content, not your own\n", templates, defaults)
+		for _, f := range ci.Files {
+			fmt.Printf("      - %s (%s)\n", f.File, f.Rule)
+		}
+		fmt.Printf("      author them, or delete the files you do not use; run with --strict-integrity to fail on unmodified templates\n")
+	}
+	if ci.CanonicalDefinitions > 0 {
+		fmt.Printf("    • content integrity: %d unmodified canonical definitions are installed (framework reference, not your decisions)\n", ci.CanonicalDefinitions)
+	}
+	if healthVerbose {
+		fmt.Printf("      %s\n", ci.Source)
 	}
 }
 
@@ -2179,4 +2217,5 @@ func init() {
 	rootCmd.AddCommand(healthCmd)
 	healthCmd.Flags().BoolVar(&healthJSON, "json", false, "output as JSON")
 	healthCmd.Flags().BoolVarP(&healthVerbose, "verbose", "v", false, "show detailed output")
+	healthCmd.Flags().BoolVar(&healthStrictIntegrity, "strict-integrity", false, "fail (exit 1) when templates are left unmodified in the instance")
 }

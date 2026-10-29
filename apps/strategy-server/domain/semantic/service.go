@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfimport"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -31,11 +33,34 @@ func (c Config) IsConfigured() bool {
 }
 
 // SearchResult is a single semantic search hit.
+//
+// A hit is discovery, not the authoritative text. Artifact and Path name the
+// stored section it came from, when that can be derived, so a client can read
+// the whole section with get_section before answering.
 type SearchResult struct {
 	ArtifactType string  `json:"artifact_type"`
 	ArtifactKey  string  `json:"artifact_key"`
 	Snippet      string  `json:"snippet"`
 	Score        float64 `json:"score"`
+	// Artifact and Path locate the section in the instance's strategy.
+	Artifact string `json:"artifact,omitempty"`
+	Path     string `json:"path,omitempty"`
+	// SectionSizeChars and ReadWith are filled in by the caller that can read
+	// the section.
+	SectionSizeChars int    `json:"section_size_chars,omitempty"`
+	ReadWith         string `json:"read_with,omitempty"`
+}
+
+// SearchOutcome is a search result with what was filtered out, so the filtering
+// is visible.
+type SearchOutcome struct {
+	Results []*SearchResult `json:"results"`
+	// ExcludedFramework counts hits on unmodified framework content.
+	ExcludedFramework int `json:"excluded_framework,omitempty"`
+	// ExcludedOtherInstance counts hits whose instance_id property names another
+	// instance. Memory does not scope the search by instance; the fence change
+	// does that at the source. This is a second line of defence.
+	ExcludedOtherInstance int `json:"excluded_other_instance,omitempty"`
 }
 
 // Neighbor represents a connected graph node.
@@ -129,41 +154,97 @@ func (s *Service) requireClient() error {
 	return nil
 }
 
-// SearchStrategy performs semantic search over the strategy graph.
+// searchOverFetch is how many hits are requested per hit wanted, so filtering
+// framework and foreign hits cannot leave the page short.
+const searchOverFetch = 3
+
+// SearchStrategy performs semantic search over the strategy graph and returns
+// the hits that survive filtering. See SearchStrategyScoped for the counts.
 func (s *Service) SearchStrategy(ctx context.Context, instanceID, query string, limit int) ([]*SearchResult, error) {
+	out, err := s.SearchStrategyScoped(ctx, instanceID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	return out.Results, nil
+}
+
+// SearchStrategyScoped searches the strategy graph, drops hits on unmodified
+// framework content and hits that belong to another instance, and reports how
+// many it dropped. It over-fetches so that dropping does not starve the page.
+func (s *Service) SearchStrategyScoped(ctx context.Context, instanceID, query string, limit int) (*SearchOutcome, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
+	}
+	if limit <= 0 {
+		limit = 10
 	}
 
 	results, err := s.client.Search(ctx, memory.SearchRequest{
 		Query: query,
-		Limit: limit,
+		Limit: limit * searchOverFetch,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("search strategy: %w", err)
 	}
 
-	out := make([]*SearchResult, 0, len(results))
+	out := &SearchOutcome{Results: make([]*SearchResult, 0, limit)}
 	for _, r := range results {
-		// Extract artifact metadata from Memory object properties.
-		artifactType, _ := r.Object.Properties["artifact_type"].(string)
-		snippet, _ := r.Object.Properties["snippet"].(string)
+		props := r.Object.Properties
+		if hitInstance, _ := props["instance_id"].(string); hitInstance != "" && hitInstance != instanceID {
+			out.ExcludedOtherInstance++
+			continue
+		}
+		if class, _ := props["integrity_class"].(string); isFrameworkClass(class) {
+			out.ExcludedFramework++
+			continue
+		}
+		if len(out.Results) >= limit {
+			continue
+		}
+		artifactType, _ := props["artifact_type"].(string)
+		snippet, _ := props["snippet"].(string)
 		if snippet == "" {
 			// Fallback: use the object's name or description property.
-			if name, ok := r.Object.Properties["name"].(string); ok {
+			if name, ok := props["name"].(string); ok {
 				snippet = name
 			}
 		}
-
-		out = append(out, &SearchResult{
+		artifact, path := sectionOf(r.Object.Key, props)
+		out.Results = append(out.Results, &SearchResult{
 			ArtifactType: artifactType,
 			ArtifactKey:  r.Object.Key,
 			Snippet:      snippet,
 			Score:        r.Score,
+			Artifact:     artifact,
+			Path:         path,
 		})
 	}
-
 	return out, nil
+}
+
+// isFrameworkClass reports whether an integrity class marks framework content.
+func isFrameworkClass(class string) bool {
+	switch class {
+	case "canonical_reference", "unmodified_template", "packaged_default":
+		return true
+	}
+	return false
+}
+
+// sectionOf derives the stored section a hit came from: a decomposed object
+// names its source file and section path; an artifact-level object is the
+// artifact itself. It returns empty values when neither can be established.
+func sectionOf(key string, props map[string]any) (artifact, path string) {
+	if src, _ := props["source_artifact"].(string); src != "" {
+		path, _ = props["section_path"].(string)
+		return epfimport.ArtifactKey(src, filepath.Base(src)), path
+	}
+	_, hasType := props["artifact_type"].(string)
+	_, hasInstance := props["instance_id"].(string)
+	if hasType && hasInstance {
+		return key, ""
+	}
+	return "", ""
 }
 
 // GetNeighbors returns the semantic graph neighbourhood of a node.

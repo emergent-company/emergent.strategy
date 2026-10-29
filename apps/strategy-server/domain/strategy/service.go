@@ -26,13 +26,15 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/index"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // Service handles strategy authoring and reading.
 type Service struct {
-	db     *bun.DB
-	marker *changemark.Marker // optional; nil = Memory projection not tracked
+	db         *bun.DB
+	marker     *changemark.Marker // optional; nil = Memory projection not tracked
+	classifier *integrity.Classifier
 }
 
 // NewService creates a new strategy Service.
@@ -562,18 +564,22 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 		name = &fields.Name
 	}
 
+	class, ref, checkedWith := s.integrityColumns(m.Payload)
 	artifact := &domain.StrategyArtifact{
-		ID:           uuid.New(),
-		InstanceID:   m.InstanceID,
-		ArtifactType: m.ArtifactType,
-		ArtifactKey:  m.ArtifactKey,
-		Track:        track,
-		Name:         name,
-		Status:       fields.Status,
-		Payload:      m.Payload,
-		MutationID:   m.ID,
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    time.Now().UTC(),
+		ID:                   uuid.New(),
+		InstanceID:           m.InstanceID,
+		ArtifactType:         m.ArtifactType,
+		ArtifactKey:          m.ArtifactKey,
+		Track:                track,
+		Name:                 name,
+		Status:               fields.Status,
+		Payload:              m.Payload,
+		MutationID:           m.ID,
+		IntegrityClass:       class,
+		IntegrityRef:         ref,
+		IntegrityCheckedWith: checkedWith,
+		CreatedAt:            m.CreatedAt,
+		UpdatedAt:            time.Now().UTC(),
 	}
 
 	_, err := s.db.NewInsert().
@@ -585,6 +591,9 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 			"status = EXCLUDED.status, " +
 			"payload = EXCLUDED.payload, " +
 			"mutation_id = EXCLUDED.mutation_id, " +
+			"integrity_class = EXCLUDED.integrity_class, " +
+			"integrity_ref = EXCLUDED.integrity_ref, " +
+			"integrity_checked_with = EXCLUDED.integrity_checked_with, " +
 			"updated_at = EXCLUDED.updated_at").
 		Exec(ctx)
 	if err != nil {
