@@ -277,11 +277,7 @@ func stringKeyed(v any) any {
 // overruns fails the test below, and so does a listed tool that has since been
 // bounded, so the list only shrinks.
 var unboundedReadTools = map[string]string{
-	"export_instance_yaml":  "an export: the whole instance by design",
-	"list_mutations":        "returns every mutation with its payload; needs a page size and no payloads by default",
-	"list_installed_skills": "returns every installed skill with its prompt; not instance content",
-	"validate_instance":     "returns every finding; grows with the number of findings",
-	"validate_with_plan":    "returns every finding with its fix plan; grows with the number of findings",
+	"export_instance_yaml": "an export: the whole instance by design",
 }
 
 func TestMCP_ReadTools_UnboundedOnesAreAcknowledged(t *testing.T) {

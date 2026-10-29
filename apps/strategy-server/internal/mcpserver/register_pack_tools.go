@@ -24,6 +24,7 @@ import (
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
@@ -49,9 +50,11 @@ func registerSkillResolutionTools(s *server.MCPServer, svc Services) {
 func registerSkillLookupTools(s *server.MCPServer, svc Services) {
 	// list_installed_skills
 	s.AddTool(mcp.NewTool("list_installed_skills",
-		mcp.WithDescription("USE WHEN you need to list all skills available to an instance, with source provenance (installed | canonical | generator-alias). Use source_filter to narrow to installed-only."),
+		mcp.WithDescription("USE WHEN you need to list the skills available to an instance, with source provenance (installed | canonical | generator-alias). Returns a catalog: name, one-line description, type, execution mode, source, pack and whether it is trusted, without the prompt or definition. Read one skill in full with get_installed_skill. Use source_filter to narrow to installed-only. A list cut at the budget says truncated; raise max_chars (cap 40000) or narrow with source_filter."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("source_filter", mcp.Description("Filter by source: installed | canonical | all (default: all)")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the 40000-character cap instead of the default 12000.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		if svc.Pack == nil {
 			return toolErr(ctx, apperror.ErrInternal.WithDetail("pack service not available")), nil
@@ -68,7 +71,8 @@ func registerSkillLookupTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(skills)
+		budget, capped := strategyread.NormaliseBudget(requestBudget(req))
+		return mustJSON(skillCatalog(skills, budget, capped))
 	})
 
 	// get_installed_skill
@@ -818,3 +822,53 @@ func argBool(req mcp.CallToolRequest, key string) bool {
 
 // UUID helper used in pack tools (reuses parseUUID from the main server file).
 var _ = uuid.New // ensure uuid import is used
+
+// skillCatalogEntry is a skill without its prompt, script or definition.
+type skillCatalogEntry struct {
+	SkillName     string  `json:"skill_name"`
+	Description   string  `json:"description,omitempty"`
+	Type          string  `json:"type"`
+	ExecutionMode string  `json:"execution"`
+	Source        string  `json:"source"`
+	PackName      *string `json:"pack_name,omitempty"`
+	PackVersion   *string `json:"pack_version,omitempty"`
+	Trusted       bool    `json:"trusted"`
+	PromptChars   int     `json:"prompt_chars,omitempty"`
+}
+
+type skillCatalogPage struct {
+	Skills    []skillCatalogEntry `json:"skills"`
+	Total     int                 `json:"total"`
+	Truncated bool                `json:"truncated"`
+	MaxChars  int                 `json:"max_chars"`
+	Hints     []string            `json:"hints"`
+}
+
+const skillDescriptionChars = 160
+
+func skillCatalog(skills []*pack.ResolvedSkill, budget int, capped bool) skillCatalogPage {
+	entries := make([]skillCatalogEntry, 0, len(skills))
+	for _, sk := range skills {
+		desc, _ := strategyread.CapStrings([]string{sk.Description()}, 1, skillDescriptionChars)
+		e := skillCatalogEntry{
+			SkillName: sk.SkillName, Description: desc[0], Type: sk.Type, ExecutionMode: sk.ExecutionMode,
+			Source: sk.Source, PackName: sk.PackName, PackVersion: sk.PackVersion, Trusted: sk.Trusted,
+		}
+		if sk.PromptMD != nil {
+			e.PromptChars = len([]rune(*sk.PromptMD))
+		}
+		entries = append(entries, e)
+	}
+	shown := strategyread.FitPrefix(entries, budget-600)
+	page := skillCatalogPage{
+		Skills: entries[:shown], Total: len(entries), Truncated: shown < len(entries), MaxChars: budget,
+		Hints: []string{"read one skill in full, with its prompt, using get_installed_skill"},
+	}
+	if page.Truncated {
+		page.Hints = append(page.Hints, fmt.Sprintf("%d of %d skills shown; raise max_chars or narrow with source_filter", shown, len(entries)))
+	}
+	if capped {
+		page.Hints = append(page.Hints, fmt.Sprintf("max_chars was capped at %d", strategyread.HardMaxChars))
+	}
+	return page
+}

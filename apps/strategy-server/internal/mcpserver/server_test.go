@@ -3701,7 +3701,7 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	t.Logf("Step 18 — list_packs: %d packs, emergent-standard present=%v", len(packs), standardPackFound)
 
 	// ── Step 19: list_installed_skills — verify canonical skills accessible ───
-	var skills []map[string]any
+	var skills skillCatalog
 	c.call(id, "list_installed_skills", map[string]any{
 		"instance_id": inst.ID,
 	}).assertOK().decode(&skills)

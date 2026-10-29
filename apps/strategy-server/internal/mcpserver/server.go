@@ -795,12 +795,15 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("list_mutations",
-		mcp.WithDescription("USE WHEN you need the change history for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the change history for a strategy instance. Returns a page of changes, newest first, as a summary: what changed, when, by whom, and size_chars of the payload, without the payload itself. Pass full=true to include payloads, up to the 40000-character cap; read one change in full with get_mutation. A page cut at the budget says truncated and gives next_cursor to continue."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("artifact_type", mcp.Description("Filter by artifact type, e.g. feature")),
 		mcp.WithString("include_staged", mcp.Description("true to include staged (uncommitted) mutations")),
 		mcp.WithString("limit", mcp.Description("Max results per page (1–200, default 50)")),
 		mcp.WithString("cursor", mcp.Description("Pagination cursor (mutation ID) from a previous response")),
+		mcp.WithString("since_mutation_id", mcp.Description("Only mutations newer than this mutation, for polling")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to include payloads, up to the 40000-character cap.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -809,15 +812,19 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		includeStaged := argString(req, "include_staged") == "true"
-		limit := req.GetInt("limit", 50)
-		cursor := argString(req, "cursor")
-		sinceMutationID := argString(req, "since_mutation_id")
-		mutations, nextCursor, err := svc.Strategy.ListMutations(ctx, id, argString(req, "artifact_type"), includeStaged, limit, cursor, sinceMutationID)
+		page, err := svc.Strategy.ListMutationPage(ctx, id, strategy.MutationListOptions{
+			ArtifactType:    argString(req, "artifact_type"),
+			IncludeStaged:   argString(req, "include_staged") == "true",
+			Cursor:          argString(req, "cursor"),
+			SinceMutationID: argString(req, "since_mutation_id"),
+			Limit:           req.GetInt("limit", 50),
+			WithPayload:     argString(req, "full") == "true",
+			MaxChars:        requestBudget(req),
+		})
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(map[string]any{"mutations": mutations, "next_cursor": nextCursor})
+		return mustJSON(page)
 	})
 
 	s.AddTool(mcp.NewTool("get_mutation",
@@ -1974,8 +1981,10 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 
 	// validate_instance — validate all artifacts in an instance against their schemas.
 	s.AddTool(mcp.NewTool("validate_instance",
-		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`."),
+		mcp.WithDescription("USE WHEN you need a full validation report for all artifacts in a strategy instance — schema validation for each artifact type. Returns a verdict in structuredContent, always complete. NOTE: `ok` is false whenever any artifact is invalid, so on an instance with a tolerated backlog it is false on every call and carries no signal — gate on `findings` (each has a stable key/rule/path) rather than on `ok`. The text is the per-artifact detail when it fits max_chars (default 12000, cap 40000); when it does not, a summary of the invalid artifacts with their first errors, saying truncated."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the 40000-character cap instead of the default 12000 for the text.`)),
+		mcp.WithString("max_chars", mcp.Description("Budget for the text in characters (default 12000, cap 40000)")),
 		withVerdictOutput(),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
@@ -2026,16 +2035,54 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 			findings = append(findings, findingsFromValidation(results[i].ArtifactKey, results[i].ValidationResult)...)
 		}
 
-		return verdictResult(
-			verdict.New(len(artifacts), findings).
-				WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts)),
-			map[string]any{
-				"instance_id":    instID,
-				"artifact_count": len(artifacts),
-				"valid_count":    totalValid,
-				"invalid_count":  totalInvalid,
-				"results":        results,
+		v := verdict.New(len(artifacts), findings).
+			WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts))
+		detail := map[string]any{
+			"instance_id":    instID,
+			"artifact_count": len(artifacts),
+			"valid_count":    totalValid,
+			"invalid_count":  totalInvalid,
+			"results":        results,
+		}
+		budget, capped := strategyread.NormaliseBudget(requestBudget(req))
+		if fitsBudget(detail, budget) {
+			return verdictResult(v, detail)
+		}
+
+		type compactResult struct {
+			ArtifactKey   string   `json:"artifact_key"`
+			ArtifactType  string   `json:"artifact_type"`
+			SchemaFile    string   `json:"schema_file,omitempty"`
+			ErrorCount    int      `json:"error_count"`
+			Errors        []string `json:"errors"`
+			ErrorsOmitted int      `json:"errors_omitted,omitempty"`
+		}
+		invalid := make([]compactResult, 0, totalInvalid)
+		for _, r := range results {
+			if r.Valid {
+				continue
+			}
+			errs, omitted := compactErrors(r.Errors)
+			invalid = append(invalid, compactResult{
+				ArtifactKey: r.ArtifactKey, ArtifactType: r.ArtifactType, SchemaFile: r.SchemaFile,
+				ErrorCount: len(r.Errors), Errors: errs, ErrorsOmitted: omitted,
 			})
+		}
+		shown := strategyread.FitPrefix(invalid, budget-validationFixedChars)
+		hints := append(validationHints(len(invalid)-shown, "invalid artifacts", capped),
+			"valid artifacts are counted in valid_count and not listed")
+		return verdictResult(v, map[string]any{
+			"instance_id":     instID,
+			"artifact_count":  len(artifacts),
+			"valid_count":     totalValid,
+			"invalid_count":   totalInvalid,
+			"results":         invalid[:shown],
+			"results_shown":   shown,
+			"results_omitted": len(invalid) - shown,
+			"truncated":       true,
+			"max_chars":       budget,
+			"hints":           hints,
+		})
 	})
 
 	// validate_relationships — check cross-artifact reference integrity.
