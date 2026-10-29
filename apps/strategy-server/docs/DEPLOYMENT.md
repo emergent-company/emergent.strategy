@@ -151,6 +151,60 @@ reads `env:PORT`, and Cloud Run injects `PORT`. Verified against the built
 image: `PORT=8080` produces `listening addr=:8080`. 8090 is a local-dev
 convention only.
 
+### Giving a deployment its own Memory project
+
+Until `fence-memory-graph-per-instance` ships, every instance a server holds
+shares one Memory project, and instances that share a key overwrite each other
+there (last writer wins). A deployment that must not be affected by other
+instances (the pilot) can use a Memory project of its own. This needs no code
+change. It was tested against Memory v0.87 with a pilot-shaped instance of 9
+artifacts, 606 decomposed objects and 2,434 relationships.
+
+1. **Create the project** in the Memory deployment the server uses, and set
+   `EPF_MEMORY_URL`, `EPF_MEMORY_PROJECT`, `EPF_MEMORY_TOKEN` and, if you use it,
+   `EPF_MEMORY_AUTH_MODE` on the service. The deploy workflow binds only
+   `EPF_MEMORY_TOKEN`; the URL and project are not set by it. The test used the
+   Memory deployment's standalone key. A project token made with `memory projects
+   create-token` (what `scripts/setup-memory.sh` makes) was rejected by the direct
+   route in the test and is unverified; step 2 tells you whether a credential
+   works.
+2. **Check that requests reach the new project before anything is written.**
+   Ask Memory for the object count with exactly the URL, credential and
+   `X-Project-ID` the server will use:
+
+   ```bash
+   curl -s "$EPF_MEMORY_URL/api/graph/objects/count" \
+     -H "X-API-Key: $EPF_MEMORY_TOKEN" -H "X-Project-ID: $EPF_MEMORY_PROJECT"
+   ```
+
+   A new project answers `{"count":0}`. If it answers with the number of a
+   different project, requests are being routed elsewhere: **stop**. This
+   happens: a reverse proxy in front of Memory may allow only some project ids and
+   map every other id to its default project, and the server then writes into
+   that project without any error. (The local `memory-mcp-proxy` on port 3002 does
+   this: it allows two project ids and maps all others to the default project.) Fix the routing or connect to Memory directly. Use `Authorization:
+   Bearer` instead of `X-API-Key` when the server runs in bearer mode.
+3. **Make the server ingest into the new project.** At startup the server skips
+   every instance whose content hash is unchanged, and it does not notice that
+   the project changed, so an empty project stays empty. Clear the hash and
+   restart:
+
+   ```sql
+   UPDATE strategy_instances SET memory_content_hash = NULL WHERE status = 'active';
+   ```
+
+   The startup sweep then ingests every active instance. In the test, the 615
+   objects were in the new project within 20 seconds and all 2,434 relationships
+   a few minutes later. Until an instance is ingested, semantic search returns
+   nothing for it.
+4. **Check the result:** `/health` reports Memory `ok`; the count from step 2
+   matches the instances you expect; the old project's count is unchanged.
+
+What stays behind: what Memory holds that Postgres does not. By the fence
+design that is what-if scenario branches (not tested here). Everything else is
+rebuilt from Postgres, which is the source of truth. To go back, restore the previous `EPF_MEMORY_*` values, clear the hash
+again and restart.
+
 ---
 
 ## 3. Deploy
