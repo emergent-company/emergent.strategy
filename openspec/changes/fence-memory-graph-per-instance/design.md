@@ -205,6 +205,20 @@ Per read:
   `main`, not a branch. Branch names keep the instance UUID so purge can find
   them.
 
+**Ripple is a reader too.** `domain/ripple` calls `Search`, `GetObjectByKey` and
+`Expand` on the shared project from six places (`semantic.go:90,280,391`,
+`vertical.go:90`, `propagation.go:281`, `tension.go:186`) and matches results by
+exact key (`r.Object.Key == artifactKey`). Callers are `internal/pipeline/postcommit.go`,
+`internal/mcpserver/register_ripple_tools.go` and `domain/ripple/convergence.go`.
+Two consequences: (1) it reads other instances' data today, and (2) once keys
+carry the instance prefix every one of those matches fails silently and the
+classification falls back to text. Ripple therefore reads through
+`semantic.ScopedGraph(instanceID)`, a facade that takes and returns **unscoped**
+keys, applies the scope helper, and exposes only the operations ripple needs
+(`Search`, `ObjectByKey`, `Expand`). `domain/ripple` depends on a small
+interface satisfied by that facade, not on `*memory.Client`. No package is
+exempt from the architecture test.
+
 **Enforcement.** An architecture test fails if any package other than
 `domain/semantic`, `domain/ingest` and the sweep calls a read method on
 `internal/memory`. The memory client's `SearchRequest` gains `Labels`; the test

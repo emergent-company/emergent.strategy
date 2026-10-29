@@ -12,6 +12,21 @@ extend the mock where it cannot express labels, properties or deletes.
 
 Tracks A–D can run in parallel after section 1. Section 5 depends on 2 and 3.
 
+### Delivery slices
+
+Writing prefixed keys and reading with scope must ship together; triggers,
+purge and scenario ownership work under today's keys. Three PRs, each leaving
+`main` consistent:
+
+1. **Triggers, lifecycle, scenario ownership:** 1.1, 1.2 (re-check), 1.4, 1.5,
+   2.7, 4.1–4.7, tests 9.3, 9.8, 9.9, 9.19–9.23. Migration 045 ships whole; the
+   manifest table is unused until slice 2. Safe to deploy alone.
+2. **The cutover (atomic):** 1.3, 2.1b–2.6, section 3 (including 3.6b), the
+   remaining section 9 tests, 8.1–8.5. Needs the upgrade runbook.
+3. **Sweep, contract, docs:** sections 5, 6, 7 (Tier 2).
+
+Do not deploy production between slices 1 and 2 without reading the runbook.
+
 ### Cut line
 
 If time runs short, ship **Tier 1** by 28 October and **Tier 2** before the
@@ -70,7 +85,7 @@ and the pilot hit the confusion they prevent.
       label safety net). Write nothing per-ingest onto objects.
       Keep the integrity stamp on the artifact layer (`integrityMetadata`) and
       add it to decomposed objects, taking the class of the source artifact
-      (design Decision 1, "Integrity stamp"; tests 9.26 and 9.27).
+      (design Decision 1, "Integrity stamp"; tests 9.28 and 9.29).
 - [ ] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
       keys only; remove the `objectKeyIndex` prefix heuristics that assumed
       unscoped keys. GC resolves a removed relationship's Memory ID through
@@ -100,19 +115,31 @@ and the pilot hit the confusion they prevent.
       `source_artifact` to `SearchResult`. Keep dropping hits with a framework
       `integrity_class` and keep reporting the count (`ExcludedFramework` today);
       the label filter cannot exclude, so this stays a server-side filter after
-      the over-fetch (design Decision 3; test 9.28).
+      the over-fetch (design Decision 3; test 9.30).
 - [ ] 3.4 `GetNeighbors`: scope the caller key, not-found for invisible root,
       filter expansion.
 - [ ] 3.5 `DetectContradictions`: list by `instance:<uuid>` + `layer:artifact`,
       filter.
 - [ ] 3.6 Move lifecycle `enrichWithSemantics` (`internal/mcpserver/lifecycle.go:154`)
-      into a semantic-service method using the scope helper and the scoped
-      North Star key.
+      into a semantic-service method using the scope helper. Its North Star
+      lookup uses the key `Artifact:READY/00_north_star.yaml`, which ingest has
+      never written, so "vision connected" is probably always false today.
+      Resolve the real key instead: `epfimport.ArtifactKey` normalises to
+      `north_star`, while an artifact imported by path may be
+      `READY/00_north_star`. Look up by artifact type `north_star` within the
+      instance rather than by a guessed key. Add a test with a scaffolded and an
+      imported instance.
+- [ ] 3.6b Ripple (design Decision 3, "Ripple is a reader too"): add
+      `semantic.ScopedGraph(instanceID)`; make `domain/ripple`
+      (`SemanticAnalyzer`, `AnalyzeStructuralRipple`, tension, vertical)
+      depend on its interface instead of `*memory.Client`; update the callers
+      in `internal/pipeline/postcommit.go`, `register_ripple_tools.go` and
+      `convergence.go`.
 - [ ] 3.7 Settings page: per-instance counts from the instance row; drop the
       project-wide `CountArtifactObjects` display.
 - [ ] 3.8 Architecture test: only `domain/semantic`, `domain/ingest` and the
-      sweep may call `internal/memory` read methods, and every `Search` call
-      sets exactly one `instance:` label.
+      sweep may call `internal/memory` read methods (no exemptions; ripple goes
+      through 3.6b), and every `Search` call sets exactly one `instance:` label.
 
 ## 4. Track C: triggers, durability, lifecycle
 
@@ -183,6 +210,8 @@ and the pilot hit the confusion they prevent.
 - [ ] 8.3 Measure a full ingest of the largest local instance (time, object
       and relationship counts, manifest replace time) and a second ingest with
       no changes (must create no new Memory versions). Record in design.md.
+      Also check that a dropped job converges: stop the server mid-ingest, restart,
+      and confirm the instance is re-ingested within two heartbeat intervals.
 - [ ] 8.4 Independent review by a separate agent that has not seen the
       implementation: check the code against the invariants I1–I7 and the
       scenarios in the spec delta.
@@ -230,13 +259,18 @@ and the pilot hit the confusion they prevent.
       unlock does not return a locked connection to the pool.
 - [ ] 9.25 Second replica: an ingest that finds the instance clean and already
       ingested does no Memory writes.
-- [ ] 9.26 Decomposed objects of an unmodified template carry `integrity_class`
+- [ ] 9.26 Ripple classification after keys are prefixed: the semantic analyser
+      still finds the changed artifact in its own search results, and never sees
+      another instance's objects.
+- [ ] 9.27 Lifecycle "vision connected" is true for a scaffolded instance and for
+      an imported one, and false when only another instance has a North Star.
+- [ ] 9.28 Decomposed objects of an unmodified template carry `integrity_class`
       and `integrity:<class>`, equal to their artifact's; objects of an authored
       artifact carry neither.
-- [ ] 9.27 A template edited into authored content, then re-ingested: no object
+- [ ] 9.29 A template edited into authored content, then re-ingested: no object
       of it carries a marking, and search returns it.
-- [ ] 9.28 Search over authored and framework objects (artifact and decomposed
+- [ ] 9.30 Search over authored and framework objects (artifact and decomposed
       layers): framework hits are dropped and counted, authored hits are
       returned, and the over-fetch still fills the page.
-- [ ] 9.29 Architecture check: the scoped search path applies the framework
+- [ ] 9.31 Architecture check: the scoped search path applies the framework
       filter (a mock Memory returning a flagged hit must not surface it).

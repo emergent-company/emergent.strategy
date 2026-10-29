@@ -119,7 +119,7 @@ part. Section 5 follows 2 and 3.
 - [~] 4.3 Ingest stamps property `integrity_class` and label on artifact-level
       Memory objects (done, tested). Decomposed objects are NOT stamped yet: that
       needs a source-file to class mapping through the exporter path. Now
-      required by the fence change (task 2.3, tests 9.26 and 9.27), which rewrites
+      required by the fence change (task 2.3, tests 9.28 and 9.29), which rewrites
       that path; the same class as the source artifact row is used. Original:
       ingest stamps property `integrity_class` and label
       `integrity:<class>` on Memory objects, including decomposed objects.
@@ -127,7 +127,7 @@ part. Section 5 follows 2 and 3.
       drops hits whose `integrity_class` is framework and hits whose `instance_id`
       names another instance; hits without either property cannot be filtered
       and wait for the fence change, which must keep this filter (fence task 3.3,
-      test 9.28). Original: search exclusion: through the scoped read helper once the fence change
+      test 9.30). Original: search exclusion: through the scoped read helper once the fence change
       lands. Interim: over-fetch and filter on the property in `SearchStrategy`.
       Test with a mock Memory that returns a flagged hit.
 - [ ] 4.5 Decide open question 2 (AIM domain and unmodified AIM templates) after
