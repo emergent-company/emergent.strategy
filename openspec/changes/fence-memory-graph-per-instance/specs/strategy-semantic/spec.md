@@ -59,6 +59,32 @@ of which component or tool wrote it.
 
 ---
 
+### Requirement: Framework Content Is Marked And Excluded From Semantic Reads
+
+Every graph object derived from an artifact that is unmodified framework content
+(a canonical definition, an unmodified template or a packaged default) SHALL
+carry that classification, in both the artifact layer and the decomposed layer,
+and semantic search SHALL NOT return it as the instance's strategy. Authored
+content SHALL carry no such marking.
+
+#### Scenario: Decomposed objects carry the class of their artifact
+- **WHEN** an artifact classified as an unmodified template is ingested
+- **THEN** its artifact-layer object and every decomposed object derived from it
+  carry the same `integrity_class` and the label `integrity:<class>`
+- **AND** the objects of an authored artifact carry neither
+
+#### Scenario: A template that is then authored
+- **WHEN** a user edits an unmodified template so it is classified as authored
+  and the instance is re-ingested
+- **THEN** none of its objects carries an integrity marking
+- **AND** its content is returned by semantic search
+
+#### Scenario: Search drops framework hits
+- **WHEN** semantic search for instance A matches both authored content and the
+  decomposed objects of an unmodified template
+- **THEN** only the authored hits are returned
+- **AND** the response says how many framework hits were dropped
+
 ### Requirement: Graph Projection Consistency
 
 The system SHALL record in PostgreSQL the set of graph objects and
