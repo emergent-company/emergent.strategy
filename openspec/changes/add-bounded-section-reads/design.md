@@ -37,7 +37,7 @@ Non-goals:
 ### D1. Paths
 
 A path is dot-separated keys. Array items are selected by position `[2]`, by id
-`[id=okr-c-001]` or by name `[name=Koltiva]`. The artifact is addressed by type
+`[id=okr-c-001]` or by name `[name=Acme]`. The artifact is addressed by type
 (`north_star`, `strategy_formula`, `roadmap_recipe`, `insight_analyses`,
 `strategy_foundations`, `insight_opportunity`), and the root wrapper key is
 transparent, so callers write `mission.boundaries`, not `north_star.mission.boundaries`.

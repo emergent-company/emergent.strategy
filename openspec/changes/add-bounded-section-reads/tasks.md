@@ -25,9 +25,11 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 ## 2. New tools
 
-- [~] 2.1 `get_outline`, `get_section`, `get_view` (tools and behaviour done and
-      tested through the MCP handler; published output schemas and the contract
-      test in the style of `verdict_contract_test.go` remain), originally: contract test in the style of `verdict_contract_test.go` (read envelope,
+- [x] 2.1 `get_outline`, `get_section`, `get_view` (tools and behaviour done and
+      tested through the MCP handler). Published output schemas are dropped, not
+      deferred: `get_section` returns arbitrary stored JSON in `content`, so a
+      schema would say little, and it would change the envelope clients receive.
+      The read budget contract (7.1) is the contract that matters. Originally: contract test in the style of `verdict_contract_test.go` (read envelope,
       separate from the verdict envelope).
 - [x] 2.2 Access map: list the three tools as `AccessRead`. Test that a
       read-only session can call them and that an unlisted tool still defaults to
@@ -43,8 +45,10 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 - [x] 3.1 `get_view` with `competitor`, `objectives`, `key_result` and
       `personas`. Each part has its own `defined`.
-- [ ] 3.2 Test that every path a view reads exists in the embedded schema
-      (`TestViewPathsMatchSchemas`).
+- [x] 3.2 Test that every path a view reads exists in the embedded schema
+      (`TestViewPathsMatchSchemas`). The paths are constants in `views.go`, listed by
+      `ViewReads()`, so the code and the test use the same strings. Checked by
+      renaming a path: the test fails.
 - [x] 3.3 Routing (also: the no-match fallback is now `get_outline`, not
       `search_strategy`): add the keywords to `get_agent_for_task` so questions about
       what the strategy says, who the personas are, dates and figures reach the
@@ -88,9 +92,20 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
 
 ## 7. Contract, acceptance and evidence
 
-- [ ] 7.1 Fixture larger than 1 MB (the pilot shape: six authored artifacts plus
+- [x] 7.1 Fixture larger than 1 MB (the pilot shape: six authored artifacts plus
       131 definitions). Contract test: no read tool exceeds the cap without
       `full`, and every truncation is flagged.
+      Done in `read_budget_contract_test.go` (about 1.5 MB authored plus the
+      embedded definitions). It found one real gap: `get_product_vision` returned
+      the whole north star, 242,283 characters on the fixture. It is now bounded
+      like `get_roadmap`. A second test lists every read tool that needs only an
+      instance id and fails when one returns more than the default budget unless it
+      is acknowledged with a reason. On the fixture, five are: `export_instance_yaml`
+      (3.6 MB, an export by design), `list_mutations` (0.9 to 1.4 MB, every mutation
+      with its payload), `list_installed_skills` (557 KB), `validate_instance`
+      (405 KB) and `validate_with_plan` (127 KB), the last two on synthetic content
+      that produces many findings. Bounding the four that are not exports is
+      follow-up work. Tools that need more than an instance id are not covered.
 - [ ] 7.2 Acceptance table: parse the question bank's "where it lives" entries
       into a test data file. For each, assert the location is reachable in two
       calls or fewer within the default budget and returns the fact the gold

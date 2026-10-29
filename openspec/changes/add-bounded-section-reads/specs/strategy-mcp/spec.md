@@ -95,9 +95,10 @@ Every path a view reads SHALL exist in the embedded schemas.
 
 ### Requirement: Existing Reads Return Bounded Defaults
 
-`get_strategy_context`, `list_artifacts` and `get_roadmap` SHALL return an
-outline by default and return full payloads only when called with an explicit
-`full` argument, which remains subject to the hard cap with explicit truncation.
+`get_strategy_context`, `list_artifacts`, `get_roadmap` and
+`get_product_vision` SHALL return an outline or a bounded section by default and
+return more only when called with an explicit `full` argument, which remains
+subject to the hard cap with explicit truncation.
 `list_artifacts` SHALL paginate. `get_personas` SHALL return the personas of the
 instance. `get_competitive_position` SHALL include the per-competitor
 positioning. The descriptions of these tools SHALL state what they return and
@@ -116,6 +117,13 @@ name the section reads.
   insights artifact
 - **THEN** the personas are returned
 - **AND** the response does not report that none exist
+
+#### Scenario: A large north star
+
+- **WHEN** a client calls `get_product_vision` on an instance whose north star is
+  larger than the default budget
+- **THEN** the response is within the budget
+- **AND** it lists the sections with their sizes and says it was truncated
 
 #### Scenario: Explicit full read
 

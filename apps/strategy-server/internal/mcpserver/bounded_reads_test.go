@@ -9,7 +9,7 @@ import (
 )
 
 const brFormula = `{"strategy":{"id":"sf-1","title":"Win with farmers","trade_offs":[{"decision":"Depth over breadth"}],
- "competitive_moat":{"vs_competitors":[{"competitor":"Koltiva","wedge":"Offline first"}]}}}`
+ "competitive_moat":{"vs_competitors":[{"competitor":"Rivalco","wedge":"Offline first"}]}}}`
 
 const brRoadmap = `{"roadmap":{"id":"rm-1","tracks":{"commercial":{"okrs":[{"id":"okr-c-001","objective":"Land three pilots","key_results":[{"id":"kr-c-001","description":"Three signed pilots"}]}]}}}}`
 
@@ -105,7 +105,7 @@ func TestMCP_GetView_Competitor(t *testing.T) {
 	c := newMCPClient(t, svc)
 
 	r := c.call(1, "get_view", map[string]any{
-		"instance_id": instID.String(), "view": "competitor", "name": "Koltiva",
+		"instance_id": instID.String(), "view": "competitor", "name": "Rivalco",
 	}).assertOK()
 	r.contains("Offline first").contains("positioning_vs_competitor").contains("landscape_entry")
 

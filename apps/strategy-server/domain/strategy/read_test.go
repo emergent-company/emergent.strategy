@@ -26,14 +26,14 @@ func jsonPayload(t *testing.T, s string) map[string]any {
 const readFormula = `{"strategy":{"id":"sf-1","title":"Win with farmers",
  "trade_offs":[{"decision":"Depth over breadth","cost":"Fewer regions"},{"decision":"Own the data layer","cost":"Slower start"}],
  "competitive_moat":{"vs_competitors":[
-   {"competitor":"Koltiva","category":"Traceability","wedge":"Offline first","our_angle":"Works without signal","their_strength":"Scale"},
+   {"competitor":"Rivalco","category":"Traceability","wedge":"Offline first","our_angle":"Works without signal","their_strength":"Scale"},
    {"competitor":"Other","category":"ERP","wedge":"x","our_angle":"y","their_strength":"z"}]}}}`
 
 const readRoadmap = `{"roadmap":{"id":"rm-1","tracks":{"commercial":{"okrs":[
  {"id":"okr-c-001","objective":"Land three pilots","key_results":[{"id":"kr-c-001","description":"Three signed pilots","target":"3"}]}]}}}}`
 
 const readInsights = `{"target_users":[{"persona":"Farm manager","problems":["paper records"],"description":"Runs a cooperative"}],
- "competitive_landscape":{"direct_competitors":[{"name":"Koltiva","positioning":"Large traceability vendor","strengths":["scale"],"weaknesses":["cost"]}]}}`
+ "competitive_landscape":{"direct_competitors":[{"name":"Rivalco","positioning":"Large traceability vendor","strengths":["scale"],"weaknesses":["cost"]}]}}`
 
 func seedRead(t *testing.T) (*strategy.Service, *bun.DB, uuid.UUID) {
 	t.Helper()

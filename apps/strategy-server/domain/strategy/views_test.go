@@ -10,7 +10,7 @@ import (
 
 func TestReadView_CompetitorComposesBothFilesAndReportsMissingParts(t *testing.T) {
 	svc, _, inst := seedRead(t)
-	res, err := svc.ReadView(context.Background(), inst, "competitor", map[string]string{"name": "Koltiva"}, 0)
+	res, err := svc.ReadView(context.Background(), inst, "competitor", map[string]string{"name": "Rivalco"}, 0)
 	if err != nil {
 		t.Fatalf("ReadView: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestReadView_TemplatesAreNeverContent(t *testing.T) {
 
 func TestReadView_SharesOneBudget(t *testing.T) {
 	svc, _, inst := seedRead(t)
-	res, err := svc.ReadView(context.Background(), inst, "competitor", map[string]string{"name": "Koltiva"}, 150)
+	res, err := svc.ReadView(context.Background(), inst, "competitor", map[string]string{"name": "Rivalco"}, 150)
 	if err != nil {
 		t.Fatal(err)
 	}
