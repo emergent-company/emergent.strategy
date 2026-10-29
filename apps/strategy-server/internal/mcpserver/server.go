@@ -614,8 +614,10 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("get_product_vision",
-		mcp.WithDescription("USE WHEN you need the north star vision for a strategy instance."),
+		mcp.WithDescription("USE WHEN you need the north star vision for a strategy instance. Returns the north star within a size budget; when it is larger, returns its sections with sizes instead (read one with get_section). Reports when the north star is not defined, for example an unmodified template. Pass full=true to raise the budget to the 40000-character cap."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		mcp.WithString("full", mcp.Description(`Set to "true" to use the full 40000-character cap instead of the default 12000.`)),
+		mcp.WithString("max_chars", mcp.Description("Response budget in characters (default 12000, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -624,14 +626,15 @@ func registerArtifactContextTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		raw, notDefined, err := svc.Strategy.ReadAuthoredPayload(ctx, id, "north_star")
+		budget := argInt(req, "max_chars", 0)
+		if argString(req, "full") == "true" {
+			budget = strategyread.HardMaxChars
+		}
+		out, err := svc.Strategy.ReadSection(ctx, id, "north_star", "", budget)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		if notDefined != nil {
-			return mustJSON(notDefined)
-		}
-		return mcp.NewToolResultText(string(raw)), nil
+		return mustJSON(out)
 	})
 
 	s.AddTool(mcp.NewTool("get_personas",

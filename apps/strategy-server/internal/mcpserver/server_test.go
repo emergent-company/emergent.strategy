@@ -3552,16 +3552,19 @@ func TestMCP_FreshSetup_EPFInitialisationDryRun(t *testing.T) {
 	t.Logf("Step 10 — batch %s committed", batchID)
 
 	// ── Step 11: verify north_star is retrievable ─────────────────────────────
-	var vision map[string]any
+	var vision struct {
+		Defined bool           `json:"defined"`
+		Content map[string]any `json:"content"`
+	}
 	c.call(id, "get_product_vision", map[string]any{
 		"instance_id": inst.ID,
 	}).assertOK().decode(&vision)
 	id++
 
-	if vision["north_star"] == nil && vision["vision"] == nil && vision["organization"] == nil {
-		t.Errorf("Step 11 — get_product_vision: north_star content not found in response: %v", vision)
+	if !vision.Defined || vision.Content["organization"] != "Acme Corp" {
+		t.Errorf("Step 11 — get_product_vision: want the committed north star in content, got defined=%v content=%v", vision.Defined, vision.Content)
 	}
-	t.Logf("Step 11 — product vision retrieved (keys: %v)", mapKeys(vision))
+	t.Logf("Step 11 — product vision retrieved (keys: %v)", mapKeys(vision.Content))
 
 	// ── Step 12: get_personas — verify foundations committed ─────────────────
 	var personasResult map[string]any

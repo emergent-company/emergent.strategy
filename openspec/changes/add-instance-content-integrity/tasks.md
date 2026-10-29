@@ -68,8 +68,10 @@ part. Section 5 follows 2 and 3.
       integrity findings. Update the `outputSchema` description, `AGENTS.md` rule
       list and `task selfmodel:generate`.
 - [x] 2.6 `health_check`: `content_integrity` block, counts per class.
-- [ ] 2.7 Fixtures shared with `epf-cli` (section 3.6): both apps run the same
-      cases.
+- [x] 2.7 Fixtures shared with `epf-cli` (section 3.6): both apps run the same
+      cases. Both already read their own copy of `hash-vectors.json` and
+      `classification-cases.json`; `TestSharedFixturesMatchEpfCli` fails if the two
+      copies differ.
 
 ## 3. epf-cli (maintenance mode: additive, defaults unchanged)
 

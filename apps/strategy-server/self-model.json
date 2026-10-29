@@ -1515,12 +1515,20 @@
     },
     {
       "name": "get_product_vision",
-      "description": "USE WHEN you need the north star vision for a strategy instance.",
+      "description": "USE WHEN you need the north star vision for a strategy instance. Returns the north star within a size budget; when it is larger, returns its sections with sizes instead (read one with get_section). Reports when the north star is not defined, for example an unmodified template. Pass full=true to raise the budget to the 40000-character cap.",
       "category": "strategy",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Set to \"true\" to use the full 40000-character cap instead of the default 12000.",
+            "type": "string"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
+            "type": "string"
+          },
+          "max_chars": {
+            "description": "Response budget in characters (default 12000, cap 40000)",
             "type": "string"
           }
         },

@@ -12,6 +12,44 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
+// Paths of stored sections that the views read. Each name is used by the code
+// below and listed in ViewReads, so a test can hold every one of them against the
+// embedded schema.
+const (
+	pathVsCompetitors       = "competitive_moat.vs_competitors"
+	pathPositioning         = "positioning"
+	pathLandscape           = "competitive_landscape"
+	pathDirectCompetitors   = "competitive_landscape.direct_competitors"
+	pathIndirectCompetitors = "competitive_landscape.indirect_competitors"
+	pathTargetUsers         = "target_users"
+)
+
+// ViewRead names a section of an artifact type that a view depends on. Segments
+// may use "*" for any key and [*] for any array item.
+type ViewRead struct {
+	Artifact string
+	Path     string
+}
+
+// ViewReads lists every stored section the views read. The roadmap entries are
+// the keys that strategyread.Objectives and strategyread.KeyResult walk.
+func ViewReads() []ViewRead {
+	return []ViewRead{
+		{"strategy_formula", pathVsCompetitors},
+		{"strategy_formula", pathPositioning},
+		{"insight_analyses", pathLandscape},
+		{"insight_analyses", pathDirectCompetitors},
+		{"insight_analyses", pathIndirectCompetitors},
+		{"insight_analyses", pathTargetUsers},
+		{"roadmap_recipe", "tracks"},
+		{"roadmap_recipe", "tracks.*.okrs"},
+		{"roadmap_recipe", "tracks.*.okrs[*].key_results"},
+		{"roadmap_recipe", "tracks.*.riskiest_assumptions"},
+		{"roadmap_recipe", "tracks.*.riskiest_assumptions[*].linked_to_kr"},
+		{"roadmap_recipe", "cross_track_dependencies"},
+	}
+}
+
 // ViewNames lists the question-shaped views, in documentation order.
 var ViewNames = []string{"competitor", "objectives", "key_result", "personas", "competitive_position"}
 
@@ -157,12 +195,12 @@ func (s *Service) competitorView(ctx context.Context, instanceID uuid.UUID, args
 		part, artifact string
 		paths          []string
 	}{
-		{"positioning_vs_competitor", "strategy_formula", []string{"competitive_moat.vs_competitors[name=" + name + "]"}},
+		{"positioning_vs_competitor", "strategy_formula", []string{pathVsCompetitors + "[name=" + name + "]"}},
 		{"landscape_entry", "insight_analyses", []string{
-			"competitive_landscape.direct_competitors[name=" + name + "]",
-			"competitive_landscape.indirect_competitors[name=" + name + "]",
+			pathDirectCompetitors + "[name=" + name + "]",
+			pathIndirectCompetitors + "[name=" + name + "]",
 		}},
-		{"positioning_statement", "strategy_formula", []string{"positioning"}},
+		{"positioning_statement", "strategy_formula", []string{pathPositioning}},
 	}
 	b := &sharer{remaining: budget, left: len(sources)}
 	for _, src := range sources {
@@ -178,7 +216,7 @@ func (s *Service) competitorView(ctx context.Context, instanceID uuid.UUID, args
 }
 
 func (s *Service) personasView(ctx context.Context, instanceID uuid.UUID, budget int, out *ViewResult) error {
-	res, err := s.ReadSection(ctx, instanceID, "insight_analyses", "target_users", budget)
+	res, err := s.ReadSection(ctx, instanceID, "insight_analyses", pathTargetUsers, budget)
 	if err != nil {
 		return err
 	}
@@ -294,9 +332,9 @@ func (s *Service) competitivePositionView(ctx context.Context, instanceID uuid.U
 	sources := []struct {
 		part, artifact, path string
 	}{
-		{"landscape", "insight_analyses", "competitive_landscape"},
-		{"positioning_by_competitor", "strategy_formula", "competitive_moat.vs_competitors"},
-		{"positioning_statement", "strategy_formula", "positioning"},
+		{"landscape", "insight_analyses", pathLandscape},
+		{"positioning_by_competitor", "strategy_formula", pathVsCompetitors},
+		{"positioning_statement", "strategy_formula", pathPositioning},
 	}
 	b := &sharer{remaining: budget, left: len(sources)}
 	for _, src := range sources {
