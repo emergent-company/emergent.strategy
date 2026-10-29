@@ -8,7 +8,7 @@
 
 ## Quick Protocol (Mandatory)
 
-**Every AI agent session MUST follow these four protocols:**
+**Every AI agent session MUST follow these five protocols:**
 
 ### 1. Wizard-First Workflow
 
@@ -52,6 +52,19 @@ When editing EPF YAML files, you MUST preserve existing content:
 - **Intentional deletion is OK** when the user explicitly requests removing a file (e.g., deleting a deprecated feature definition).
 
 > **Why this matters:** AI agents sometimes decide to delete a 200+ line YAML file and rewrite it from scratch instead of editing in place. This destroys curated strategic content that took hours to create. The delete-and-rewrite pattern is the #1 cause of data loss in EPF instances.
+
+### Authoring Content Discipline
+
+When you write or change the content of an EPF artifact, you MUST write only what the instance's own sources support.
+
+- **Cite or leave it out.** Every claim, number, date, name and decision needs a source in the instance (an evidence file, an interview, a decision record) or the user's own words in this session. Where the schema has a field for the source, fill it in.
+- **Never invent.** Do not fill a field with a value that merely sounds right. If you do not know it, write `PLACEHOLDER: <what is missing and who can supply it>` in the field and tell the user. `epf-cli health` reports placeholder text.
+- **Ask rather than fill in.** When a required field has no source, ask the user. Do not copy a value from a template, a canonical definition or another instance.
+- **Templates and definitions are reference, not strategy.** The canonical definitions (`sd-*`, `pd-*`, `cd-*`), the shipped templates and the packaged value models describe the framework. Their sample values are not this company's decisions. An unmodified template left in an instance is read by anyone who queries it as the company's strategy, so either author it or propose deleting it, and ask before you delete.
+- **Check before you finish.** Run `epf_health_check`. It lists unmodified templates and packaged-default value models (`integrity.unmodified_template`, `integrity.packaged_default`). `epf-cli health --strict-integrity` turns them into errors.
+- **When answering questions about the strategy** (not authoring), answer from sections the instance defines. If a part is a template or empty, say it is not defined. Do not fill the gap from general knowledge.
+
+> **Why this matters:** an agent that fills a gap with plausible content produces an instance whose answers mix sample values with the company's real decisions, and nobody can tell which is which. A visible `PLACEHOLDER:` or a question to the user costs a minute; invented content costs trust.
 
 ### Task Decision Tree
 
@@ -1012,10 +1025,15 @@ template_warnings:
 **Detected patterns include:**
 
 - `TBD`, `TODO`, `FIXME`, `XXX`
-- `[INSERT...]`, `[YOUR...]`, `[FILL...]`
-- `Example:`, `e.g.,`
-- `Your Organization`, `Product Name Here`
+- `[INSERT...]`, `[PLACEHOLDER...]`, `[YOUR...]`, `[FILL...]`, and angle-bracket forms
+- `Your Organization (Name)`, `Product Name Here`, `Example Product`, `Example Key Result`, `Example Objective`
 - Date placeholders: `YYYY-MM-DD`, `20XX`
+- The word `placeholder`, `lorem ipsum`, and "your ... here"
+
+`e.g.,` and `Example:` are **not** flagged: they appear in ordinary prose and would flag authored
+content. Detection is by pattern, so it also cannot tell sample content that matches no pattern
+from your own. `epf-cli health` reports files that are byte-for-byte (structurally) identical to
+a canonical template, and `--strict-integrity` turns unmodified templates into errors.
 
 #### Semantic Alignment Warnings (v0.14.0)
 
