@@ -69,6 +69,9 @@ Any term may match. A unit's score is the share of distinct query terms it
 contains, plus a bonus when a match is in a field the outline uses as the unit's
 gist (`title`, `name`, `statement`, and so on). Ties go to the smaller unit.
 
+Weighting terms by rarity was tried and left out: on the pilot data it did not
+improve the question-bank acceptance set (task 4.2).
+
 ### D5. Result shape and limits
 
 The hit has the existing fields: `artifact_type`, `artifact_key`, `snippet`,
