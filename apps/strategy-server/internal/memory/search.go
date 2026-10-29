@@ -8,9 +8,13 @@ import (
 
 // SearchRequest is the payload for hybrid (text + vector) search.
 type SearchRequest struct {
-	Query    string   `json:"query"`
-	Limit    int      `json:"limit,omitempty"`
-	Types    []string `json:"types,omitempty"`
+	Query string   `json:"query"`
+	Limit int      `json:"limit,omitempty"`
+	Types []string `json:"types,omitempty"`
+	// Labels restricts results to objects carrying any of these labels
+	// (overlap, not AND). Use exactly one "instance:<uuid>" label to scope a
+	// search to one strategy instance.
+	Labels   []string `json:"labels,omitempty"`
 	MinScore float64  `json:"min_score,omitempty"`
 }
 

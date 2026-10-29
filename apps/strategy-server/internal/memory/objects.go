@@ -73,9 +73,10 @@ func (c *Client) UpdateObject(ctx context.Context, id string, req UpdateObjectRe
 }
 
 // DeleteObjectRequest is the optional payload for soft-deleting an object.
-// When Reason is set, it is recorded as a tombstone audit trail (Memory v0.41.116+).
+// When Reason is set, it is recorded as a tombstone audit trail. Memory binds
+// the field as "reason"; any other name is silently ignored.
 type DeleteObjectRequest struct {
-	Reason string `json:"delete_reason,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // DeleteObject soft-deletes an object with an optional reason.

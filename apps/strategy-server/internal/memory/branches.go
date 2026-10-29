@@ -4,7 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/google/uuid"
 )
+
+// ScenarioBranchPrefix is the name prefix of every what-if branch that belongs
+// to the given strategy instance. Scenario tools create branches under it and
+// check ownership against it; the purge deletes by it.
+func ScenarioBranchPrefix(instanceID uuid.UUID) string {
+	return "scenario-" + instanceID.String() + "-"
+}
 
 // CreateBranchRequest is the payload for creating a graph branch.
 type CreateBranchRequest struct {

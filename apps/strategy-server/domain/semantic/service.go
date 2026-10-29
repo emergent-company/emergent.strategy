@@ -5,8 +5,13 @@ package semantic
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
@@ -329,6 +334,7 @@ func (s *Service) RunScenario(ctx context.Context, instanceID, description, anch
 		return "", err
 	}
 
+	// The name carries the owner. Every other scenario operation checks it.
 	branchName := fmt.Sprintf("scenario-%s-%s", instanceID, description)
 	if len(branchName) > 100 {
 		branchName = branchName[:100]
@@ -344,16 +350,39 @@ func (s *Service) RunScenario(ctx context.Context, instanceID, description, anch
 	return branch.ID, nil
 }
 
+// ownedBranch loads a scenario branch and returns it only if it belongs to the
+// instance, judged by the branch name prefix RunScenario gives it. A branch that
+// does not exist, is not a scenario branch, or belongs to another instance all
+// produce the same ErrScenarioNotFound, so callers learn nothing about other
+// instances' branches.
+func (s *Service) ownedBranch(ctx context.Context, instanceID, scenarioID string) (*memory.Branch, error) {
+	id, err := uuid.Parse(instanceID)
+	if err != nil {
+		return nil, apperror.ErrBadRequest.WithDetail("invalid instance id")
+	}
+	branch, err := s.client.GetBranch(ctx, scenarioID)
+	if err != nil {
+		var apiErr *memory.APIError
+		if errors.As(err, &apiErr) && (apiErr.StatusCode == http.StatusNotFound || apiErr.StatusCode == http.StatusBadRequest) {
+			return nil, apperror.ErrScenarioNotFound
+		}
+		return nil, fmt.Errorf("get scenario branch: %w", err)
+	}
+	if !strings.HasPrefix(branch.Name, memory.ScenarioBranchPrefix(id)) {
+		return nil, apperror.ErrScenarioNotFound
+	}
+	return branch, nil
+}
+
 // EvaluateScenario assesses the impact of a what-if scenario on the strategy graph.
 func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID string) (map[string]any, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
 	}
 
-	// Get the branch to verify it exists.
-	branch, err := s.client.GetBranch(ctx, scenarioID)
+	branch, err := s.ownedBranch(ctx, instanceID, scenarioID)
 	if err != nil {
-		return nil, fmt.Errorf("evaluate scenario: get branch: %w", err)
+		return nil, err
 	}
 
 	// Use a branch-scoped client to list objects on the scenario branch.
@@ -381,10 +410,17 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 	}, nil
 }
 
-// CommitScenario promotes a what-if scenario's mutations into the main graph.
-// Returns the batch_id equivalent (merge result summary).
+// CommitScenario reports what merging a what-if scenario into the main graph
+// would change. It is a dry run: MergeBranchRequest has no execute flag, and
+// Memory only merges for real when the request says execute:true. A real
+// merge would copy objects of every instance into main, so it stays disabled
+// until a commit exists that merges only the instance's own objects.
+// Returns the merge result summary.
 func (s *Service) CommitScenario(ctx context.Context, scenarioID, instanceID string) (string, error) {
 	if err := s.requireClient(); err != nil {
+		return "", err
+	}
+	if _, err := s.ownedBranch(ctx, instanceID, scenarioID); err != nil {
 		return "", err
 	}
 
@@ -404,6 +440,9 @@ func (s *Service) CommitScenario(ctx context.Context, scenarioID, instanceID str
 // DiscardScenario removes a what-if scenario branch without merging.
 func (s *Service) DiscardScenario(ctx context.Context, instanceID, scenarioID string) error {
 	if err := s.requireClient(); err != nil {
+		return err
+	}
+	if _, err := s.ownedBranch(ctx, instanceID, scenarioID); err != nil {
 		return err
 	}
 	if err := s.client.DeleteBranch(ctx, scenarioID); err != nil {

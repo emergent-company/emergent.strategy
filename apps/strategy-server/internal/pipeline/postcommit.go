@@ -35,12 +35,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
-// IngestEnqueuer is implemented by the Memory ingest enqueuer — kept as an
-// interface so the handler package has no direct dependency on that package.
-type IngestEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
-
 // PostCommitPipeline holds the explicit dependencies required to run the
 // post-commit hook. All fields except RippleSvc are optional (nil-safe).
 type PostCommitPipeline struct {
@@ -50,7 +44,6 @@ type PostCommitPipeline struct {
 	VersionSvc  *version.Service
 	SkillExec   *skillexec.Executor
 	SchemaSvc   *schemadom.Service
-	Ingest      IngestEnqueuer
 	Resolver    ripple.SignalResolver
 	DB          *bun.DB // for cascade depth reads and cooldown checks
 }
@@ -180,7 +173,6 @@ func (p *PostCommitPipeline) Run(ctx context.Context, instanceID, batchID uuid.U
 		DB:     p.StrategySvc.DB(),
 		Ripple: p.RippleSvc,
 		Mem:    memClient,
-		Ingest: p.Ingest,
 		// Resolver: nil means agent-orchestrated mode (human reviews signals).
 		Resolver: p.Resolver,
 	}

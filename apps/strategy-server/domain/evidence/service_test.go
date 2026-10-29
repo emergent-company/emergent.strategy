@@ -9,6 +9,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/evidence"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark/changemarktest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 )
@@ -655,5 +656,78 @@ func TestList_LinkedArtifactFilter(t *testing.T) {
 	}
 	if len(items) != 1 {
 		t.Errorf("expected 1 item linked to fd-042, got %d", len(items))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Change marking: every evidence writer must tell the Memory projection.
+// ---------------------------------------------------------------------------
+
+func markedEvidence(t *testing.T) (*evidence.Service, uuid.UUID, string, *changemarktest.Recorder, func() changemarktest.State) {
+	t.Helper()
+	db := database.TestDB(t)
+	instID := seedInstance(t, db)
+	svc := evidence.NewService(db)
+	key, err := svc.Ingest(context.Background(), evidence.IngestRequest{
+		InstanceID: instID, Source: evidence.Source{Name: "src", Type: "survey"}, Summary: "s",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker, rec := changemarktest.New(db)
+	svc.WithChangeMarker(marker)
+	changemarktest.Reset(t, db, instID)
+	return svc, instID, key, rec, func() changemarktest.State { return changemarktest.Load(t, db, instID) }
+}
+
+func TestEvidence_IngestMarksInstance(t *testing.T) {
+	db := database.TestDB(t)
+	instID := seedInstance(t, db)
+	svc := evidence.NewService(db)
+	marker, rec := changemarktest.New(db)
+	svc.WithChangeMarker(marker)
+	if _, err := svc.Ingest(context.Background(), evidence.IngestRequest{
+		InstanceID: instID, Source: evidence.Source{Name: "src"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if s := changemarktest.Load(t, db, instID); s.Dirty == nil || rec.Count(instID) != 1 {
+		t.Errorf("Ingest must mark and notify: %+v notified=%d", s, rec.Count(instID))
+	}
+}
+
+func TestEvidence_UpdateLinkMarkProcessedMarkInstance(t *testing.T) {
+	summary := "new"
+	cases := map[string]func(*evidence.Service, uuid.UUID, string) error{
+		"Update": func(s *evidence.Service, inst uuid.UUID, key string) error {
+			return s.Update(context.Background(), inst, key, evidence.UpdateRequest{Summary: &summary})
+		},
+		"Link": func(s *evidence.Service, inst uuid.UUID, key string) error {
+			return s.Link(context.Background(), inst, key, "fd-001", "supports")
+		},
+		"MarkProcessed": func(s *evidence.Service, inst uuid.UUID, key string) error {
+			return s.MarkProcessed(context.Background(), inst, []string{key}, "assessment-1")
+		},
+	}
+	for name, call := range cases {
+		t.Run(name, func(t *testing.T) {
+			svc, instID, key, rec, state := markedEvidence(t)
+			if err := call(svc, instID, key); err != nil {
+				t.Fatal(err)
+			}
+			if s := state(); s.Dirty == nil || rec.Count(instID) != 1 {
+				t.Errorf("%s must mark and notify once: %+v notified=%d", name, s, rec.Count(instID))
+			}
+		})
+	}
+}
+
+func TestEvidence_MarkProcessedWithNoKeysDoesNotMark(t *testing.T) {
+	svc, instID, _, rec, state := markedEvidence(t)
+	if err := svc.MarkProcessed(context.Background(), instID, nil, "x"); err != nil {
+		t.Fatal(err)
+	}
+	if s := state(); s.Dirty != nil || rec.Count(instID) != 0 {
+		t.Errorf("a no-op must not mark: %+v", s)
 	}
 }

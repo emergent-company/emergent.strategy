@@ -62,12 +62,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
-// IngestEnqueuer is the interface used to trigger async Memory graph ingestion
-// after a batch is committed.
-type IngestEnqueuer interface {
-	EnqueueBatch(instanceID, batchID uuid.UUID)
-}
-
 // Services bundles all domain services used by the MCP server.
 type Services struct {
 	Workspace     *workspace.Service
@@ -86,7 +80,6 @@ type Services struct {
 	SkillRun      *skillrundom.Service     // optional — nil disables skill run observability tools
 	Heartbeat     HeartbeatService         // optional — nil disables heartbeat MCP tools
 	Resolver      rippledom.SignalResolver // optional — nil = agent-orchestrated mode
-	Ingest        IngestEnqueuer           // optional — nil when Memory is not configured
 	Orchestration orchestration.EngineAPI  // optional — nil disables orchestrator MCP tools
 	Evidence      *evidencedom.Service     // optional — nil disables evidence MCP tools
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
@@ -1046,6 +1039,12 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
+		// ImportInstance stores mutations only. Derive strategy_artifacts so the
+		// instance has current-state rows to read and to project into Memory.
+		if _, err := svc.Strategy.BackfillIndex(ctx, inst.ID); err != nil {
+			return toolErr(ctx, fmt.Errorf("scaffold: derive index: %w", err)), nil
+		}
+
 		return mustJSON(map[string]any{
 			"instance":   inst,
 			"scaffolded": true,
@@ -1095,7 +1094,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_instance",
-		mcp.WithDescription("USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance."),
+		mcp.WithDescription("USE WHEN you need to delete a strategy instance. The instance disappears immediately and cannot be restored through the API; its semantic-graph (Memory) objects and scenario branches are removed asynchronously by the ingest service, usually within seconds. Rows in the database are soft-deleted, not erased. Use archive_instance instead if you only want to hide the instance."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -1112,7 +1111,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_workspace",
-		mcp.WithDescription("USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed."),
+		mcp.WithDescription("USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
@@ -1218,8 +1217,8 @@ func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 }
 
 // commitBatchHandler commits a staged batch and runs the post-commit pipeline
-// (Memory ingestion, orchestration resume, ripple analysis, schema-warning
-// surfacing, evidence processing). Extracted from the commit_batch tool handler.
+// (orchestration resume, ripple analysis, schema-warning surfacing, evidence
+// processing). Memory ingestion is triggered by the strategy service itself. Extracted from the commit_batch tool handler.
 func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	batchID, err := parseUUID(argString(req, "batch_id"))
 	if err != nil {
@@ -1237,11 +1236,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 	n, err := svc.Strategy.CommitBatch(ctx, batchID)
 	if err != nil {
 		return toolErr(ctx, err), nil
-	}
-
-	// Enqueue async Memory ingestion for the committed batch.
-	if svc.Ingest != nil && instanceID != uuid.Nil {
-		svc.Ingest.EnqueueBatch(instanceID, batchID)
 	}
 
 	// Resume any AIM orchestration run awaiting human review for this batch.
@@ -1266,7 +1260,6 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 			VersionSvc:  svc.Version,
 			SkillExec:   svc.SkillExecutor,
 			SchemaSvc:   svc.Schema,
-			Ingest:      svc.Ingest,
 			Resolver:    svc.Resolver,
 		}
 		pResult := p.Run(ctx, instanceID, batchID)

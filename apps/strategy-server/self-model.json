@@ -702,7 +702,7 @@
     },
     {
       "name": "delete_instance",
-      "description": "USE WHEN you need to permanently delete a strategy instance and all its data (mutations, artifacts, relationships, versions, signals). This is irreversible — use archive_instance instead if you only want to hide the instance.",
+      "description": "USE WHEN you need to delete a strategy instance. The instance disappears immediately and cannot be restored through the API; its semantic-graph (Memory) objects and scenario branches are removed asynchronously by the ingest service, usually within seconds. Rows in the database are soft-deleted, not erased. Use archive_instance instead if you only want to hide the instance.",
       "category": "admin",
       "input_schema": {
         "properties": {
@@ -719,7 +719,7 @@
     },
     {
       "name": "delete_workspace",
-      "description": "USE WHEN you need to permanently delete a workspace and all its strategy instances. This is irreversible — all instances, artifacts, mutations, and history in the workspace will be removed.",
+      "description": "USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased.",
       "category": "admin",
       "input_schema": {
         "properties": {

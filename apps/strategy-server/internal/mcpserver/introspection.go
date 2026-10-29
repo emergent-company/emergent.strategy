@@ -76,7 +76,6 @@ func NewMCPServerForIntrospection() *server.MCPServer {
 		SkillRun:      &skillrundom.Service{},
 		Heartbeat:     inertHeartbeat{},
 		Resolver:      inertResolver{},
-		Ingest:        inertIngest{},
 		Orchestration: inertEngine{},
 		Evidence:      &evidencedom.Service{},
 		Activity:      &activitydom.Service{},
@@ -114,10 +113,6 @@ func (inertHeartbeat) DeferProposal(context.Context, uuid.UUID, time.Duration) (
 type inertWatchdog struct{}
 
 func (inertWatchdog) RunAny(context.Context, uuid.UUID) (any, error) { return nil, nil }
-
-type inertIngest struct{}
-
-func (inertIngest) EnqueueBatch(uuid.UUID, uuid.UUID) {}
 
 type inertResolver struct{}
 
