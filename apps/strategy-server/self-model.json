@@ -3115,7 +3115,7 @@
     },
     {
       "name": "search_strategy",
-      "description": "USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. An empty result does not mean the strategy is silent; check get_outline.",
+      "description": "USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -3124,7 +3124,11 @@
             "type": "string"
           },
           "limit": {
-            "description": "Max results (default 10)",
+            "description": "Max results (default 10, at most 25 for keyword search)",
+            "type": "string"
+          },
+          "mode": {
+            "description": "auto (default): semantic search, then keyword search if it is unavailable or finds nothing of the instance's own. semantic: Memory only. keyword: match the words in the instance's authored text only.",
             "type": "string"
           },
           "query": {

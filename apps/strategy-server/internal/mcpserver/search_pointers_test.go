@@ -56,6 +56,7 @@ func TestMCP_SearchStrategy_FiltersFrameworkAndPointsAtTheRead(t *testing.T) {
 		Artifact         string `json:"artifact"`
 		SectionSizeChars int    `json:"section_size_chars"`
 		ReadWith         string `json:"read_with"`
+		Match            string `json:"match"`
 	}
 	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "trade-offs"}).assertOK().decode(&hits)
 
@@ -65,37 +66,13 @@ func TestMCP_SearchStrategy_FiltersFrameworkAndPointsAtTheRead(t *testing.T) {
 	if strings.Contains(r.text, "framework text") || strings.Contains(r.text, "foreign text") {
 		t.Error("a framework or foreign hit leaked into the response")
 	}
+	if hits[0].Match != "semantic" {
+		t.Errorf("match = %q, want semantic", hits[0].Match)
+	}
 	if hits[0].Artifact != "strategy_formula" || hits[0].SectionSizeChars <= 0 {
 		t.Errorf("hit does not point at its section: %+v", hits[0])
 	}
 	if !strings.Contains(hits[0].ReadWith, "get_section") || !strings.Contains(hits[0].ReadWith, "strategy_formula") {
 		t.Errorf("read_with = %q", hits[0].ReadWith)
-	}
-}
-
-func TestMCP_SearchStrategy_WhenUnavailableSaysHowToReadInstead(t *testing.T) {
-	db := database.TestDB(t)
-	packSvc := pack.NewService(db)
-	instSvc := instance.NewService(db)
-	instSvc.WithPackEnsurer(packSvc)
-	svc := mcpserver.Services{
-		Workspace: workspace.NewService(db),
-		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
-		Pack:      packSvc,
-		App:       appdom.NewService(db),
-		Semantic:  semantic.NewService(semantic.Config{}),
-		Org:       orgdom.NewService(db),
-	}
-	_, id := seedInstance(t, svc, "search-off", brPayloads(t))
-	c := newMCPClient(t, svc)
-
-	r := c.call(1, "search_strategy", map[string]any{"instance_id": id.String(), "query": "anything"}).assertError()
-
-	if !strings.Contains(r.text, "get_outline") || !strings.Contains(r.text, "get_section") {
-		t.Errorf("an unavailable search should say how to find the section instead: %q", r.text)
-	}
-	if !strings.Contains(r.text, "not configured") {
-		t.Errorf("the underlying reason was lost: %q", r.text)
 	}
 }

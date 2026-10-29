@@ -1224,17 +1224,24 @@ func TestMCP_SemanticToolsUnavailable(t *testing.T) {
 	_, instID := seedInstance(t, svc, "test-org-sem-"+uuid.New().String()[:8], nil)
 	instIDStr := instID.String()
 
-	// search_strategy → should return error (Memory not configured), not panic
+	// search_strategy in semantic mode → error (Memory not configured), not panic.
 	result := c.call(id, "search_strategy", map[string]any{
 		"instance_id": instIDStr,
 		"query":       "semantic propagation",
+		"mode":        "semantic",
 	})
 	id++
-	// Memory is NOT configured → semantic tools must return isError=true.
 	if !result.isError {
-		t.Errorf("search_strategy: expected error response when Memory is not configured, got success: %s",
+		t.Errorf("search_strategy(mode=semantic): expected error response when Memory is not configured, got success: %s",
 			result.text[:min(len(result.text), 100)])
 	}
+
+	// In auto mode the same search succeeds through keyword search.
+	c.call(id, "search_strategy", map[string]any{
+		"instance_id": instIDStr,
+		"query":       "semantic propagation",
+	}).assertOK()
+	id++
 
 	// detect_contradictions → same expectation
 	result2 := c.call(id, "detect_contradictions", map[string]any{
@@ -3837,7 +3844,7 @@ func TestMCP_Scenario_ArchiveFeature(t *testing.T) {
 
 // TestMCP_Scenario_SemanticSearch covers the semantic search user journey.
 // Since Memory is not configured in tests, the scenario validates:
-//   - search_strategy degrades gracefully (returns error, not panic)
+//   - search_strategy falls back to keyword search when Memory is not configured
 //   - get_neighbors degrades gracefully
 //   - When Memory IS configured (future), results would be non-empty
 //
@@ -3854,16 +3861,19 @@ func TestMCP_Scenario_SemanticSearch(t *testing.T) {
 	})
 	instIDStr := instID.String()
 
-	// Step 1 — search_strategy: Memory unavailable → must return error, not panic
-	r1 := c.call(id, "search_strategy", map[string]any{
+	// Step 1 — search_strategy: Memory unavailable → falls back to keyword
+	// search over the instance's own text, and says so in match.
+	var hits []struct {
+		ArtifactKey string `json:"artifact_key"`
+		Match       string `json:"match"`
+	}
+	c.call(id, "search_strategy", map[string]any{
 		"instance_id": instIDStr,
 		"query":       "features targeting enterprise",
-	})
+	}).assertOK().decode(&hits)
 	id++
-	// Memory is NOT configured → semantic tools must return isError=true.
-	if !r1.isError {
-		t.Errorf("Step 1 — search_strategy: expected error when Memory unconfigured, got success: %s",
-			r1.text[:min(len(r1.text), 120)])
+	if len(hits) != 1 || hits[0].ArtifactKey != "fd-001" || hits[0].Match != "keyword" {
+		t.Errorf("Step 1 — search_strategy: want one keyword hit on fd-001, got %+v", hits)
 	}
 
 	// Step 2 — get_neighbors: same expectation
