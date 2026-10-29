@@ -24,7 +24,7 @@ func classified(class, ref string) domain.StrategyArtifact {
 	return a
 }
 
-func hasLabel(labels []string, want string) bool {
+func labelsInclude(labels []string, want string) bool {
 	for _, l := range labels {
 		if l == want {
 			return true
@@ -41,7 +41,7 @@ func TestArtifactToSubgraphObject_StampsIntegrityClass(t *testing.T) {
 	if obj.Properties["integrity_ref"] != "definitions/x.yaml@2.31.0" {
 		t.Errorf("integrity_ref = %v", obj.Properties["integrity_ref"])
 	}
-	if !hasLabel(obj.Labels, "integrity:canonical_reference") || !hasLabel(obj.Labels, "layer:artifact") {
+	if !labelsInclude(obj.Labels, "integrity:canonical_reference") || !labelsInclude(obj.Labels, "layer:artifact") {
 		t.Errorf("labels = %v", obj.Labels)
 	}
 }
