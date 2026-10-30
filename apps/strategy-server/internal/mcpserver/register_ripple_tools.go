@@ -13,7 +13,6 @@ import (
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 func registerRippleTools(s *server.MCPServer, svc Services) {
@@ -51,11 +50,7 @@ func registerRippleSignalTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, fmt.Errorf("artifact_key is required")), nil
 		}
 
-		var memClient *memory.Client
-		if svc.Semantic != nil {
-			memClient = svc.Semantic.Client()
-		}
-		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), memClient, instID, artifactKey, artifactType)
+		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), ripple.GraphFor(svc.Semantic, instID), instID, artifactKey, artifactType)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -117,11 +112,7 @@ func registerRippleSignalTools(s *server.MCPServer, svc Services) {
 		}
 
 		// Run semantic analysis if Memory is available.
-		var memClient *memory.Client
-		if svc.Semantic != nil {
-			memClient = svc.Semantic.Client()
-		}
-		analyzer := ripple.NewSemanticAnalyzer(memClient, svc.Strategy.DB())
+		analyzer := ripple.NewSemanticAnalyzer(ripple.GraphFor(svc.Semantic, instID), svc.Strategy.DB())
 		if analyzer != nil {
 			semanticSignals := analyzer.FullSemanticAnalysis(ctx, instID)
 			if len(semanticSignals) > 0 {
@@ -524,13 +515,10 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 	}
 
 	// Run structural ripple analysis for each changed artifact.
-	var rippleMemClient *memory.Client
-	if svc.Semantic != nil {
-		rippleMemClient = svc.Semantic.Client()
-	}
+	graph := ripple.GraphFor(svc.Semantic, instanceID)
 	var allNewSignals []*domain.RippleSignal
 	for _, key := range changedKeys {
-		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), rippleMemClient, instanceID, key, "")
+		report, err := ripple.AnalyzeStructuralRipple(ctx, svc.Strategy.DB(), graph, instanceID, key, "")
 		if err != nil {
 			slog.WarnContext(ctx, "ripple: structural analysis failed", "key", key, "error", err)
 			continue
@@ -540,11 +528,7 @@ func postCommitRippleAnalysis(ctx context.Context, svc Services, instanceID, bat
 	}
 
 	// Semantic change classification (async-safe, non-blocking).
-	var memClient *memory.Client
-	if svc.Semantic != nil {
-		memClient = svc.Semantic.Client()
-	}
-	analyzer := ripple.NewSemanticAnalyzer(memClient, svc.Strategy.DB())
+	analyzer := ripple.NewSemanticAnalyzer(graph, svc.Strategy.DB())
 
 	// Load ripple config for classification thresholds.
 	cfg := ripple.DefaultRippleConfig()

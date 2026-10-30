@@ -671,7 +671,7 @@ func TestConvergence_StructuralFallback_MemoryUnavailable_LoopRuns(t *testing.T)
 	convSvc := ripple.ConvergenceServices{
 		DB:     db,
 		Ripple: rippleSvc,
-		Mem:    nil, // explicitly nil — no semantic analyzer
+		Graph:  nil, // explicitly nil — no semantic analyzer
 	}
 	summary := ripple.RunConvergenceLoop(ctx, instID, nil, cfg, convSvc)
 

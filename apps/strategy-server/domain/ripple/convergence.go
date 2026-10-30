@@ -9,7 +9,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // ConvergenceSummary is the result of a convergence loop run.
@@ -32,7 +31,7 @@ type ConvergenceSummary struct {
 type ConvergenceServices struct {
 	DB       *bun.DB
 	Ripple   *Service
-	Mem      *memory.Client
+	Graph    Graph          // optional; nil disables semantic analysis
 	Resolver SignalResolver // optional — nil = agent-orchestrated mode (detection only)
 	// CommitAutoFn writes a resolved fix as an autonomous mutation and derives the index.
 	// When nil, auto-commits are disabled even if Resolver produces fixes.
@@ -104,7 +103,7 @@ func RunConvergenceLoop(ctx context.Context, instanceID uuid.UUID, triggerBatchI
 		newSignals := GenerateSignalsFromRipple(instanceID, report)
 
 		// Run semantic analysis if Memory is available.
-		analyzer := NewSemanticAnalyzer(svc.Mem, svc.DB)
+		analyzer := NewSemanticAnalyzer(svc.Graph, svc.DB)
 		if analyzer != nil {
 			semanticSignals := analyzer.FullSemanticAnalysisWithConfig(ctx, instanceID, cfg)
 			newSignals = append(newSignals, semanticSignals...)

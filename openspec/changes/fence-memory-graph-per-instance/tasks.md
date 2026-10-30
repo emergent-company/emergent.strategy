@@ -117,20 +117,22 @@ and the pilot hit the confusion they prevent.
 - [x] 3.1 `ManifestSource` interface in `domain/semantic` (`HasManifest`,
       `Visible(keys)` and `VisibleRelationships(tuples)`, each one `key = ANY(?)` query), implemented in
       `domain/ingest`; wire in `cmd_serve.go`.
-- [ ] 3.2 Private scope helper: visibility rule (label `instance:<X>`,
+- [x] 3.2 (`domain/semantic/scope.go`; not-ready is `semantic.ErrGraphNotReady`, which the MCP tools answer
+      as an empty result with `graph_not_ready` and a hint, and `search_strategy` in auto mode answers
+      with keyword search) Private scope helper: visibility rule (label `instance:<X>`,
       `instance_id == X`, key in manifest; relationships by endpoints and tuple),
       debug count of dropped items, `graph_not_ready` without a manifest.
-- [ ] 3.3 `SearchStrategy`: send exactly one label `instance:<X>`; over-fetch
+- [x] 3.3 `SearchStrategy`: send exactly one label `instance:<X>`; over-fetch
       (`limit × 2`, cap 100), filter, trim. Add `instance_id`, `layer`,
       `source_artifact` to `SearchResult`. Keep dropping hits with a framework
       `integrity_class` and keep reporting the count (`ExcludedFramework` today);
       the label filter cannot exclude, so this stays a server-side filter after
       the over-fetch (design Decision 3; test 9.30).
-- [ ] 3.4 `GetNeighbors`: scope the caller key, not-found for invisible root,
+- [x] 3.4 `GetNeighbors`: scope the caller key, not-found for invisible root,
       filter expansion.
-- [ ] 3.5 `DetectContradictions`: list by `instance:<uuid>` + `layer:artifact`,
+- [x] 3.5 `DetectContradictions`: list by `instance:<uuid>` + `layer:artifact`,
       filter.
-- [ ] 3.6 Move lifecycle `enrichWithSemantics` (`internal/mcpserver/lifecycle.go:154`)
+- [x] 3.6 Move lifecycle `enrichWithSemantics` (`internal/mcpserver/lifecycle.go:154`)
       into a semantic-service method using the scope helper. Its North Star
       lookup uses the key `Artifact:READY/00_north_star.yaml`, which ingest has
       never written, so "vision connected" is probably always false today.
@@ -139,15 +141,16 @@ and the pilot hit the confusion they prevent.
       `READY/00_north_star`. Look up by artifact type `north_star` within the
       instance rather than by a guessed key. Add a test with a scaffolded and an
       imported instance.
-- [ ] 3.6b Ripple (design Decision 3, "Ripple is a reader too"): add
+- [x] 3.6b Ripple (design Decision 3, "Ripple is a reader too"): add
       `semantic.ScopedGraph(instanceID)`; make `domain/ripple`
       (`SemanticAnalyzer`, `AnalyzeStructuralRipple`, tension, vertical)
       depend on its interface instead of `*memory.Client`; update the callers
       in `internal/pipeline/postcommit.go`, `register_ripple_tools.go` and
       `convergence.go`.
-- [ ] 3.7 Settings page: per-instance counts from the instance row; drop the
+- [x] 3.7 Settings page: per-instance counts from the instance row; drop the
       project-wide `CountArtifactObjects` display.
-- [ ] 3.8 Architecture test: only `domain/semantic`, `domain/ingest` and the
+- [x] 3.8 (`domain/semantic/architecture_test.go`; the sweep is not written yet and joins the allow-list
+      when it is; `cmd_*.go` is allowed because commands wire the clients) Architecture test: only `domain/semantic`, `domain/ingest` and the
       sweep may call `internal/memory` read methods (no exemptions; ripple goes
       through 3.6b), and every `Search` call sets exactly one `instance:` label.
 
@@ -229,9 +232,9 @@ and the pilot hit the confusion they prevent.
 
 ## 9. Tests (written first; map to #99 acceptance criteria)
 
-- [ ] 9.1 Two instances with shared canonical keys: no read for A returns or
+- [x] 9.1 Two instances with shared canonical keys: no read for A returns or
       counts B's objects (AC1). Search, neighbours, contradictions, lifecycle.
-- [ ] 9.2 Objects without `instance_id` are never returned (AC2).
+- [x] 9.2 Objects without `instance_id` are never returned (AC2).
 - [ ] 9.3 Import removing an artifact: none of its objects visible after the
       triggered ingest, no restart (AC3).
 - [ ] 9.4 Import changing an artifact: new content visible, old not (AC4).
@@ -247,10 +250,10 @@ and the pilot hit the confusion they prevent.
       added only by the failed attempt invisible.
 - [x] 9.11 Two concurrent `InstanceChanged` for one instance: serialised,
       generation strictly increasing.
-- [ ] 9.12 Lifecycle mode of A independent of B (AC10).
-- [ ] 9.13 `search_strategy` returns `instance_id`, `layer`, `source_artifact`
+- [x] 9.12 Lifecycle mode of A independent of B (AC10).
+- [x] 9.13 `search_strategy` returns `instance_id`, `layer`, `source_artifact`
       (AC11); `limit` filled when foreign hits dominate.
-- [ ] 9.14 `graph_not_ready` for an instance without a manifest.
+- [x] 9.14 `graph_not_ready` for an instance without a manifest.
 - [ ] 9.15 Sweep: dry run deletes nothing and reports per class; apply deletes
       them and skips a locked instance and an instance without a manifest.
 - [x] 9.16 CLI import writes stamped objects only.
@@ -269,18 +272,18 @@ and the pilot hit the confusion they prevent.
       unlock does not return a locked connection to the pool.
 - [x] 9.25 Second replica: an ingest that finds the instance clean and already
       ingested does no Memory writes.
-- [ ] 9.26 Ripple classification after keys are prefixed: the semantic analyser
+- [x] 9.26 Ripple classification after keys are prefixed: the semantic analyser
       still finds the changed artifact in its own search results, and never sees
       another instance's objects.
-- [ ] 9.27 Lifecycle "vision connected" is true for a scaffolded instance and for
+- [x] 9.27 Lifecycle "vision connected" is true for a scaffolded instance and for
       an imported one, and false when only another instance has a North Star.
 - [x] 9.28 Decomposed objects of an unmodified template carry `integrity_class`
       and `integrity:<class>`, equal to their artifact's; objects of an authored
       artifact carry neither.
 - [x] 9.29 A template edited into authored content, then re-ingested: no object
       of it carries a marking, and search returns it.
-- [ ] 9.30 Search over authored and framework objects (artifact and decomposed
+- [x] 9.30 Search over authored and framework objects (artifact and decomposed
       layers): framework hits are dropped and counted, authored hits are
       returned, and the over-fetch still fills the page.
-- [ ] 9.31 Architecture check: the scoped search path applies the framework
+- [x] 9.31 Architecture check: the scoped search path applies the framework
       filter (a mock Memory returning a flagged hit must not surface it).

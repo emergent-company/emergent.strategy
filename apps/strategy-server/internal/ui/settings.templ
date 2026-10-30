@@ -44,7 +44,6 @@ type MemoryHealthStatus struct {
 	ProjectID          string // configured project ID
 	Version            string // server version from health check
 	Error              string // last error message (empty if healthy)
-	TotalGraphObjects  int    // total artifact objects in the Memory graph (0 if unavailable)
 }
 
 // InstanceMemoryStatus tracks the ingest state of a single strategy instance.
@@ -252,9 +251,6 @@ EPF_MEMORY_AUTH_MODE=api-key</pre>
 			@settingsKV(langs.T(ctx, "settings.memory.kv.project_id"), m.ProjectID)
 			if m.Version != "" {
 				@settingsKV(langs.T(ctx, "settings.memory.kv.server_version"), m.Version)
-			}
-			if m.TotalGraphObjects > 0 {
-				@settingsKV(langs.T(ctx, "settings.memory.kv.graph_objects"), fmt.Sprintf("%d", m.TotalGraphObjects))
 			}
 			if m.Error != "" {
 				<div class="sm:col-span-2">
