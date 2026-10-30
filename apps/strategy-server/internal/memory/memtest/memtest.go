@@ -33,6 +33,9 @@ type Server struct {
 	FailUpsertKeys map[string]bool
 	// OnUpsert, if set, runs after each successful object upsert, outside the lock.
 	OnUpsert func(key string)
+	// Version is reported by /health. Empty omits the field, as old Memory
+	// versions do.
+	Version string
 }
 
 // Request is one recorded call.
@@ -187,7 +190,11 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case path == "/health":
-		writeJSON(w, map[string]any{"status": "healthy", "timestamp": "2026-01-01T00:00:00Z", "uptime": "1s"})
+		resp := map[string]any{"status": "healthy", "timestamp": "2026-01-01T00:00:00Z", "uptime": "1s"}
+		if s.Version != "" {
+			resp["version"] = s.Version
+		}
+		writeJSON(w, resp)
 	case path == "/api/graph/objects/upsert" && r.Method == http.MethodPut:
 		s.upsertObject(w, body)
 	case path == "/api/graph/objects/search" && r.Method == http.MethodGet:

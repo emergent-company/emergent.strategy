@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/config"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
@@ -19,7 +19,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/epfimport"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
@@ -154,34 +153,8 @@ func runImport(cfg *config.Config) error {
 		})
 		if err != nil {
 			slog.Warn("ingest: failed to create Memory client, skipping", "err", err)
-		} else {
-			// Layer 1: Flat artifacts (label: layer:artifact).
-			// These are the direct YAML-file-level objects that MCP tools reference.
-			ingestSvc := ingest.NewService(db, memClient)
-			if err := ingestSvc.ReingestInstance(ctx, inst.ID); err != nil {
-				slog.Warn("ingest: flat artifact layer failed", "err", err)
-			}
-
-			// Layer 2: Decomposed sub-entities (label: layer:decomposed).
-			// These provide fine-grained search and graph traversal.
-			absPath, _ := filepath.Abs(imp.InstancePath)
-			dObjs, dEdges, dErr := ingestDecomposed(ctx, memClient, absPath, inst.ID.String())
-			if dErr != nil {
-				slog.Warn("ingest: decomposed layer failed", "err", dErr)
-			} else {
-				// Write decomposed counts back to the instance row so the
-				// settings page shows accurate numbers.
-				now := time.Now()
-				if _, dbErr := db.NewUpdate().
-					TableExpr("strategy_instances").
-					Set("memory_decomposed_object_count = ?", dObjs).
-					Set("memory_decomposed_edge_count = ?", dEdges).
-					Set("updated_at = ?", now).
-					Where("id = ?", inst.ID).
-					Exec(ctx); dbErr != nil {
-					slog.Warn("ingest: failed to update decomposed counts", "err", dbErr)
-				}
-			}
+		} else if err := newImportIngester(db, memClient).ReingestInstance(ctx, inst.ID); err != nil {
+			slog.Warn("ingest: Memory graph is not up to date; the instance stays dirty and a running server retries", "err", err)
 		}
 	}
 
@@ -238,6 +211,15 @@ func resolveImportOrg(ctx context.Context, orgSvc *org.Service, imp config.Impor
 	return orgSvc.GetOrCreate(ctx, imp.GithubOwner, callerID)
 }
 
+// newImportIngester builds the ingest service the import command uses. It is
+// wired like the server's, so an import writes the same stamped objects of both
+// layers and records the same manifest.
+func newImportIngester(db *bun.DB, client *memory.Client) *ingest.Service {
+	svc := ingest.NewService(db, client)
+	svc.SetExporter(&strategyExporterAdapter{svc: strategysvc.NewService(db)})
+	return svc
+}
+
 // extractNorthStarOrg extracts the organization name from a north_star artifact payload.
 func extractNorthStarOrg(payloads map[string]any) string {
 	nsRaw, ok := payloads["north_star"]
@@ -259,80 +241,4 @@ func extractNorthStarOrg(payloads map[string]any) string {
 		return name
 	}
 	return ""
-}
-
-// ingestDecomposed runs the epf-cli decomposer on the instance directory and
-// upserts the resulting graph objects and relationships into Memory.
-// This produces a fine-grained graph (beliefs, trends, personas, capabilities,
-// value model components, etc.) instead of one flat object per YAML file.
-func ingestDecomposed(ctx context.Context, client *memory.Client, instancePath, instanceID string) (int, int, error) {
-	d := decompose.New(instancePath)
-	result, err := d.DecomposeInstance()
-	if err != nil {
-		return 0, 0, fmt.Errorf("decompose: %w", err)
-	}
-
-	for _, w := range result.Warnings {
-		slog.Warn("decompose warning", "msg", w)
-	}
-
-	slog.Info("decompose: complete",
-		"objects", len(result.Objects),
-		"relationships", len(result.Relationships))
-
-	// Upsert all graph objects and build a key -> ID index.
-	keyToID := make(map[string]string, len(result.Objects))
-	upserted, upsertFailed := 0, 0
-	for _, obj := range result.Objects {
-		// Merge decomposer labels with the layer:decomposed label.
-		labels := append(obj.Labels, "layer:decomposed")
-		created, err := client.UpsertObject(ctx, memory.UpsertObjectRequest{
-			Type:       obj.Type,
-			Key:        obj.Key,
-			Status:     obj.Status,
-			Labels:     labels,
-			Properties: obj.Properties,
-		})
-		if err != nil {
-			slog.Debug("decompose: upsert failed", "key", obj.Key, "err", err)
-			upsertFailed++
-			continue
-		}
-		keyToID[obj.Key] = created.StableID()
-		upserted++
-	}
-	slog.Info("decompose: objects upserted", "upserted", upserted, "failed", upsertFailed)
-
-	// Create relationships using the key index.
-	relCreated, relSkipped := 0, 0
-	for _, rel := range result.Relationships {
-		fromID, ok1 := keyToID[rel.FromKey]
-		toID, ok2 := keyToID[rel.ToKey]
-		if !ok1 || !ok2 {
-			relSkipped++
-			continue
-		}
-
-		props := rel.Properties
-		if props == nil {
-			props = map[string]any{}
-		}
-		props["instance_id"] = instanceID
-
-		_, err := client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
-			Type:       rel.Type,
-			FromID:     fromID,
-			ToID:       toID,
-			Properties: props,
-		})
-		if err != nil {
-			slog.Debug("decompose: relationship failed",
-				"type", rel.Type, "from", rel.FromKey, "to", rel.ToKey, "err", err)
-			continue
-		}
-		relCreated++
-	}
-	slog.Info("decompose: relationships created", "created", relCreated, "skipped", relSkipped)
-
-	return upserted, relCreated, nil
 }

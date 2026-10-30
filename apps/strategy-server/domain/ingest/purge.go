@@ -28,7 +28,7 @@ func (s *Service) PurgeInstance(ctx context.Context, instanceID uuid.UUID) error
 
 // purgeLocked deletes every object carrying the instance's owner label (single
 // deletes, which also remove the objects' relationships) and every scenario
-// branch of the instance, then records memory_purged_at. An instance that was
+// branch of the instance, deletes the manifest rows, then records memory_purged_at. An instance that was
 // never synced needs no Memory calls. Any failure returns an error and leaves
 // the purge owed; the heartbeat retries it.
 func (s *Service) purgeLocked(ctx context.Context, instanceID uuid.UUID) error {
@@ -69,6 +69,9 @@ func (s *Service) purgeLocked(ctx context.Context, instanceID uuid.UUID) error {
 		}
 	}
 
+	if _, err := s.db.NewRaw(`DELETE FROM memory_projection WHERE instance_id = ?`, instanceID).Exec(ctx); err != nil {
+		return fmt.Errorf("purge %s: delete manifest: %w", instanceID, err)
+	}
 	if _, err := s.db.NewUpdate().
 		TableExpr("strategy_instances").
 		Set("memory_purged_at = ?", time.Now().UTC()).

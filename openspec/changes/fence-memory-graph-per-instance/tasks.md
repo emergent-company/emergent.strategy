@@ -74,15 +74,17 @@ and the pilot hit the confusion they prevent.
 ## 2. Track A: write side (ingest)
 
 - [x] 2.1 (analysis) Minimum emergent.memory version: v0.85.0 (design risk 1).
-- [ ] 2.1b Log the Memory version at startup (`HealthDetailed` already returns
-      it) and warn when it is below v0.85.0. Put the minimum in the runbook.
-- [ ] 2.2 Per-instance advisory lock helper (`pg_advisory_lock` on a dedicated
+- [x] 2.1b Log the Memory version at startup (`HealthDetailed` already returns
+      it) and warn when it is below v0.85.0 (`memory.Client.CheckVersion`, called
+      from `setupSemantic`). Put the minimum in the runbook (still open: slice 2
+      runbook).
+- [x] 2.2 (re-checked in slice 2; tests 9.24 pass unchanged) Per-instance advisory lock helper (`pg_advisory_lock` on a dedicated
       `db.Conn`, key derived from the instance UUID), with `TryLock` for the
       sweep. Unlock explicitly; on unlock failure discard the connection instead
       of returning it to the pool (design Decision 2, step 1). Test that a
       second helper call for the same instance blocks until the first releases,
       and that a failed unlock does not leak the lock.
-- [ ] 2.3 Rewrite `ReingestInstance` + `ReingestInstanceDecomposed` as one
+- [x] 2.3 Rewrite `ReingestInstance` + `ReingestInstanceDecomposed` as one
       manifest ingest (design Decision 2, steps 1–7): compute the manifest from
       the export, write both layers stamped per Decision 1, abort without
       touching the manifest on any write failure, replace manifest + generation
@@ -93,21 +95,22 @@ and the pilot hit the confusion they prevent.
       (design Decision 1, "Integrity stamp"; tests 9.28 and 9.29).
       Objects whose key `ingest.IsShortened` store the original key in property
       `source_key`.
-- [ ] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
+- [x] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
       keys only; remove the `objectKeyIndex` prefix heuristics that assumed
       unscoped keys. GC resolves a removed relationship's Memory ID through
       `ObjectEdges` on the source object and deletes with the existing
       `DeleteRelationship` (design risk 3, decided).
-- [ ] 2.5 Remove `ingestBatch`, `upsertGraphObject`, `deleteGraphObject` and
+- [x] 2.5 (removals and coalescing were done in slice 1; slice 2 adds the manifest
+      check: a clean, hash-matching instance without a manifest is still ingested) Remove `ingestBatch`, `upsertGraphObject`, `deleteGraphObject` and
       `EnqueueBatch`. Replace with `InstanceChanged(ctx, instanceID)` plus
       per-instance coalescing (one in flight, one "dirty again" bit). After
       taking the advisory lock, skip the ingest if the instance is clean and
       already ingested (design Decision 2, step 1).
-- [ ] 2.6 `cmd_import.go`: delete `ingestDecomposed`; wire the exporter
+- [x] 2.6 `cmd_import.go`: delete `ingestDecomposed`; wire the exporter
       (`SetExporter`, as `cmd_serve.go:122`) and call the fenced ingest. Move any
       logic left in `cmd_import.go` into `domain/` (no business logic in
       commands).
-- [ ] 2.7 Fix `delete_reason` → `reason` in `internal/memory/objects.go:78`.
+- [x] 2.7 Fix `delete_reason` → `reason` in `internal/memory/objects.go:78`.
 
 ## 3. Track B: read side (semantic)
 
@@ -235,14 +238,14 @@ and the pilot hit the confusion they prevent.
 - [ ] 9.5 `restore_version`: reads reflect the restored version only (AC5).
 - [ ] 9.6 `commit_batch` changing a North Star value updates decomposed
       `Belief` objects (AC6).
-- [ ] 9.7 Ingest of A never modifies or hides B's object with the same
+- [x] 9.7 Ingest of A never modifies or hides B's object with the same
       artifact key (AC7).
 - [ ] 9.8 Delete instance: objects, relationships, branches gone; restart does
       not bring them back (AC8).
 - [ ] 9.9 Dropped job: instance stays dirty; heartbeat converges it (AC9).
-- [ ] 9.10 Failed ingest: manifest unchanged, instance still dirty, objects
+- [x] 9.10 Failed ingest: manifest unchanged, instance still dirty, objects
       added only by the failed attempt invisible.
-- [ ] 9.11 Two concurrent `InstanceChanged` for one instance: serialised,
+- [x] 9.11 Two concurrent `InstanceChanged` for one instance: serialised,
       generation strictly increasing.
 - [ ] 9.12 Lifecycle mode of A independent of B (AC10).
 - [ ] 9.13 `search_strategy` returns `instance_id`, `layer`, `source_artifact`
@@ -250,8 +253,8 @@ and the pilot hit the confusion they prevent.
 - [ ] 9.14 `graph_not_ready` for an instance without a manifest.
 - [ ] 9.15 Sweep: dry run deletes nothing and reports per class; apply deletes
       them and skips a locked instance and an instance without a manifest.
-- [ ] 9.16 CLI import writes stamped objects only.
-- [ ] 9.17 Re-ingest with no artifact change sends no property or label change
+- [x] 9.16 CLI import writes stamped objects only.
+- [x] 9.17 Re-ingest with no artifact change sends no property or label change
       to Memory (mock asserts every upsert payload equals the previous one).
 - [ ] 9.18 Instance creation with a colliding key prefix gets a new UUID.
 - [ ] 9.19 Change arriving during an ingest: the instance is still dirty after
@@ -262,19 +265,19 @@ and the pilot hit the confusion they prevent.
       `discard`): responds as not found; branch untouched.
 - [ ] 9.22 `commit_scenario` sends no `execute: true` to Memory.
 - [ ] 9.23 `DeleteWorkspace` purges the graph data of each of its instances.
-- [ ] 9.24 Advisory lock helper: second caller blocks until release; a failed
+- [x] 9.24 Advisory lock helper: second caller blocks until release; a failed
       unlock does not return a locked connection to the pool.
-- [ ] 9.25 Second replica: an ingest that finds the instance clean and already
+- [x] 9.25 Second replica: an ingest that finds the instance clean and already
       ingested does no Memory writes.
 - [ ] 9.26 Ripple classification after keys are prefixed: the semantic analyser
       still finds the changed artifact in its own search results, and never sees
       another instance's objects.
 - [ ] 9.27 Lifecycle "vision connected" is true for a scaffolded instance and for
       an imported one, and false when only another instance has a North Star.
-- [ ] 9.28 Decomposed objects of an unmodified template carry `integrity_class`
+- [x] 9.28 Decomposed objects of an unmodified template carry `integrity_class`
       and `integrity:<class>`, equal to their artifact's; objects of an authored
       artifact carry neither.
-- [ ] 9.29 A template edited into authored content, then re-ingested: no object
+- [x] 9.29 A template edited into authored content, then re-ingested: no object
       of it carries a marking, and search returns it.
 - [ ] 9.30 Search over authored and framework objects (artifact and decomposed
       layers): framework hits are dropped and counted, authored hits are

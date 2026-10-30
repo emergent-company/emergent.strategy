@@ -116,13 +116,12 @@ part. Section 5 follows 2 and 3.
       value-model tools serve non-template content or framework content on
       purpose). Original text: single-artifact reads return a structured not-defined result for an
       unmodified template, with the reason.
-- [~] 4.3 Ingest stamps property `integrity_class` and label on artifact-level
-      Memory objects (done, tested). Decomposed objects are NOT stamped yet: that
-      needs a source-file to class mapping through the exporter path. Now
-      required by the fence change (task 2.3, tests 9.28 and 9.29), which rewrites
-      that path; the same class as the source artifact row is used. Original:
-      ingest stamps property `integrity_class` and label
-      `integrity:<class>` on Memory objects, including decomposed objects.
+- [x] 4.3 Ingest stamps property `integrity_class` and label `integrity:<class>` on
+      artifact-level and decomposed Memory objects. A decomposed object takes the
+      class of the exported file(s) it derives from, found through its
+      `source_artifact` property and the artifact nodes that contain it; it is
+      stamped only when every source is classified, so one authored source makes it
+      authored content. Done in the fence cutover (tests 9.28, 9.29).
 - [x] 4.4 Search exclusion (interim, done): `SearchStrategyScoped` over-fetches and
       drops hits whose `integrity_class` is framework and hits whose `instance_id`
       names another instance; hits without either property cannot be filtered

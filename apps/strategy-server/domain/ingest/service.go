@@ -12,15 +12,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
 
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/decompose"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
@@ -40,15 +37,10 @@ type ExportResult struct {
 // ExportFile is one artifact YAML file.
 type ExportFile struct {
 	RelPath string
-	Content string
-}
-
-// syncResult holds counts to write back to the DB after a successful ingest.
-type syncResult struct {
-	objectCount           int
-	edgeCount             int
-	decomposedObjectCount int
-	decomposedEdgeCount   int
+	// ArtifactKey names the artifact row the file was exported from, so an
+	// object decomposed from the file can take that artifact's integrity class.
+	ArtifactKey string
+	Content     string
 }
 
 // Service projects strategy artifacts into the Memory graph.
@@ -152,19 +144,20 @@ func (s *Service) EnqueueAllInstances(ctx context.Context, db *bun.DB, log logge
 }
 
 // staleInstances returns active instances that need an ingest: dirty for longer
-// than grace, never ingested (NULL hash), or hash different from the current
-// artifacts.
+// than grace, without a manifest, never ingested (NULL hash), or hash different
+// from the current artifacts.
 func (s *Service) staleInstances(ctx context.Context, db *bun.DB, grace time.Duration) ([]uuid.UUID, error) {
 	type row struct {
 		ID          uuid.UUID  `bun:"id"`
 		Dirty       *time.Time `bun:"memory_dirty_since"`
 		ContentHash *string    `bun:"memory_content_hash"`
+		Generation  int64      `bun:"memory_generation"`
 		CurrentHash string     `bun:"current_hash"`
 	}
 	var rows []row
 	err := db.NewSelect().
 		TableExpr("strategy_instances AS si").
-		ColumnExpr("si.id, si.memory_dirty_since, si.memory_content_hash").
+		ColumnExpr("si.id, si.memory_dirty_since, si.memory_content_hash, si.memory_generation").
 		ColumnExpr(`COALESCE((
 			SELECT md5(string_agg(a.artifact_key || ':' || a.payload::text, '|' ORDER BY a.artifact_key))
 			FROM strategy_artifacts a
@@ -186,6 +179,8 @@ func (s *Service) staleInstances(ctx context.Context, db *bun.DB, grace time.Dur
 	for _, r := range rows {
 		switch {
 		case r.Dirty != nil && !r.Dirty.After(cutoff):
+			ids = append(ids, r.ID)
+		case r.Generation < 1:
 			ids = append(ids, r.ID)
 		case r.ContentHash == nil || *r.ContentHash != r.CurrentHash:
 			ids = append(ids, r.ID)
@@ -309,13 +304,14 @@ type ingestState struct {
 	Status  string     `bun:"status"`
 	Dirty   *time.Time `bun:"memory_dirty_since"`
 	Seq     int64      `bun:"memory_change_seq"`
+	Gen     int64      `bun:"memory_generation"`
 	Hash    *string    `bun:"memory_content_hash"`
 }
 
 func (s *Service) loadState(ctx context.Context, id uuid.UUID) (*ingestState, error) {
 	var st ingestState
 	err := s.db.NewRaw(`SELECT deleted_at IS NOT NULL AS deleted, status, memory_dirty_since,
-			memory_change_seq, memory_content_hash
+			memory_change_seq, memory_generation, memory_content_hash
 		FROM strategy_instances WHERE id = ?`, id).Scan(ctx, &st)
 	if err != nil {
 		return nil, fmt.Errorf("load instance state %s: %w", id, err)
@@ -343,7 +339,7 @@ func (s *Service) processInstance(ctx context.Context, id uuid.UUID) error {
 	if st.Status == "archived" {
 		return nil
 	}
-	if st.Dirty == nil && st.Hash != nil {
+	if st.Dirty == nil && st.Hash != nil && st.Gen >= 1 {
 		current, err := s.computeContentHash(ctx, id)
 		if err == nil && current == *st.Hash {
 			return nil
@@ -381,13 +377,19 @@ func ownerLabel(instanceID uuid.UUID) string {
 	return "instance:" + instanceID.String()
 }
 
-// ingestLocked writes every non-archived artifact and relationship of the
-// instance to Memory, then removes objects the instance no longer has. The
-// caller holds the instance lock.
+// ingestLocked brings the instance's slice of the Memory graph in line with
+// Postgres. The caller holds the instance lock. It:
 //
-// The change sequence and content hash are read before the artifacts, so a
-// change that lands during the ingest leaves the instance dirty. Any failed
-// write returns an error and leaves the instance dirty.
+//  1. computes the whole projection (both layers, all relationships) from
+//     Postgres, writing nothing yet;
+//  2. upserts every object and relationship; any failure returns an error
+//     before the manifest is touched, so the previous projection stays in force;
+//  3. replaces the manifest, bumps the generation and clears the dirty flag only
+//     if no change arrived since the sequence was read, in one transaction;
+//  4. removes what the instance owns in Memory but no longer projects.
+//
+// Nothing per-ingest is written onto Memory objects: unchanged objects are
+// no-ops there, so a repeat ingest creates no versions and no embeddings.
 func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *ingestState) error {
 	seq0 := st.Seq
 	hash0, err := s.computeContentHash(ctx, instanceID)
@@ -400,79 +402,145 @@ func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *in
 		Model(&artifacts).
 		Where("instance_id = ?", instanceID).
 		Where("status != ?", domain.ArtifactStatusArchived).
+		OrderExpr("artifact_key").
 		Scan(ctx); err != nil {
 		return fmt.Errorf("load artifacts: %w", err)
 	}
-	slog.Info("ingest: ingesting instance", "instance_id", instanceID, "artifact_count", len(artifacts))
-
-	owner := ownerLabel(instanceID)
-	upsertReqs := make([]memory.UpsertObjectRequest, 0, len(artifacts))
-	artifactKeys := make(map[string]bool, len(artifacts))
-	for _, a := range artifacts {
-		obj := artifactToSubgraphObject(a, "")
-		artifactKeys[obj.Key] = true
-		upsertReqs = append(upsertReqs, memory.UpsertObjectRequest{
-			Type:       obj.Type,
-			Key:        obj.Key,
-			Status:     obj.Status,
-			Labels:     append(obj.Labels, owner),
-			Properties: obj.Properties,
-		})
-	}
-
-	bulk, err := s.client.BulkUpsertObjects(ctx, upsertReqs, 8)
-	if err != nil {
-		return fmt.Errorf("bulk upsert artifacts: %w", err)
-	}
-	if bulk.Failed > 0 {
-		return fmt.Errorf("ingest %s: %d of %d artifact upserts failed", instanceID, bulk.Failed, len(upsertReqs))
-	}
-
-	keyIdx := newObjectKeyIndex()
-	for key, id := range bulk.KeyToID {
-		keyIdx.add(key, id)
-	}
-	for _, a := range artifacts {
-		if i := strings.Index(a.ArtifactKey, "_"); i > 0 {
-			if id, ok := bulk.KeyToID[a.ArtifactKey]; ok {
-				if _, exists := keyIdx.exact[a.ArtifactKey[:i]]; !exists {
-					keyIdx.add(a.ArtifactKey[:i], id)
-				}
-			}
-		}
-	}
-
 	var rels []domain.StrategyRelationship
 	if err := s.db.NewSelect().
 		Model(&rels).
 		Where("instance_id = ?", instanceID).
+		OrderExpr("source_key, target_key, relationship").
 		Scan(ctx); err != nil {
 		return fmt.Errorf("load relationships: %w", err)
 	}
-	if failed := s.upsertRelationshipsIndexed(ctx, instanceID, rels, keyIdx); failed > 0 {
-		return fmt.Errorf("ingest %s: %d of %d relationship upserts failed", instanceID, failed, len(rels))
-	}
+	slog.Info("ingest: ingesting instance", "instance_id", instanceID, "artifact_count", len(artifacts))
 
-	res := s.countIngested(ctx, instanceID)
-	var decomposedKeys map[string]bool
-	if s.exporter != nil {
-		d, dErr := s.ingestDecomposed(ctx, instanceID)
-		if dErr != nil {
-			slog.Warn("ingest: decomposed layer failed (non-fatal)", "instance_id", instanceID, "err", dErr)
-		} else {
-			res.decomposedObjectCount = d.objects
-			res.decomposedEdgeCount = d.edges
-			decomposedKeys = d.keys
+	proj := artifactProjection(instanceID, artifacts, rels)
+	decomposed := s.exporter != nil
+	if decomposed {
+		classOf := make(map[string]fileClass, len(artifacts))
+		for _, a := range artifacts {
+			if a.IntegrityClass != nil && *a.IntegrityClass != "" {
+				fc := fileClass{class: *a.IntegrityClass}
+				if a.IntegrityRef != nil {
+					fc.ref = *a.IntegrityRef
+				}
+				classOf[a.ArtifactKey] = fc
+			}
 		}
+		res, files, err := s.decomposeInstance(ctx, instanceID, classOf)
+		if err != nil {
+			return fmt.Errorf("ingest %s: %w", instanceID, err)
+		}
+		d := decomposedProjection(instanceID, res, files)
+		proj.objects = append(proj.objects, d.objects...)
+		proj.rels = append(proj.rels, d.rels...)
+		proj.decomposedObjects, proj.decomposedRels = d.decomposedObjects, d.decomposedRels
 	}
 
-	if err := s.updateSyncStatus(ctx, instanceID, res, hash0, seq0); err != nil {
+	bulk, err := s.client.BulkUpsertObjects(ctx, proj.objects, 8)
+	if err != nil {
+		return fmt.Errorf("ingest %s: bulk upsert: %w", instanceID, err)
+	}
+	if bulk.Failed > 0 {
+		return fmt.Errorf("ingest %s: %d of %d object upserts failed", instanceID, bulk.Failed, len(proj.objects))
+	}
+	if failed := s.upsertRelationships(ctx, proj.rels, bulk.KeyToID); failed > 0 {
+		return fmt.Errorf("ingest %s: %d of %d relationship upserts failed", instanceID, failed, len(proj.rels))
+	}
+
+	objKeys, relKeys := proj.objectKeys(), proj.relKeys()
+	old, err := s.loadManifest(ctx, instanceID)
+	if err != nil {
+		return err
+	}
+	if err := s.commitProjection(ctx, instanceID, proj, objKeys, relKeys, hash0, seq0); err != nil {
 		return err
 	}
 
-	s.collectGarbage(ctx, instanceID, artifactKeys, decomposedKeys)
+	s.collectGarbage(ctx, instanceID, old, objKeys, relKeys, decomposed)
 	slog.Info("ingest: instance complete", "instance_id", instanceID,
-		"artifacts", len(artifacts), "relationships", len(rels))
+		"objects", len(objKeys), "relationships", len(relKeys))
+	return nil
+}
+
+// upsertRelationships writes the relationships between objects already in
+// Memory and returns how many failed. ids maps scoped object keys to Memory IDs.
+func (s *Service) upsertRelationships(ctx context.Context, rels []relSpec, ids map[string]string) int {
+	var (
+		mu     sync.Mutex
+		failed int
+		wg     sync.WaitGroup
+	)
+	work := make(chan relSpec)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for r := range work {
+				from, ok1 := ids[r.from]
+				to, ok2 := ids[r.to]
+				var err error
+				if !ok1 || !ok2 {
+					err = fmt.Errorf("endpoint not written")
+				} else {
+					_, err = s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
+						Type: r.typ, FromID: from, ToID: to, Properties: r.properties,
+					})
+				}
+				if err != nil {
+					slog.Warn("ingest: upsert relationship failed", "type", r.typ, "from", r.from, "to", r.to, "err", err)
+					mu.Lock()
+					failed++
+					mu.Unlock()
+				}
+			}
+		}()
+	}
+	for _, r := range rels {
+		work <- r
+	}
+	close(work)
+	wg.Wait()
+	return failed
+}
+
+// commitProjection replaces the manifest and records the ingest in one
+// transaction. The dirty flag is cleared only if no change arrived since seq0
+// was read; otherwise the instance stays dirty and is ingested again. hash is
+// the content hash taken before the artifacts were read.
+func (s *Service) commitProjection(ctx context.Context, instanceID uuid.UUID, proj *projection, objKeys, relKeys map[string]struct{}, hash string, seq0 int64) error {
+	now := time.Now()
+	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if _, err := tx.NewRaw(`DELETE FROM memory_projection WHERE instance_id = ?`, instanceID).Exec(ctx); err != nil {
+			return fmt.Errorf("clear manifest: %w", err)
+		}
+		if err := insertProjection(ctx, tx, instanceID, projectionObject, objKeys); err != nil {
+			return fmt.Errorf("write object manifest: %w", err)
+		}
+		if err := insertProjection(ctx, tx, instanceID, projectionRelationship, relKeys); err != nil {
+			return fmt.Errorf("write relationship manifest: %w", err)
+		}
+		_, err := tx.NewUpdate().
+			TableExpr("strategy_instances").
+			Set("memory_generation = memory_generation + 1").
+			Set("memory_sync_status = ?", "synced").
+			Set("memory_last_synced_at = ?", now).
+			Set("memory_object_count = ?", proj.artifactObjects).
+			Set("memory_edge_count = ?", proj.artifactRels).
+			Set("memory_decomposed_object_count = ?", proj.decomposedObjects).
+			Set("memory_decomposed_edge_count = ?", proj.decomposedRels).
+			Set("memory_content_hash = ?", hash).
+			Set("memory_dirty_since = CASE WHEN memory_change_seq = ? THEN NULL ELSE memory_dirty_since END", seq0).
+			Set("updated_at = ?", now).
+			Where("id = ?", instanceID).
+			Exec(ctx)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("commit projection of %s: %w", instanceID, err)
+	}
 	return nil
 }
 
@@ -508,32 +576,72 @@ func hasLabel(o memory.Object, label string) bool {
 	return false
 }
 
-// collectGarbage deletes the instance's own objects that its artifacts no
-// longer produce. It only ever looks at objects carrying the instance's owner
-// label, so it cannot remove another instance's data. decomposedKeys is nil
-// when the decomposed layer did not run; its objects are then left alone.
-// Failures are logged: the next ingest retries.
-func (s *Service) collectGarbage(ctx context.Context, instanceID uuid.UUID, artifactKeys, decomposedKeys map[string]bool) {
+// collectGarbage removes what the instance owns in Memory but no longer
+// projects. It lists the objects carrying the instance's owner label, which
+// covers objects of the previous manifest and any other owned leftover, so it
+// cannot touch another instance's data. Relationships of the previous manifest
+// that were dropped between surviving objects are deleted by ID; edges of
+// deleted objects go with the object. When the decomposed layer was not part of
+// this ingest its objects are left alone.
+//
+// Garbage never affects visibility, which comes from the manifest. Failures are
+// logged and the next ingest retries.
+func (s *Service) collectGarbage(ctx context.Context, instanceID uuid.UUID, old *manifest, objKeys, relKeys map[string]struct{}, decomposed bool) {
 	owned, err := s.listOwned(ctx, instanceID)
 	if err != nil {
 		slog.Warn("ingest: garbage collection skipped", "instance_id", instanceID, "err", err)
 		return
 	}
+	ids := make(map[string]string, len(owned))
+	stale := make(map[string]bool)
 	for _, o := range owned {
-		var stale bool
-		switch {
-		case hasLabel(o, "layer:artifact"):
-			stale = !artifactKeys[o.Key]
-		case hasLabel(o, "layer:decomposed") && decomposedKeys != nil:
-			stale = !decomposedKeys[o.Key]
+		ids[o.Key] = o.StableID()
+		if _, keep := objKeys[o.Key]; keep {
+			continue
 		}
-		if !stale {
+		if !decomposed && hasLabel(o, "layer:decomposed") {
+			continue
+		}
+		stale[o.Key] = true
+	}
+
+	for relKey := range old.rels {
+		if _, keep := relKeys[relKey]; keep {
+			continue
+		}
+		typ, from, to, ok := splitRelationshipKey(relKey, ids)
+		if !ok || stale[from] || stale[to] {
+			continue
+		}
+		s.deleteEdge(ctx, instanceID, typ, ids[from], ids[to])
+	}
+
+	for _, o := range owned {
+		if !stale[o.Key] {
 			continue
 		}
 		if err := s.client.DeleteObject(ctx, o.StableID(), memory.DeleteObjectRequest{
 			Reason: fmt.Sprintf("no longer produced by instance %s", instanceID),
 		}); err != nil {
 			slog.Warn("ingest: failed to delete stale object", "instance_id", instanceID, "key", o.Key, "err", err)
+		}
+	}
+}
+
+// deleteEdge removes the relationship (typ, from, to) between two objects, found
+// through the source object's edges.
+func (s *Service) deleteEdge(ctx context.Context, instanceID uuid.UUID, typ, fromID, toID string) {
+	edges, err := s.client.ObjectEdges(ctx, fromID)
+	if err != nil {
+		slog.Warn("ingest: failed to read edges for garbage collection", "instance_id", instanceID, "err", err)
+		return
+	}
+	for _, e := range edges.Outgoing {
+		if e.Type != typ || e.ToID != toID {
+			continue
+		}
+		if err := s.client.DeleteRelationship(ctx, e.ID); err != nil {
+			slog.Warn("ingest: failed to delete stale relationship", "instance_id", instanceID, "type", typ, "err", err)
 		}
 	}
 }
@@ -636,107 +744,6 @@ func addEvidenceProperties(props map[string]any, payload map[string]any) {
 	}
 }
 
-// objectKeyIndex caches artifact key → Memory object ID mappings to avoid
-// per-relationship API calls. Built once per reingest from all upserted objects.
-type objectKeyIndex struct {
-	exact  map[string]string // artifact_key -> stable ID (exact match)
-	prefix map[string]string // short prefix (e.g. "fd-001") -> stable ID
-}
-
-func newObjectKeyIndex() *objectKeyIndex {
-	return &objectKeyIndex{
-		exact:  make(map[string]string),
-		prefix: make(map[string]string),
-	}
-}
-
-// add registers an artifact key and its Memory object ID.
-func (idx *objectKeyIndex) add(artifactKey, objectID string) {
-	idx.exact[artifactKey] = objectID
-
-	// For keys like "fd-001_knowledge_graph_engine", also index the short
-	// prefix "fd-001" so relationships using short IDs can resolve.
-	if i := strings.Index(artifactKey, "_"); i > 0 {
-		prefix := artifactKey[:i]
-		// Only set if not already claimed by another artifact.
-		if _, exists := idx.prefix[prefix]; !exists {
-			idx.prefix[prefix] = objectID
-		}
-	}
-}
-
-// resolve looks up a key: exact match first, then prefix match.
-func (idx *objectKeyIndex) resolve(key string) string {
-	if id, ok := idx.exact[key]; ok {
-		return id
-	}
-	if id, ok := idx.prefix[key]; ok {
-		return id
-	}
-	return ""
-}
-
-// upsertRelationshipsIndexed resolves object IDs using a pre-built local index
-// (with prefix matching for short IDs) and upserts the edges. It returns how
-// many upserts failed. Edges whose endpoints are not in the graph are skipped:
-// that is a data condition, not a failure.
-func (s *Service) upsertRelationshipsIndexed(ctx context.Context, instanceID uuid.UUID, rels []domain.StrategyRelationship, idx *objectKeyIndex) int {
-	upserted, skipped, failed := 0, 0, 0
-	for _, rel := range rels {
-		srcID := idx.resolve(rel.SourceKey)
-		tgtID := idx.resolve(rel.TargetKey)
-		if srcID == "" || tgtID == "" {
-			skipped++
-			continue
-		}
-		_, err := s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
-			Type:   rel.Relationship,
-			FromID: srcID,
-			ToID:   tgtID,
-			Properties: map[string]any{
-				"instance_id": instanceID.String(),
-			},
-		})
-		if err != nil {
-			failed++
-			slog.Warn("ingest: upsert relationship failed",
-				"type", rel.Relationship, "source", rel.SourceKey, "target", rel.TargetKey, "err", err)
-			continue
-		}
-		upserted++
-	}
-	if len(rels) > 0 {
-		slog.Info("ingest: relationships processed",
-			"total", len(rels), "upserted", upserted, "skipped", skipped, "failed", failed)
-	}
-	return failed
-}
-
-// updateSyncStatus records a completed ingest. The dirty flag is cleared only
-// if no change arrived since seq0 was read; otherwise the instance stays dirty
-// and is ingested again. hash is the content hash taken before the artifacts
-// were read.
-func (s *Service) updateSyncStatus(ctx context.Context, instanceID uuid.UUID, res syncResult, hash string, seq0 int64) error {
-	now := time.Now()
-	_, err := s.db.NewUpdate().
-		TableExpr("strategy_instances").
-		Set("memory_sync_status = ?", "synced").
-		Set("memory_last_synced_at = ?", now).
-		Set("memory_object_count = ?", res.objectCount).
-		Set("memory_edge_count = ?", res.edgeCount).
-		Set("memory_decomposed_object_count = ?", res.decomposedObjectCount).
-		Set("memory_decomposed_edge_count = ?", res.decomposedEdgeCount).
-		Set("memory_content_hash = ?", hash).
-		Set("memory_dirty_since = CASE WHEN memory_change_seq = ? THEN NULL ELSE memory_dirty_since END", seq0).
-		Set("updated_at = ?", now).
-		Where("id = ?", instanceID).
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("update sync status %s: %w", instanceID, err)
-	}
-	return nil
-}
-
 // computeContentHash returns an MD5 hash of all non-archived artifact payloads
 // for an instance. An instance without artifacts hashes to md5(”).
 func (s *Service) computeContentHash(ctx context.Context, instanceID uuid.UUID) (string, error) {
@@ -751,159 +758,6 @@ func (s *Service) computeContentHash(ctx context.Context, instanceID uuid.UUID) 
 		return "", fmt.Errorf("compute content hash %s: %w", instanceID, err)
 	}
 	return hash, nil
-}
-
-// countIngested returns the object and edge counts for an instance from the
-// database (objects written = non-archived artifacts, edges written =
-// relationships). It avoids a per-instance Memory call.
-func (s *Service) countIngested(ctx context.Context, instanceID uuid.UUID) syncResult {
-	objCount, err := s.db.NewSelect().
-		TableExpr("strategy_artifacts").
-		Where("instance_id = ?", instanceID).
-		Where("status != ?", domain.ArtifactStatusArchived).
-		Count(ctx)
-	if err != nil {
-		slog.Warn("ingest: count artifacts failed", "instance_id", instanceID, "err", err)
-	}
-	edgeCount, err := s.db.NewSelect().
-		TableExpr("strategy_relationships").
-		Where("instance_id = ?", instanceID).
-		Count(ctx)
-	if err != nil {
-		slog.Warn("ingest: count relationships failed", "instance_id", instanceID, "err", err)
-	}
-	return syncResult{objectCount: objCount, edgeCount: edgeCount}
-}
-
-// decomposedResult is the outcome of the decomposed-layer ingest.
-type decomposedResult struct {
-	objects int
-	edges   int
-	keys    map[string]bool // every key the decomposer produced, written or not
-}
-
-// ingestDecomposed exports instance artifacts to YAML, runs the decomposer, and
-// upserts the resulting sub-entity objects and relationships into Memory under
-// the "layer:decomposed" label.
-func (s *Service) ingestDecomposed(ctx context.Context, instanceID uuid.UUID) (*decomposedResult, error) {
-
-	// Export all artifacts to a temporary directory.
-	export, err := s.exporter.ExportInstance(ctx, instanceID)
-	if err != nil {
-		return nil, fmt.Errorf("export instance for decompose: %w", err)
-	}
-
-	tmpDir, err := os.MkdirTemp("", "ingest-decompose-*")
-	if err != nil {
-		return nil, fmt.Errorf("create temp dir: %w", err)
-	}
-	defer func() {
-		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
-			slog.Warn("ingest: failed to remove temp dir", "dir", tmpDir, "err", rmErr)
-		}
-	}()
-
-	// Write each artifact YAML to the expected EPF directory layout.
-	for _, f := range export.Files {
-		dest := filepath.Join(tmpDir, f.RelPath)
-		if mkErr := os.MkdirAll(filepath.Dir(dest), 0o750); mkErr != nil {
-			return nil, fmt.Errorf("mkdir for %s: %w", f.RelPath, mkErr)
-		}
-		if writeErr := os.WriteFile(dest, []byte(f.Content), 0o600); writeErr != nil {
-			return nil, fmt.Errorf("write %s: %w", f.RelPath, writeErr)
-		}
-	}
-
-	// Run the decomposer.
-	d := decompose.New(tmpDir)
-	result, err := d.DecomposeInstance()
-	if err != nil {
-		return nil, fmt.Errorf("decompose instance: %w", err)
-	}
-	for _, w := range result.Warnings {
-		slog.Debug("ingest: decompose warning", "instance_id", instanceID, "msg", w)
-	}
-
-	slog.Info("ingest: decompose complete",
-		"instance_id", instanceID,
-		"objects", len(result.Objects),
-		"relationships", len(result.Relationships))
-
-	// Build upsert requests for all decomposed objects.
-	// Keys are scoped by instance ID to prevent cross-instance collisions —
-	// without this, instances sharing canonical templates (e.g. sd-001) would
-	// overwrite each other's decomposed objects.
-	upsertReqs := make([]memory.UpsertObjectRequest, 0, len(result.Objects))
-	// Map original decomposer keys to instance-scoped keys for relationship wiring.
-	scopedKeys := make(map[string]string, len(result.Objects))
-	producedKeys := make(map[string]bool, len(result.Objects))
-	for _, obj := range result.Objects {
-		labels := append(append([]string{}, obj.Labels...), "layer:decomposed", ownerLabel(instanceID))
-		props := obj.Properties
-		if props == nil {
-			props = make(map[string]any)
-		}
-		props["instance_id"] = instanceID.String()
-		scopedKey := ScopedKey(instanceID, obj.Key)
-		scopedKeys[obj.Key] = scopedKey
-		producedKeys[scopedKey] = true
-		upsertReqs = append(upsertReqs, memory.UpsertObjectRequest{
-			Type:       obj.Type,
-			Key:        scopedKey,
-			Status:     obj.Status,
-			Labels:     labels,
-			Properties: props,
-		})
-	}
-
-	bulkResult, err := s.client.BulkUpsertObjects(ctx, upsertReqs, 8)
-	if err != nil {
-		return nil, fmt.Errorf("bulk upsert decomposed objects: %w", err)
-	}
-	if bulkResult.Failed > 0 {
-		slog.Warn("ingest: some decomposed object upserts failed",
-			"instance_id", instanceID, "failed", bulkResult.Failed)
-	}
-
-	// Upsert relationships using the key→ID map from the bulk upsert.
-	// Relationship FromKey/ToKey use original decomposer keys — translate
-	// to instance-scoped keys for the lookup.
-	relUpserted, relSkipped := 0, 0
-	for _, rel := range result.Relationships {
-		fromScoped := scopedKeys[rel.FromKey]
-		toScoped := scopedKeys[rel.ToKey]
-		fromID, ok1 := bulkResult.KeyToID[fromScoped]
-		toID, ok2 := bulkResult.KeyToID[toScoped]
-		if !ok1 || !ok2 {
-			relSkipped++
-			continue
-		}
-		props := rel.Properties
-		if props == nil {
-			props = map[string]any{}
-		}
-		props["instance_id"] = instanceID.String()
-		_, rErr := s.client.UpsertRelationship(ctx, memory.UpsertRelationshipRequest{
-			Type:       rel.Type,
-			FromID:     fromID,
-			ToID:       toID,
-			Properties: props,
-		})
-		if rErr != nil {
-			slog.Debug("ingest: decompose relationship failed",
-				"type", rel.Type, "from", rel.FromKey, "to", rel.ToKey, "err", rErr)
-			continue
-		}
-		relUpserted++
-	}
-
-	slog.Info("ingest: decompose objects upserted",
-		"instance_id", instanceID,
-		"upserted", len(bulkResult.Objects),
-		"rel_upserted", relUpserted,
-		"rel_skipped", relSkipped)
-
-	return &decomposedResult{objects: len(bulkResult.Objects), edges: relUpserted, keys: producedKeys}, nil
 }
 
 // extractSnippet builds a short text snippet from common artifact fields.
