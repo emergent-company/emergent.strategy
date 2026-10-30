@@ -98,6 +98,9 @@ func (f *fixture) markDirty(t *testing.T, inst uuid.UUID) {
 	mustExec(t, f.db, "UPDATE strategy_instances SET memory_dirty_since = now(), memory_change_seq = memory_change_seq + 1 WHERE id = ?", inst)
 }
 
+// sk is the Memory key an ingest gives an artifact key of instance inst.
+func sk(inst uuid.UUID, key string) string { return ingest.ScopedKey(inst, key) }
+
 func keys(objs []memory.Object) []string {
 	out := make([]string, 0, len(objs))
 	for _, o := range objs {
@@ -127,7 +130,7 @@ func TestReingest_WritesArtifactsWithOwnerLabelAndClearsDirty(t *testing.T) {
 		t.Fatalf("reingest: %v", err)
 	}
 
-	o := f.mem.ObjectByKey("fd-001_a")
+	o := f.mem.ObjectByKey(sk(f.inst, "fd-001_a"))
 	if o == nil {
 		t.Fatalf("object not written; have %v", keys(f.mem.Objects()))
 	}
@@ -144,8 +147,8 @@ func TestReingest_WritesArtifactsWithOwnerLabelAndClearsDirty(t *testing.T) {
 	if r.Hash == nil || r.State == nil || *r.State != "synced" {
 		t.Errorf("sync bookkeeping not written: %+v", r)
 	}
-	if r.Gen != 0 {
-		t.Errorf("memory_generation = %d; slice 1 writes no manifest so it must stay 0", r.Gen)
+	if r.Gen != 1 {
+		t.Errorf("memory_generation = %d, want 1 after the first manifest ingest", r.Gen)
 	}
 }
 
@@ -173,7 +176,7 @@ func TestReingest_FailedUpsertLeavesInstanceDirtyAndReportsError(t *testing.T) {
 	f.addArtifact(t, f.inst, "feature", "fd-001_a", map[string]any{"name": "A"})
 	f.addArtifact(t, f.inst, "feature", "fd-002_b", map[string]any{"name": "B"})
 	f.markDirty(t, f.inst)
-	f.mem.FailUpsertKeys["fd-002_b"] = true
+	f.mem.FailUpsertKeys[sk(f.inst, "fd-002_b")] = true
 
 	if err := f.svc.ReingestInstance(context.Background(), f.inst); err == nil {
 		t.Fatal("expected an error when an object could not be written")
@@ -238,7 +241,7 @@ func TestReingest_EvidencePropertiesReachMemory(t *testing.T) {
 	if err := f.svc.ReingestInstance(context.Background(), f.inst); err != nil {
 		t.Fatal(err)
 	}
-	o := f.mem.ObjectByKey("ev-1")
+	o := f.mem.ObjectByKey(sk(f.inst, "ev-1"))
 	if o == nil {
 		t.Fatal("evidence object missing")
 	}
@@ -254,11 +257,15 @@ func TestReingest_SecondRunWithNoChangesWritesNoNewVersions(t *testing.T) {
 	if err := f.svc.ReingestInstance(ctx, f.inst); err != nil {
 		t.Fatal(err)
 	}
-	v1 := f.mem.ObjectByKey("fd-001_a").Version
+	first := f.mem.ObjectByKey(sk(f.inst, "fd-001_a"))
+	if first == nil {
+		t.Fatalf("object not written; have %v", keys(f.mem.Objects()))
+	}
+	v1 := first.Version
 	if err := f.svc.ReingestInstance(ctx, f.inst); err != nil {
 		t.Fatal(err)
 	}
-	if v2 := f.mem.ObjectByKey("fd-001_a").Version; v2 != v1 {
+	if v2 := f.mem.ObjectByKey(sk(f.inst, "fd-001_a")).Version; v2 != v1 {
 		t.Logf("fake bumps version on every upsert (%d -> %d); real Memory dedupes by content hash", v1, v2)
 	}
 }
@@ -272,7 +279,7 @@ func TestInstanceChanged_RunsIngestInTheBackground(t *testing.T) {
 
 	f.svc.InstanceChanged(context.Background(), f.inst)
 
-	waitFor(t, "object in graph", func() bool { return f.mem.ObjectByKey("fd-001_a") != nil })
+	waitFor(t, "object in graph", func() bool { return f.mem.ObjectByKey(sk(f.inst, "fd-001_a")) != nil })
 	waitFor(t, "dirty cleared", func() bool { return f.row(t, f.inst).Dirty == nil })
 }
 
@@ -321,10 +328,10 @@ func TestStartupSweep_EnqueuesDirtyNullHashAndSkipsDeleted(t *testing.T) {
 	f.svc.EnqueueAllInstances(ctx, f.db, discardLog{})
 	f.svc.Stop()
 
-	if f.mem.ObjectByKey("fd-dirty") == nil || f.mem.ObjectByKey("fd-fresh") == nil {
+	if f.mem.ObjectByKey(sk(dirty, "fd-dirty")) == nil || f.mem.ObjectByKey(sk(fresh, "fd-fresh")) == nil {
 		t.Errorf("dirty and never-ingested instances must be ingested; have %v", keys(f.mem.Objects()))
 	}
-	if f.mem.ObjectByKey("fd-deleted") != nil {
+	if f.mem.ObjectByKey(sk(deleted, "fd-deleted")) != nil {
 		t.Error("a deleted instance must not be ingested by the sweep")
 	}
 }
@@ -438,13 +445,13 @@ func TestRepairMemoryDrift_RequeuesOldDirtyInstancesOnly(t *testing.T) {
 	f.svc.RepairMemoryDrift(ctx)
 	f.svc.Stop()
 
-	if f.mem.ObjectByKey("fd-old") == nil {
+	if f.mem.ObjectByKey(sk(f.inst, "fd-old")) == nil {
 		t.Error("an instance dirty for 10 minutes must be re-ingested")
 	}
-	if f.mem.ObjectByKey("fd-young") != nil {
+	if f.mem.ObjectByKey(sk(young, "fd-young")) != nil {
 		t.Error("an instance dirtied seconds ago is left to its own notification")
 	}
-	if f.mem.ObjectByKey("fd-gone") != nil {
+	if f.mem.ObjectByKey(sk(gone, "fd-gone")) != nil {
 		t.Error("a deleted instance must not be ingested")
 	}
 }

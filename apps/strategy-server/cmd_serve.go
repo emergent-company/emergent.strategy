@@ -507,6 +507,7 @@ func setupSemantic(cfg *config.Config, log *slog.Logger) *semantic.Service {
 
 	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).
 	if semanticSvc.IsAvailable() {
+		semanticSvc.Client().CheckVersion(context.Background(), log)
 		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
 			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
 		}
@@ -886,8 +887,9 @@ func (a *strategyExporterAdapter) ExportInstance(ctx context.Context, instanceID
 	files := make([]ingest.ExportFile, len(res.Files))
 	for i, f := range res.Files {
 		files[i] = ingest.ExportFile{
-			RelPath: f.RelPath,
-			Content: f.Content,
+			RelPath:     f.RelPath,
+			ArtifactKey: f.ArtifactKey,
+			Content:     f.Content,
 		}
 	}
 	return &ingest.ExportResult{Files: files}, nil
