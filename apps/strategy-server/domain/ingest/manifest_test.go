@@ -179,3 +179,27 @@ func equal(a, b []string) bool {
 	}
 	return true
 }
+
+func TestManifestStore_ProjectionCountsAreOfThatInstanceOnly(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := context.Background()
+	a, b := seedInstance(t, db, 1), seedInstance(t, db, 1)
+	seedProjection(t, db, a, "relationship",
+		ingest.RelationshipKey("depends_on", "p/x", "p/y"),
+		ingest.RelationshipKey("depends_on", "p/y", "p/z"),
+		ingest.RelationshipKey("contributes_to", "p/x", "p/v"))
+	seedProjection(t, db, a, "object", "p/x", "p/y")
+	seedProjection(t, db, b, "object", "q/x", "q/y", "q/z")
+	seedProjection(t, db, b, "relationship", ingest.RelationshipKey("depends_on", "q/x", "q/y"))
+
+	objects, rels, err := ingest.NewManifestStore(db).ProjectionCounts(ctx, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if objects != 2 || len(rels) != 2 || rels["depends_on"] != 2 || rels["contributes_to"] != 1 {
+		t.Errorf("counts = %d objects, %v; want 2 objects, depends_on 2, contributes_to 1, nothing of B", objects, rels)
+	}
+	if o, r, err := ingest.NewManifestStore(db).ProjectionCounts(ctx, uuid.New()); err != nil || o != 0 || len(r) != 0 {
+		t.Errorf("unknown instance: %d, %v, %v", o, r, err)
+	}
+}

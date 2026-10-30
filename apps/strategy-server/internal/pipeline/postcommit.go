@@ -32,7 +32,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // PostCommitPipeline holds the explicit dependencies required to run the
@@ -95,13 +94,10 @@ func (p *PostCommitPipeline) Run(ctx context.Context, instanceID, batchID uuid.U
 	// ------------------------------------------------------------------
 	// 3. Structural ripple analysis → new signals.
 	// ------------------------------------------------------------------
-	var memClient *memory.Client
-	if p.SemanticSvc != nil {
-		memClient = p.SemanticSvc.Client()
-	}
+	graph := ripple.GraphFor(p.SemanticSvc, instanceID)
 	var allNewSignals []*domain.RippleSignal
 	for _, key := range changedKeys {
-		report, err := ripple.AnalyzeStructuralRipple(ctx, p.StrategySvc.DB(), memClient, instanceID, key, "")
+		report, err := ripple.AnalyzeStructuralRipple(ctx, p.StrategySvc.DB(), graph, instanceID, key, "")
 		if err != nil {
 			slog.WarnContext(ctx, "postcommit: structural analysis failed", "key", key, "error", err)
 			continue
@@ -112,7 +108,7 @@ func (p *PostCommitPipeline) Run(ctx context.Context, instanceID, batchID uuid.U
 	// ------------------------------------------------------------------
 	// 4. Semantic change classification (non-blocking, Memory optional).
 	// ------------------------------------------------------------------
-	analyzer := ripple.NewSemanticAnalyzer(memClient, p.StrategySvc.DB())
+	analyzer := ripple.NewSemanticAnalyzer(graph, p.StrategySvc.DB())
 	cfg := ripple.DefaultRippleConfig()
 	if loadedCfg, cfgErr := p.RippleSvc.GetConfig(ctx, instanceID); cfgErr == nil {
 		cfg = loadedCfg
@@ -172,7 +168,7 @@ func (p *PostCommitPipeline) Run(ctx context.Context, instanceID, batchID uuid.U
 	convSvc := ripple.ConvergenceServices{
 		DB:     p.StrategySvc.DB(),
 		Ripple: p.RippleSvc,
-		Mem:    memClient,
+		Graph:  graph,
 		// Resolver: nil means agent-orchestrated mode (human reviews signals).
 		Resolver: p.Resolver,
 	}

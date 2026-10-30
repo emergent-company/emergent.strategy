@@ -11,7 +11,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // TensionResult describes the measured tension between two tracks.
@@ -30,8 +29,8 @@ type TensionResult struct {
 //
 // Returns tension signals only for excess divergence (measured divergence
 // exceeding the natural baseline).
-func DetectCrossTrackTension(ctx context.Context, db *bun.DB, mem *memory.Client, instanceID uuid.UUID, cfg RippleConfig) ([]*domain.RippleSignal, []TensionResult, error) {
-	if mem == nil {
+func DetectCrossTrackTension(ctx context.Context, db *bun.DB, graph Graph, instanceID uuid.UUID, cfg RippleConfig) ([]*domain.RippleSignal, []TensionResult, error) {
+	if graph == nil {
 		return nil, nil, nil
 	}
 
@@ -76,7 +75,7 @@ func DetectCrossTrackTension(ctx context.Context, db *bun.DB, mem *memory.Client
 	// For each pair of tracks, measure cross-track similarity.
 	for i := 0; i < len(tracks); i++ {
 		for j := i + 1; j < len(tracks); j++ {
-			result, signal := measureTrackPairTension(ctx, mem, instanceID, cfg, tracks[i], tracks[j], trackArtifacts)
+			result, signal := measureTrackPairTension(ctx, graph, instanceID, cfg, tracks[i], tracks[j], trackArtifacts)
 			if result == nil {
 				continue
 			}
@@ -159,7 +158,7 @@ func inferTrackMembership(artifacts []*domain.StrategyArtifact, rels []domain.St
 // search fails (the caller skips these pairs).
 func measureTrackPairTension(
 	ctx context.Context,
-	mem *memory.Client,
+	graph Graph,
 	instanceID uuid.UUID,
 	cfg RippleConfig,
 	trackA, trackB string,
@@ -183,11 +182,7 @@ func measureTrackPairTension(
 	}
 
 	// Search Memory with track A's content, filtered to track B's types.
-	searchResults, searchErr := mem.Search(ctx, memory.SearchRequest{
-		Query: truncateForSearch(queryA, 500),
-		Limit: 30,
-		Types: typeFilter,
-	})
+	searchResults, searchErr := graph.Search(ctx, truncateForSearch(queryA, 500), 30, typeFilter)
 	if searchErr != nil {
 		slog.WarnContext(ctx, "tension: search failed",
 			"trackA", trackA, "trackB", trackB, "error", searchErr)
@@ -204,7 +199,7 @@ func measureTrackPairTension(
 	var totalScore float64
 	var matchCount int
 	for _, r := range searchResults {
-		if trackBKeys[r.Object.Key] {
+		if trackBKeys[r.Key] {
 			totalScore += r.Score
 			matchCount++
 		}

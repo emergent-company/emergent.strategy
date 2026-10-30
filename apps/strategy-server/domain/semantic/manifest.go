@@ -23,6 +23,10 @@ type ManifestSource interface {
 	// VisibleRelationships returns the subset of tuples that are relationships in
 	// the instance's manifest. A tuple is built with ingest.RelationshipKey.
 	VisibleRelationships(ctx context.Context, instanceID uuid.UUID, tuples []string) (map[string]struct{}, error)
+
+	// ProjectionCounts returns the number of objects in the manifest and the
+	// number of relationships of each type.
+	ProjectionCounts(ctx context.Context, instanceID uuid.UUID) (objects int, relationships map[string]int, err error)
 }
 
 // WithManifestSource sets the manifest the scoped read path consults.

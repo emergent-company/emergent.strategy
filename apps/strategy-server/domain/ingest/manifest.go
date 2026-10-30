@@ -69,3 +69,31 @@ func (m *ManifestStore) visible(ctx context.Context, instanceID uuid.UUID, kind 
 	}
 	return out, nil
 }
+
+// ProjectionCounts returns how many objects the instance's manifest holds and
+// how many relationships of each type. Relationship tuples start with their type
+// (see RelationshipKey).
+func (m *ManifestStore) ProjectionCounts(ctx context.Context, instanceID uuid.UUID) (int, map[string]int, error) {
+	var rows []struct {
+		Kind string `bun:"kind"`
+		Type string `bun:"type"`
+		N    int    `bun:"n"`
+	}
+	err := m.db.NewRaw(
+		`SELECT kind, CASE WHEN kind = ? THEN split_part(key, '|', 1) ELSE '' END AS type, count(*) AS n
+		   FROM memory_projection WHERE instance_id = ? GROUP BY 1, 2`,
+		projectionRelationship, instanceID,
+	).Scan(ctx, &rows)
+	if err != nil {
+		return 0, nil, fmt.Errorf("manifest: counts for %s: %w", instanceID, err)
+	}
+	objects, rels := 0, make(map[string]int)
+	for _, r := range rows {
+		if r.Kind == projectionRelationship {
+			rels[r.Type] += r.N
+		} else {
+			objects += r.N
+		}
+	}
+	return objects, rels, nil
+}

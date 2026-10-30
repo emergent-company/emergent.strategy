@@ -24,6 +24,7 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -872,6 +873,9 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 				fmt.Sprintf("mode %q is not one of auto, semantic, keyword", mode))), nil
 		}
 		hits, err := searchStrategy(ctx, svc, instID, argString(req, "query"), argInt(req, "limit", 10), mode)
+		if errors.Is(err, semantic.ErrGraphNotReady) {
+			return graphNotReady(err)
+		}
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -890,6 +894,9 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 		results, err := svc.Semantic.DetectContradictions(ctx, instID.String())
+		if errors.Is(err, semantic.ErrGraphNotReady) {
+			return graphNotReady(err)
+		}
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -912,6 +919,9 @@ func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 			instID.String(),
 			argString(req, "node_key"),
 		)
+		if errors.Is(err, semantic.ErrGraphNotReady) {
+			return graphNotReady(err)
+		}
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
@@ -2551,6 +2561,9 @@ func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query s
 					"emergent.memory not configured; call search_strategy without mode, or with mode=keyword, to search the text directly")
 			}
 			return nil, err
+		case errors.Is(err, semantic.ErrGraphNotReady):
+			slog.InfoContext(ctx, "search_strategy: the instance's graph is not built yet, using keyword search",
+				"instance_id", instID)
 		case err != nil:
 			slog.WarnContext(ctx, "search_strategy: semantic search failed, using keyword search",
 				"instance_id", instID, "err", err)
@@ -2578,14 +2591,26 @@ func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query s
 	return out, nil
 }
 
+// graphNotReady is the answer to a semantic read of an instance whose graph has
+// not been built: an empty result with a hint, never an error and never data of
+// another instance.
+func graphNotReady(err error) (*mcp.CallToolResult, error) {
+	return mustJSON(map[string]any{
+		"results":         []any{},
+		"graph_not_ready": true,
+		"hint":            err.Error() + ". Reads of the stored strategy (get_outline, get_section, search_strategy with mode=keyword) are unaffected.",
+	})
+}
+
 func semanticSearch(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int) ([]*semantic.SearchResult, error) {
 	outcome, err := svc.Semantic.SearchStrategyScoped(ctx, instID.String(), query, limit)
 	if err != nil {
 		return nil, err
 	}
-	if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 {
+	if outcome.ExcludedFramework > 0 || outcome.ExcludedOtherInstance > 0 || outcome.ExcludedNotInGraph > 0 {
 		slog.InfoContext(ctx, "search_strategy filtered hits",
-			"instance_id", instID, "framework", outcome.ExcludedFramework, "other_instance", outcome.ExcludedOtherInstance)
+			"instance_id", instID, "framework", outcome.ExcludedFramework,
+			"not_owned", outcome.ExcludedOtherInstance, "not_in_graph", outcome.ExcludedNotInGraph)
 	}
 	for _, hit := range outcome.Results {
 		hit.Match = searchModeSemantic

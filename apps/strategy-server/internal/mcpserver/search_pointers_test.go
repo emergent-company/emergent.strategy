@@ -1,64 +1,40 @@
 package mcpserver_test
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
-	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
-	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
+	"github.com/google/uuid"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory/memtest"
 )
 
 func TestMCP_SearchStrategy_FiltersFrameworkAndPointsAtTheRead(t *testing.T) {
-	var instID string
-	memory := http.NewServeMux()
-	memory.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		hit := func(key string, props map[string]any, score float64) map[string]any {
-			return map[string]any{"object": map[string]any{"id": "o-" + key, "type": "x", "key": key, "properties": props}, "score": score, "source": "vector"}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"results": []any{
-			hit("sd-001", map[string]any{"artifact_type": "definition", "instance_id": instID, "integrity_class": "canonical_reference", "snippet": "framework text"}, 0.99),
-			hit("someone-elses", map[string]any{"artifact_type": "strategy_formula", "instance_id": "00000000-0000-0000-0000-00000000dead", "snippet": "foreign text"}, 0.95),
-			hit("strategy_formula", map[string]any{"artifact_type": "strategy_formula", "instance_id": instID, "snippet": "our formula"}, 0.9),
-		}})
-	})
-	srv := httptest.NewServer(memory)
-	t.Cleanup(srv.Close)
-
-	db := database.TestDB(t)
-	packSvc := pack.NewService(db)
-	instSvc := instance.NewService(db)
-	instSvc.WithPackEnsurer(packSvc)
-	svc := mcpserver.Services{
-		Workspace: workspace.NewService(db),
-		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
-		Pack:      packSvc,
-		App:       appdom.NewService(db),
-		Semantic:  semantic.NewService(semantic.Config{URL: srv.URL, Project: "p", Token: "t"}),
-		Org:       orgdom.NewService(db),
-	}
+	mem := memtest.New(t)
+	svc := fencedSvc(t, mem)
 	_, id := seedInstance(t, svc, "search-owner", brPayloads(t))
-	instID = id.String()
+	markReady(t, svc, id)
+	putObject(t, svc, mem, id, "definition", "sd-001", "artifact", map[string]any{
+		"artifact_type": "definition", "integrity_class": "canonical_reference", "snippet": "framework text"})
+	putObject(t, svc, mem, id, "strategy_formula", "strategy_formula", "artifact", map[string]any{
+		"artifact_type": "strategy_formula", "snippet": "our formula"})
+	putForeign(mem, uuid.New(), "strategy_formula", "strategy_formula", map[string]any{
+		"artifact_type": "strategy_formula", "snippet": "foreign text"})
+	mem.Scores[ingest.ScopedKey(id, "sd-001")] = 0.99
+	mem.Scores[ingest.ScopedKey(id, "strategy_formula")] = 0.9
 	c := newMCPClient(t, svc)
 
 	var hits []struct {
 		ArtifactKey      string `json:"artifact_key"`
 		Artifact         string `json:"artifact"`
+		InstanceID       string `json:"instance_id"`
+		Layer            string `json:"layer"`
 		SectionSizeChars int    `json:"section_size_chars"`
 		ReadWith         string `json:"read_with"`
 		Match            string `json:"match"`
 	}
-	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "trade-offs"}).assertOK().decode(&hits)
+	r := c.call(1, "search_strategy", map[string]any{"instance_id": id.String(), "query": "trade-offs"}).assertOK().decode(&hits)
 
 	if len(hits) != 1 || hits[0].ArtifactKey != "strategy_formula" {
 		t.Fatalf("hits = %+v, want only the instance's own authored hit", hits)
@@ -68,6 +44,9 @@ func TestMCP_SearchStrategy_FiltersFrameworkAndPointsAtTheRead(t *testing.T) {
 	}
 	if hits[0].Match != "semantic" {
 		t.Errorf("match = %q, want semantic", hits[0].Match)
+	}
+	if hits[0].InstanceID != id.String() || hits[0].Layer != "artifact" {
+		t.Errorf("hit does not say where it comes from: %+v", hits[0])
 	}
 	if hits[0].Artifact != "strategy_formula" || hits[0].SectionSizeChars <= 0 {
 		t.Errorf("hit does not point at its section: %+v", hits[0])

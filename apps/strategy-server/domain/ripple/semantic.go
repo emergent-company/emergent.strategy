@@ -11,7 +11,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // SemanticAnalyzer performs embedding-based coherence analysis via Memory search.
@@ -19,16 +18,17 @@ import (
 // similarity: search for one artifact's content and analyze where related artifacts
 // appear in the results.
 type SemanticAnalyzer struct {
-	mem *memory.Client
-	db  *bun.DB
+	graph Graph
+	db    *bun.DB
 }
 
-// NewSemanticAnalyzer creates a new analyzer. Returns nil if mem is nil.
-func NewSemanticAnalyzer(mem *memory.Client, db *bun.DB) *SemanticAnalyzer {
-	if mem == nil {
+// NewSemanticAnalyzer creates a new analyzer over the graph of one instance.
+// Returns nil if graph is nil.
+func NewSemanticAnalyzer(graph Graph, db *bun.DB) *SemanticAnalyzer {
+	if graph == nil {
 		return nil
 	}
-	return &SemanticAnalyzer{mem: mem, db: db}
+	return &SemanticAnalyzer{graph: graph, db: db}
 }
 
 // SemanticChangeClass represents the magnitude of a semantic change.
@@ -87,10 +87,7 @@ func (a *SemanticAnalyzer) ClassifyChange(ctx context.Context, artifactKey strin
 	// The artifact's own key in results still holds the OLD indexed content,
 	// so the search score measures how similar new is to old.
 	query := truncateForSearch(newText, 500)
-	results, err := a.mem.Search(ctx, memory.SearchRequest{
-		Query: query,
-		Limit: 20,
-	})
+	results, err := a.graph.Search(ctx, query, 20, nil)
 	if err != nil {
 		slog.WarnContext(ctx, "semantic: search failed for change classification, using text fallback", "key", artifactKey, "error", err)
 		return a.classifyByTextFallback(oldText, newText, artifactKey, cfg), nil
@@ -100,7 +97,7 @@ func (a *SemanticAnalyzer) ClassifyChange(ctx context.Context, artifactKey strin
 	var selfScore float64
 	found := false
 	for _, r := range results {
-		if r.Object.Key == artifactKey {
+		if r.Key == artifactKey {
 			selfScore = r.Score
 			found = true
 			break
@@ -277,10 +274,7 @@ func (a *SemanticAnalyzer) DetectDrift(ctx context.Context, instanceID uuid.UUID
 			continue
 		}
 		query := truncateForSearch(text, 400)
-		results, searchErr := a.mem.Search(ctx, memory.SearchRequest{
-			Query: query,
-			Limit: 15,
-		})
+		results, searchErr := a.graph.Search(ctx, query, 15, nil)
 		if searchErr != nil {
 			slog.WarnContext(ctx, "semantic: drift search failed", "feature", feat.ArtifactKey, "error", searchErr)
 			continue
@@ -292,21 +286,21 @@ func (a *SemanticAnalyzer) DetectDrift(ctx context.Context, instanceID uuid.UUID
 		var bestNonDeclaredScore float64
 		for _, r := range results {
 			for _, p := range paths {
-				if r.Object.Key == p {
+				if r.Key == p {
 					pathScores[p] = r.Score
 				}
 			}
 			// Track best non-declared value model match.
-			if r.Object.Type == "value_model" || strings.Contains(r.Object.Key, "value_model") {
+			if r.Type == "value_model" || strings.Contains(r.Key, "value_model") {
 				isDeclared := false
 				for _, p := range paths {
-					if r.Object.Key == p {
+					if r.Key == p {
 						isDeclared = true
 						break
 					}
 				}
 				if !isDeclared && r.Score > bestNonDeclaredScore {
-					bestNonDeclared = r.Object.Key
+					bestNonDeclared = r.Key
 					bestNonDeclaredScore = r.Score
 				}
 			}
@@ -388,16 +382,13 @@ func (a *SemanticAnalyzer) DetectClustering(ctx context.Context, instanceID uuid
 		}
 
 		query := truncateForSearch(text, 300)
-		results, searchErr := a.mem.Search(ctx, memory.SearchRequest{
-			Query: query,
-			Limit: 10,
-		})
+		results, searchErr := a.graph.Search(ctx, query, 10, nil)
 		if searchErr != nil {
 			continue
 		}
 
 		for _, r := range results {
-			if r.Object.Key == art.ArtifactKey {
+			if r.Key == art.ArtifactKey {
 				continue // skip self
 			}
 			if r.Score < 0.75 {
@@ -405,13 +396,13 @@ func (a *SemanticAnalyzer) DetectClustering(ctx context.Context, instanceID uuid
 			}
 
 			// Check if already connected.
-			pairKey := art.ArtifactKey + "|" + r.Object.Key
+			pairKey := art.ArtifactKey + "|" + r.Key
 			if connected[pairKey] {
 				continue // already structurally connected
 			}
 
 			// Avoid duplicate pairs.
-			reversePair := r.Object.Key + "|" + art.ArtifactKey
+			reversePair := r.Key + "|" + art.ArtifactKey
 			if checked[pairKey] || checked[reversePair] {
 				continue
 			}
@@ -419,9 +410,9 @@ func (a *SemanticAnalyzer) DetectClustering(ctx context.Context, instanceID uuid
 
 			signals = append(signals, ClusteringSignal{
 				ArtifactKeyA: art.ArtifactKey,
-				ArtifactKeyB: r.Object.Key,
+				ArtifactKeyB: r.Key,
 				Score:        r.Score,
-				Description:  fmt.Sprintf("%s and %s are semantically similar (score %.2f) but have no structural relationship. Consider adding a connection.", art.ArtifactKey, r.Object.Key, r.Score),
+				Description:  fmt.Sprintf("%s and %s are semantically similar (score %.2f) but have no structural relationship. Consider adding a connection.", art.ArtifactKey, r.Key, r.Score),
 			})
 		}
 	}
@@ -472,14 +463,14 @@ func (a *SemanticAnalyzer) FullSemanticAnalysisWithConfig(ctx context.Context, i
 	}
 
 	// Cross-track tension detection (horizontal alignment).
-	tensionSignals, _, tensionErr := DetectCrossTrackTension(ctx, a.db, a.mem, instanceID, cfg)
+	tensionSignals, _, tensionErr := DetectCrossTrackTension(ctx, a.db, a.graph, instanceID, cfg)
 	if tensionErr != nil {
 		slog.WarnContext(ctx, "semantic: tension detection failed", "error", tensionErr)
 	}
 	signals = append(signals, tensionSignals...)
 
 	// Vertical alignment detection (top-down / bottom-up).
-	verticalSignals, _, verticalErr := DetectVerticalMisalignment(ctx, a.db, a.mem, instanceID, cfg)
+	verticalSignals, _, verticalErr := DetectVerticalMisalignment(ctx, a.db, a.graph, instanceID, cfg)
 	if verticalErr != nil {
 		slog.WarnContext(ctx, "semantic: vertical alignment detection failed", "error", verticalErr)
 	}
