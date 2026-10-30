@@ -833,7 +833,6 @@ func (s *Service) ingestDecomposed(ctx context.Context, instanceID uuid.UUID) (*
 	// Keys are scoped by instance ID to prevent cross-instance collisions —
 	// without this, instances sharing canonical templates (e.g. sd-001) would
 	// overwrite each other's decomposed objects.
-	instancePrefix := instanceID.String()[:8] // short prefix for readable keys
 	upsertReqs := make([]memory.UpsertObjectRequest, 0, len(result.Objects))
 	// Map original decomposer keys to instance-scoped keys for relationship wiring.
 	scopedKeys := make(map[string]string, len(result.Objects))
@@ -845,7 +844,7 @@ func (s *Service) ingestDecomposed(ctx context.Context, instanceID uuid.UUID) (*
 			props = make(map[string]any)
 		}
 		props["instance_id"] = instanceID.String()
-		scopedKey := instancePrefix + "/" + obj.Key
+		scopedKey := ScopedKey(instanceID, obj.Key)
 		scopedKeys[obj.Key] = scopedKey
 		producedKeys[scopedKey] = true
 		upsertReqs = append(upsertReqs, memory.UpsertObjectRequest{
