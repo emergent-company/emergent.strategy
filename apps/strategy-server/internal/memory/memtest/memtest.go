@@ -375,7 +375,8 @@ func (s *Server) search(w http.ResponseWriter, body string) {
 }
 
 // expand answers a breadth-first expansion over every relationship, in both
-// directions, up to max_depth and max_nodes, as Memory does. It does not look at
+// directions, up to max_depth and max_nodes, in the shape Memory v0.87 uses
+// (nodes and edges). It does not look at
 // labels: what comes back is whatever the graph connects.
 func (s *Server) expand(w http.ResponseWriter, body string) {
 	var req struct {
@@ -436,7 +437,7 @@ func (s *Server) expand(w http.ResponseWriter, body string) {
 		}
 	}
 	sort.Slice(rels, func(i, j int) bool { return rels[i].ID < rels[j].ID })
-	writeJSON(w, map[string]any{"objects": objs, "relationships": rels})
+	writeJSON(w, map[string]any{"nodes": objs, "edges": rels})
 }
 
 func contains(xs []string, x string) bool {

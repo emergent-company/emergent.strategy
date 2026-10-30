@@ -371,9 +371,9 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 // where relationship-free nodes are normal, so only the artifact layer is
 // scanned.
 //
-// Connectivity comes from the per-object edges endpoint, not from Expand, which
-// does not report the edges of objects that demonstrably have them. Edges count
-// only when they are in the manifest.
+// Connectivity comes from the per-object edges endpoint, one call per object,
+// so every edge is attributed to the object it was asked about. Edges count only
+// when they are in the manifest.
 func (s *Service) DetectContradictions(ctx context.Context, instanceID string) ([]*Contradiction, error) {
 	sc, err := s.scope(ctx, instanceID)
 	if err != nil {

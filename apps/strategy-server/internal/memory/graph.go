@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -58,6 +59,38 @@ type ExpandResult struct {
 	Relationships []Relationship `json:"relationships"`
 }
 
+// UnmarshalJSON reads the answer of a graph walk. Memory v0.87 names the two
+// lists "nodes" and "edges"; an answer that names them "objects" and
+// "relationships" is read too. Without this the lists decode to nothing and no
+// error, and every walk looks like an object with no neighbours.
+func (r *ExpandResult) UnmarshalJSON(data []byte) error {
+	objs, rels, err := decodeWalk(data)
+	r.Objects, r.Relationships = objs, rels
+	return err
+}
+
+type walkAnswer struct {
+	Nodes         []Object       `json:"nodes"`
+	Edges         []Relationship `json:"edges"`
+	Objects       []Object       `json:"objects"`
+	Relationships []Relationship `json:"relationships"`
+}
+
+func decodeWalk(data []byte) ([]Object, []Relationship, error) {
+	var a walkAnswer
+	if err := json.Unmarshal(data, &a); err != nil {
+		return nil, nil, err
+	}
+	objs, rels := a.Nodes, a.Edges
+	if len(objs) == 0 {
+		objs = a.Objects
+	}
+	if len(rels) == 0 {
+		rels = a.Relationships
+	}
+	return objs, rels, nil
+}
+
 // Expand performs BFS expansion from root nodes.
 func (c *Client) Expand(ctx context.Context, req ExpandRequest) (*ExpandResult, error) {
 	data, err := c.do(ctx, http.MethodPost, "/api/graph/expand", req)
@@ -80,6 +113,13 @@ type TraverseRequest struct {
 type TraverseResult struct {
 	Objects       []Object       `json:"objects"`
 	Relationships []Relationship `json:"relationships"`
+}
+
+// UnmarshalJSON reads a traversal answer the way ExpandResult does.
+func (r *TraverseResult) UnmarshalJSON(data []byte) error {
+	objs, rels, err := decodeWalk(data)
+	r.Objects, r.Relationships = objs, rels
+	return err
 }
 
 // Traverse performs directed graph traversal from root nodes.
