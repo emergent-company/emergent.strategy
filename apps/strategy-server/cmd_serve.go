@@ -105,6 +105,7 @@ func runServer(cfg *config.Config) error {
 	semanticSvc := setupSemantic(cfg, log)
 
 	// Ingestion pipeline: converts committed mutations into Memory graph objects.
+	semanticSvc.WithManifestSource(ingest.NewManifestStore(db))
 	ingestSvc := ingest.NewService(db, semanticSvc.Client())
 	ingestSvc.Start(2) // 2 worker goroutines
 	defer ingestSvc.Stop()

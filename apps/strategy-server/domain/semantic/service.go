@@ -91,8 +91,9 @@ type ScenarioResult struct {
 // Service wraps the emergent.memory client with strategy-server domain operations.
 // All methods return ErrSemanticUnavailable when Memory is not configured.
 type Service struct {
-	cfg    Config
-	client *memory.Client
+	cfg      Config
+	client   *memory.Client
+	manifest ManifestSource
 }
 
 // NewService creates a semantic Service. If cfg is not configured, all methods

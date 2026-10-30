@@ -56,15 +56,20 @@ and the pilot hit the confusion they prevent.
       `strategy.CommitBatch` / `CommitAuto`. Done; the result is the table in
       design.md Decision 4. Re-run `grep -rn "strategy_artifacts\|strategy_relationships"`
       over non-test Go code before merging, in case a writer was added.
-- [ ] 1.3 `domain/ingest`: `ScopedKey(instanceID uuid.UUID, key string) string`
-      (8-character prefix, as today for decomposed keys) and `UnscopedKey`; the
-      only place Memory keys are built. Test that the longest key the
-      decomposer produces for `docs/EPF/_instances/emergent` stays within
-      Memory's 128-character key limit.
+- [x] 1.3 `domain/ingest`: `ScopedKey(instanceID uuid.UUID, key string) string`
+      (8-character prefix, as today for decomposed keys), `UnscopedKey` and
+      `RelationshipKey`; the only place Memory keys are built. Test that every
+      key the decomposer produces for `docs/EPF/_instances/emergent` stays
+      within Memory's 128-character key limit and unique. It did not: the
+      longest was 141, so keys that would exceed 128 are shortened with a hash
+      (design Decision 1, "Key length"). Track A (2.3) stores `source_key` on
+      those objects.
 - [ ] 1.4 Instance creation: retry with a new UUID on a prefix unique-index
       violation.
-- [ ] 1.5 `internal/memory`: add `Labels []string` to `SearchRequest` and
-      `Labels` to `ListObjectsOptions` if missing.
+- [x] 1.5 `internal/memory`: add `Labels []string` to `SearchRequest` and
+      `Labels` to `ListObjectsOptions` if missing. (`SearchRequest.Labels` came
+      with slice 1; `ListObjectsOptions` has a single `Label`, which is all the
+      instance-scoped list needs.)
 
 ## 2. Track A: write side (ingest)
 
@@ -86,6 +91,8 @@ and the pilot hit the confusion they prevent.
       Keep the integrity stamp on the artifact layer (`integrityMetadata`) and
       add it to decomposed objects, taking the class of the source artifact
       (design Decision 1, "Integrity stamp"; tests 9.28 and 9.29).
+      Objects whose key `ingest.IsShortened` store the original key in property
+      `source_key`.
 - [ ] 2.4 Relationships: stamp `instance_id`; resolve endpoints through scoped
       keys only; remove the `objectKeyIndex` prefix heuristics that assumed
       unscoped keys. GC resolves a removed relationship's Memory ID through
@@ -104,8 +111,8 @@ and the pilot hit the confusion they prevent.
 
 ## 3. Track B: read side (semantic)
 
-- [ ] 3.1 `ManifestSource` interface in `domain/semantic` (`HasManifest`,
-      `Visible(keys)` as one `key = ANY(?)` query), implemented in
+- [x] 3.1 `ManifestSource` interface in `domain/semantic` (`HasManifest`,
+      `Visible(keys)` and `VisibleRelationships(tuples)`, each one `key = ANY(?)` query), implemented in
       `domain/ingest`; wire in `cmd_serve.go`.
 - [ ] 3.2 Private scope helper: visibility rule (label `instance:<X>`,
       `instance_id == X`, key in manifest; relationships by endpoints and tuple),

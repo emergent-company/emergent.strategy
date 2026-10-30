@@ -31,7 +31,7 @@ Verified in the Memory source at `c0589c1`:
 | Fact | Where | Consequence |
 |---|---|---|
 | Object identity on the main branch is unique on `(project_id, type, key)`, **regardless of namespace** | `migrations/00017_…upsert_unique_index.sql` (`IDX_graph_objects_upsert_main`), still in force; `00107` adds a *second* namespace index but does not relax the first | Namespace cannot isolate instances. Two instances must never write the same `(type, key)`; the key prefix stays. |
-| `key` is at most 128 characters | `domain/graph/dto.go`, `CreateGraphObjectRequest.Key` (`max=128`) | A full 36-character UUID prefix risks overflowing long decomposed keys. Keep the 8-character prefix used since `4572524`, and make it collision-free in Postgres. |
+| `key` is at most 128 characters | `domain/graph/dto.go`, `CreateGraphObjectRequest.Key` (`max=128`) | A full 36-character UUID prefix risks overflowing long decomposed keys. Keep the 8-character prefix used since `4572524`, and make it collision-free in Postgres. The limit is not enforced on the upsert path of Memory v0.87 (keys of 129–146 characters were stored intact), but Memory is updated independently of this server, so it is treated as binding. Prefixed keys over 128 exist in real instances (8 of 2,129 in `docs/EPF/_instances/emergent`, 13 of 606 in the pilot-shaped instance), so they are shortened (see Decision 1). |
 | Upsert replaces `labels` and `properties` (no merge) | `domain/graph/service.go:1030` `CreateOrUpdate` | Labels and properties written by an ingest are exactly what the object carries afterwards. |
 | An upsert whose properties, status and labels are unchanged is a no-op: no new version, no re-embed | `service.go` ~1185–1200 (content-hash probe) | Re-ingesting unchanged content is cheap **as long as nothing per-ingest is written onto objects**. |
 | Small numeric properties are part of the embedding text | `pkg/embeddingtext/embeddingtext.go:121` | A per-ingest generation number in `properties` would create a new version and re-embed every object on every ingest (the 13 GB bloat fixed in `4572524`, plus embedding cost). Generation must not live on objects. |
@@ -49,6 +49,14 @@ Every object the server writes gets:
   first 8 hex characters of the instance UUID, as decomposed keys already use
   (`domain/ingest/service.go:889`). Artifact-layer keys, unprefixed today
   (`:413`, `:493`), gain the same prefix.
+- **Key length.** A scoped key never exceeds 128 bytes. One that would is
+  `<prefix>/<start of the key>~<first 16 hex characters of SHA-256 of the whole
+  key>`, cut at a character boundary: deterministic, distinct for distinct keys,
+  and not reversible. For those objects the writer also stores the original in
+  property `source_key` (`ingest.IsShortened` tells it when), and readers that
+  need the original key use that property, because `UnscopedKey` reports false
+  for a shortened key. Callers that pass a key in still pass the original;
+  `ScopedKey` maps it to the same shortened key on every read.
 - **Collision-free prefix.** Migration 045 adds a unique index on
   `left(id::text, 8)` over `strategy_instances` (all rows, deleted included,
   since purge can lag). Instance creation retries with a new UUID on a unique
@@ -172,7 +180,8 @@ instance. Measure in task 8.3.
 depends on a narrow `ManifestSource` interface (implemented in
 `domain/ingest`), so the semantic service stays free of `*bun.DB`:
 
-- `HasManifest(ctx, X)` (`memory_generation >= 1`), and `Visible(ctx, X, keys) (set, error)` as one
+- `HasManifest(ctx, X)` (`memory_generation >= 1`), `Visible(ctx, X, keys) (set, error)` for objects and
+  `VisibleRelationships(ctx, X, tuples) (set, error)` for relationship tuples, each as one
   `key = ANY(?)` query per read;
 - filters objects and relationships by the visibility rule;
 - counts dropped items and logs them at debug level, so leftover data shows up
