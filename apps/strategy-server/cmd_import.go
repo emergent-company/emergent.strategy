@@ -141,16 +141,7 @@ func runImport(cfg *config.Config) error {
 	if imp.Reingest && cfg.MemoryConfigured() {
 		slog.Info("ingesting into Memory graph (artifact + decomposed layers)")
 
-		authMode := memory.AuthModeAPIKey
-		if cfg.MemoryAuthMode == "bearer" {
-			authMode = memory.AuthModeBearer
-		}
-		memClient, err := memory.New(memory.Config{
-			BaseURL:   cfg.MemoryURL,
-			ProjectID: cfg.MemoryProject,
-			Token:     cfg.MemoryToken,
-			AuthMode:  authMode,
-		})
+		memClient, err := newMemoryClient(cfg)
 		if err != nil {
 			slog.Warn("ingest: failed to create Memory client, skipping", "err", err)
 		} else if err := newImportIngester(db, memClient).ReingestInstance(ctx, inst.ID); err != nil {

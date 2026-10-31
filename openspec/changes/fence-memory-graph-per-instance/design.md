@@ -313,22 +313,39 @@ tool text stops promising synchronous deletion. Fix `delete_reason` → `reason`
 **Startup sweep and drift repair** add `deleted_at IS NULL` to their raw
 queries (#87 F2).
 
-**Orphan sweep.** New admin MCP tool `sweep_memory_orphans(apply=false)` and
-CLI `strategy-server memory sweep [--apply]`, both calling one domain function.
-It pages through every object in the project and classifies:
+**Orphan sweep.** CLI `strategy-server memory sweep [--apply]`, calling
+`ingest.Service.SweepOrphans`. It pages through every object in the project and
+classifies:
 
-- `no_owner`: no `instance_id` and no `instance:` label;
-- `unknown_owner`: owner is a deleted or nonexistent instance. Archived
-  instances keep their data and count as owners;
-- `not_in_manifest`: owned by a non-deleted instance with
-  `memory_generation >= 1`, but not in its manifest;
-- `legacy_key`: key not in `<prefix>/…` format.
+- `no_owner`: no `instance_id` property and no `instance:` label, or the two
+  name different instances (ingest never writes that);
+- `unknown_owner`: owner is a deleted or nonexistent instance, or not a UUID.
+  Archived instances keep their data and count as owners;
+- `legacy_key`: owned by a live instance, key does not start with the owner's
+  `<prefix>/`;
+- `not_in_manifest`: owned by a live instance with `memory_generation >= 1`,
+  correctly keyed, but not in its manifest.
 
-It reports counts per class and, with `apply`, deletes them with single
-deletes and retry. Instances whose lock is held (ingest in progress) or that
-have no manifest yet are skipped, so the sweep can never delete the only copy
-of an instance that has not been re-ingested. Dry run is the default; the MCP
-tool sits in the `admin` category and is write-gated.
+It reports counts and a few example keys per class and, with `apply`, deletes
+them with single deletes, one at a time. A failed delete is counted and the
+sweep carries on; running it again retries. A delete that finds the object
+already gone counts as `already_gone`. Instances whose lock is held (ingest in
+progress) or that have no manifest yet are skipped and listed, so the sweep can
+never delete the only copy of an instance that has not been re-ingested. Dry
+run is the default.
+
+**No MCP tool.** The first design also had an `admin` MCP tool. It is dropped:
+the sweep reads the whole project across every organisation, and the server has
+only org-level admin checks, so any tenant's `org_admin` could run a
+project-wide delete and read other tenants' instance ids and object keys. The CLI
+runs on the server's host like `token --mint`; the operator is whoever controls
+the deployment. If a platform-operator role is added later, the tool can come
+back behind it.
+
+**The sweep assumes a project dedicated to strategy-server.** Anything in the
+project that no instance accounts for is an orphan by definition. Pointing it at
+a project that also holds other data deletes that data on `--apply`; the CLI
+prints a warning, and the dry run is the default for that reason.
 
 **Migration 045:** the columns and the `memory_projection` table from Decision 2,
 the prefix unique index from Decision 1, and `memory_content_hash = NULL` on
