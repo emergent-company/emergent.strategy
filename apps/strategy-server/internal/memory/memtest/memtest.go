@@ -36,6 +36,8 @@ type Server struct {
 	FailSearch bool
 	// FailUpsertKeys makes upserts of these keys return HTTP 400.
 	FailUpsertKeys map[string]bool
+	// FailDeleteKeys makes deletes of the objects with these keys return HTTP 500.
+	FailDeleteKeys map[string]bool
 	// OnUpsert, if set, runs after each successful object upsert, outside the lock.
 	OnUpsert func(key string)
 	// Version is reported by /health. Empty omits the field, as old Memory
@@ -59,6 +61,7 @@ func New(t testing.TB) *Server {
 		rels:           map[string]*memory.Relationship{},
 		branches:       map[string]*memory.Branch{},
 		FailUpsertKeys: map[string]bool{},
+		FailDeleteKeys: map[string]bool{},
 		Scores:         map[string]float64{},
 	}
 	s.Server = httptest.NewServer(http.HandlerFunc(s.handle))
@@ -462,6 +465,11 @@ func (s *Server) getObject(w http.ResponseWriter, id string) {
 
 func (s *Server) deleteObject(w http.ResponseWriter, id string) {
 	s.mu.Lock()
+	if o := s.objects[id]; o != nil && s.FailDeleteKeys[o.Key] {
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	delete(s.objects, id)
 	for rid, r := range s.rels {
 		if r.FromID == id || r.ToID == id {

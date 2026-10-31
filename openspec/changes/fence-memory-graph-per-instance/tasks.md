@@ -149,8 +149,8 @@ and the pilot hit the confusion they prevent.
       `convergence.go`.
 - [x] 3.7 Settings page: per-instance counts from the instance row; drop the
       project-wide `CountArtifactObjects` display.
-- [x] 3.8 (`domain/semantic/architecture_test.go`; the sweep is not written yet and joins the allow-list
-      when it is; `cmd_*.go` is allowed because commands wire the clients) Architecture test: only `domain/semantic`, `domain/ingest` and the
+- [x] 3.8 (`domain/semantic/architecture_test.go`; the sweep is in `domain/ingest`, already on the
+      allow-list, and runs from `cmd_memory.go`; `cmd_*.go` is allowed because commands wire the clients) Architecture test: only `domain/semantic`, `domain/ingest` and the
       sweep may call `internal/memory` read methods (no exemptions; ripple goes
       through 3.6b), and every `Search` call sets exactly one `instance:` label.
 
@@ -190,13 +190,18 @@ and the pilot hit the confusion they prevent.
 
 ## 5. Track D: sweep and operations (after 2 and 3)
 
-- [ ] 5.1 Domain function `SweepOrphans(ctx, apply bool)`: page all objects,
-      classify `no_owner` / `unknown_owner` / `not_in_manifest` / `legacy_key`,
-      skip locked instances and instances without a manifest, delete
-      sequentially with retry when `apply`.
-- [ ] 5.2 MCP tool `sweep_memory_orphans(apply=false)` in the `admin`
-      category, write-gated; CLI `strategy-server memory sweep [--apply]`.
-      Regenerate `self-model.json` (`task selfmodel:generate`).
+- [x] 5.1 Domain function `SweepOrphans(ctx, apply bool)` in `domain/ingest/sweep.go`:
+      page all objects, classify `no_owner` / `unknown_owner` / `not_in_manifest` /
+      `legacy_key`, skip locked instances and instances without a manifest, delete
+      sequentially when `apply`. A failed delete is counted and the sweep goes on;
+      a second run retries what is left.
+- [x] 5.2 CLI `strategy-server memory sweep [--apply]` (`cmd_memory.go`). **No MCP
+      tool, by decision of the supervisor:** the sweep reads the whole Memory
+      project across every organisation and the server has only org-level admin
+      checks, so an MCP tool would let any one tenant's `org_admin` run a
+      project-wide delete and see other tenants' instance ids and object keys. The
+      CLI runs on the server's host like `token --mint`, so the operator is whoever
+      controls the deployment. Nothing to regenerate in `self-model.json`.
 - [ ] 5.3 Upgrade runbook in `docs/DEPLOYMENT.md` (design Decision 5).
 
 ## 6. Content contract
@@ -254,7 +259,7 @@ and the pilot hit the confusion they prevent.
 - [x] 9.13 `search_strategy` returns `instance_id`, `layer`, `source_artifact`
       (AC11); `limit` filled when foreign hits dominate.
 - [x] 9.14 `graph_not_ready` for an instance without a manifest.
-- [ ] 9.15 Sweep: dry run deletes nothing and reports per class; apply deletes
+- [x] 9.15 Sweep: dry run deletes nothing and reports per class; apply deletes
       them and skips a locked instance and an instance without a manifest.
 - [x] 9.16 CLI import writes stamped objects only.
 - [x] 9.17 Re-ingest with no artifact change sends no property or label change

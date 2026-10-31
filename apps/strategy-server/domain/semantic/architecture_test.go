@@ -18,8 +18,9 @@ const (
 )
 
 // mayUseMemory are the places allowed to talk to Memory. Everything else reads
-// through domain/semantic, which scopes every read to one instance. The
-// startup sweep joins this list when it exists.
+// through domain/semantic, which scopes every read to one instance. The orphan
+// sweep lives in domain/ingest and is run by cmd_memory.go, so both are covered
+// by the entries below.
 func mayUseMemory(rel string) bool {
 	switch {
 	case strings.HasPrefix(rel, "domain/semantic/"),

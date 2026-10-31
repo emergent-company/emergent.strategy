@@ -38,6 +38,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "strategy-server: %v\n", err)
 			os.Exit(1)
 		}
+	case cfg.Memory != nil:
+		if err := runMemory(&cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "strategy-server: %v\n", err)
+			os.Exit(1)
+		}
 	default:
 		p.WriteHelp(os.Stdout)
 		os.Exit(1)
