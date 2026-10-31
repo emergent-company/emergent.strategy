@@ -439,6 +439,7 @@ func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *in
 		proj.decomposedObjects, proj.decomposedRels = d.decomposedObjects, d.decomposedRels
 	}
 
+	upsertStart := time.Now()
 	bulk, err := s.client.BulkUpsertObjects(ctx, proj.objects, 8)
 	if err != nil {
 		return fmt.Errorf("ingest %s: bulk upsert: %w", instanceID, err)
@@ -450,18 +451,25 @@ func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *in
 		return fmt.Errorf("ingest %s: %d of %d relationship upserts failed", instanceID, failed, len(proj.rels))
 	}
 
+	upsertDur := time.Since(upsertStart)
+
 	objKeys, relKeys := proj.objectKeys(), proj.relKeys()
 	old, err := s.loadManifest(ctx, instanceID)
 	if err != nil {
 		return err
 	}
+	commitStart := time.Now()
 	if err := s.commitProjection(ctx, instanceID, proj, objKeys, relKeys, hash0, seq0); err != nil {
 		return err
 	}
+	commitDur := time.Since(commitStart)
 
+	gcStart := time.Now()
 	s.collectGarbage(ctx, instanceID, old, objKeys, relKeys, decomposed)
 	slog.Info("ingest: instance complete", "instance_id", instanceID,
-		"objects", len(objKeys), "relationships", len(relKeys))
+		"objects", len(objKeys), "relationships", len(relKeys),
+		"upsert_ms", upsertDur.Milliseconds(), "manifest_ms", commitDur.Milliseconds(),
+		"gc_ms", time.Since(gcStart).Milliseconds())
 	return nil
 }
 
