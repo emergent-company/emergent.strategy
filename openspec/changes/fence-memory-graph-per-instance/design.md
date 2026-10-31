@@ -394,10 +394,9 @@ What this says:
   generation 17, dirty flag cleared, and no object was lost or duplicated
   (2250 before and after). A server that stays up re-queues a dirty instance on
   the heartbeat after `dirtyGrace` (one minute).
-- Memory restarts mid-run were handled: Memory restarted three times while the
-  scale server was up (a host-level Docker problem unrelated to this change), and
-  each time the drift check re-queued the instance and the ingest completed with
-  the same counts.
+- Memory restarted twice while the scale server was up (cause not investigated).
+  Each time the drift check detected the new start time, re-queued the instance,
+  and the ingest completed with the same counts. This was not a controlled test.
 
 Found while measuring, not part of this change: `epfimport.ScanDirectory` reads
 files in map order, and `READY/05_roadmap_recipe.yaml` and
