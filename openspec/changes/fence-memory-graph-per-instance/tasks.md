@@ -220,7 +220,7 @@ and the pilot hit the confusion they prevent.
       A, import a real instance B, import B again with an artifact removed,
       restore a version, delete A, run the sweep dry-run and apply. Check every
       #99 acceptance criterion by hand and record the result in the PR.
-- [ ] 8.3 Measure a full ingest of the largest local instance (time, object
+- [x] 8.3 Measure a full ingest of the largest local instance (time, object
       and relationship counts, manifest replace time) and a second ingest with
       no changes (must create no new Memory versions). Record in design.md.
       Also check that a dropped job converges: stop the server mid-ingest, restart,

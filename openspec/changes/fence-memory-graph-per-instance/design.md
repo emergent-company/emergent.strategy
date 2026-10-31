@@ -352,6 +352,61 @@ Requirement text in the spec, plus tool descriptions:
   `get_roadmap`, `list_features`, …).
 - `get_template`: an authoring template, never the instance's strategy.
 
+## Measurements (task 8.3)
+
+Real Memory v0.87.4 (`memory-passthrough`), an empty project, a scratch
+Postgres database, and the largest local instance (175 artifacts, 5.7 MB of
+YAML, imported with `strategy-server import`). Measured on an 8 GiB laptop with
+other containers running, so read them as orders of magnitude.
+
+| Measurement | Result |
+|---|---|
+| Objects / relationships in Memory | 2250 / 3416 (175 artifact objects, 2075 decomposed) |
+| First full ingest, empty Memory | about 43 s |
+| Unchanged re-ingest | about 10-15 s, **0 of 2250 object versions changed** (3 runs) |
+| Of which: upserting 2250 unchanged objects | 10.0-11.3 s |
+| Manifest replace | 113-174 ms |
+| GC pass (nothing to remove) | 346-403 ms |
+| Edit of one field in one artifact | exactly 1 object version changed (`north_star`) |
+| `health_check` through the MCP (reads `GraphStats`) | 0.37-0.49 s, 3 calls |
+| `detect_contradictions` (175 `ObjectEdges` calls) | 1.15-1.55 s, 2 calls |
+| `search_strategy`, auto mode | 0.04-0.19 s, 3 calls |
+| Postgres `memory_projection` rows | 5666 (2250 objects + 3416 relationships) |
+
+What this says:
+
+- The no-op claim holds at scale: an unchanged ingest creates no versions and
+  therefore no embedding work. It is not free. Each unchanged object is still one
+  upsert round trip, so an unchanged ingest of this instance costs 10-15 s of
+  wall clock. This is acceptable for a change-triggered ingest. If it ever
+  matters, skip the upsert for objects whose content hash is unchanged since the
+  last ingest; not needed for the pilot.
+- `health_check` (which calls `GraphStats`) stays under half a second here.
+  Node and edge counts come from the manifest, but `GraphStats` still lists the
+  instance's objects once (about 12 pages of 200 at this size) to take its
+  orphan sample, so its cost grows with instance size. It is not free of paging.
+  `detect_contradictions` calls `ObjectEdges` once per artifact object (175 here)
+  and took 1.2-1.6 s. At 10x the artifacts that would be 10-15 s; not a problem
+  for the pilot, worth knowing.
+- **Dropped job converges.** The instance was dirtied (generation 16), the server
+  was killed with `kill -9` 4 s into the ingest, and the instance stayed dirty. On
+  restart the startup sweep re-queued it, the ingest completed in 16 s,
+  generation 17, dirty flag cleared, and no object was lost or duplicated
+  (2250 before and after). A server that stays up re-queues a dirty instance on
+  the heartbeat after `dirtyGrace` (one minute).
+- Memory restarted twice while the scale server was up (cause not investigated).
+  Each time the drift check detected the new start time, re-queued the instance,
+  and the ingest completed with the same counts. This was not a controlled test.
+
+Found while measuring, not part of this change: `epfimport.ScanDirectory` reads
+files in map order, and `READY/05_roadmap_recipe.yaml` and
+`AIM/cycles/cycle-1/05_roadmap_recipe.yaml` both become the artifact
+`roadmap_recipe`. Which one wins differs from run to run, so two imports of the
+same directory produced different roadmaps (first run: older AIM cycle, second:
+READY). The ingest itself is deterministic given the stored artifacts; the
+nondeterminism is in the import. Removing the AIM copy made five consecutive
+imports identical. Tracked as a separate issue.
+
 ## Risks and open questions
 
 1. **Memory version (resolved).** The facts above were verified at v0.88.1
