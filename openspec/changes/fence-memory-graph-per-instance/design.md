@@ -424,6 +424,50 @@ READY). The ingest itself is deterministic given the stored artifacts; the
 nondeterminism is in the import. Removing the AIM copy made five consecutive
 imports identical. Tracked as a separate issue.
 
+## Verification on real data (task 8.2, partial)
+
+Real Memory v0.87.4 (`memory-passthrough`, port 3012), a fresh Postgres database
+migrated to 046, and six instances imported from the GitHub checkouts (Emergent,
+Farmforce, Papertrail, Sandakers, 21st, Huma) into one empty project:
+11,405 objects and 16,803 relationships.
+
+| Check | Result |
+|---|---|
+| Every object has exactly one `instance:` label, equal to its `instance_id` property, a key with its own prefix, and an entry in its manifest | 11,405 of 11,405, 0 violations |
+| Relationships whose ends belong to different instances | 0 of 16,803 |
+| Manifest entries without a Memory object | 0 |
+| `search_strategy`, every instance asked for every instance's name, auto and semantic | 72 searches; every hit carries the queried instance's `instance_id`; the queried instance returned hits in all six, so the probe is not vacuous |
+| `get_neighbors` with a key that exists only in another instance | 27 probes, 27 empty |
+| `get_neighbors("north_star")`, a key all six instances share | each instance answers with its own neighbours |
+| `delete_instance` on an instance with 2,664 objects and 2,755 relationships | purge recorded after 19 s; exactly its objects and relationships removed; 0 other objects added, removed or versioned; manifest cleared |
+| Sweep dry run on the real data | 0 in every class |
+| Sweep with one planted orphan per class | dry run reports 1/1/1/1 and deletes nothing; apply deletes exactly those 4 (0 failed); 0 real objects removed or versioned; a second apply finds 0 |
+
+Not done yet: scaffold a new instance, import again with an artifact removed,
+restore a version, and walk the #99 acceptance criteria by hand.
+
+Found while doing it, none caused by this change:
+
+- **A failed ingest left the fence intact.** Memory's own Postgres was
+  OOM-killed mid-ingest (the Docker VM had 4 GiB), 165 of 1,093 relationship
+  writes got 401, and the ingest returned an error before touching the manifest.
+  The instance stayed at generation 0 and dirty; its 1,213 objects were in Memory
+  but invisible, and a retry converged.
+- **A project-wide read through a proxy that ignores `X-Project-ID`** (the nginx
+  in front of Memory on 3002 answers from the default project) sent an import to
+  the wrong project. The fence does not help here: it keys on the instance, not
+  the project. The upgrade runbook must say to point strategy-server at Memory
+  directly or at a proxy that honours the header.
+- **Importer issues:** nondeterministic file order (#119) and nested instance
+  directories imported into the parent (#120; 132 of 326 artifacts in one repo).
+- **`read_with` on decomposed search hits can name an artifact that does not
+  exist** (the exporter drops sub-folders and doubles the `value_model_` prefix).
+  The fix for the exporter is on `fix/export-preserve-artifact-paths`
+  (`1d7c7590`), which is not in `fence/slice-2`; I did not test it.
+- **Concurrency:** bulk upserts and cascade deletes at 8 and 4 workers pushed a
+  4 GiB Docker VM into the OOM killer three times. At 2 workers the same imports
+  peaked at 1.7 GiB and nothing was killed. The 8 is hard-coded.
+
 ## Risks and open questions
 
 1. **Memory version (resolved).** The facts above were verified at v0.88.1
