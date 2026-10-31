@@ -26,6 +26,16 @@ type ImportCmd struct {
 	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"true" help:"Ingest artifacts into Memory graph after import (skipped when Memory is not configured)"`
 }
 
+// MemoryCmd is the subcommand for operating on the Memory graph.
+type MemoryCmd struct {
+	Sweep *MemorySweepCmd `arg:"subcommand:sweep" help:"Report, and with --apply delete, Memory objects no instance accounts for"`
+}
+
+// MemorySweepCmd runs the orphan sweep. Without --apply it deletes nothing.
+type MemorySweepCmd struct {
+	Apply bool `arg:"--apply" help:"Delete the objects reported (default is a dry run)"`
+}
+
 // TokenCmd is the subcommand for access-token administration.
 //
 // This exists to bootstrap the first token: the MCP tools require an
@@ -75,6 +85,7 @@ type Config struct {
 	DB     *DBCmd     `arg:"subcommand:db" help:"Database management commands"`
 	Import *ImportCmd `arg:"subcommand:import" help:"Import a local EPF instance into the database"`
 	Token  *TokenCmd  `arg:"subcommand:token" help:"Access token administration (bootstrap and recovery)"`
+	Memory *MemoryCmd `arg:"subcommand:memory" help:"Memory graph operations (orphan sweep)"`
 
 	// General
 	LogLevel string `arg:"--log-level,env:LOG_LEVEL" default:"INFO" help:"Log level: DEBUG, INFO, WARN, ERROR"`
