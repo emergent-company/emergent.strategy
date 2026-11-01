@@ -485,7 +485,12 @@ func (s *Service) ownedBranch(ctx context.Context, instanceID, scenarioID string
 	return branch, nil
 }
 
-// EvaluateScenario assesses the impact of a what-if scenario on the strategy graph.
+// EvaluateScenario reports the instance's view of a what-if scenario branch. A
+// branch shows the whole project through it, so the read goes through the same
+// scope as every other read: only objects the instance owns and its manifest
+// holds are named, by the keys the instance knows them by. The branch is not
+// compared with main yet, so the list is the instance's nodes on the branch, not
+// a diff.
 func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID string) (map[string]any, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
@@ -495,20 +500,19 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 	if err != nil {
 		return nil, err
 	}
-
-	// Use a branch-scoped client to list objects on the scenario branch.
-	branchClient := s.client.WithBranch(scenarioID)
-	page, err := branchClient.ListObjects(ctx, memory.ListObjectsOptions{
-		Limit: 100,
-	})
+	sc, err := s.scope(ctx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	sc.client = s.client.WithBranch(scenarioID)
+	objs, err := sc.list(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("evaluate scenario: list branch objects: %w", err)
 	}
 
-	// Collect affected node keys.
-	affectedNodes := make([]string, 0, len(page.Items))
-	for _, obj := range page.Items {
-		affectedNodes = append(affectedNodes, obj.Key)
+	affectedNodes := make([]string, 0, len(objs))
+	for i := range objs {
+		affectedNodes = append(affectedNodes, sc.originalKey(&objs[i]))
 	}
 
 	return map[string]any{
@@ -517,7 +521,7 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 		"branch_status":     branch.Status,
 		"affected_nodes":    affectedNodes,
 		"propagation_depth": 0, // would need propagation circuit for real depth
-		"impact_summary":    fmt.Sprintf("Scenario affects %d nodes", len(affectedNodes)),
+		"impact_summary":    fmt.Sprintf("The branch shows %d nodes of this instance; changes made on the branch are not compared with main yet", len(affectedNodes)),
 	}, nil
 }
 
