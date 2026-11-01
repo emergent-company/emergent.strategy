@@ -1185,11 +1185,14 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("delete_workspace",
-		mcp.WithDescription("USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased."),
+		mcp.WithDescription("USE WHEN you need to delete a workspace and all its strategy instances. Requires org_admin on the workspace's organisation; access tokens cannot do it. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		wsID, err := parseUUID(argString(req, "workspace_id"))
 		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertWorkspaceAdmin(ctx, svc, wsID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 		if err := svc.Workspace.DeleteWorkspace(ctx, wsID); err != nil {

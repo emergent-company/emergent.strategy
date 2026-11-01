@@ -307,7 +307,7 @@
     },
     {
       "name": "assign_workspace_to_org",
-      "description": "USE WHEN you need to reassign a workspace to a different organisation. Requires org_admin role on the target org.",
+      "description": "USE WHEN you need to reassign a workspace to a different organisation. Requires org_admin on both the workspace's current organisation and the target organisation.",
       "category": "admin",
       "input_schema": {
         "properties": {
@@ -719,7 +719,7 @@
     },
     {
       "name": "delete_workspace",
-      "description": "USE WHEN you need to delete a workspace and all its strategy instances. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased.",
+      "description": "USE WHEN you need to delete a workspace and all its strategy instances. Requires org_admin on the workspace's organisation; access tokens cannot do it. The workspace and its instances disappear immediately and cannot be restored through the API; their semantic-graph (Memory) objects and scenario branches are removed asynchronously. Rows in the database are soft-deleted, not erased.",
       "category": "admin",
       "input_schema": {
         "properties": {
