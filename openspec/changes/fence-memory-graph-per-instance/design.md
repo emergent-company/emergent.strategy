@@ -439,8 +439,8 @@ imports identical. Tracked as a separate issue.
 ## Verification on real data (task 8.2)
 
 Real Memory v0.87.4 (`memory-passthrough`, port 3012), a fresh Postgres database
-migrated to 046, and six instances imported from the GitHub checkouts (Emergent,
-Farmforce, Papertrail, Sandakers, 21st, Huma) into one empty project:
+migrated to 046, and six instances imported from real GitHub checkouts into one empty
+project:
 11,405 objects and 16,803 relationships.
 
 | Check | Result |
