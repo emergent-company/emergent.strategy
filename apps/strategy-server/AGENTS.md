@@ -509,6 +509,61 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `internal/domain/` | Shared struct definitions with bun tags |
 | `internal/index/` | Strategic relationship index derivation |
 
+### Memory isolation model — read before touching ingest, search or purge
+
+The emergent.memory graph is a **derived copy of Postgres**, never a source of
+truth. One Memory project serves a whole deployment, so isolation between
+instances is something this server enforces; Memory does not. Design and
+invariants: `openspec/changes/fence-memory-graph-per-instance/`.
+
+- **Ownership.** Every object ingest writes carries the label
+  `instance:<uuid>`, the property `instance_id`, a layer label
+  (`layer:artifact` or `layer:decomposed`) and, for framework content,
+  `integrity:<class>` plus `integrity_class`. Relationships carry `instance_id`.
+- **Keys.** `domain/ingest/keys.go` is the only place Memory keys are built:
+  `<first 8 hex of the instance uuid>/<key>`. A key that would pass Memory's
+  128-character limit is shortened with a `~<hash>` suffix and the original is
+  kept in `source_key`. The 8-character prefix is unique across all instances,
+  soft-deleted ones included (unique index in migration 045); instance creation
+  retries with a new UUID on a collision.
+- **Manifest.** `memory_projection` lists, per instance, the object keys and
+  relationship tuples the last *complete* ingest wrote. An ingest writes
+  everything, replaces the manifest in one transaction, then deletes what fell
+  out of it. A failed ingest leaves the old manifest in force.
+- **One read path.** `domain/semantic/scope.go`. An object is visible to an
+  instance only if it has the instance's label, the matching `instance_id`
+  property **and** its key is in the manifest. Every semantic read
+  (`search_strategy`, `get_neighbors`, `detect_contradictions`, lifecycle
+  enrichment, scenario evaluation) goes through it. An instance with no manifest
+  gets `ErrGraphNotReady`, never another instance's data. Do not call
+  `Client().ListObjects/Search/Expand` from a read path; an architecture test
+  guards the named semantic calls, not every call.
+- **Framework content is excluded from reads.** Objects whose `integrity_class`
+  is `canonical_reference`, `unmodified_template` or `packaged_default` are in
+  the graph (so the projection stays exact) but are dropped by `search_strategy`,
+  `get_neighbors` and `detect_contradictions`. A new read that forgets the filter
+  leaks them: use `isFrameworkObject`.
+- **Triggers.** Every writer of `strategy_artifacts` / `strategy_relationships`
+  calls `internal/changemark` once per operation (inside its transaction when it
+  has one), which sets `memory_dirty_since` and bumps `memory_change_seq`, then
+  tells ingest after commit. The mark is durable: if the notification is lost the
+  heartbeat (`RepairMemoryDrift`) re-enqueues dirty instances, instances that
+  never ingested (`memory_generation = 0`), and owed purges. An ingest clears the
+  dirty flag only if `memory_change_seq` did not move while it ran.
+- **Deletion.** `delete_instance` and `delete_workspace` soft-delete and notify;
+  ingest purges asynchronously under the instance lock (objects by owner label,
+  `scenario-<uuid>-*` branches, manifest rows) and records `memory_purged_at`.
+  The purge always asks Memory what the instance owns, so objects left by an
+  interrupted first ingest are removed too.
+- **Scenarios.** Branch names carry the owner (`scenario-<uuid>-...`); evaluate,
+  commit and discard answer "not found" for any other branch. `commit_scenario`
+  is a dry run: it never sends `execute:true`, because a real merge would copy
+  other instances' objects into main.
+- **Sweep.** `strategy-server memory sweep [--apply]` (CLI only, on a host with
+  database access) removes objects no instance accounts for. Dry run by default.
+- **Ingest outside the server.** `epf ingest` / `epf sync` of `epf-cli` write
+  with the old unscoped keys and must never target a strategy-server project.
+
 ### Database migrations
 
 42 migrations in `internal/database/migrations/`:
@@ -557,6 +612,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `040_aim_cycle_runs_replan.sql` | `replan_requested` flag backing `DBOSEngine.Replan`'s mid-cycle re-plan signal |
 | `041_aim_cycle_runs_dbos_workflow_id.sql` | `dbos_workflow_id` on `aim_cycle_runs` |
 | `042_instance_consumer_repos.sql` | `instance_consumer_repos` — repos that *consume* an instance (submodule mounts), distinct from `strategy_instances.github_repo`, which is its single *home* (sync source and AIM push target) |
+| `045_memory_projection.sql` | `memory_generation`, `memory_dirty_since`, `memory_change_seq`, `memory_purged_at` on `strategy_instances`; `memory_projection` (the per-instance manifest of Memory keys); unique index on `left(id::text, 8)` (Memory key prefix); resets `memory_content_hash` so every instance re-ingests once |
 | `046_artifact_integrity.sql` | `integrity_class`, `integrity_ref`, `integrity_checked_with` on `strategy_artifacts`: marks unmodified canonical content (definitions, templates, packaged value models). NULL class = authored; `integrity_checked_with` tells authored from never-classified and names the manifest used. 045 belongs to the fence change |
 
 ### Home repo vs consumer repos — do not conflate these
