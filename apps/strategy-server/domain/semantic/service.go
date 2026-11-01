@@ -215,7 +215,7 @@ func (s *Service) SearchStrategyScoped(ctx context.Context, instanceID, query st
 	out.ExcludedOtherInstance, out.ExcludedNotInGraph = sc.notOwned, sc.notInGraph
 	for _, h := range hits {
 		props := h.obj.Properties
-		if class, _ := props["integrity_class"].(string); isFrameworkClass(class) {
+		if isFrameworkObject(&h.obj) {
 			out.ExcludedFramework++
 			continue
 		}
@@ -284,6 +284,16 @@ func (sc *scope) search(ctx context.Context, query string, limit int, types []st
 	return out, nil
 }
 
+// isFrameworkObject reports whether a graph object was derived from unmodified
+// framework content (a canonical definition, a template, a packaged default).
+// Both layers carry the class of their source artifact. Such an object is in the
+// graph because the instance holds the file, not because the company wrote it,
+// so no read presents it, or a relationship to it, as the company's strategy.
+func isFrameworkObject(o *memory.Object) bool {
+	class, _ := o.Properties["integrity_class"].(string)
+	return isFrameworkClass(class)
+}
+
 // isFrameworkClass reports whether an integrity class marks framework content.
 func isFrameworkClass(class string) bool {
 	switch class {
@@ -331,7 +341,7 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 	if err != nil {
 		return nil, fmt.Errorf("get neighbors: %w", err)
 	}
-	if root == nil {
+	if root == nil || isFrameworkObject(root) {
 		return []*Neighbor{}, nil
 	}
 	objs, rels, err := sc.neighborhood(ctx, root, 1, 500)
@@ -353,7 +363,7 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 			continue
 		}
 		connected, ok := byID[connectedID]
-		if !ok {
+		if !ok || isFrameworkObject(connected) {
 			continue
 		}
 		out = append(out, &Neighbor{
@@ -369,7 +379,10 @@ func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) 
 // DetectContradictions reports artifact-layer objects of the instance that have
 // no relationship in its projection. The graph also holds a decomposed layer
 // where relationship-free nodes are normal, so only the artifact layer is
-// scanned.
+// scanned. Framework content (see isFrameworkObject) is neither reported nor
+// counted as a connection: an instance scaffolded from the framework holds
+// hundreds of definitions with no relationships, and none of them is a defect in
+// the company's strategy.
 //
 // Connectivity comes from the per-object edges endpoint, one call per object,
 // so every edge is attributed to the object it was asked about. Edges count only
@@ -385,12 +398,12 @@ func (s *Service) DetectContradictions(ctx context.Context, instanceID string) (
 	}
 	var artifacts []memory.Object
 	for i := range all {
-		if layerOf(&all[i]) == layerArtifact {
+		if layerOf(&all[i]) == layerArtifact && !isFrameworkObject(&all[i]) {
 			artifacts = append(artifacts, all[i])
 		}
 	}
 	if len(artifacts) == 0 {
-		return nil, nil
+		return []*Contradiction{}, nil
 	}
 	byID := indexByID(artifacts)
 
@@ -412,7 +425,7 @@ func (s *Service) DetectContradictions(ctx context.Context, instanceID string) (
 		connected[r.FromID], connected[r.ToID] = true, true
 	}
 
-	var contradictions []*Contradiction
+	contradictions := []*Contradiction{}
 	for _, o := range artifacts {
 		if connected[o.StableID()] {
 			continue
