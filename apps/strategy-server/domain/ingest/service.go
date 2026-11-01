@@ -458,6 +458,14 @@ func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *in
 	if err != nil {
 		return err
 	}
+	owned, err := s.listOwned(ctx, instanceID)
+	if err != nil {
+		return fmt.Errorf("ingest %s: %w", instanceID, err)
+	}
+	owned, err = s.removeShadowed(ctx, instanceID, proj, owned)
+	if err != nil {
+		return fmt.Errorf("ingest %s: %w", instanceID, err)
+	}
 	commitStart := time.Now()
 	if err := s.commitProjection(ctx, instanceID, proj, objKeys, relKeys, hash0, seq0); err != nil {
 		return err
@@ -465,7 +473,7 @@ func (s *Service) ingestLocked(ctx context.Context, instanceID uuid.UUID, st *in
 	commitDur := time.Since(commitStart)
 
 	gcStart := time.Now()
-	s.collectGarbage(ctx, instanceID, old, objKeys, relKeys, decomposed)
+	s.collectGarbage(ctx, instanceID, owned, old, objKeys, relKeys, decomposed)
 	slog.Info("ingest: instance complete", "instance_id", instanceID,
 		"objects", len(objKeys), "relationships", len(relKeys),
 		"upsert_ms", upsertDur.Milliseconds(), "manifest_ms", commitDur.Milliseconds(),
@@ -584,22 +592,44 @@ func hasLabel(o memory.Object, label string) bool {
 	return false
 }
 
+// removeShadowed deletes the owned objects whose key the projection still
+// contains but under another type. Memory identifies an object by type and key,
+// so an artifact that changes type gets a second object, and the manifest, which
+// lists keys, cannot tell the two apart. They are removed before the manifest is
+// committed so that two objects never answer for one key. A failed delete fails
+// the ingest: the instance stays dirty and the next ingest retries. It returns
+// the owned objects that remain.
+func (s *Service) removeShadowed(ctx context.Context, instanceID uuid.UUID, proj *projection, owned []memory.Object) ([]memory.Object, error) {
+	typeOf := make(map[string]string, len(proj.objects))
+	for _, o := range proj.objects {
+		typeOf[o.Key] = o.Type
+	}
+	kept := owned[:0:0]
+	for _, o := range owned {
+		if want, projected := typeOf[o.Key]; projected && o.Type != want {
+			if err := s.client.DeleteObject(ctx, o.StableID(), memory.DeleteObjectRequest{
+				Reason: fmt.Sprintf("type of %s changed from %s to %s", o.Key, o.Type, want),
+			}); err != nil {
+				return nil, fmt.Errorf("remove %s object %q replaced by type %s: %w", o.Type, o.Key, want, err)
+			}
+			continue
+		}
+		kept = append(kept, o)
+	}
+	return kept, nil
+}
+
 // collectGarbage removes what the instance owns in Memory but no longer
-// projects. It lists the objects carrying the instance's owner label, which
-// covers objects of the previous manifest and any other owned leftover, so it
-// cannot touch another instance's data. Relationships of the previous manifest
+// projects. owned is the listing of the objects carrying the instance's owner
+// label, which covers objects of the previous manifest and any other owned
+// leftover, so it cannot touch another instance's data. Relationships of the previous manifest
 // that were dropped between surviving objects are deleted by ID; edges of
 // deleted objects go with the object. When the decomposed layer was not part of
 // this ingest its objects are left alone.
 //
 // Garbage never affects visibility, which comes from the manifest. Failures are
 // logged and the next ingest retries.
-func (s *Service) collectGarbage(ctx context.Context, instanceID uuid.UUID, old *manifest, objKeys, relKeys map[string]struct{}, decomposed bool) {
-	owned, err := s.listOwned(ctx, instanceID)
-	if err != nil {
-		slog.Warn("ingest: garbage collection skipped", "instance_id", instanceID, "err", err)
-		return
-	}
+func (s *Service) collectGarbage(ctx context.Context, instanceID uuid.UUID, owned []memory.Object, old *manifest, objKeys, relKeys map[string]struct{}, decomposed bool) {
 	ids := make(map[string]string, len(owned))
 	stale := make(map[string]bool)
 	for _, o := range owned {

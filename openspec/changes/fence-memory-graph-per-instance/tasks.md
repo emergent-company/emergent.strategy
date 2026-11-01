@@ -292,3 +292,7 @@ and the pilot hit the confusion they prevent.
       returned, and the over-fetch still fills the page.
 - [x] 9.31 Architecture check: the scoped search path applies the framework
       filter (a mock Memory returning a flagged hit must not surface it).
+- [x] 9.32 An artifact keeps its key and changes type (found in 8.2): after the
+      re-ingest exactly one object answers for the key, with the new type, and
+      the manifest equals Memory. If the old-type object cannot be removed the
+      ingest fails, the generation does not move, and the retry converges.

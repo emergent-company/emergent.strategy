@@ -163,6 +163,17 @@ Postgres stay visible, and objects rewritten in place show their newer content.
 All three converge on the next successful ingest (Decision 4 bounds the
 delay). No partially-built projection is ever visible.
 
+**Type changes.** Memory identifies an object by type and key; the manifest
+lists keys only. An artifact that keeps its key and changes type (found in 8.2,
+through `restore_version`, #121) gets a second object, and the key stays in the
+manifest, so the garbage collector kept both. Ingest now lists the instance's
+objects once, after the upserts, deletes any whose key is projected under
+another type before the manifest is committed, and fails if it cannot. The same
+listing feeds the garbage collector, so this costs no extra Memory read. A
+listing failure now fails the ingest where it used to skip the garbage
+collection with a warning, so a half-listed project can never be treated as
+clean.
+
 **Not ready.** An instance with `memory_generation = 0` (never ingested under
 this scheme, including every instance right after upgrade) returns an empty
 result with a `graph_not_ready` hint from every semantic read, never an error
