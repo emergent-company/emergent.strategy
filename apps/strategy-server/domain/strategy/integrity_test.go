@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark/changemarktest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
@@ -248,5 +249,68 @@ func TestReclassifyIntegrity_RecomputesWhenTheManifestChanges(t *testing.T) {
 	}
 	if got := artifactRow(t, db, inst, "sd-x").IntegrityClass; got != nil {
 		t.Errorf("row still classified as %s under a manifest that does not list it", *got)
+	}
+}
+
+func TestReclassifyIntegrity_MarksTheInstanceWhoseClassChanged(t *testing.T) {
+	db := database.TestDB(t)
+	marker, rec := changemarktest.New(db)
+	svc := strategy.NewService(db).WithChangeMarker(marker)
+	changed := seedIntegrityInstance(t, db)
+	untouched := seedIntegrityInstance(t, db)
+
+	commitAuto(t, svc, changed, "definition", "sd-old", domain.MutationActionCreate, embeddedPayload(t, "FIRE/definitions/strategy/"))
+	commitAuto(t, svc, untouched, "north_star", "north_star", domain.MutationActionCreate,
+		map[string]any{"north_star": map[string]any{"organization": "Acme"}})
+
+	// Rows that predate the columns: no class, never checked.
+	if _, err := db.ExecContext(context.Background(),
+		"UPDATE strategy_artifacts SET integrity_class = NULL, integrity_ref = NULL, integrity_checked_with = NULL"); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	changemarktest.Reset(t, db, changed)
+	changemarktest.Reset(t, db, untouched)
+	notifiedChanged, notifiedUntouched := rec.Count(changed), rec.Count(untouched)
+
+	if _, err := svc.ReclassifyIntegrity(context.Background(), nil); err != nil {
+		t.Fatalf("ReclassifyIntegrity: %v", err)
+	}
+
+	// The ingest hash covers key and payload only, so a changed class is
+	// invisible to it: the instance has to be marked or its graph keeps the old class.
+	if s := changemarktest.Load(t, db, changed); s.Dirty == nil || s.Seq < 1 {
+		t.Errorf("instance whose definition became canonical_reference: dirty=%v seq=%d, want marked", s.Dirty, s.Seq)
+	}
+	if rec.Count(changed) <= notifiedChanged {
+		t.Errorf("the ingest service was not notified about the changed instance")
+	}
+	if s := changemarktest.Load(t, db, untouched); s.Dirty != nil || s.Seq != 0 {
+		t.Errorf("instance whose class stayed empty was marked: dirty=%v seq=%d", s.Dirty, s.Seq)
+	}
+	if rec.Count(untouched) != notifiedUntouched {
+		t.Errorf("the ingest service was notified about an instance whose class did not change")
+	}
+}
+
+func TestReclassifyIntegrity_MarksNothingWhenOnlyTheManifestVersionChanged(t *testing.T) {
+	db := database.TestDB(t)
+	marker, _ := changemarktest.New(db)
+	svc := strategy.NewService(db).WithChangeMarker(marker)
+	inst := seedIntegrityInstance(t, db)
+	commitAuto(t, svc, inst, "definition", "sd-x", domain.MutationActionCreate, embeddedPayload(t, "FIRE/definitions/strategy/"))
+	changemarktest.Reset(t, db, inst)
+
+	// Same classification, different manifest version: every row is re-checked
+	// and none changes class, so no re-ingest is owed.
+	if _, err := db.ExecContext(context.Background(),
+		"UPDATE strategy_artifacts SET integrity_checked_with = 'older-manifest' WHERE instance_id = ?", inst); err != nil {
+		t.Fatal(err)
+	}
+	n, err := svc.ReclassifyIntegrity(context.Background(), &inst)
+	if err != nil || n != 1 {
+		t.Fatalf("reclassified %d rows, err %v; want 1", n, err)
+	}
+	if s := changemarktest.Load(t, db, inst); s.Dirty != nil || s.Seq != 0 {
+		t.Errorf("marked although nothing changed: dirty=%v seq=%d", s.Dirty, s.Seq)
 	}
 }

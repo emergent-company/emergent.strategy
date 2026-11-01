@@ -163,13 +163,7 @@ func (s *Service) staleInstances(ctx context.Context, db *bun.DB, grace time.Dur
 			FROM strategy_artifacts a
 			WHERE a.instance_id = si.id AND a.status != 'archived'
 		), md5('')) AS current_hash`).
-		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
-		Where("si.deleted_at IS NULL").
-		Where("si.status != ?", "archived").
-		Where("w.deleted_at IS NULL").
-		Where("w.github_owner NOT LIKE ?", "e2e-%").
-		Where("w.github_owner NOT LIKE ?", "ripple-%").
-		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(ingestable).
 		Scan(ctx, &rows)
 	if err != nil {
 		return nil, fmt.Errorf("load instances: %w", err)
@@ -187,6 +181,19 @@ func (s *Service) staleInstances(ctx context.Context, db *bun.DB, grace time.Dur
 		}
 	}
 	return ids, nil
+}
+
+// ingestable restricts a query on strategy_instances AS si to instances that
+// are ingested into Memory: active, in a live workspace, and not a test fixture.
+func ingestable(q *bun.SelectQuery) *bun.SelectQuery {
+	return q.
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Where("si.deleted_at IS NULL").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("w.github_owner NOT LIKE ?", "e2e-%").
+		Where("w.github_owner NOT LIKE ?", "ripple-%").
+		Where("w.github_owner NOT LIKE ?", "aim-ripple-%")
 }
 
 // pendingPurges returns deleted instances that were synced to Memory and whose
@@ -209,7 +216,7 @@ func (s *Service) pendingPurges(ctx context.Context, db *bun.DB) ([]uuid.UUID, e
 
 // RepairMemoryDrift implements heartbeat.MemoryDriftRepairer. It re-enqueues
 // instances whose changes have sat unprocessed (a dropped notification or a
-// failed ingest), instances synced before the Memory server last started (a
+// failed ingest), instances whose first ingest has not completed, instances synced before the Memory server last started (a
 // restart can wipe the graph), and purges that are still owed.
 func (s *Service) RepairMemoryDrift(ctx context.Context) {
 	if s.client == nil {
@@ -225,6 +232,17 @@ func (s *Service) RepairMemoryDrift(ctx context.Context) {
 	}
 	if len(dirty) > 0 {
 		slog.InfoContext(ctx, "ingest: re-queued dirty instances", "count", len(dirty))
+	}
+
+	never, err := s.neverIngestedInstances(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "ingest: drift check: never-ingested query failed", "err", err)
+	}
+	for _, id := range never {
+		s.EnqueueInstance(id)
+	}
+	if len(never) > 0 {
+		slog.InfoContext(ctx, "ingest: re-queued instances that have no projection yet", "count", len(never))
 	}
 
 	purges, err := s.pendingPurges(ctx, s.db)
@@ -282,6 +300,26 @@ func (s *Service) dirtyInstances(ctx context.Context) ([]uuid.UUID, error) {
 		Scan(ctx, &ids)
 	if err != nil {
 		return nil, fmt.Errorf("load dirty instances: %w", err)
+	}
+	return ids, nil
+}
+
+// neverIngestedInstances returns active instances whose first ingest has not
+// completed and that are not marked dirty. A failed ingest marks nothing, and a
+// notification dropped by a full queue is not recorded anywhere, so without this
+// such an instance stays unreadable until the server restarts. A dirty instance
+// is dirtyInstances' business: it may still have its own notification in flight.
+func (s *Service) neverIngestedInstances(ctx context.Context) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		Column("si.id").
+		Apply(ingestable).
+		Where("si.memory_generation < 1").
+		Where("si.memory_dirty_since IS NULL").
+		Scan(ctx, &ids)
+	if err != nil {
+		return nil, fmt.Errorf("load never-ingested instances: %w", err)
 	}
 	return ids, nil
 }

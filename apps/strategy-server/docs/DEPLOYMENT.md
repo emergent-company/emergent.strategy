@@ -420,8 +420,11 @@ After the new revision is up:
    Done when every row has `memory_generation >= 1` and `memory_dirty_since` is
    null. The instance object returned by `get_instance` also carries
    `memory_generation`. (`get_sync_status` is the GitHub sync, not this.)
-   An instance that stays dirty is retried by the heartbeat; the log names the
-   error (`ingest:` warnings).
+   An instance that is dirty, or still at `memory_generation` 0 and not dirty, is
+   retried by the heartbeat (every 5 minutes by default; `HEARTBEAT_INTERVAL=0`
+   disables it, and with it this retry); the log
+   names the error (`ingest:` warnings). A failed first ingest marks nothing, so
+   it is the generation-0 retry that covers it.
 
 ### 7.3 Remove what predates the fence: the sweep
 

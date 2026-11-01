@@ -169,9 +169,14 @@ and the pilot hit the confusion they prevent.
       `domain/evidence/service.go:176`, `internal/mcpserver/introspection.go:120`).
 - [ ] 4.3 Give the sync service the notifier (`cmd_serve.go:650`) so GitHub
       import triggers ingest (#96 G1).
-- [ ] 4.4 `RepairMemoryDrift` and the startup sweep: re-enqueue active
+- [x] 4.4 `RepairMemoryDrift` and the startup sweep: re-enqueue active
       instances that are dirty, have a NULL content hash, or have no manifest;
-      add `deleted_at IS NULL` to their raw queries (#87 F2).
+      add `deleted_at IS NULL` to their raw queries (#87 F2). The heartbeat
+      also re-queues active instances at `memory_generation` 0 that are not
+      dirty (a failed first ingest marks nothing; the startup queue holds 100).
+      The startup sweep runs after the integrity reclassification, which marks
+      the instances whose class changed, and the exporter is wired before the
+      workers start.
 - [ ] 4.5 `DeleteInstance` and `workspace.DeleteWorkspace`: enqueue a purge per
       instance (objects with label `instance:<uuid>` and in the manifest,
       branches `scenario-<uuid>-*`, then manifest rows) under the instance
