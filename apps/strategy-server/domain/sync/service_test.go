@@ -300,12 +300,13 @@ func (m *mockRepoReader) DetectEPFInRepo(_ context.Context, _, _, _, _ string) (
 	return nil, nil, false, syncdom.RepoCommitInfo{}, nil
 }
 
-// mockInstanceReimporter records calls to ReimportArtifacts.
+// mockInstanceReimporter records calls to ReimportArtifactsIndexed. It does not
+// run the index step; the real transaction is covered by import_graph_test.go.
 type mockInstanceReimporter struct {
 	reimportedPayloads map[string]any
 }
 
-func (m *mockInstanceReimporter) ReimportArtifacts(_ context.Context, _ uuid.UUID, payloads map[string]any) error {
+func (m *mockInstanceReimporter) ReimportArtifactsIndexed(_ context.Context, _ uuid.UUID, payloads map[string]any, _ func(context.Context, bun.Tx) error) error {
 	m.reimportedPayloads = payloads
 	return nil
 }
@@ -519,7 +520,7 @@ func TestImportFromGithub_Success(t *testing.T) {
 		t.Errorf("target_branch=%q, want main", result.TargetBranch)
 	}
 	if reimporter.reimportedPayloads == nil {
-		t.Error("expected ReimportArtifacts to be called")
+		t.Error("expected ReimportArtifactsIndexed to be called")
 	}
 	// north_star artifact should be in the payloads.
 	if _, ok := reimporter.reimportedPayloads["north_star"]; !ok {
