@@ -42,24 +42,53 @@ changes. The ingest service already computes canonical payload text for
 Decomposed objects carry the revision of the artifact they were decomposed
 from, plus their own content hash, so a reader can tie them to their parent.
 
+When `adopt-git-release-model` lands (`decide-strategy-source-of-truth` D4),
+the projection is of a release, and `source_revision` becomes the release
+commit plus this content hash. The content hash stays the part that decides
+whether an object is rewritten.
+
 **Risk:** Memory may re-embed when any property changes, not only text
 content. Task 1.1 verifies emergent.memory's embedding trigger before the
 property is added. If it re-embeds on property changes, the one-time cost is
 paid during the fence's forced re-ingest, and steady state is still unchanged
 because the hash only moves with content.
 
-### D2 — Source descriptor as properties, not schema installation
+### D2 — Source descriptor as properties; schema pack generated from the ontology
 
-strategy-server installs no schema today (`VerifySchemas` only lists). Pushing
-an EPF schema pack would make Memory validate EPF payloads, which couples
-Memory to EPF release cadence. Instead each object carries
-`properties.source = "strategy-server"` and
-`properties.source_schema = "<EPF schema version>"`. That is enough for Memory
-agents to distinguish source data and know which schema produced it, without
-Memory understanding EPF.
+*Amended to align with `decide-strategy-source-of-truth` D5 and
+`adopt-canonical-ontology`. An earlier draft said strategy-server should not
+install a schema pack; that is reversed.*
 
-Registering a schema pack bound to the source is deferred until Memory has a
-concept of source-owned schema (emergent.memory#2376, open question 3).
+The source pushes its schema as well as its data. `adopt-canonical-ontology`
+generates the Memory schema pack from the canonical ontology registry and
+installs or verifies it on startup. A schema pack is data in Memory, so this
+does not make Memory EPF-aware; it lets Memory and its agents know what the
+source's types and relations mean.
+
+In addition, each object carries:
+
+- `properties.source = "strategy-server"`;
+- `properties.source_schema` = the ontology version the pack was generated
+  from (the registry's `ontology_version`), so a reader can match an object to
+  the pack that describes it;
+- `properties.layer` = the type's layer from the registry (`definition` or
+  `runtime`; strategy-server never writes `synthesis`).
+
+Until `adopt-canonical-ontology` lands, `source_schema` holds the embedded EPF
+schema version and `layer` is omitted. When Memory gains native source-owned
+schema (emergent.memory#2376, open question 3), the pack is registered against
+the source instead of the project.
+
+### D2b — Synthesis is classified by provenance
+
+The ontology records how each relation is established (`explicit`,
+`containment`, `derived`, `inferred`, `embedding`). Under
+`decide-strategy-source-of-truth` D7, `inferred` and `embedding` relations are
+synthesis even when strategy-server's decomposer produces them today. Until
+`adopt-explicit-strategy-references` removes the text heuristics, edges with
+those provenances are returned with `class: synthesized` in semantic results,
+not `source`, and never count as structural evidence for ripple's autonomous
+tier.
 
 ### D3 — Ripple classification checks the revision before trusting the score
 
@@ -96,6 +125,9 @@ No new tables. When a signal is created by a Memory-backed analyzer, its
 }
 ```
 
+This is the shared origin shape from `decide-strategy-source-of-truth` D6
+(kind, producer, inputs and their revisions); suggestions, AIM
+recommendations and git imports use the same shape with their own `kind`.
 `projection_generation` is the fence's `memory_generation` once slice 2 ships
 (0 until then). When a batch resolves signals, `strategy_mutations.batch_metadata`
 gets `adopted_from: [{signal_id, origin}]`. This lets a later analysis exclude

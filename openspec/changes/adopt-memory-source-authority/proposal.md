@@ -1,7 +1,8 @@
 # Change: Act as an authoritative source for emergent.memory
 
 Tracking: emergent-company/emergent.memory#2376 (RFC: Memory as a subsystem of
-source systems). Builds on `fence-memory-graph-per-instance`.
+source systems). Builds on `fence-memory-graph-per-instance`. Implements D5–D7
+of `decide-strategy-source-of-truth` on the Memory side.
 
 ## Why
 
@@ -51,9 +52,15 @@ memory team provides it.
   Memory versions and no re-embedding. Readers, including Memory-side agents,
   can tell which revision of the source an object represents.
 - **Source descriptor on every projection.** Objects carry
-  `properties.source` (`strategy-server`) and `properties.source_schema`
-  (the EPF schema version), so Memory and its agents can tell source data from
-  synthesis without knowing EPF.
+  `properties.source` (`strategy-server`), `properties.source_schema` (the
+  canonical ontology version) and `properties.layer` (`definition` or
+  `runtime`), so Memory and its agents can tell source data from synthesis
+  without knowing EPF. The schema itself reaches Memory as the pack
+  `adopt-canonical-ontology` generates from the ontology.
+- **Guessed edges are synthesis.** Relations whose ontology provenance is
+  `inferred` or `embedding` are returned as `class: synthesized` and never
+  count toward ripple's autonomous tier, until
+  `adopt-explicit-strategy-references` replaces the text heuristics.
 - **Revision-bound use of Memory results in ripple.** Change classification
   uses the Memory score only when the indexed object's `source_revision`
   matches the pre-change payload. Otherwise it falls back to text

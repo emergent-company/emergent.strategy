@@ -24,16 +24,21 @@ owns, and SHALL NOT modify any graph object it did not write.
 
 ### Requirement: Source Descriptor and Revision on Projected Objects
 
-Every graph object the system writes SHALL carry `properties.source` with the
-value `strategy-server`, `properties.source_schema` with the EPF schema
-version it was produced under, and `properties.source_revision` with a hash of
-the canonical payload of the artifact it was projected from. The revision SHALL
-change only when that payload's content changes.
+Every graph object the system writes SHALL carry `properties.source`
+(`strategy-server`), `properties.source_schema` (the schema version it was
+produced under), `properties.layer` (its type's layer, once the ontology
+registry is embedded) and `properties.source_revision` (a hash of the
+artifact's canonical payload, changing only when its content changes).
 
 #### Scenario: Artifact object carries its revision
 - **WHEN** an instance is ingested
 - **THEN** each artifact-layer object carries `source`, `source_schema` and a
   `source_revision` equal to the hash of the artifact's canonical payload
+
+#### Scenario: Schema and layer come from the ontology
+- **WHEN** an instance is ingested with the ontology registry embedded
+- **THEN** `source_schema` equals the registry's `ontology_version`
+- **AND** `layer` equals the registry's layer for the object's type
 
 #### Scenario: Decomposed object carries its parent's revision
 - **WHEN** an artifact is decomposed into objects during ingest
@@ -77,3 +82,9 @@ projection. Every result SHALL carry a `class` of `source` or `synthesized`.
   description
 - **THEN** it states that `synthesized` results are Memory's inference and not
   the organisation's recorded strategy
+
+#### Scenario: Guessed relations are labelled as synthesis
+- **WHEN** a semantic read returns a relation whose ontology provenance is
+  `inferred` or `embedding`
+- **THEN** the relation has `class: synthesized`, even though
+  strategy-server's decomposer produced it

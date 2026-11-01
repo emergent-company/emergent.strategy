@@ -18,7 +18,9 @@ Sections 2 and 4 depend on its scoped read helper.
 - [ ] 1.2 Add a canonical payload hash helper in `domain/ingest` (sorted-key
       JSON, sha256, 16 hex chars), reusing the text already built for
       `memory_content_hash`.
-- [ ] 1.3 Stamp `properties.source`, `properties.source_schema` and
+- [ ] 1.3 Stamp `properties.source`, `properties.source_schema` (ontology
+      version; EPF schema version until `adopt-canonical-ontology` lands),
+      `properties.layer` (from the registry, once available) and
       `properties.source_revision` on every artifact-layer object.
 - [ ] 1.4 Stamp the same on decomposed objects, with `source_revision` taken
       from the parent artifact and `properties.content_revision` for the
@@ -37,6 +39,10 @@ Sections 2 and 4 depend on its scoped read helper.
       `expected_revision` and `observed_revision`; store them with the batch.
 
 ## 3. Origin and dismissal
+
+- [ ] 3.0 Use the shared origin shape from `decide-strategy-source-of-truth`
+      D6 (kind, producer, inputs with revisions); coordinate the Go type with
+      the suggestion service in `adopt-explicit-strategy-references`.
 
 - [ ] 3.1 Add `origin` to `ripple_signals.metadata` for signals produced by
       drift, tension, clustering, vertical alignment and change classification.
@@ -57,6 +63,10 @@ Sections 2 and 4 depend on its scoped read helper.
       keys, no hard-coded strings).
 - [ ] 4.4 Measure added latency for anchoring checks at the default result
       limit; record it in design.md risk 2.
+
+- [ ] 4.5 Classify edges with ontology provenance `inferred` or `embedding`
+      as `class: synthesized` in semantic results, and exclude them from the
+      evidence ripple uses to grant the autonomous tier.
 
 ## 5. Tests
 
@@ -84,7 +94,9 @@ Sections 2 and 4 depend on its scoped read helper.
       instance's projected objects is returned with `class: synthesized`.
 - [ ] 5.12 With `include_synthesized`, a synthesized object linked to another
       instance's object is not returned.
-- [ ] 5.13 No code path writes Postgres strategy data from a Memory read
+- [ ] 5.13 A keyword-inferred edge is returned with `class: synthesized`
+      and does not make a change eligible for the autonomous tier.
+- [ ] 5.14 No code path writes Postgres strategy data from a Memory read
       (architecture test alongside the fence's read-helper test).
 
 ## 6. Documentation
