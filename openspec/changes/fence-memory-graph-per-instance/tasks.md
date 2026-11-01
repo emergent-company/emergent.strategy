@@ -167,8 +167,15 @@ and the pilot hit the confusion they prevent.
 - [ ] 4.2 Remove caller-side `EnqueueBatch` calls (`internal/mcpserver/server.go:1244`,
       `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`,
       `domain/evidence/service.go:176`, `internal/mcpserver/introspection.go:120`).
-- [ ] 4.3 Give the sync service the notifier (`cmd_serve.go:650`) so GitHub
-      import triggers ingest (#96 G1).
+- [x] 4.3 Give the sync service the notifier (`cmd_serve.go:650`) so GitHub
+      import triggers ingest (#96 G1). The import replaces the artifacts and
+      rebuilds the index in one transaction (`ReimportArtifactsIndexed`), marks
+      last and notifies after the commit: a notification between the wipe and
+      the refill made an ingest project an empty instance and delete the graph
+      (review finding #1; `TestImportFromGithub_ReimportOfUnchangedContent...`).
+      The CLI `import` re-import branch still backfills in a second step; it
+      only marks (no notifier), so a running server's heartbeat acts on it only
+      after the one-minute grace.
 - [x] 4.4 `RepairMemoryDrift` and the startup sweep: re-enqueue active
       instances that are dirty, have a NULL content hash, or have no manifest;
       add `deleted_at IS NULL` to their raw queries (#87 F2). The heartbeat

@@ -274,6 +274,19 @@ func (s *Service) importInstanceOnce(ctx context.Context, p ImportParams, schema
 // command when re-importing an instance that already exists (upsert behaviour).
 // After this call the caller must re-run BackfillIndex.
 func (s *Service) ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads map[string]any) error {
+	return s.reimport(ctx, id, payloads, nil)
+}
+
+// ReimportArtifactsIndexed is ReimportArtifacts with the strategic index rebuilt
+// in the same transaction, by index. The instance is never visible without its
+// artifacts: readers, and an ingest that starts as soon as the commit is
+// announced, see either the previous state or the finished import. If index
+// fails, nothing is replaced.
+func (s *Service) ReimportArtifactsIndexed(ctx context.Context, id uuid.UUID, payloads map[string]any, index func(ctx context.Context, tx bun.Tx) error) error {
+	return s.reimport(ctx, id, payloads, index)
+}
+
+func (s *Service) reimport(ctx context.Context, id uuid.UUID, payloads map[string]any, index func(ctx context.Context, tx bun.Tx) error) error {
 	actorID := audit.ActorFromContext(ctx)
 	source := string(audit.SourceFromContext(ctx))
 
@@ -312,6 +325,11 @@ func (s *Service) ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads 
 			}
 			if _, err := tx.NewInsert().Model(m).Exec(ctx); err != nil {
 				return fmt.Errorf("insert mutation for %q: %w", key, err)
+			}
+		}
+		if index != nil {
+			if err := index(ctx, tx); err != nil {
+				return err
 			}
 		}
 		return s.marker.Mark(ctx, tx, id)

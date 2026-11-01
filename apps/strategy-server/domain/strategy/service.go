@@ -539,11 +539,16 @@ func (s *Service) AssessmentEvidenceKeys(ctx context.Context, batchID uuid.UUID)
 // deriveIndex upserts strategy_artifacts and replaces strategy_relationships
 // for a single committed mutation.
 func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) error {
+	return s.deriveIndexIn(ctx, s.db, m)
+}
+
+// deriveIndexIn is deriveIndex on q, which may be an open transaction.
+func (s *Service) deriveIndexIn(ctx context.Context, q bun.IDB, m *domain.StrategyMutation) error {
 	fields := index.ExtractArtifactFields(m.ArtifactType, m.Payload)
 
 	if m.Action == domain.MutationActionArchive {
 		// Mark artifact as archived; remove its relationships.
-		_, err := s.db.NewUpdate().
+		_, err := q.NewUpdate().
 			Model((*domain.StrategyArtifact)(nil)).
 			Set("status = ?, mutation_id = ?, updated_at = NOW()", domain.ArtifactStatusArchived, m.ID).
 			Where("instance_id = ? AND artifact_key = ?", m.InstanceID, m.ArtifactKey).
@@ -551,7 +556,7 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 		if err != nil {
 			return fmt.Errorf("archive artifact %q: %w", m.ArtifactKey, err)
 		}
-		_, err = s.db.NewDelete().
+		_, err = q.NewDelete().
 			Model((*domain.StrategyRelationship)(nil)).
 			Where("instance_id = ? AND source_key = ?", m.InstanceID, m.ArtifactKey).
 			Exec(ctx)
@@ -589,7 +594,7 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 		UpdatedAt:            time.Now().UTC(),
 	}
 
-	_, err := s.db.NewInsert().
+	_, err := q.NewInsert().
 		Model(artifact).
 		On("CONFLICT (instance_id, artifact_key) DO UPDATE SET " +
 			"artifact_type = EXCLUDED.artifact_type, " +
@@ -610,7 +615,7 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 	// Replace relationships for this source artifact.
 	rels := index.ExtractRelationships(m.ArtifactType, m.ArtifactKey, m.Payload)
 
-	_, err = s.db.NewDelete().
+	_, err = q.NewDelete().
 		Model((*domain.StrategyRelationship)(nil)).
 		Where("instance_id = ? AND source_key = ?", m.InstanceID, m.ArtifactKey).
 		Exec(ctx)
@@ -645,7 +650,7 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 				CreatedAt:    time.Now().UTC(),
 			})
 		}
-		_, err = s.db.NewInsert().
+		_, err = q.NewInsert().
 			Model(&rows).
 			On("CONFLICT (instance_id, source_key, target_key, relationship) DO NOTHING").
 			Exec(ctx)
@@ -660,9 +665,38 @@ func (s *Service) deriveIndex(ctx context.Context, m *domain.StrategyMutation) e
 // BackfillIndex re-derives strategy_artifacts and strategy_relationships from
 // all committed mutations for an instance. Safe to run multiple times.
 func (s *Service) BackfillIndex(ctx context.Context, instanceID uuid.UUID) (int, error) {
+	count, err := s.backfill(ctx, s.db, instanceID)
+	if err != nil {
+		return count, err
+	}
+	s.marker.Changed(ctx, instanceID)
+	s.RecordBackfill(ctx, instanceID, count)
+	return count, nil
+}
+
+// BackfillIndexTx is BackfillIndex inside the caller's transaction. It neither
+// marks the instance nor writes the audit entry: the caller marks last in the
+// same transaction, notifies after commit, and calls RecordBackfill. Nothing
+// outside the transaction sees the index until it commits.
+func (s *Service) BackfillIndexTx(ctx context.Context, tx bun.Tx, instanceID uuid.UUID) (int, error) {
+	return s.backfill(ctx, tx, instanceID)
+}
+
+// RecordBackfill writes the audit entry for a completed backfill.
+func (s *Service) RecordBackfill(ctx context.Context, instanceID uuid.UUID, count int) {
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_mutation",
+		Action:     "backfill_index",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"instance_id": instanceID, "count": count},
+	})
+}
+
+func (s *Service) backfill(ctx context.Context, q bun.IDB, instanceID uuid.UUID) (int, error) {
 	// Load all committed mutations ordered oldest-first so later mutations win on upsert.
 	var mutations []*domain.StrategyMutation
-	err := s.db.NewSelect().
+	err := q.NewSelect().
 		Model((*domain.StrategyMutation)(nil)).
 		Where("instance_id = ? AND status = ?", instanceID, domain.MutationStatusCommitted).
 		OrderExpr("created_at ASC, id ASC").
@@ -673,21 +707,11 @@ func (s *Service) BackfillIndex(ctx context.Context, instanceID uuid.UUID) (int,
 
 	count := 0
 	for _, m := range mutations {
-		if err := s.deriveIndex(ctx, m); err != nil {
+		if err := s.deriveIndexIn(ctx, q, m); err != nil {
 			return count, fmt.Errorf("backfill artifact %q: %w", m.ArtifactKey, err)
 		}
 		count++
 	}
-	s.marker.Changed(ctx, instanceID)
-
-	audit.FromContext(ctx).Write(ctx, audit.Entry{
-		EntityType: "strategy_mutation",
-		Action:     "backfill_index",
-		Source:     audit.SourceFromContext(ctx),
-		ActorID:    audit.ActorFromContext(ctx),
-		Details:    map[string]any{"instance_id": instanceID, "count": count},
-	})
-
 	return count, nil
 }
 
