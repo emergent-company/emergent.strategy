@@ -76,8 +76,7 @@ and the pilot hit the confusion they prevent.
 - [x] 2.1 (analysis) Minimum emergent.memory version: v0.85.0 (design risk 1).
 - [x] 2.1b Log the Memory version at startup (`HealthDetailed` already returns
       it) and warn when it is below v0.85.0 (`memory.Client.CheckVersion`, called
-      from `setupSemantic`). Put the minimum in the runbook (still open: slice 2
-      runbook).
+      from `setupSemantic`). The minimum is in the runbook (DEPLOYMENT.md 7.1).
 - [x] 2.2 (re-checked in slice 2; tests 9.24 pass unchanged) Per-instance advisory lock helper (`pg_advisory_lock` on a dedicated
       `db.Conn`, key derived from the instance UUID), with `TryLock` for the
       sweep. Unlock explicitly; on unlock failure discard the connection instead
@@ -202,7 +201,8 @@ and the pilot hit the confusion they prevent.
       project-wide delete and see other tenants' instance ids and object keys. The
       CLI runs on the server's host like `token --mint`, so the operator is whoever
       controls the deployment. Nothing to regenerate in `self-model.json`.
-- [ ] 5.3 Upgrade runbook in `docs/DEPLOYMENT.md` (design Decision 5).
+- [x] 5.3 Upgrade runbook in `apps/strategy-server/docs/DEPLOYMENT.md` section 7
+      (design Decision 5).
 
 ## 6. Content contract
 

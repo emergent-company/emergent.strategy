@@ -356,8 +356,9 @@ active instances so the startup sweep re-ingests them.
 1. Deploy. The startup sweep ingests every active instance under the new
    scheme. Until an instance's first ingest completes, its semantic reads
    return `graph_not_ready`.
-2. Check each instance reports `memory_generation >= 1` (settings page or
-   `get_sync_status`).
+2. Check each instance reports `memory_generation >= 1` and no
+   `memory_dirty_since` (SQL on `strategy_instances`, or `memory_generation` in
+   the `get_instance` result; `get_sync_status` is the GitHub sync).
 3. Run the sweep as a dry run, check the counts, then run it with `--apply`.
 
 ## Decision 6: Content contract
