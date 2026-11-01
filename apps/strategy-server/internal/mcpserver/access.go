@@ -223,3 +223,22 @@ func assertOrgAdmin(ctx context.Context, svc Services, orgID uuid.UUID) error {
 	}
 	return nil
 }
+
+// assertWorkspaceAdmin verifies the caller administers the organisation that
+// owns the workspace. It is the check for operations that act on a workspace as
+// a whole (deleting it, moving it to another organisation), which no instance
+// grant or plain membership covers.
+//
+// A token is refused whatever its grants, as in assertOrgAdmin: a grant is a
+// narrowing of its owner's authority over one instance, never authority over
+// the workspace that holds it.
+func assertWorkspaceAdmin(ctx context.Context, svc Services, workspaceID uuid.UUID) error {
+	if svc.Workspace == nil {
+		return apperror.ErrForbidden.WithDetail("authorisation unavailable: workspace service not wired")
+	}
+	orgID, err := svc.Workspace.OrgIDForWorkspace(ctx, workspaceID)
+	if err != nil {
+		return err
+	}
+	return assertOrgAdmin(ctx, svc, orgID)
+}

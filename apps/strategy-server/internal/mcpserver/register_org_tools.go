@@ -87,7 +87,7 @@ func registerOrgCrudTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("assign_workspace_to_org",
-		mcp.WithDescription("USE WHEN you need to reassign a workspace to a different organisation. Requires org_admin role on the target org."),
+		mcp.WithDescription("USE WHEN you need to reassign a workspace to a different organisation. Requires org_admin on both the workspace's current organisation and the target organisation."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 		mcp.WithString("org_id", mcp.Required(), mcp.Description("Target organisation UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -104,6 +104,9 @@ func registerOrgCrudTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
+		if err := assertWorkspaceAdmin(ctx, svc, wsID); err != nil {
+			return toolErr(ctx, err), nil
+		}
 		if err := assertOrgAdmin(ctx, svc, orgID); err != nil {
 			return toolErr(ctx, err), nil
 		}
