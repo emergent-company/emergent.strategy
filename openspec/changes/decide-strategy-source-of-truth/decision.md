@@ -87,11 +87,17 @@ replacement for the gate. Post-commit warnings
 
 The runtime loads one released version per instance, identified by its git
 commit (or the server's version identifier when no repository is linked).
-Everything the runtime produces — ripple signals, evidence, AIM assessments,
-measurements, work-package progress — is **runtime state**: stored in the
-database, keyed to the version it was produced against, and never written
-into the definition YAML. Runtime state can *propose* definition changes
-(D6); it does not become definition by being stored.
+Everything the runtime produces as it operates — ripple signals, evidence
+links written by tools, measurements, work-package progress — is **runtime
+state**: stored in the database, keyed to the version it was produced
+against, and never written into the definition YAML. Runtime state can
+*propose* definition changes (D6); it does not become definition by being
+stored.
+
+AIM artifacts (assessment reports, calibration memos) are not runtime state.
+They record judgements made about a release, like a postmortem committed
+with code, and are definitions that enter through D6. The runtime state that
+informed them is linked from their origin.
 
 ### D5. emergent.memory is a subsystem: index and synthesis, never authority
 
@@ -197,8 +203,8 @@ one.
 | `fence-memory-graph-per-instance` | strategy | In progress; slice 1 landed | D5 | Aligned. Ships first (pilot deadline). Namespace instead of key prefix considered and deferred to the project-per-org move. |
 | `adopt-memory-source-authority` | strategy (#126) | Open | D5, D6, D7 | **Amended:** generated schema pack from the ontology replaces the "no schema install" decision; `source_schema` is the ontology version; synthesis classified by provenance; origin shape shared with D6. |
 | `adopt-canonical-ontology` | strategy (#111) | Open | D2, D7 | **Amended:** reads the layer from the registry and stamps it on projected objects; references this record. |
-| `adopt-explicit-strategy-references` | strategy (#111) | Open | D2, D3, D6 | **Amended:** accepting a suggestion records origin in the D6 shape; reference validation framed as early validation under D3. |
-| `add-strategy-ontology` | canonical (#27) | Open | D2, D7 | **Amended:** adds `layer` (definition, runtime, synthesis) to entity and relation types. |
+| `adopt-explicit-strategy-references` | strategy (#111) | Open | D2, D3, D6 | **Amended:** accepting a suggestion records origin in the D6 shape; rejections are keyed on artifact revisions, so a suggestion returns when content changes; reference validation framed as early validation under D3. |
+| `add-strategy-ontology` | canonical (#27) | Open | D2, D7 | **Amended:** adds `layer` (definition, runtime, synthesis) to entity and relation types; inferred and embedding relations must be `synthesis`; AIM artifacts are `definition` (matches D4). |
 | `unify-reference-identity` | canonical (#27) | Open | D2, D3 | **Amended:** states stable IDs as the prerequisite for structural merge (§4.2). |
 | `add-github-sync-lifecycle` | strategy | Implemented, not archived | — | Partly superseded (§5). Replaced by follow-up `adopt-git-release-model`. |
 | `retire-epf-cli` | strategy | Open | — | Unaffected; gates EPF 3.0.0. |
