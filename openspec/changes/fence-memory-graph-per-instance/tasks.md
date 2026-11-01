@@ -43,7 +43,7 @@ and the pilot hit the confusion they prevent.
 
 ## 1. Groundwork (blocking)
 
-- [ ] 1.1 Migration `045_memory_projection.sql` (044 is the latest on `main`;
+- [x] 1.1 Migration `045_memory_projection.sql` (044 is the latest on `main`;
       re-check before merging): add
       `strategy_instances.memory_generation BIGINT NOT NULL DEFAULT 0`,
       `memory_dirty_since TIMESTAMPTZ NULL` and
@@ -64,7 +64,7 @@ and the pilot hit the confusion they prevent.
       longest was 141, so keys that would exceed 128 are shortened with a hash
       (design Decision 1, "Key length"). Track A (2.3) stores `source_key` on
       those objects.
-- [ ] 1.4 Instance creation: retry with a new UUID on a prefix unique-index
+- [x] 1.4 Instance creation: retry with a new UUID on a prefix unique-index
       violation.
 - [x] 1.5 `internal/memory`: add `Labels []string` to `SearchRequest` and
       `Labels` to `ListObjectsOptions` if missing. (`SearchRequest.Labels` came
@@ -161,16 +161,17 @@ and the pilot hit the confusion they prevent.
 
 ## 4. Track C: triggers, durability, lifecycle
 
-- [ ] 4.1 `ingest.Notifier` interface and one `markChanged` helper (design
+- [x] 4.1 `ingest.Notifier` interface and one `markChanged` helper (design
       Decision 4: sets `memory_dirty_since`, increments `memory_change_seq`).
       Call it after the write in `CommitBatch`, `CommitAuto`, `BackfillIndex`,
       `commitAlignedValueModel`, `evidence.Ingest/Update/MarkProcessed/Link`;
       inside the existing transaction in `ReimportArtifacts` and
       `version.Restore`. Call `InstanceChanged` after commit. `CommitBatch` and
       `CommitAuto` are not wrapped in a transaction by this change.
-- [ ] 4.1b `scaffold_instance` calls `BackfillIndex` after `ImportInstance`
+      (The notifier and `Marker` live in `internal/changemark`, not `ingest`; `ingest.Service` implements `Notifier`.)
+- [x] 4.1b `scaffold_instance` calls `BackfillIndex` after `ImportInstance`
       (design Decision 4, first gap).
-- [ ] 4.2 Remove caller-side `EnqueueBatch` calls (`internal/mcpserver/server.go:1244`,
+- [x] 4.2 Remove caller-side `EnqueueBatch` calls (`internal/mcpserver/server.go:1244`,
       `internal/pipeline/postcommit.go`, `domain/ripple/convergence.go:293`,
       `domain/evidence/service.go:176`, `internal/mcpserver/introspection.go:120`).
 - [x] 4.3 Give the sync service the notifier (`cmd_serve.go:650`) so GitHub
@@ -190,18 +191,26 @@ and the pilot hit the confusion they prevent.
       The startup sweep runs after the integrity reclassification, which marks
       the instances whose class changed, and the exporter is wired before the
       workers start.
-- [ ] 4.5 `DeleteInstance` and `workspace.DeleteWorkspace`: enqueue a purge per
+- [x] 4.5 `DeleteInstance` and `workspace.DeleteWorkspace`: enqueue a purge per
       instance (objects with label `instance:<uuid>` and in the manifest,
       branches `scenario-<uuid>-*`, then manifest rows) under the instance
       lock; record the outcome; correct the `delete_instance` tool text (#87 F1).
-- [ ] 4.6 Scenarios (design risk 4): `evaluate_scenario`, `commit_scenario` and
+      The purge always asks Memory what the instance owns (it used to skip an
+      instance with no sync status, which left the objects of an interrupted first
+      ingest behind).
+- [x] 4.6 Scenarios (design risk 4): `evaluate_scenario`, `commit_scenario` and
       `discard_scenario` look the branch up with `GetBranch` and require its
       name to start with `scenario-<instanceUUID>-`; otherwise respond as for a
       non-existent scenario. Route branch reads through the scope helper
       (label and `instance_id` only; the manifest describes `main`). Add a
       test that `commit_scenario` never sends `execute: true`. Open a follow-up
       issue: a real commit must merge only the instance's own objects.
-- [ ] 4.7 `internal/handler/handler_aim_agent.go:314`: decide whether the
+      `EvaluateScenario` reads the branch through the scope helper (owner label,
+      `instance_id`, manifest), names nodes by their original keys and lists every
+      page; it was an unscoped `ListObjects(Limit: 100)` that, checked against a real
+      Memory, returned main's objects of several instances. It is not a diff against
+      main. Follow-up for a real commit: #134.
+- [x] 4.7 `internal/handler/handler_aim_agent.go:314`: decide whether the
       `strategySvc == nil` commit fallback is reachable; remove it if not, or
       route it through `CommitBatch`.
 
@@ -224,21 +233,22 @@ and the pilot hit the confusion they prevent.
 
 ## 6. Content contract
 
-- [ ] 6.1 Tool descriptions for `search_strategy` and `get_template`
+- [x] 6.1 Tool descriptions for `search_strategy` and `get_template`
       (design Decision 6). Regenerate `self-model.json`.
-- [ ] 6.2 Knowledge base topic in `internal/agent/knowledge.go`: structured
+- [x] 6.2 Knowledge base topic in `internal/agent/knowledge.go`: structured
       reads are authoritative; no template fallback.
 
 ## 7. Documentation
 
-- [ ] 7.1 `apps/strategy-server/AGENTS.md`: Memory isolation model, key format,
+- [x] 7.1 `apps/strategy-server/AGENTS.md`: Memory isolation model, key format,
       projection manifest, the one read path, the sweep.
-- [ ] 7.2 Root `AGENTS.md`, Semantic Strategy Engine section: `epf ingest` /
+- [x] 7.2 Root `AGENTS.md`, Semantic Strategy Engine section: `epf ingest` /
       `epf sync` must never target a strategy-server Memory project.
 
 ## 8. Verification
 
-- [ ] 8.1 `go test ./...` and `task lint` clean; compare with the baseline.
+- [x] 8.1 `go test ./...` and `task lint` clean; compare with the baseline.
+      Baseline 54 packages ok (53 plus the `epfimport` test package) and 54 after; `golangci-lint` 0 issues.
 - [x] 8.2 `task dev-up-full` against a real Memory container: scaffold instance
       A, import a real instance B, import B again with an artifact removed,
       restore a version, delete A, run the sweep dry-run and apply. Check every
@@ -248,27 +258,37 @@ and the pilot hit the confusion they prevent.
       no changes (must create no new Memory versions). Record in design.md.
       Also check that a dropped job converges: stop the server mid-ingest, restart,
       and confirm the instance is re-ingested within two heartbeat intervals.
-- [ ] 8.4 Independent review by a separate agent that has not seen the
+- [x] 8.4 Independent review by a separate agent that has not seen the
       implementation: check the code against the invariants I1–I7 and the
       scenarios in the spec delta.
-- [ ] 8.5 `openspec validate fence-memory-graph-per-instance --strict`.
+      Done. Blocking findings fixed: GitHub import window (#130), first-ingest
+      durability, reclassification marking and startup order (#128),
+      `delete_workspace` access (#129), scenario scope and the purge of half-ingested
+      instances (this change). The lesser findings are tracked in #135.
+- [x] 8.5 `openspec validate fence-memory-graph-per-instance --strict`.
 
 ## 9. Tests (written first; map to #99 acceptance criteria)
 
 - [x] 9.1 Two instances with shared canonical keys: no read for A returns or
       counts B's objects (AC1). Search, neighbours, contradictions, lifecycle.
 - [x] 9.2 Objects without `instance_id` are never returned (AC2).
-- [ ] 9.3 Import removing an artifact: none of its objects visible after the
+- [x] 9.3 Import removing an artifact: none of its objects visible after the
       triggered ingest, no restart (AC3).
-- [ ] 9.4 Import changing an artifact: new content visible, old not (AC4).
-- [ ] 9.5 `restore_version`: reads reflect the restored version only (AC5).
-- [ ] 9.6 `commit_batch` changing a North Star value updates decomposed
+      (`TestFreshness_ARemovedArtifactIsNoLongerReadableAfterTheIngest`: stored
+      artifacts changed, ingest, scoped read. The trigger itself is covered by the
+      changemark tests and the end-to-end GitHub import test.)
+- [x] 9.4 Import changing an artifact: new content visible, old not (AC4).
+- [x] 9.5 `restore_version`: reads reflect the restored version only (AC5).
+- [x] 9.6 `commit_batch` changing a North Star value updates decomposed
       `Belief` objects (AC6).
 - [x] 9.7 Ingest of A never modifies or hides B's object with the same
       artifact key (AC7).
-- [ ] 9.8 Delete instance: objects, relationships, branches gone; restart does
+- [x] 9.8 Delete instance: objects, relationships, branches gone; restart does
       not bring them back (AC8).
-- [ ] 9.9 Dropped job: instance stays dirty; heartbeat converges it (AC9).
+- [x] 9.9 Dropped job: instance stays dirty; heartbeat converges it (AC9).
+      (`TestRepairMemoryDrift_RequeuesOldDirtyInstancesOnly`: a dirty instance with
+      no job in flight is re-ingested by the heartbeat; `TestCoalescer_FullQueueDropsButStaysReschedulable`
+      covers the dropped job.)
 - [x] 9.10 Failed ingest: manifest unchanged, instance still dirty, objects
       added only by the failed attempt invisible.
 - [x] 9.11 Two concurrent `InstanceChanged` for one instance: serialised,
@@ -282,15 +302,15 @@ and the pilot hit the confusion they prevent.
 - [x] 9.16 CLI import writes stamped objects only.
 - [x] 9.17 Re-ingest with no artifact change sends no property or label change
       to Memory (mock asserts every upsert payload equals the previous one).
-- [ ] 9.18 Instance creation with a colliding key prefix gets a new UUID.
-- [ ] 9.19 Change arriving during an ingest: the instance is still dirty after
+- [x] 9.18 Instance creation with a colliding key prefix gets a new UUID.
+- [x] 9.19 Change arriving during an ingest: the instance is still dirty after
       the ingest completes and a further ingest runs (`memory_change_seq`).
-- [ ] 9.20 `scaffold_instance` yields `strategy_artifacts` rows and a triggered
+- [x] 9.20 `scaffold_instance` yields `strategy_artifacts` rows and a triggered
       ingest.
-- [ ] 9.21 Scenario of instance B used through instance A (`evaluate`, `commit`,
+- [x] 9.21 Scenario of instance B used through instance A (`evaluate`, `commit`,
       `discard`): responds as not found; branch untouched.
-- [ ] 9.22 `commit_scenario` sends no `execute: true` to Memory.
-- [ ] 9.23 `DeleteWorkspace` purges the graph data of each of its instances.
+- [x] 9.22 `commit_scenario` sends no `execute: true` to Memory.
+- [x] 9.23 `DeleteWorkspace` purges the graph data of each of its instances.
 - [x] 9.24 Advisory lock helper: second caller blocks until release; a failed
       unlock does not return a locked connection to the pool.
 - [x] 9.25 Second replica: an ingest that finds the instance clean and already
