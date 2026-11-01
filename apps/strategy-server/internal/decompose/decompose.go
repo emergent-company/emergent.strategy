@@ -25,6 +25,7 @@ package decompose
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -159,12 +160,23 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 
 // --- Internal helpers ---
 
+// readYAML decodes a file of the instance. A missing file is the caller's to
+// handle. Any other failure is logged and returned: every caller then produces
+// no objects for the file, which used to happen without a word. The decode is
+// deliberately not lenient: yaml.v3 removes an element it cannot decode from its
+// list, so the elements after it shift down and an object would carry a
+// section_path that points at a different stored element.
 func (d *Decomposer) readYAML(relPath string, out any) error {
 	data, err := os.ReadFile(filepath.Join(d.instancePath, relPath))
 	if err != nil {
 		return err
 	}
-	return yaml.Unmarshal(data, out)
+	if err := yaml.Unmarshal(data, out); err != nil {
+		slog.Warn("decompose: file does not have the expected shape; none of its objects were produced",
+			"file", relPath, "err", err)
+		return err
+	}
+	return nil
 }
 
 func objectKey(objType, id string) string {
@@ -759,6 +771,22 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 // READY/04_strategy_formula.yaml
 // ============================================================
 
+// advantageEntry is a competitive advantage; the schema allows a plain string.
+type advantageEntry struct {
+	Name          string `yaml:"name"`
+	Description   string `yaml:"description"`
+	Defensibility string `yaml:"defensibility"`
+}
+
+func (a *advantageEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		a.Name = n.Value
+		return nil
+	}
+	type plain advantageEntry
+	return n.Decode((*plain)(a))
+}
+
 type rawStrategyFormula struct {
 	Strategy struct {
 		Positioning struct {
@@ -766,11 +794,7 @@ type rawStrategyFormula struct {
 			CategoryPosition     string `yaml:"category_position"`
 		} `yaml:"positioning"`
 		CompetitiveMoat struct {
-			Advantages []struct {
-				Name          string `yaml:"name"`
-				Description   string `yaml:"description"`
-				Defensibility string `yaml:"defensibility"`
-			} `yaml:"advantages"`
+			Advantages    []advantageEntry `yaml:"advantages"`
 			VsCompetitors []struct {
 				Competitor    string `yaml:"competitor"`
 				TheirStrength string `yaml:"their_strength"`
