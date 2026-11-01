@@ -8,6 +8,9 @@ an author accepts or rejects.
 Depends on: `adopt-canonical-ontology`; epf-canonical
 `unify-reference-identity` (EPF 3.0.0, ontology 2.0.0). Released together with
 that canonical version. Gate for the canonical release: this change is ready.
+Frame: implements D2, D3 and D6 of `decide-strategy-source-of-truth`;
+accepted suggestions are one of the proposal kinds in its single adoption
+path.
 Related: `retire-epf-cli` (epf-cli stays on EPF 2.x until removed),
 `fence-memory-graph-per-instance` (re-ingest after migration).
 

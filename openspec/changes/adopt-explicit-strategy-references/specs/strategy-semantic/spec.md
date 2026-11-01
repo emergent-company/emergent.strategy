@@ -65,9 +65,12 @@ rejected, through MCP tools and the web UI.
 
 - **WHEN** a caller with write access accepts a suggestion
 - **THEN** a mutation adding the target ID to the source's field is staged
+- **AND** the staged batch records the suggestion's origin: rule, source and
+  target IDs with their artifacts' revisions, score and reason
 - **AND** no edge exists until that batch is committed
 
 #### Scenario: Reject a suggestion
 
 - **WHEN** a caller rejects a suggestion
-- **THEN** it is not offered again for that instance
+- **THEN** it is not offered again for that instance while neither
+  artifact's content has changed

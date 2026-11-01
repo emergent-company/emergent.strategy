@@ -52,10 +52,22 @@ so individual `add*Edges` functions do not set it by hand. Embedding and
 evidence edges written outside the decomposer (`domain/evidence`,
 `register_evidence_tools.go`) use the same helper.
 
+Under `decide-strategy-source-of-truth` D7, relations with provenance
+`inferred` or `embedding` are synthesis. This change only labels them;
+`adopt-memory-source-authority` returns them as `class: synthesized`, and
+`adopt-explicit-strategy-references` stops producing the inferred ones.
+
 ### D4. Memory schema
 
 `task ontology:pack` writes the blueprint pack from `GenerateTemplatePack()`.
 A test regenerates it in memory and compares with the committed file.
+
+This is how the source pushes its schema to Memory under
+`decide-strategy-source-of-truth` D5: the pack is data, generated from the
+canonical ontology, so Memory learns what the types mean without becoming
+EPF-aware. `adopt-memory-source-authority` stamps `source_schema` with the
+same `ontology_version`, so objects can be matched to the pack that describes
+them.
 
 On startup with Memory configured, the server lists installed schemas. If the
 EPF pack is absent it installs it; if a different version is installed it logs

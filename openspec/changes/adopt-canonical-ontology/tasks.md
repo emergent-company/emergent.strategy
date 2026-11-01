@@ -23,6 +23,8 @@ covers and see it fail. epf-cli is not touched.
       descriptions, tiers, endpoints, edge sources). Fix differences in
       canonical, not in the test.
 - [ ] 2.3 Overlay and property-map completeness tests (both directions).
+- [ ] 2.3b Expose each type's `layer` from the registry in the type contract;
+      test that every type has one.
 - [ ] 2.4 Delete the legacy lists.
 
 ## 3. Conformance

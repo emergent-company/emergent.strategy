@@ -35,9 +35,23 @@ Exposed as:
 - MCP `list_link_suggestions(instance, relation?, artifact?)` (read access) and
   `accept_link_suggestion` / `reject_link_suggestion` (write access; accept
   stages a normal mutation, so it goes through review like any other write).
+
+Accepting records origin on the staged batch in the shared shape from
+`decide-strategy-source-of-truth` D6: `kind: link_suggestion`, producer
+`linksuggest` with its rule name, inputs (source and target IDs with the
+`source_revision` of their artifacts) and the score and reason. Rejections
+store the same inputs, so a suggestion is offered again only when either
+artifact's content changes. The Go origin type is shared with
+`adopt-memory-source-authority` (ripple origin).
 - Web UI: suggestions shown beside the reference picker for the field.
 
 ### D3. Write-time reference validation
+
+Under `decide-strategy-source-of-truth` D3 the mandatory check is the release
+gate; this is earlier validation. References are rejected at staging rather
+than only warned about because they are fully machine-checkable, authoring
+tools offer pickers, and an unresolved reference is never useful as a draft.
+The release gate still re-checks them.
 
 After JSON Schema validation, the staged payload's reference fields (found via
 the registry's `carried_by` and the identity patterns) are resolved against the

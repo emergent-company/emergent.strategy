@@ -9,6 +9,8 @@ Depends on: epf-canonical `add-strategy-ontology` (released as a MINOR
 version). Related: `fence-memory-graph-per-instance` (touches ingest, not the
 type contract), `retire-epf-cli` (epf-cli is not changed here).
 Follow-up: `adopt-explicit-strategy-references`.
+Frame: implements D2 (canonical EPF defines the language) and D7 (layer
+classification) of `decide-strategy-source-of-truth`.
 
 ## Why
 
@@ -51,6 +53,10 @@ ripple cannot tell a guess from a stored link.
   (`GenerateTemplatePack`), and a test fails when the committed pack differs.
   strategy-server installs or verifies the pack on startup when Memory is
   configured.
+- **Layer.** The registry's `layer` (definition, runtime, synthesis; added by
+  epf-canonical `add-strategy-ontology`) is part of the loaded type contract,
+  so ingest can stamp it on projected objects (`adopt-memory-source-authority`)
+  and tools can tell runtime and synthesis types from definitions.
 - **Edge provenance.** Every edge gets a `provenance` property from the
   registry (`explicit`, `containment`, `derived`, `inferred`, `embedding`).
   `edge_source` and weights are unchanged, so propagation behaves as before.

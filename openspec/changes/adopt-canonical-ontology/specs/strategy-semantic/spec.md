@@ -12,6 +12,11 @@ object properties MAY be defined in Go, keyed by type name.
 - **THEN** their names, descriptions, inertia tiers and endpoint types equal
   those in the embedded `ontology/epf_ontology.yaml`
 
+#### Scenario: Layer is part of the contract
+
+- **WHEN** the server lists graph object and relationship types
+- **THEN** each type carries the layer declared in the registry
+
 #### Scenario: Presentation overlay is complete
 
 - **WHEN** the test suite runs

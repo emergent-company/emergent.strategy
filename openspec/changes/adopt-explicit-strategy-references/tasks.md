@@ -32,7 +32,12 @@ Order: 1, then 2-5 in parallel, then 6. 7 closes the change.
 - [ ] 3.1 `domain/linksuggest`: port the matching rules unchanged; return
       suggestions; filter stored and rejected links. Table tests reuse the old
       crossref test cases.
-- [ ] 3.2 Store rejections per instance (migration + bun model).
+- [ ] 3.2 Store rejections per instance (migration + bun model), with the
+      artifacts' `source_revision` at rejection; re-offer only after either
+      changes.
+- [ ] 3.2b Record origin on accepted suggestions in the shared D6 shape
+      (`decide-strategy-source-of-truth`); share the Go type with ripple
+      origin in `adopt-memory-source-authority`.
 - [ ] 3.3 MCP tools `list_link_suggestions` (read),
       `accept_link_suggestion` and `reject_link_suggestion` (write; accept
       stages a mutation). Access map entries.
