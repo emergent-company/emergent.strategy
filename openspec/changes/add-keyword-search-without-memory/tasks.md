@@ -32,9 +32,9 @@ and see it fail.
 
 - [x] 3.1 `mode` parameter on `search_strategy` (`auto`, `semantic`, `keyword`);
       an unknown value is a bad-request error that names the valid values.
-- [x] 3.2 `auto` orchestration (design D6): semantic first, fall back on error or on
-      no in-scope hit, warn-log the cause, straight to keyword when Memory is not
-      configured. Tests through the MCP handler: Memory not configured; Memory
+- [x] 3.2 `auto` orchestration (design D6), first version: semantic first, fall back
+      on error or on no in-scope hit, warn-log the cause, straight to keyword when
+      Memory is not configured. (Superseded by 3.5.) Tests through the MCP handler: Memory not configured; Memory
       returning an error; Memory returning only framework and foreign hits; `mode`
       `semantic` with no Memory still errors; `mode` `keyword` ignores Memory.
 - [x] 3.3 Add `match` to the hit. Update the tool description (keyword fallback,
@@ -44,6 +44,14 @@ and see it fail.
       asserted the error without Memory, `TestMCP_SemanticToolsUnavailable` and
       `TestMCP_Scenario_SemanticSearch`, now assert the new contract.)
 - [x] 3.4 Regenerate `self-model.json`; the staleness test must pass.
+- [x] 3.5 `auto` returns keyword hits first and keeps a fifth of the limit for
+      semantic hits (design D6, "Why keyword first"). Tests through the MCP handler,
+      written first and seen to fail: 8 + 2 at a limit of 10; the split at limits 5,
+      20 and 25; backfill from the other side in both directions; a section found
+      both ways listed once as the keyword hit; keyword alone without a graph. The
+      tool and mode descriptions say what `auto` returns; `self-model.json`
+      regenerated. `TestMCP_SemanticSearch_WithMemory`, which relied on semantic
+      being the default, now asks for `mode: semantic`.
 
 ## 4. Evidence
 
@@ -92,3 +100,14 @@ and see it fail.
       framework-as-strategy, no must-not violation. 12 of 27 runs called search,
       none got an empty or error result.
 - [x] 4.4 `openspec validate add-keyword-search-without-memory --strict`.
+- [x] 4.5 Replay the pilot instance's question bank (59 questions, gold locations
+      from the bank), one search per question, question text as the query, same
+      server and index for every strategy. Key results of the bank's gold answers
+      in the top 10, of 49 (list-style questions excluded): semantic first 5,
+      keyword only 26, keyword 8 + semantic 2: 25, rank fusion 18, even interleave
+      19. Artifact reached in the top 10, of 57: 45, 53, 55. Paraphrases that avoid
+      the strategy's wording, of 15: 11, 11, 12. Limits: one instance, one query per
+      question (a lower bound for an agent that rewrites queries or reads the
+      outline first), key results and assumptions only, 15 hand-written
+      paraphrases, and the strategy was picked from the same runs it is reported
+      on. No framework content was served for any of the 59 questions in any mode.

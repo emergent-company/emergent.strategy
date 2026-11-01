@@ -35,9 +35,10 @@ mostly canonical definitions and templates.)
 
 - `search_strategy` gains an optional `mode`: `auto` (default), `semantic` or
   `keyword`.
-- In `auto`, the semantic search runs when Memory is configured. The keyword
-  search runs instead when semantic search is unavailable, fails, or returns no
-  hit inside the instance's own authored content.
+- In `auto`, keyword search runs, and semantic search too when Memory is
+  configured and the instance has a graph. The hits are mostly keyword hits (a
+  fifth of the limit goes to semantic ones); without Memory, on an error, or
+  without a graph, they are keyword hits alone (design D6).
 - Keyword search reads the instance's current, authored artifacts from the
   database, matches the query terms against text, and returns hits in the existing
   shape with a path that `get_section` accepts.
@@ -67,6 +68,6 @@ mostly canonical definitions and templates.)
 
 1. Are mixed English and Norwegian instances common enough that the small
    stop-word list needs a third language? Starting with English and Norwegian.
-2. Should `auto` merge keyword hits into a non-empty semantic result when the
-   query contains a number or a proper noun? Not now: it needs evidence that
-   semantic search misses them.
+2. Should `auto` merge keyword hits into a non-empty semantic result? Answered
+   by evidence: yes, and keyword first (design D6). On the 59-question bank,
+   semantic search missed the named sections far more often than keyword search.
