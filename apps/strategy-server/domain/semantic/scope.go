@@ -45,6 +45,10 @@ type scope struct {
 	id    uuid.UUID
 	label string
 
+	// client is the Memory client reads go through: the service's, or a
+	// branch-scoped copy for reading a scenario branch.
+	client *memory.Client
+
 	// notOwned counts objects dropped for a missing label or a wrong or missing
 	// instance_id; notInGraph counts owned objects outside the manifest.
 	notOwned, notInGraph int
@@ -79,7 +83,7 @@ func (s *Service) scopeFor(ctx context.Context, id uuid.UUID) (*scope, error) {
 	if !has {
 		return nil, ErrGraphNotReady
 	}
-	return &scope{svc: s, id: id, label: "instance:" + id.String()}, nil
+	return &scope{svc: s, id: id, label: "instance:" + id.String(), client: s.client}, nil
 }
 
 func hasLabel(o *memory.Object, label string) bool {
@@ -208,7 +212,7 @@ func (sc *scope) list(ctx context.Context, objType string) ([]memory.Object, err
 	seen := make(map[string]bool)
 	cursor := ""
 	for {
-		page, err := sc.svc.client.ListObjects(ctx, memory.ListObjectsOptions{
+		page, err := sc.client.ListObjects(ctx, memory.ListObjectsOptions{
 			Type: objType, Label: sc.label, Cursor: cursor, Limit: listObjectsPageLimit,
 		})
 		if err != nil {
@@ -235,7 +239,7 @@ func (sc *scope) list(ctx context.Context, objType string) ([]memory.Object, err
 
 // lookup finds the visible object for an unscoped key.
 func (sc *scope) lookup(ctx context.Context, key string) (*memory.Object, error) {
-	obj, err := sc.svc.client.GetObjectByKey(ctx, ingest.ScopedKey(sc.id, key))
+	obj, err := sc.client.GetObjectByKey(ctx, ingest.ScopedKey(sc.id, key))
 	if err != nil {
 		return nil, fmt.Errorf("lookup node %q: %w", key, err)
 	}
@@ -257,7 +261,7 @@ func (sc *scope) expand(ctx context.Context, roots []memory.Object, depth, maxNo
 	for i := range roots {
 		ids = append(ids, roots[i].StableID())
 	}
-	expanded, err := sc.svc.client.Expand(ctx, memory.ExpandRequest{RootIDs: ids, MaxDepth: depth, MaxNodes: maxNodes})
+	expanded, err := sc.client.Expand(ctx, memory.ExpandRequest{RootIDs: ids, MaxDepth: depth, MaxNodes: maxNodes})
 	if err != nil {
 		return nil, nil, fmt.Errorf("expand: %w", err)
 	}

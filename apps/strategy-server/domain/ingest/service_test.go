@@ -416,14 +416,43 @@ func TestPurge_FailureLeavesItOwedForTheHeartbeat(t *testing.T) {
 	}
 }
 
-func TestPurge_NeverSyncedInstanceNeedsNoMemoryCalls(t *testing.T) {
+// An instance with nothing in Memory needs the purge to find that out, not to
+// assume it: the owner label is the only record of what an interrupted ingest
+// left behind.
+func TestPurge_AnInstanceWithNothingInMemoryEndsPurged(t *testing.T) {
 	f := newFixture(t)
 	mustExec(t, f.db, "UPDATE strategy_instances SET deleted_at = now() WHERE id = ?", f.inst)
 	if err := f.svc.PurgeInstance(context.Background(), f.inst); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
-	if n := len(f.mem.Requests()); n != 0 {
-		t.Errorf("made %d Memory calls for an instance that was never synced", n)
+	if f.row(t, f.inst).Purge == nil {
+		t.Error("memory_purged_at not recorded")
+	}
+	if n := f.deleteCalls(); n != 0 {
+		t.Errorf("%d deletes for an instance with nothing in Memory", n)
+	}
+}
+
+// A first ingest that dies after writing some objects marks nothing: no sync
+// status, no manifest. Deleting the instance must still remove what it wrote.
+func TestPurge_RemovesWhatAnInterruptedFirstIngestLeft(t *testing.T) {
+	f := newFixture(t)
+	other := f.newInstance(t, "other")
+	f.strayOf(f.inst, sk(f.inst, "fd-half"))
+	f.strayOf(other, sk(other, "fd-theirs"))
+	if got := f.row(t, f.inst); got.State != nil {
+		t.Fatalf("precondition: instance has sync status %q", *got.State)
+	}
+	f.softDelete(t, f.inst)
+
+	if err := f.svc.PurgeInstance(context.Background(), f.inst); err != nil {
+		t.Fatalf("purge: %v", err)
+	}
+	if f.contains(sk(f.inst, "fd-half")) {
+		t.Error("an object written by the interrupted ingest survived the purge")
+	}
+	if !f.contains(sk(other, "fd-theirs")) {
+		t.Error("the purge removed another instance's object")
 	}
 }
 
@@ -454,4 +483,103 @@ func TestRepairMemoryDrift_RequeuesOldDirtyInstancesOnly(t *testing.T) {
 	if f.mem.ObjectByKey(sk(gone, "fd-gone")) != nil {
 		t.Error("a deleted instance must not be ingested")
 	}
+}
+
+// A change that lands while an ingest runs leaves the instance dirty, and the
+// next scheduled ingest picks it up: the artifact added mid-ingest ends up in
+// Memory and the instance ends clean.
+func TestReingest_AChangeDuringAnIngestIsPickedUpByTheNextOne(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.addArtifact(t, f.inst, "feature", "fd-001_a", map[string]any{"name": "A"})
+	f.markDirty(t, f.inst)
+
+	var once atomic.Bool
+	f.mem.OnUpsert = func(string) {
+		if once.CompareAndSwap(false, true) {
+			f.addArtifact(t, f.inst, "feature", "fd-002_late", map[string]any{"name": "arrived mid-ingest"})
+			f.markDirty(t, f.inst)
+		}
+	}
+	if err := f.svc.ReingestInstance(ctx, f.inst); err != nil {
+		t.Fatalf("first ingest: %v", err)
+	}
+	if f.row(t, f.inst).Dirty == nil {
+		t.Fatal("the instance must still be dirty after the first ingest")
+	}
+
+	f.svc.Start(1)
+	f.svc.InstanceChanged(ctx, f.inst)
+	f.svc.Stop()
+
+	if f.mem.ObjectByKey(sk(f.inst, "fd-002_late")) == nil {
+		t.Errorf("the artifact added mid-ingest never reached Memory; have %v", f.liveKeys())
+	}
+	if f.row(t, f.inst).Dirty != nil {
+		t.Error("the instance is still dirty after the follow-up ingest")
+	}
+}
+
+// Deleting an instance removes its objects, relationships and scenario
+// branches, and a restart does not bring any of it back (AC8).
+func TestDelete_RemovesEverythingAndARestartDoesNotRestoreIt(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	other := f.newInstance(t, "other")
+	for _, in := range []uuid.UUID{f.inst, other} {
+		f.addArtifact(t, in, "feature", "fd-001_a", map[string]any{"name": "A"})
+		f.addArtifact(t, in, "feature", "fd-002_b", map[string]any{"name": "B"})
+		f.addRelationship(t, in, "fd-001_a", "fd-002_b")
+		if err := f.svc.ReingestInstance(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.mem.AddBranch(memory.ScenarioBranchPrefix(f.inst) + "what-if")
+	keep := f.mem.AddBranch(memory.ScenarioBranchPrefix(other) + "theirs")
+	if len(f.mem.Relationships()) != 2 {
+		t.Fatalf("precondition: %d relationships", len(f.mem.Relationships()))
+	}
+
+	f.softDelete(t, f.inst)
+	f.svc.Start(2)
+	f.svc.InstanceChanged(ctx, f.inst)
+	f.svc.Stop()
+
+	gone := func(when string) {
+		t.Helper()
+		for _, k := range f.liveKeys() {
+			if strings.HasPrefix(k, f.inst.String()[:8]+"/") {
+				t.Errorf("%s: object %s of the deleted instance is back", when, k)
+			}
+		}
+		for _, r := range f.mem.Relationships() {
+			if r.Properties["instance_id"] == f.inst.String() {
+				t.Errorf("%s: a relationship of the deleted instance is back", when)
+			}
+		}
+		for _, b := range f.mem.Branches() {
+			if strings.HasPrefix(b.Name, memory.ScenarioBranchPrefix(f.inst)) {
+				t.Errorf("%s: branch %s of the deleted instance is back", when, b.Name)
+			}
+		}
+	}
+	gone("after the delete")
+	if f.mem.ObjectByKey(sk(other, "fd-001_a")) == nil || len(f.mem.Relationships()) != 1 {
+		t.Error("another instance's objects or relationship were removed")
+	}
+	found := false
+	for _, b := range f.mem.Branches() {
+		found = found || b.ID == keep
+	}
+	if !found {
+		t.Error("another instance's branch was removed")
+	}
+
+	// A restart: a fresh service over the same database and Memory runs the
+	// startup sweep.
+	restarted := ingest.NewService(f.db, f.mem.Client(t))
+	restarted.Start(2)
+	restarted.EnqueueAllInstances(ctx, f.db, discardLog{})
+	restarted.Stop()
+	gone("after the restart")
 }
