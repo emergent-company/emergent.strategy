@@ -111,3 +111,35 @@ and see it fail.
       outline first), key results and assumptions only, 15 hand-written
       paraphrases, and the strategy was picked from the same runs it is reported
       on. No framework content was served for any of the 59 questions in any mode.
+- [x] 4.6 End-to-end check of 3.5, same 59 questions: Claude Sonnet 5.5 answers each
+      through the server (OpenCode with an isolated configuration, the strategy
+      server's tools only, no management skill), Gemini 4 grades the answer against
+      the bank's gold answer and Must-not list on a 0 to 2 scale for facts only
+      (grader controls: the gold text scores 2, an empty answer, an answer to another
+      question and the framework-template Must-not answer score 0, 4 of 4). Q56 is
+      excluded because it needs an attached plan the harness did not send, leaving
+      58 questions. Score 2 / 1 / 0 and points of 116: before 3.5 (semantic first)
+      27 / 26 / 5 = 80; after 3.5, run 1 27 / 26 / 5 = 80 and run 2 28 / 25 / 5 = 81.
+      Run to run, 47 of 58 questions score the same and all are within one point, so
+      differences under about 2 points are noise. Per question, after against before:
+      better on 7 and 9, worse on 7. **3.5 has no measurable effect on end-to-end
+      answers with this model.** The agent reaches the data through the outline,
+      search and section reads whichever search mode is the default: 91% of the
+      identifiers the bank names (81 of 89) were in tool output the agent received,
+      and the score was the same whether all of them were or not (mean 1.35 and
+      1.38). The retrieval gain in 4.5 holds for a client that searches once; it
+      does not show up in the final answers here, and should not be cited as an
+      improvement in answers. Other results of the same runs (Sonnet, 58 questions):
+      no answer presents framework content as the company's (0 of 58); 742 of 743
+      numbers in the answers appear in the strategy text (the one that does not is
+      the framework version in "2.32.1") and every checked name does too; 47 of 59
+      answers put internal codes in the body, which is the baseline without the
+      management skill. Of the 5 answers scoring 0, two use the word the bank
+      forbids until a replacement exists (it is the strategy's own term), and three
+      are composition errors (Q03, Q48, Q55); the points lost elsewhere are
+      specific figures, dates and qualifiers inside large sections, not whole
+      topics. Limits: one answering model, a grader that is itself a model and
+      compares only with the gold answers (written by Claude, reviewed by the
+      customer), two runs, and seven "Waiting" questions whose gold answers are
+      provisional.
+

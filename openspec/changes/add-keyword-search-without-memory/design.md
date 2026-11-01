@@ -113,6 +113,9 @@ reach the top 10; an even interleave scored 19 of 49. The 80/20 split was picked
 from these runs, a single instance, so it is a judgement; what the numbers do
 support is that keyword-heavy beats semantic-first on every measure. Semantic
 hits keep a share because they find what the query's words do not.
+An end-to-end run of the same bank (tasks.md 4.6) found no difference in the
+final answers an agent gives, before or after this change; the gain is in the
+first search only.
 
 ### D7. Scope
 
