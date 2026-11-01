@@ -50,6 +50,9 @@ type Service struct {
 	exporter InstanceExporter // optional — enables decomposed layer ingest
 
 	co *coalescer
+
+	verifiedMu sync.Mutex
+	verifiedAt map[uuid.UUID]time.Time
 }
 
 // NewService creates an ingestion service. If client is nil, all operations are no-ops.
@@ -217,7 +220,8 @@ func (s *Service) pendingPurges(ctx context.Context, db *bun.DB) ([]uuid.UUID, e
 // RepairMemoryDrift implements heartbeat.MemoryDriftRepairer. It re-enqueues
 // instances whose changes have sat unprocessed (a dropped notification or a
 // failed ingest), instances whose first ingest has not completed, instances synced before the Memory server last started (a
-// restart can wipe the graph), and purges that are still owed.
+// restart can wipe the graph), purges that are still owed, and instances whose
+// objects Memory no longer holds (see healMissingObjects).
 func (s *Service) RepairMemoryDrift(ctx context.Context) {
 	if s.client == nil {
 		return
@@ -274,15 +278,18 @@ func (s *Service) RepairMemoryDrift(ctx context.Context) {
 		slog.WarnContext(ctx, "ingest: drift check: restart query failed", "err", err)
 		return
 	}
-	if len(restarted) == 0 {
-		return
+	requeued := map[uuid.UUID]bool{}
+	if len(restarted) > 0 {
+		slog.InfoContext(ctx, "ingest: memory restart detected, re-queuing instances",
+			"count", len(restarted), "memory_started_at", status.StartedAt.Format(time.RFC3339))
 	}
-	slog.InfoContext(ctx, "ingest: memory restart detected, re-queuing instances",
-		"count", len(restarted), "memory_started_at", status.StartedAt.Format(time.RFC3339))
 	for _, id := range restarted {
 		s.forceNextIngest(ctx, id)
 		s.EnqueueInstance(id)
+		requeued[id] = true
 	}
+
+	s.healMissingObjects(ctx, requeued)
 }
 
 // dirtyInstances returns active instances with a change older than dirtyGrace.

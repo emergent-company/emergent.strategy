@@ -126,6 +126,45 @@ SHALL NOT affect visibility.
 
 ---
 
+### Requirement: Projection Self-Check
+
+The system SHALL compare, for each ingested instance, the objects emergent.memory
+holds under the instance's owner label with the instance's recorded projection,
+and SHALL re-ingest an instance from which projected objects are missing. The
+heartbeat SHALL run the comparison for each instance at most once per fixed
+interval, and an administrative command SHALL run it on demand, report only by
+default. An instance that is dirty, locked by an ingest, or without a recorded
+projection SHALL be skipped. An owned object outside the projection SHALL be
+reported and SHALL NOT make the instance fail the comparison; the orphan sweep
+removes it. A repair SHALL rebuild both layers of the instance.
+
+#### Scenario: Objects deleted behind the server's back
+- **WHEN** objects of an instance's projection are deleted from emergent.memory
+  without the instance being marked dirty, for instance by an older build after
+  a rollback
+- **THEN** the next comparison reports them as missing
+- **AND** the heartbeat re-ingests the instance although its artifacts are unchanged
+
+#### Scenario: On-demand check
+- **WHEN** an administrator runs the check without `repair`
+- **THEN** the system reports, per instance, the counts of projected and held
+  objects and a sample of the missing and extra ones
+- **AND** changes nothing
+- **AND** the command exits with an error while an instance is missing objects
+
+#### Scenario: On-demand repair
+- **WHEN** an administrator runs the check with `repair`
+- **THEN** each instance missing objects is re-ingested in full, the artifact
+  layer and the decomposed layer, and its projection keeps the objects of both
+- **AND** a following check reports every instance without missing objects
+
+#### Scenario: Not judged while an ingest is due or running
+- **WHEN** an instance is dirty, an ingest holds its lock, or it has no recorded
+  projection
+- **THEN** the comparison skips it and says why
+
+---
+
 ### Requirement: Ingest Trigger on Every Artifact Change
 
 Every change to an instance's artifacts in PostgreSQL, by any path, SHALL mark

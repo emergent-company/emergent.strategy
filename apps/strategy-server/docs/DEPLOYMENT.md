@@ -482,6 +482,39 @@ seconds for 44 objects, 19 seconds for 2,664 objects and 2,755 relationships. A
 purge that fails is retried by the startup sweep and the heartbeat. Deleted
 instances are never re-ingested.
 
+### 7.4a Check the graph against the manifest
+
+An instance can lose objects in Memory without anything marking it dirty: an
+older build's import after a rollback (#146), or a manual delete. The check
+compares, per instance, the objects Memory holds under its `instance:<id>` label
+with the instance's manifest:
+
+```bash
+strategy-server memory verify             # report only; exits with an error if an instance is missing objects
+strategy-server memory verify --repair    # re-ingests each instance that is missing objects, both layers
+```
+
+It needs the same environment as the sweep (7.3). The report has, per instance,
+the manifest size, the objects held, and how many are missing and how many are
+extra, with examples. Only missing objects are a failure: an extra owned object
+lies outside the projection and the sweep (7.3) removes it. An instance that is
+dirty, being ingested, or not ingested yet is skipped and the reason is given;
+run it again once it has settled.
+
+The heartbeat runs the same comparison by itself, for each instance at most once
+every 15 minutes, and queues a full ingest for an instance that is missing
+objects (log line `ingest: instance is missing objects in Memory`).
+`HEARTBEAT_INTERVAL=0` disables it with the rest of the heartbeat.
+
+Verified on the development project (six instances, 11,417 objects): the report
+takes 3 seconds and shows 0 missing; with objects deleted behind the server's
+back it names them, and `--repair` restores them in about 17 seconds for one
+instance. A second server started against the same database and Memory healed a
+deleted object within 20 seconds of its first heartbeat, where its startup sweep
+had said "all instances unchanged". What it does not check: relationships, and
+whether the content of an object is current (the startup sweep and the content
+hash do that).
+
 ### 7.5 Rollback across this upgrade
 
 Rehearsed once on scratch resources (three real instances, the build before the
@@ -502,16 +535,14 @@ fence merge as the old build). What was observed:
   instances unchanged", nothing healed, and `get_neighbors` and
   `detect_contradictions` returned empty results for the instance while it
   reported itself clean and synced (#146).
-- **After rolling forward from a rollback in which anything was written,**
-  re-ingest every instance the old build touched, then run the sweep (7.3).
-  Verified: the new build's `import` on the instance re-ingested it in 22
-  seconds, the graph and the manifest agreed again, and the sweep removed the
-  un-owned objects. Not verified: that a re-sync from GitHub does the same; it
-  should, if it changes the content.
-- To check an instance by hand, compare the number of objects Memory holds under
-  its `instance:<id>` label with its rows in `memory_projection` (`kind =
-  'object'`); they must be equal, and no object may be owned and missing from the
-  manifest.
+- **After rolling forward from a rollback in which anything was written,** run
+  `strategy-server memory verify` (7.4a). It reports every instance that lost
+  objects, and `--repair` re-ingests them; then run the sweep (7.3). The check
+  also runs on its own: the heartbeat compares each instance with Memory the
+  first time after a start and then every 15 minutes, and re-ingests one that is
+  missing objects. A re-import of the instance by hand does the same as `--repair`.
+  Not verified: that a re-sync from GitHub does the same; it should, if it
+  changes the content.
 - A failed ingest does not need a rollback. In development, Memory's database was
   killed during an ingest; the instance stayed at its previous state and
   invisible-until-complete, and a retry converged. The rehearsal showed the same

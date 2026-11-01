@@ -28,7 +28,14 @@ type ImportCmd struct {
 
 // MemoryCmd is the subcommand for operating on the Memory graph.
 type MemoryCmd struct {
-	Sweep *MemorySweepCmd `arg:"subcommand:sweep" help:"Report, and with --apply delete, Memory objects no instance accounts for"`
+	Sweep  *MemorySweepCmd  `arg:"subcommand:sweep" help:"Report, and with --apply delete, Memory objects no instance accounts for"`
+	Verify *MemoryVerifyCmd `arg:"subcommand:verify" help:"Compare each instance's objects in Memory with its manifest; with --repair, re-ingest the ones that lost objects"`
+}
+
+// MemoryVerifyCmd checks every ingested instance against Memory. Without
+// --repair it changes nothing.
+type MemoryVerifyCmd struct {
+	Repair bool `arg:"--repair" help:"Re-ingest each instance that is missing objects in Memory (default is a report only)"`
 }
 
 // MemorySweepCmd runs the orphan sweep. Without --apply it deletes nothing.
