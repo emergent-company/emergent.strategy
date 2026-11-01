@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -18,22 +19,51 @@ import (
 // ParseFiles accepts a map of relative path → file contents (as bytes) and
 // returns the same artifact payload map that scanEPFInstance produces.
 // productName is extracted from _meta.yaml/_epf.yaml if present.
+//
+// Files are processed shallowest path first, then by path, so the result does not
+// depend on map order. When two files name the same artifact (READY/05_roadmap_recipe.yaml
+// and a per-cycle copy under AIM/cycles/, say) the first one is kept and the
+// other is logged: the READY copy is the current one, the cycle copies are
+// snapshots. The same rule picks the file the product name comes from.
 func ParseFiles(files map[string][]byte) (payloads map[string]any, productName string, err error) {
 	payloads = make(map[string]any, len(files))
+	stored := make(map[string]string, len(files)) // artifact key -> path it came from
 
-	for relPath, data := range files {
+	for _, relPath := range orderedPaths(files) {
 		filename := filepath.Base(relPath)
-		name, raw, skip, parseErr := processYAMLBytes(data, filename, relPath, &productName)
+		name, raw, skip, parseErr := processYAMLBytes(files[relPath], filename, relPath, &productName)
 		if parseErr != nil {
 			return nil, "", parseErr
 		}
 		if skip {
 			continue
 		}
+		if kept, taken := stored[name]; taken {
+			slog.Warn("two files name the same artifact; keeping the first and skipping the other",
+				"artifact_key", name, "kept", kept, "skipped", relPath)
+			continue
+		}
+		stored[name] = relPath
 		payloads[name] = raw
 	}
 
 	return payloads, productName, nil
+}
+
+// orderedPaths lists the paths shallowest first, then alphabetically.
+func orderedPaths(files map[string][]byte) []string {
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		di, dj := strings.Count(paths[i], "/"), strings.Count(paths[j], "/")
+		if di != dj {
+			return di < dj
+		}
+		return paths[i] < paths[j]
+	})
+	return paths
 }
 
 // ScanDirectory walks an EPF instance directory on the local filesystem and
