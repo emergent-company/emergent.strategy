@@ -221,7 +221,7 @@ and the pilot hit the confusion they prevent.
 ## 8. Verification
 
 - [ ] 8.1 `go test ./...` and `task lint` clean; compare with the baseline.
-- [ ] 8.2 `task dev-up-full` against a real Memory container: scaffold instance
+- [x] 8.2 `task dev-up-full` against a real Memory container: scaffold instance
       A, import a real instance B, import B again with an artifact removed,
       restore a version, delete A, run the sweep dry-run and apply. Check every
       #99 acceptance criterion by hand and record the result in the PR.

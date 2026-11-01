@@ -435,7 +435,7 @@ READY). The ingest itself is deterministic given the stored artifacts; the
 nondeterminism is in the import. Removing the AIM copy made five consecutive
 imports identical. Tracked as a separate issue.
 
-## Verification on real data (task 8.2, partial)
+## Verification on real data (task 8.2)
 
 Real Memory v0.87.4 (`memory-passthrough`, port 3012), a fresh Postgres database
 migrated to 046, and six instances imported from the GitHub checkouts (Emergent,
@@ -454,10 +454,50 @@ Farmforce, Papertrail, Sandakers, 21st, Huma) into one empty project:
 | Sweep dry run on the real data | 0 in every class |
 | Sweep with one planted orphan per class | dry run reports 1/1/1/1 and deletes nothing; apply deletes exactly those 4 (0 failed); 0 real objects removed or versioned; a second apply finds 0 |
 
-Not done yet: scaffold a new instance, import again with an artifact removed,
-restore a version, and walk the #99 acceptance criteria by hand.
+### The #99 acceptance criteria, by hand
 
-Found while doing it, none caused by this change:
+Same project, then with two template-scaffolded instances ("Acme", "Acme Two",
+41 canonical keys in common) and an imported copy of a real instance
+("Rivalco") added to the six above. Every write went through the MCP, except the
+import, which is the CLI; the checks read Memory and Postgres directly and
+compared the whole project before and after each step. The server was a scratch
+`strategy-server` on the same build, not `task dev-up-full`.
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Two instances from the same templates: reads for A return nothing of B | 72 searches over all 9 instances, auto and semantic: no hit carries another instance's `instance_id`. `get_neighbors("north_star")` gives the same 2 neighbours for both scaffolds, not 4. Before an edit the scaffolds return no search hits at all (unmodified templates are excluded as framework text), so the search half of this probe only means something after step 4, where the marker is found in A and in 0 hits for B. |
+| 2 | Objects with no owner are never returned | Two ownerless objects planted (one with a template key, one with a unique marker); raw Memory finds both, so the probe is not vacuous. 9 instances x 3 queries x 2 modes: 0 returned, `get_neighbors` empty. The sweep then reported exactly those 2 and deleted them. |
+| 3 | Removing an artifact removes its objects at once | By commit: archiving a feature in A removed its 3 objects and its search hits with no restart. By import: re-importing a real instance without one artifact file removed exactly that artifact's 3 objects, 0 added, 0 outside the instance changed; the removed definition has no search hits and no neighbours. |
+| 4 | A changed artifact is searchable, the old content is not | By commit (North Star purpose and a core belief, then `commit_batch`) and by import (a definition renamed): the new text is found with no restart; in Memory no object of the instance still carries the old text. |
+| 5 | `restore_version`: reads reflect the restored version only | After restoring, the changed text was gone (0 objects, 0 search hits) and the old text was back. Doing this found two defects, see below. |
+| 6 | `commit_batch` on a North Star value updates decomposed `Belief` objects | Both Belief objects (`purpose`, `core_beliefs.about_our_market[0]`) carried the new text after the commit; the other scaffold kept its own. |
+| 7 | Archiving in A never hides B's object with the same key | The same feature key created in both, archived in A: B's 3 objects kept the same keys and versions, and B's search still finds them. |
+| 8 | Deleting an instance removes objects, relationships and branches; restart does not bring them back | An instance with 44 objects and a real scenario branch: exactly its 44 objects and 55 relationships and the branch were removed in 2 s, 0 other objects added or versioned, manifest cleared. After a server restart the startup sweep skipped it and nothing returned. |
+| 9 | A crash or full queue leaves the instance marked and it converges | Not repeated here. Covered by 8.3 (a dropped job converged) and by the real failed ingest recorded below. |
+| 10 | Lifecycle mode is independent of other instances | For all 9 instances `graph_node_count` in the lifecycle signals equals the number of objects that instance owns in Memory (a 6-artifact scaffold reports 39, not 12,700). |
+| 11 | Search results include instance, layer and source artifact | True for hits from Memory. Keyword-fallback hits (`match: keyword`, read from Postgres) carry none of the three. They were checked to be the instance's own artifacts, so this is a gap in the output, not a leak. |
+
+After all of it the instances were deleted again and the project was back to
+11,405 objects, 16,803 relationships and 0 violations from the isolation check.
+
+The two gated live-Memory ripple tests (`RUN_SEMANTIC_TESTS=1`) were run against
+a scratch Memory project, with the upsert concurrency lowered to 2 for the run:
+both pass (11 s and 8 s). They wire no exporter, so only the artifact layer (174
+objects) was in Memory, and their embedding wait returned at once with 0
+completed. I did not check how strongly their phases assert.
+
+Defects found while doing this:
+
+- **A type change left two objects for one key (this change, fixed in #122).**
+  Memory identifies an object by type and key; the manifest lists keys. After
+  `restore_version` an artifact came back with another type, the old object was
+  kept, and two owned, visible objects answered for one key.
+- **`restore_version` loses artifact type, name, track and status (#121, not
+  this change).** It rebuilds each row from the key alone; for an imported
+  instance 138 of 143 artifacts would come back as type `unknown` (computed from
+  the key rules, not by restoring a real instance).
+
+Also found, none caused by this change:
 
 - **A failed ingest left the fence intact.** Memory's own Postgres was
   OOM-killed mid-ingest (the Docker VM had 4 GiB), 165 of 1,093 relationship
