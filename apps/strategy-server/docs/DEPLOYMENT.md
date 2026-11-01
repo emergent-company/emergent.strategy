@@ -388,7 +388,9 @@ Postgres, so it can always be rebuilt by re-ingesting.
    with 4 GiB shared by several containers got Memory's database OOM-killed. A
    failed ingest is safe (see 7.5): the previous state stays in force and a retry
    converges. Give Memory headroom, and do not run the sweep while a large ingest
-   is running.
+   is running. In the rehearsal, a sweep started minutes after a bulk ingest on a
+   4 GiB VM was cut off when Memory's server restarted and its database logged
+   `too many clients`; it had deleted nothing and completed when re-run.
 
 ### 7.2 Deploy and verify
 
@@ -404,7 +406,14 @@ After the new revision is up:
    so after slice 1 every instance is at 0 and all of them are re-ingested. The
    log line is `ingest: startup sweep: queuing work`. Two ingest workers run at a
    time. Measured: the first ingest of a 2,250-object instance took about 43
-   seconds.
+   seconds. Rehearsed end to end on scratch resources with three real instances
+   (5,328 objects) and the old build's graph in place: all three were at
+   generation 1, clean and synced 2 minutes 14 seconds after the new build
+   started, with Memory's peak container memory at 2.7 GiB of a 4 GiB VM. Two of
+   the three first attempts failed under Memory `502` responses (32 of 2,261
+   object upserts, and 32 of 3,199 relationship upserts); the instances stayed
+   dirty and the heartbeat retried them. The rehearsal ran the heartbeat every 30
+   seconds; at the default 5 minutes a failed first ingest waits up to that long.
 2. **Until an instance's first ingest completes** (`memory_generation` is 0),
    semantic reads of it are empty on purpose:
    - `search_strategy` in the default mode falls back to keyword search;
@@ -475,17 +484,38 @@ instances are never re-ingested.
 
 ### 7.5 Rollback across this upgrade
 
-- **Rolling back the revision removes the fence.** The previous build does not
-  know the manifest, and per #99 its semantic reads are not scoped to the
-  instance. Roll back only if you must, and treat semantic reads as unscoped
-  while it is in place.
-- No migration is involved, so nothing to undo in Postgres. Rolling forward again
-  works: the manifests are still there, and what the old build wrote without an
-  owner is invisible to the fenced build and is removed by the next sweep. The
-  roll-back and roll-forward path has not been tested.
+Rehearsed once on scratch resources (three real instances, the build before the
+fence merge as the old build). What was observed:
+
+- **The old build starts on the new state and its reads stay isolated.** It
+  logged "all instances unchanged", returned no hit from another instance and no
+  framework hit, and kept 48 of 48 other-instance phrases out. It has fewer
+  features: fewer hits, and some without `read_with`. This held because the
+  objects the new build writes carry the `instance_id` property the old build
+  filters on; do not expect it of a state the old build has not seen.
+- No migration is involved, so nothing to undo in Postgres.
+- **If anything wrote while the old build was running** (an import, a sync, an
+  ingest), the damage is not removed by rolling forward. In the rehearsal the old
+  build's import re-created un-owned objects (the sweep removes those) **and
+  deleted the instance's artifact-layer objects**, which the manifest still
+  listed. The old build never marks an instance dirty, so the new build said "all
+  instances unchanged", nothing healed, and `get_neighbors` and
+  `detect_contradictions` returned empty results for the instance while it
+  reported itself clean and synced (#146).
+- **After rolling forward from a rollback in which anything was written,**
+  re-ingest every instance the old build touched, then run the sweep (7.3).
+  Verified: the new build's `import` on the instance re-ingested it in 22
+  seconds, the graph and the manifest agreed again, and the sweep removed the
+  un-owned objects. Not verified: that a re-sync from GitHub does the same; it
+  should, if it changes the content.
+- To check an instance by hand, compare the number of objects Memory holds under
+  its `instance:<id>` label with its rows in `memory_projection` (`kind =
+  'object'`); they must be equal, and no object may be owned and missing from the
+  manifest.
 - A failed ingest does not need a rollback. In development, Memory's database was
   killed during an ingest; the instance stayed at its previous state and
-  invisible-until-complete, and a retry converged.
+  invisible-until-complete, and a retry converged. The rehearsal showed the same
+  with two failed first ingests (7.2).
 
 ### 7.6 Known limitations at this cutover
 
