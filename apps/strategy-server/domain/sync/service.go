@@ -67,10 +67,10 @@ type PRResult struct {
 	URL    string
 }
 
-// InstanceReimporter is satisfied by instance.Service.ReimportArtifacts.
+// InstanceReimporter is satisfied by instance.Service.
 // Declared here to avoid an import cycle (instance → sync would be circular).
 type InstanceReimporter interface {
-	ReimportArtifacts(ctx context.Context, id uuid.UUID, payloads map[string]any) error
+	ReimportArtifactsIndexed(ctx context.Context, id uuid.UUID, payloads map[string]any, index func(ctx context.Context, tx bun.Tx) error) error
 }
 
 // Service manages strategy-to-GitHub sync operations.

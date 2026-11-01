@@ -105,39 +105,44 @@ func runServer(cfg *config.Config) error {
 	semanticSvc := setupSemantic(cfg, log)
 
 	// Ingestion pipeline: converts committed mutations into Memory graph objects.
+	// The exporter must be wired before the workers start: an ingest that runs
+	// without it commits a manifest with no decomposed layer, and its content hash
+	// then stops a retry.
+	semanticSvc.WithManifestSource(ingest.NewManifestStore(db))
 	ingestSvc := ingest.NewService(db, semanticSvc.Client())
+	strategySvc := strategy.NewService(db).WithChangeMarker(changeMarker)
+	if semanticSvc.IsAvailable() {
+		ingestSvc.SetExporter(&strategyExporterAdapter{svc: strategySvc})
+	}
 	ingestSvc.Start(2) // 2 worker goroutines
 	defer ingestSvc.Stop()
 	changeMarker.SetNotifier(ingestSvc)
 
-	// Startup sweep: enqueue a full re-ingest for every active instance so that
-	// Memory stays in sync after server restarts or first-time setup.
-	if semanticSvc.IsAvailable() {
-		go ingestSvc.EnqueueAllInstances(context.Background(), db, log)
-	}
-
-	orgSvc := org.NewService(db)
-	accessTokenSvc := accesstoken.NewService(db, orgSvc)
-	versionSvc := versiondom.NewService(db).WithChangeMarker(changeMarker)
-	strategySvc := strategy.NewService(db).WithChangeMarker(changeMarker)
-	rippleSvc := rippledom.NewService(db)
-
 	// Classify artifact rows that predate the integrity columns or were checked
 	// against an older manifest. A new manifest ships with a new binary, so a
-	// restart is the on-demand path.
+	// restart is the on-demand path. Instances whose classes change are marked, so
+	// they are re-ingested; the startup sweep runs after it so that it sees those
+	// marks and one ingest per instance covers both.
 	go func() {
 		n, err := strategySvc.ReclassifyIntegrity(context.Background(), nil)
 		if err != nil {
 			log.Error("integrity reclassification failed", "classified", n, "err", err)
-			return
+		} else {
+			log.Info("integrity reclassification complete", "classified", n)
 		}
-		log.Info("integrity reclassification complete", "classified", n)
+		// Startup sweep: enqueue a full re-ingest for every active instance that
+		// needs one, so that Memory stays in sync after restarts or first-time
+		// setup. It runs even if reclassification failed; the heartbeat covers
+		// the rest.
+		if semanticSvc.IsAvailable() {
+			ingestSvc.EnqueueAllInstances(context.Background(), db, log)
+		}
 	}()
 
-	// Wire the strategy exporter into the ingest service for decomposed-layer sync.
-	if semanticSvc.IsAvailable() {
-		ingestSvc.SetExporter(&strategyExporterAdapter{svc: strategySvc})
-	}
+	orgSvc := org.NewService(db)
+	accessTokenSvc := accesstoken.NewService(db, orgSvc)
+	versionSvc := versiondom.NewService(db).WithChangeMarker(changeMarker)
+	rippleSvc := rippledom.NewService(db)
 
 	// LLM provider — enables server-orchestrated convergence loop resolution.
 	llmClient := setupLLM(cfg, log)
@@ -506,6 +511,7 @@ func setupSemantic(cfg *config.Config, log *slog.Logger) *semantic.Service {
 
 	// Verify Memory schemas at startup (non-blocking — logs warning if unavailable).
 	if semanticSvc.IsAvailable() {
+		semanticSvc.Client().CheckVersion(context.Background(), log)
 		if err := semanticSvc.VerifySchemas(context.Background()); err != nil {
 			log.Warn("semantic schema verification failed (non-fatal)", "err", err)
 		}
@@ -885,8 +891,9 @@ func (a *strategyExporterAdapter) ExportInstance(ctx context.Context, instanceID
 	files := make([]ingest.ExportFile, len(res.Files))
 	for i, f := range res.Files {
 		files[i] = ingest.ExportFile{
-			RelPath: f.RelPath,
-			Content: f.Content,
+			RelPath:     f.RelPath,
+			ArtifactKey: f.ArtifactKey,
+			Content:     f.Content,
 		}
 	}
 	return &ingest.ExportResult{Files: files}, nil

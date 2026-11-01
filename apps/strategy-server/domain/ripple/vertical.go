@@ -9,7 +9,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // VerticalAlignmentResult describes the semantic alignment between two artifacts
@@ -33,8 +32,8 @@ type VerticalAlignmentResult struct {
 //   - North Star → strategy formula: do strategic bets align with the vision?
 //   - Strategy formula → roadmap OKRs: do OKRs pursue the stated bets?
 //   - Roadmap → features: do features connect to roadmap key results?
-func DetectVerticalMisalignment(ctx context.Context, db *bun.DB, mem *memory.Client, instanceID uuid.UUID, cfg RippleConfig) ([]*domain.RippleSignal, []VerticalAlignmentResult, error) {
-	if mem == nil {
+func DetectVerticalMisalignment(ctx context.Context, db *bun.DB, graph Graph, instanceID uuid.UUID, cfg RippleConfig) ([]*domain.RippleSignal, []VerticalAlignmentResult, error) {
+	if graph == nil {
 		return nil, nil, nil
 	}
 
@@ -87,10 +86,7 @@ func DetectVerticalMisalignment(ctx context.Context, db *bun.DB, mem *memory.Cli
 
 			// Search Memory with upstream content.
 			query := truncateForSearch(upText, 500)
-			searchResults, searchErr := mem.Search(ctx, memory.SearchRequest{
-				Query: query,
-				Limit: 30,
-			})
+			searchResults, searchErr := graph.Search(ctx, query, 30, nil)
 			if searchErr != nil {
 				slog.WarnContext(ctx, "vertical: search failed",
 					"upstream", upstream.ArtifactKey, "error", searchErr)
@@ -105,8 +101,8 @@ func DetectVerticalMisalignment(ctx context.Context, db *bun.DB, mem *memory.Cli
 
 			downstreamScores := make(map[string]float64)
 			for _, r := range searchResults {
-				if downstreamKeys[r.Object.Key] {
-					downstreamScores[r.Object.Key] = r.Score
+				if downstreamKeys[r.Key] {
+					downstreamScores[r.Key] = r.Score
 				}
 			}
 

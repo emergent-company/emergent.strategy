@@ -17,6 +17,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ripple"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
@@ -343,7 +344,7 @@ func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 
 	// --- Phase 3: Semantic drift detection ---
 	t.Log("\n=== Phase 3: Semantic Drift Detection ===")
-	analyzer := ripple.NewSemanticAnalyzer(memClient, db)
+	analyzer := ripple.NewSemanticAnalyzer(graphOf(memCfg, db, inst.ID), db)
 	if analyzer == nil {
 		t.Fatal("analyzer should not be nil")
 	}
@@ -375,7 +376,7 @@ func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 
 	// --- Phase 5: Cross-track tension ---
 	t.Log("\n=== Phase 5: Cross-Track Tension ===")
-	tensionSignals, tensionResults, tensionErr := ripple.DetectCrossTrackTension(ctx, db, memClient, inst.ID, cfg)
+	tensionSignals, tensionResults, tensionErr := ripple.DetectCrossTrackTension(ctx, db, graphOf(memCfg, db, inst.ID), inst.ID, cfg)
 	if tensionErr != nil {
 		t.Logf("Tension error (non-fatal): %v", tensionErr)
 	}
@@ -392,7 +393,7 @@ func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 
 	// --- Phase 6: Vertical alignment ---
 	t.Log("\n=== Phase 6: Vertical Alignment (top-down) ===")
-	verticalSignals, verticalResults, verticalErr := ripple.DetectVerticalMisalignment(ctx, db, memClient, inst.ID, cfg)
+	verticalSignals, verticalResults, verticalErr := ripple.DetectVerticalMisalignment(ctx, db, graphOf(memCfg, db, inst.ID), inst.ID, cfg)
 	if verticalErr != nil {
 		t.Logf("Vertical error (non-fatal): %v", verticalErr)
 	}
@@ -455,7 +456,7 @@ func TestConvergence_RealEmergentInstance_WithMemory(t *testing.T) {
 	convSvc := ripple.ConvergenceServices{
 		DB:     db,
 		Ripple: rippleSvc,
-		Mem:    memClient,
+		Graph:  graphOf(memCfg, db, inst.ID),
 	}
 	summary := ripple.RunConvergenceLoop(ctx, inst.ID, nil, cfg, convSvc)
 	t.Logf("Convergence: iterations=%d, score=%.2f→%.2f, equilibrium=%v, escalated=%d, damping=%s",
@@ -534,7 +535,7 @@ func TestConvergence_RealEmergentInstance_FullLoop(t *testing.T) {
 	t.Logf("Structural signals seeded: %d", len(structSignals))
 
 	// --- Seed semantic signals ---
-	analyzer := ripple.NewSemanticAnalyzer(memClient, db)
+	analyzer := ripple.NewSemanticAnalyzer(graphOf(memCfg, db, inst.ID), db)
 	semSignals := analyzer.FullSemanticAnalysisWithConfig(ctx, inst.ID, cfg)
 	if len(semSignals) > 0 {
 		_ = rippleSvc.CreateSignals(ctx, semSignals)
@@ -563,7 +564,7 @@ func TestConvergence_RealEmergentInstance_FullLoop(t *testing.T) {
 	convSvc := ripple.ConvergenceServices{
 		DB:       db,
 		Ripple:   rippleSvc,
-		Mem:      memClient,
+		Graph:    graphOf(memCfg, db, inst.ID),
 		Resolver: resolver,
 		CommitAutoFn: func(ctx context.Context, instanceID uuid.UUID, artifactKey, artifactType string, payload json.RawMessage, signalID uuid.UUID) error {
 			commitCount++
@@ -712,6 +713,14 @@ func loadMemoryConfig(t *testing.T) memory.Config {
 		t.Skip("Memory project/token not configured in .env.local")
 	}
 	return cfg
+}
+
+// graphOf is the read access the server gives ripple: the instance's scoped
+// view of the Memory project, behind the manifest the ingest above recorded.
+func graphOf(cfg memory.Config, db *bun.DB, id uuid.UUID) ripple.Graph {
+	svc := semantic.NewService(semantic.Config{URL: cfg.BaseURL, Project: cfg.ProjectID, Token: cfg.Token}).
+		WithManifestSource(ingest.NewManifestStore(db))
+	return svc.ScopedGraph(id)
 }
 
 // waitForEmbeddings polls Memory's embedding progress until all pending

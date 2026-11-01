@@ -25,6 +25,7 @@ package decompose
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -159,12 +160,23 @@ func (d *Decomposer) DecomposeInstance() (*Result, error) {
 
 // --- Internal helpers ---
 
+// readYAML decodes a file of the instance. A missing file is the caller's to
+// handle. Any other failure is logged and returned: every caller then produces
+// no objects for the file, which used to happen without a word. The decode is
+// deliberately not lenient: yaml.v3 removes an element it cannot decode from its
+// list, so the elements after it shift down and an object would carry a
+// section_path that points at a different stored element.
 func (d *Decomposer) readYAML(relPath string, out any) error {
 	data, err := os.ReadFile(filepath.Join(d.instancePath, relPath))
 	if err != nil {
 		return err
 	}
-	return yaml.Unmarshal(data, out)
+	if err := yaml.Unmarshal(data, out); err != nil {
+		slog.Warn("decompose: file does not have the expected shape; none of its objects were produced",
+			"file", relPath, "err", err)
+		return err
+	}
+	return nil
 }
 
 func objectKey(objType, id string) string {
@@ -719,7 +731,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 	}
 
 	// Personas and pain points
-	for _, tu := range raw.TargetUsers {
+	for i, tu := range raw.TargetUsers {
 		personaID := sanitizeKey(tu.Persona)
 		personaKey := objectKey("Persona", fmt.Sprintf("persona:%s", personaID))
 		goalsStr := strings.Join(tu.CurrentState.Goals, "; ")
@@ -731,6 +743,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 				"persona_id": personaID, "role": tu.Persona,
 				"goals": goalsStr, "inertia_tier": "2",
 				"source_artifact": "READY/01_insight_analyses.yaml",
+				"section_path":    fmt.Sprintf("target_users[%d]", i),
 			},
 		})
 		d.seenPersonas[personaKey] = true
@@ -744,7 +757,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 					"name": truncate(prob.Problem, 60), "description": prob.Problem,
 					"severity": prob.Severity, "persona_ref": personaID,
 					"inertia_tier": "2", "source_artifact": "READY/01_insight_analyses.yaml",
-					"section_path": fmt.Sprintf("target_users[%s].problems[%d]", personaID, j),
+					"section_path": fmt.Sprintf("target_users[%d].problems[%d]", i, j),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", ppKey, "PainPoint")
@@ -758,6 +771,22 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 // READY/04_strategy_formula.yaml
 // ============================================================
 
+// advantageEntry is a competitive advantage; the schema allows a plain string.
+type advantageEntry struct {
+	Name          string `yaml:"name"`
+	Description   string `yaml:"description"`
+	Defensibility string `yaml:"defensibility"`
+}
+
+func (a *advantageEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		a.Name = n.Value
+		return nil
+	}
+	type plain advantageEntry
+	return n.Decode((*plain)(a))
+}
+
 type rawStrategyFormula struct {
 	Strategy struct {
 		Positioning struct {
@@ -765,11 +794,7 @@ type rawStrategyFormula struct {
 			CategoryPosition     string `yaml:"category_position"`
 		} `yaml:"positioning"`
 		CompetitiveMoat struct {
-			Advantages []struct {
-				Name          string `yaml:"name"`
-				Description   string `yaml:"description"`
-				Defensibility string `yaml:"defensibility"`
-			} `yaml:"advantages"`
+			Advantages    []advantageEntry `yaml:"advantages"`
 			VsCompetitors []struct {
 				Competitor    string `yaml:"competitor"`
 				TheirStrength string `yaml:"their_strength"`
@@ -896,7 +921,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 
 	for trackName, track := range rm.Tracks {
 		// OKRs and Key Results
-		for _, okr := range track.OKRs {
+		for oi, okr := range track.OKRs {
 			okrKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", okr.ID))
 			d.addObject(result, GraphObject{
 				Type: "OKR", Key: okrKey,
@@ -905,11 +930,12 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 					"okr_id": okr.ID, "track": trackName,
 					"cycle": cycle, "status": "", "target_value": "",
 					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+					"section_path": fmt.Sprintf("roadmap.tracks.%s.okrs[%d]", trackName, oi),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", okrKey, "OKR")
 
-			for _, kr := range okr.KeyResults {
+			for ki, kr := range okr.KeyResults {
 				krKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", kr.ID))
 				d.addObject(result, GraphObject{
 					Type: "OKR", Key: krKey,
@@ -918,6 +944,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 						"okr_id": kr.ID, "track": trackName,
 						"cycle": cycle, "status": kr.Status, "target_value": kr.Target,
 						"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+						"section_path": fmt.Sprintf("roadmap.tracks.%s.okrs[%d].key_results[%d]", trackName, oi, ki),
 					},
 				})
 				d.addContains(result, okrKey, "OKR", krKey, "OKR")
@@ -933,7 +960,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 		}
 
 		// Riskiest assumptions
-		for _, asm := range track.RiskiestAssumptions {
+		for i, asm := range track.RiskiestAssumptions {
 			if asm.ID == "" {
 				continue
 			}
@@ -945,7 +972,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 					"hypothesis": asm.Description, "category": asm.Type,
 					"criticality": asm.Criticality, "status": "pending",
 					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
-					"section_path": fmt.Sprintf("roadmap.tracks.%s.riskiest_assumptions[%s]", trackName, asm.ID),
+					"section_path": fmt.Sprintf("roadmap.tracks.%s.riskiest_assumptions[%d]", trackName, i),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", asmKey, "Assumption")

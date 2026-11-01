@@ -108,9 +108,8 @@ var messages = map[Locale]map[string]string{
 		"error.content_required":      "content is required",
 
 		// Memory / settings errors
-		"error.memory_client_not_initialized": "Memory client not initialized",
-		"error.memory_health_check_failed":    "Health check failed",
-		"error.memory_db_not_healthy":         "Memory database subsystem not healthy",
+		"error.memory_health_check_failed": "Health check failed",
+		"error.memory_db_not_healthy":      "Memory database subsystem not healthy",
 
 		// ---------------------------------------------------------------------------
 		// Actions
@@ -456,7 +455,6 @@ var messages = map[Locale]map[string]string{
 		"settings.memory.kv.url":            "URL",
 		"settings.memory.kv.project_id":     "Project ID",
 		"settings.memory.kv.server_version": "Server version",
-		"settings.memory.kv.graph_objects":  "Graph objects (artifacts)",
 		"settings.memory.kv.last_error":     "Last error",
 
 		"settings.instances.title":            "Strategy Instances",
@@ -584,9 +582,8 @@ var messages = map[Locale]map[string]string{
 		"error.content_required":      "content er påkrevd",
 
 		// Memory / settings errors
-		"error.memory_client_not_initialized": "Memory-klient ikke initialisert",
-		"error.memory_health_check_failed":    "Helsesjekk feilet",
-		"error.memory_db_not_healthy":         "Memory-databaseundersystem er ikke sunt",
+		"error.memory_health_check_failed": "Helsesjekk feilet",
+		"error.memory_db_not_healthy":      "Memory-databaseundersystem er ikke sunt",
 
 		// ---------------------------------------------------------------------------
 		// Actions
@@ -932,7 +929,6 @@ var messages = map[Locale]map[string]string{
 		"settings.memory.kv.url":            "URL",
 		"settings.memory.kv.project_id":     "Prosjekt-ID",
 		"settings.memory.kv.server_version": "Serverversjon",
-		"settings.memory.kv.graph_objects":  "Grafobjekter (artefakter)",
 		"settings.memory.kv.last_error":     "Siste feil",
 
 		"settings.instances.title":            "Strategiinstanser",

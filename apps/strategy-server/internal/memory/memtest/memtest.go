@@ -29,10 +29,20 @@ type Server struct {
 	branches map[string]*memory.Branch
 	requests []Request
 
+	// Scores ranks search hits by object key; a key not listed scores 0.5.
+	// Hits come back best first, ties by key, cut to the request's limit.
+	Scores map[string]float64
+	// FailSearch makes /api/graph/search return HTTP 500.
+	FailSearch bool
 	// FailUpsertKeys makes upserts of these keys return HTTP 400.
 	FailUpsertKeys map[string]bool
+	// FailDeleteKeys makes deletes of the objects with these keys return HTTP 500.
+	FailDeleteKeys map[string]bool
 	// OnUpsert, if set, runs after each successful object upsert, outside the lock.
 	OnUpsert func(key string)
+	// Version is reported by /health. Empty omits the field, as old Memory
+	// versions do.
+	Version string
 }
 
 // Request is one recorded call.
@@ -51,6 +61,8 @@ func New(t testing.TB) *Server {
 		rels:           map[string]*memory.Relationship{},
 		branches:       map[string]*memory.Branch{},
 		FailUpsertKeys: map[string]bool{},
+		FailDeleteKeys: map[string]bool{},
+		Scores:         map[string]float64{},
 	}
 	s.Server = httptest.NewServer(http.HandlerFunc(s.handle))
 	t.Cleanup(s.Close)
@@ -187,13 +199,19 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case path == "/health":
-		writeJSON(w, map[string]any{"status": "healthy", "timestamp": "2026-01-01T00:00:00Z", "uptime": "1s"})
+		resp := map[string]any{"status": "healthy", "timestamp": "2026-01-01T00:00:00Z", "uptime": "1s"}
+		if s.Version != "" {
+			resp["version"] = s.Version
+		}
+		writeJSON(w, resp)
 	case path == "/api/graph/objects/upsert" && r.Method == http.MethodPut:
 		s.upsertObject(w, body)
 	case path == "/api/graph/objects/search" && r.Method == http.MethodGet:
 		s.listObjects(w, r)
 	case path == "/api/graph/search" && r.Method == http.MethodPost:
 		s.search(w, body)
+	case path == "/api/graph/expand" && r.Method == http.MethodPost:
+		s.expand(w, body)
 	case strings.HasPrefix(path, "/api/graph/objects/") && strings.HasSuffix(path, "/edges"):
 		s.edges(w, strings.TrimSuffix(strings.TrimPrefix(path, "/api/graph/objects/"), "/edges"))
 	case strings.HasPrefix(path, "/api/graph/objects/") && r.Method == http.MethodDelete:
@@ -312,14 +330,23 @@ func (s *Server) listObjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) search(w http.ResponseWriter, body string) {
+	if s.FailSearch {
+		http.Error(w, `{"error":"search is down"}`, http.StatusInternalServerError)
+		return
+	}
 	var req struct {
 		Query  string   `json:"query"`
+		Limit  int      `json:"limit"`
 		Labels []string `json:"labels"`
 		Types  []string `json:"types"`
 	}
 	_ = json.Unmarshal([]byte(body), &req)
 	s.mu.Lock()
-	var results []map[string]any
+	type hit struct {
+		obj   memory.Object
+		score float64
+	}
+	var hits []hit
 	for _, o := range s.objects {
 		if !hasLabel(o, req.Labels) {
 			continue
@@ -327,10 +354,93 @@ func (s *Server) search(w http.ResponseWriter, body string) {
 		if len(req.Types) > 0 && !contains(req.Types, o.Type) {
 			continue
 		}
-		results = append(results, map[string]any{"object": *o, "score": 0.9})
+		score, ok := s.Scores[o.Key]
+		if !ok {
+			score = 0.5
+		}
+		hits = append(hits, hit{*o, score})
 	}
 	s.mu.Unlock()
+	sort.Slice(hits, func(i, j int) bool {
+		if hits[i].score != hits[j].score {
+			return hits[i].score > hits[j].score
+		}
+		return hits[i].obj.Key < hits[j].obj.Key
+	})
+	if req.Limit > 0 && len(hits) > req.Limit {
+		hits = hits[:req.Limit]
+	}
+	results := make([]map[string]any, 0, len(hits))
+	for _, h := range hits {
+		results = append(results, map[string]any{"object": h.obj, "score": h.score})
+	}
 	writeJSON(w, map[string]any{"data": results, "total": len(results)})
+}
+
+// expand answers a breadth-first expansion over every relationship, in both
+// directions, up to max_depth and max_nodes, in the shape Memory v0.87 uses
+// (nodes and edges). It does not look at
+// labels: what comes back is whatever the graph connects.
+func (s *Server) expand(w http.ResponseWriter, body string) {
+	var req struct {
+		RootIDs  []string `json:"root_ids"`
+		MaxDepth int      `json:"max_depth"`
+		MaxNodes int      `json:"max_nodes"`
+	}
+	_ = json.Unmarshal([]byte(body), &req)
+	if req.MaxDepth <= 0 {
+		req.MaxDepth = 1
+	}
+	if req.MaxNodes <= 0 {
+		req.MaxNodes = 100
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seen := map[string]bool{}
+	var order []string
+	frontier := []string{}
+	for _, id := range req.RootIDs {
+		if s.objects[id] != nil && !seen[id] {
+			seen[id] = true
+			order = append(order, id)
+			frontier = append(frontier, id)
+		}
+	}
+	for depth := 0; depth < req.MaxDepth && len(frontier) > 0; depth++ {
+		var next []string
+		for _, id := range frontier {
+			for _, r := range s.rels {
+				other := ""
+				switch id {
+				case r.FromID:
+					other = r.ToID
+				case r.ToID:
+					other = r.FromID
+				default:
+					continue
+				}
+				if s.objects[other] == nil || seen[other] || len(order) >= req.MaxNodes {
+					continue
+				}
+				seen[other] = true
+				order = append(order, other)
+				next = append(next, other)
+			}
+		}
+		frontier = next
+	}
+	objs := make([]memory.Object, 0, len(order))
+	for _, id := range order {
+		objs = append(objs, *s.objects[id])
+	}
+	var rels []memory.Relationship
+	for _, r := range s.rels {
+		if seen[r.FromID] && seen[r.ToID] {
+			rels = append(rels, *r)
+		}
+	}
+	sort.Slice(rels, func(i, j int) bool { return rels[i].ID < rels[j].ID })
+	writeJSON(w, map[string]any{"nodes": objs, "edges": rels})
 }
 
 func contains(xs []string, x string) bool {
@@ -355,6 +465,11 @@ func (s *Server) getObject(w http.ResponseWriter, id string) {
 
 func (s *Server) deleteObject(w http.ResponseWriter, id string) {
 	s.mu.Lock()
+	if o := s.objects[id]; o != nil && s.FailDeleteKeys[o.Key] {
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	delete(s.objects, id)
 	for rid, r := range s.rels {
 		if r.FromID == id || r.ToID == id {

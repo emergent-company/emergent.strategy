@@ -34,6 +34,11 @@ type Hit struct {
 	Snippet string  `json:"snippet"`
 	// SizeChars is the size of the object, as Read reports it.
 	SizeChars int `json:"size_chars"`
+	// MatchedTerms and MissingTerms split the query's terms by whether the object
+	// contains them. The score alone cannot tell a hit that has every distinctive
+	// word from one that has only the common ones.
+	MatchedTerms []string `json:"matched_terms,omitempty"`
+	MissingTerms []string `json:"missing_terms,omitempty"`
 }
 
 var stopWords = map[string]bool{
@@ -277,12 +282,22 @@ func matchObject(m map[string]any, path string, terms []string) (Hit, bool) {
 	if bonus {
 		score += gistBonus
 	}
+	var matched, missing []string
+	for i, term := range terms {
+		if union[i] {
+			matched = append(matched, term)
+		} else {
+			missing = append(missing, term)
+		}
+	}
 	return Hit{
-		Path:      path,
-		Field:     bestField.key,
-		Score:     score,
-		Snippet:   snippetAround(bestField.text, bestStart),
-		SizeChars: sizeOf(m),
+		Path:         path,
+		Field:        bestField.key,
+		Score:        score,
+		Snippet:      snippetAround(bestField.text, bestStart),
+		SizeChars:    sizeOf(m),
+		MatchedTerms: matched,
+		MissingTerms: missing,
 	}, true
 }
 

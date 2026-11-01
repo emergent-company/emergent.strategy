@@ -405,3 +405,40 @@ func TestHealthy_Down(t *testing.T) {
 		t.Fatal("expected error for unhealthy server")
 	}
 }
+
+// A real Memory (v0.87.4) answers expand and traverse with nodes and edges, not
+// objects and relationships. This is a trimmed capture of such an answer.
+const realGraphWalk = `{
+  "roots": ["o-1"],
+  "nodes": [
+    {"id": "o-1", "canonical_id": "o-1", "entity_id": "o-1", "depth": 0, "type": "feature", "key": "p/fd-001",
+     "labels": ["layer:artifact", "instance:i-1"], "properties": {"instance_id": "i-1"}},
+    {"id": "o-2", "canonical_id": "o-2", "entity_id": "o-2", "depth": 1, "type": "feature", "key": "p/fd-002",
+     "labels": ["layer:artifact", "instance:i-1"], "properties": {"instance_id": "i-1"}}
+  ],
+  "edges": [{"id": "r-1", "type": "depends_on", "src_id": "o-1", "dst_id": "o-2"}],
+  "truncated": false, "total_nodes": 2
+}`
+
+func TestExpandAndTraverse_DecodeTheNodesAndEdgesAMemoryServerReturns(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(realGraphWalk))
+	}))
+	exp, err := c.Expand(context.Background(), ExpandRequest{RootIDs: []string{"o-1"}, MaxDepth: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exp.Objects) != 2 || exp.Objects[1].Key != "p/fd-002" || exp.Objects[1].Labels[1] != "instance:i-1" {
+		t.Errorf("expand objects = %+v, want the two nodes with their keys and labels", exp.Objects)
+	}
+	if len(exp.Relationships) != 1 || exp.Relationships[0].FromID != "o-1" || exp.Relationships[0].ToID != "o-2" || exp.Relationships[0].Type != "depends_on" {
+		t.Errorf("expand relationships = %+v, want the one edge", exp.Relationships)
+	}
+	tr, err := c.Traverse(context.Background(), TraverseRequest{RootIDs: []string{"o-1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tr.Objects) != 2 || len(tr.Relationships) != 1 {
+		t.Errorf("traverse = %d objects, %d relationships, want 2 and 1", len(tr.Objects), len(tr.Relationships))
+	}
+}

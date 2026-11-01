@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	appdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/app"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/ingest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/pack"
@@ -30,206 +31,47 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/changemark/changemarktest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory/memtest"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
+	"github.com/google/uuid"
 )
 
 // ---------------------------------------------------------------------------
 // Helpers — Phase 2d
 // ---------------------------------------------------------------------------
 
-// memoryMux builds an http.ServeMux that mocks the emergent.memory REST API
-// with canned data suitable for semantic tool tests.
-func memoryMux() *http.ServeMux {
-	mux := http.NewServeMux()
-
-	// Search endpoint — returns two results.
-	mux.HandleFunc("/api/graph/search", func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"results": []map[string]any{
-				{
-					"object": map[string]any{
-						"id":   "obj-100",
-						"type": "feature",
-						"key":  "fd-001_knowledge_graph_engine",
-						"properties": map[string]any{
-							"artifact_type": "feature",
-							"snippet":       "Knowledge Graph Engine",
-						},
-					},
-					"score":  0.95,
-					"source": "vector",
-				},
-				{
-					"object": map[string]any{
-						"id":   "obj-200",
-						"type": "feature",
-						"key":  "fd-002_document_ingestion",
-						"properties": map[string]any{
-							"artifact_type": "feature",
-							"name":          "Document Ingestion Pipeline",
-						},
-					},
-					"score":  0.82,
-					"source": "fts",
-				},
-			},
-		}
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	// Object lookup — used by both ListObjects (no key) and GetObjectByKey (with key).
-	mux.HandleFunc("/api/graph/objects/search", func(w http.ResponseWriter, r *http.Request) {
-		key := r.URL.Query().Get("key")
-		switch key {
-		case "fd-001_knowledge_graph_engine":
-			resp := map[string]any{
-				"items": []map[string]any{
-					{"id": "obj-100", "type": "feature", "key": "fd-001_knowledge_graph_engine"},
-				},
-				"total": 1,
-			}
-			_ = json.NewEncoder(w).Encode(resp)
-		case "":
-			// No key filter — return all objects (used by DetectContradictions).
-			resp := map[string]any{
-				"items": []map[string]any{
-					{"id": "obj-100", "type": "feature", "key": "fd-001_knowledge_graph_engine"},
-					{"id": "obj-400", "type": "feature", "key": "fd-orphaned"},
-				},
-				"total": 2,
-			}
-			_ = json.NewEncoder(w).Encode(resp)
-		default:
-			_ = json.NewEncoder(w).Encode(map[string]any{"items": []any{}, "total": 0})
-		}
-	})
-
-	// Edges endpoint for obj-100.
-	mux.HandleFunc("/api/graph/objects/obj-100/edges", func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]any{
-			"incoming": []map[string]any{
-				{"id": "rel-1", "type": "depends_on", "src_id": "obj-300", "dst_id": "obj-100"},
-			},
-			"outgoing": []map[string]any{
-				{"id": "rel-2", "type": "enables", "src_id": "obj-100", "dst_id": "obj-200"},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	// Individual object resolution.
-	mux.HandleFunc("/api/graph/objects/obj-200", func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]any{"id": "obj-200", "type": "feature", "key": "fd-002_document_ingestion"}
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-	mux.HandleFunc("/api/graph/objects/obj-300", func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]any{"id": "obj-300", "type": "feature", "key": "fd-003_ai_native_chat"}
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	// Edges for orphaned object.
-	mux.HandleFunc("/api/graph/objects/obj-400/edges", func(w http.ResponseWriter, _ *http.Request) {
-		resp := map[string]any{
-			"incoming": []any{},
-			"outgoing": []any{},
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	// Expand endpoint — used by GetNeighbors and DetectContradictions.
-	// Returns objects and relationships reachable from the root IDs at depth 1.
-	mux.HandleFunc("/api/graph/expand", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			RootIDs []string `json:"root_ids"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
-
-		// Build response: return relationships only for obj-100 (connected),
-		// and no relationships for obj-400 (orphaned).
-		rootSet := make(map[string]bool, len(req.RootIDs))
-		for _, id := range req.RootIDs {
-			rootSet[id] = true
-		}
-
-		var objects []map[string]any
-		var relationships []map[string]any
-
-		if rootSet["obj-100"] {
-			objects = append(objects,
-				map[string]any{"id": "obj-100", "type": "feature", "key": "fd-001_knowledge_graph_engine"},
-				map[string]any{"id": "obj-200", "type": "feature", "key": "fd-002_document_ingestion"},
-				map[string]any{"id": "obj-300", "type": "feature", "key": "fd-003_ai_native_chat"},
-			)
-			relationships = append(relationships,
-				map[string]any{"id": "rel-1", "type": "depends_on", "src_id": "obj-300", "dst_id": "obj-100"},
-				map[string]any{"id": "rel-2", "type": "enables", "src_id": "obj-100", "dst_id": "obj-200"},
-			)
-		}
-		if rootSet["obj-400"] {
-			objects = append(objects,
-				map[string]any{"id": "obj-400", "type": "feature", "key": "fd-orphaned"},
-			)
-			// No relationships for obj-400 — it is orphaned.
-		}
-
-		resp := map[string]any{
-			"objects":       objects,
-			"relationships": relationships,
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-	})
-
-	// Branches for scenarios.
-	mux.HandleFunc("/api/graph/branches", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			w.WriteHeader(201)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"id": "br-test-scenario", "name": "test-scenario", "status": "active",
-			})
-			return
-		}
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode([]any{})
-	})
-
-	// Schemas endpoint.
-	mux.HandleFunc("/api/schemas", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`[{"id":"s-1","name":"epf-core"}]`))
-	})
-
-	return mux
+// buildSvcWithMemory creates a full Services struct over a fake Memory, wired
+// as cmd_serve wires it: semantic reads go through the instance's manifest. The
+// fake starts empty; a test fills it with seedKnowledgeGraph.
+func buildSvcWithMemory(t *testing.T) (mcpserver.Services, *memtest.Server) {
+	t.Helper()
+	mem := memtest.New(t)
+	return fencedSvc(t, mem), mem
 }
 
-// buildSvcWithMemory creates a full Services struct with a mocked Memory
-// backend so semantic tools (search, neighbors, contradictions, scenarios)
-// return real data instead of ErrSemanticUnavailable.
-func buildSvcWithMemory(t *testing.T) (mcpserver.Services, *httptest.Server) {
+// seedKnowledgeGraph puts a small graph of the instance into the fake Memory and
+// its manifest: fd-001 enables fd-002 and depends on fd-003, and fd-orphaned has
+// no relationships. fd-001 and fd-002 are what a search for "knowledge graph"
+// finds first.
+func seedKnowledgeGraph(t *testing.T, svc mcpserver.Services, mem *memtest.Server, inst uuid.UUID) {
 	t.Helper()
-	db := database.TestDB(t)
-
-	memorySrv := httptest.NewServer(memoryMux())
-	t.Cleanup(memorySrv.Close)
-
-	packSvc := pack.NewService(db)
-	instSvc := instance.NewService(db)
-	instSvc.WithPackEnsurer(packSvc)
-	semanticSvc := semantic.NewService(semantic.Config{
-		URL:     memorySrv.URL,
-		Project: "test-project",
-		Token:   "test-token",
-	})
-
-	return mcpserver.Services{
-		Workspace: workspace.NewService(db),
-		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
-		Pack:      packSvc,
-		App:       appdom.NewService(db),
-		Semantic:  semanticSvc,
-		Org:       orgdom.NewService(db),
-	}, memorySrv
+	markReady(t, svc, inst)
+	for _, o := range []struct{ key, name string }{
+		{"fd-001_knowledge_graph_engine", "Knowledge Graph Engine"},
+		{"fd-002_document_ingestion", "Document Ingestion Pipeline"},
+		{"fd-003_ai_native_chat", "AI Native Chat"},
+		{"fd-orphaned", "Orphaned"},
+	} {
+		putObject(t, svc, mem, inst, "feature", o.key, "artifact", map[string]any{"artifact_type": "feature", "snippet": o.name, "name": o.name})
+	}
+	mem.Scores[ingest.ScopedKey(inst, "fd-001_knowledge_graph_engine")] = 0.95
+	mem.Scores[ingest.ScopedKey(inst, "fd-002_document_ingestion")] = 0.82
+	for _, r := range []struct{ typ, from, to string }{
+		{"enables", "fd-001_knowledge_graph_engine", "fd-002_document_ingestion"},
+		{"depends_on", "fd-003_ai_native_chat", "fd-001_knowledge_graph_engine"},
+	} {
+		putRelationship(t, svc, mem, inst, r.typ, r.from, r.to)
+	}
 }
 
 // buildSvcWithOrg creates Services that include the Org service and a user
@@ -308,18 +150,21 @@ func newMCPClientWithUser(t *testing.T, svc mcpserver.Services) *mcpClientWithUs
 // ---------------------------------------------------------------------------
 
 func TestMCP_SemanticSearch_WithMemory(t *testing.T) {
-	svc, _ := buildSvcWithMemory(t)
+	svc, mem := buildSvcWithMemory(t)
 	_, instID := seedInstance(t, svc, "semantic-owner", map[string]any{
 		"north_star": map[string]any{"vision": "AI-native knowledge work"},
 	})
+	seedKnowledgeGraph(t, svc, mem, instID)
 	c := newMCPClient(t, svc)
 	id := 1
 
-	// search_strategy — should return ranked results.
+	// search_strategy in semantic mode: ranked results from the graph. (This was
+	// the default before auto mode added keyword hits.)
 	r := c.call(id, "search_strategy", map[string]any{
 		"instance_id": instID.String(),
 		"query":       "knowledge graph",
 		"limit":       "10",
+		"mode":        "semantic",
 	})
 	r.assertOK()
 
@@ -330,8 +175,8 @@ func TestMCP_SemanticSearch_WithMemory(t *testing.T) {
 		Score        float64 `json:"score"`
 	}
 	r.decode(&results)
-	if len(results) != 2 {
-		t.Fatalf("expected 2 search results, got %d", len(results))
+	if len(results) != 4 {
+		t.Fatalf("expected the instance's 4 graph objects, got %d", len(results))
 	}
 	if results[0].ArtifactKey != "fd-001_knowledge_graph_engine" {
 		t.Errorf("first result key = %q, want fd-001_knowledge_graph_engine", results[0].ArtifactKey)
@@ -345,10 +190,11 @@ func TestMCP_SemanticSearch_WithMemory(t *testing.T) {
 }
 
 func TestMCP_GetNeighbors_WithMemory(t *testing.T) {
-	svc, _ := buildSvcWithMemory(t)
+	svc, mem := buildSvcWithMemory(t)
 	_, instID := seedInstance(t, svc, "neighbor-owner", map[string]any{
 		"north_star": map[string]any{"vision": "test"},
 	})
+	seedKnowledgeGraph(t, svc, mem, instID)
 	c := newMCPClient(t, svc)
 
 	r := c.call(1, "get_neighbors", map[string]any{
@@ -393,10 +239,11 @@ func TestMCP_GetNeighbors_WithMemory(t *testing.T) {
 }
 
 func TestMCP_DetectContradictions_WithMemory(t *testing.T) {
-	svc, _ := buildSvcWithMemory(t)
+	svc, mem := buildSvcWithMemory(t)
 	_, instID := seedInstance(t, svc, "contra-owner", map[string]any{
 		"north_star": map[string]any{"vision": "test"},
 	})
+	seedKnowledgeGraph(t, svc, mem, instID)
 	c := newMCPClient(t, svc)
 
 	r := c.call(1, "detect_contradictions", map[string]any{
@@ -427,7 +274,7 @@ func TestMCP_DetectContradictions_WithMemory(t *testing.T) {
 }
 
 func TestMCP_RunScenario_WithMemory(t *testing.T) {
-	svc, _ := buildSvcWithMemory(t)
+	svc, mem := buildSvcWithMemory(t)
 	_, instID := seedInstance(t, svc, "scenario-owner", map[string]any{
 		"north_star": map[string]any{"vision": "test"},
 	})
@@ -438,7 +285,12 @@ func TestMCP_RunScenario_WithMemory(t *testing.T) {
 		"description": "What if we drop feature fd-002?",
 	})
 	r.assertOK()
-	r.contains("br-test-scenario")
+
+	branches := mem.Branches()
+	if len(branches) != 1 || !strings.HasPrefix(branches[0].Name, "scenario-"+instID.String()+"-") {
+		t.Fatalf("branches = %+v, want one scenario branch named for the instance", branches)
+	}
+	r.contains(branches[0].ID)
 }
 
 // ---------------------------------------------------------------------------
@@ -637,7 +489,7 @@ func TestMCP_CommitBatch_MarksInstanceForIngest(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMCP_FullAgentWorkflow(t *testing.T) {
-	svc, _ := buildSvcWithMemory(t)
+	svc, mem := buildSvcWithMemory(t)
 
 	// Seed a rich instance with vision + features.
 	payloads := map[string]any{
@@ -656,6 +508,7 @@ func TestMCP_FullAgentWorkflow(t *testing.T) {
 		},
 	}
 	_, instID := seedInstance(t, svc, "workflow-owner", payloads)
+	seedKnowledgeGraph(t, svc, mem, instID)
 	c := newMCPClient(t, svc)
 	id := 1
 
@@ -747,14 +600,13 @@ func TestMCP_FullAgentWorkflow(t *testing.T) {
 	r.assertOK()
 	r.contains("User Onboarding Wizard")
 
-	// Step 9: Get neighbors (via mocked Memory — the specific feature
-	// doesn't exist in mock, but the mock returns empty gracefully).
+	// Step 9: Get neighbors from the instance's graph.
 	r = c.call(id, "get_neighbors", map[string]any{
 		"instance_id": instID.String(),
 		"node_key":    "fd-001_knowledge_graph_engine",
 	})
 	r.assertOK()
-	// Should have 2 neighbors from our mock.
+	// fd-001 has two neighbours in the seeded graph.
 	r.contains("fd-002_document_ingestion")
 }
 
@@ -763,46 +615,17 @@ func TestMCP_FullAgentWorkflow(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMCP_SemanticSearch_EmptyResults(t *testing.T) {
-	// Build with a Memory mock that returns empty results.
-	db := database.TestDB(t)
-	emptyMux := http.NewServeMux()
-	emptyMux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(200)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"results": []any{},
-			"items":   []any{},
-			"total":   0,
-		})
-	})
-	memorySrv := httptest.NewServer(emptyMux)
-	t.Cleanup(memorySrv.Close)
-
-	packSvc := pack.NewService(db)
-	instSvc := instance.NewService(db)
-	instSvc.WithPackEnsurer(packSvc)
-
-	svc := mcpserver.Services{
-		Workspace: workspace.NewService(db),
-		Instance:  instSvc,
-		Strategy:  strategy.NewService(db),
-		Pack:      packSvc,
-		App:       appdom.NewService(db),
-		Semantic: semantic.NewService(semantic.Config{
-			URL:     memorySrv.URL,
-			Project: "test",
-			Token:   "test",
-		}),
-		Org: orgdom.NewService(db),
-	}
-
+	svc, _ := buildSvcWithMemory(t)
 	_, instID := seedInstance(t, svc, "empty-owner", map[string]any{
 		"north_star": map[string]any{"vision": "test"},
 	})
+	markReady(t, svc, instID)
 	c := newMCPClient(t, svc)
 
 	r := c.call(1, "search_strategy", map[string]any{
 		"instance_id": instID.String(),
 		"query":       "nonexistent concept",
+		"mode":        "semantic",
 		"limit":       "10",
 	})
 	r.assertOK()

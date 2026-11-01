@@ -54,7 +54,7 @@ func TestNewService_Configured(t *testing.T) {
 
 func TestSearchStrategy_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})
-	_, err := svc.SearchStrategy(context.Background(), "inst-1", "growth", 10)
+	_, err := svc.SearchStrategy(context.Background(), stubInstance, "growth", 10)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -64,7 +64,7 @@ func TestSearchStrategy_NotConfigured(t *testing.T) {
 }
 
 func TestSearchStrategy_Success(t *testing.T) {
-	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	svc := stubService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/graph/search" {
 			w.WriteHeader(404)
 			return
@@ -73,11 +73,13 @@ func TestSearchStrategy_Success(t *testing.T) {
 			"results": []map[string]any{
 				{
 					"object": map[string]any{
-						"id":   "obj-1",
-						"type": "feature",
-						"key":  "fd-001",
+						"id":     "obj-1",
+						"type":   "feature",
+						"key":    "fd-001",
+						"labels": ownerLabels,
 						"properties": map[string]any{
 							"artifact_type": "feature",
+							"instance_id":   stubInstance,
 							"name":          "User Onboarding",
 						},
 					},
@@ -90,7 +92,7 @@ func TestSearchStrategy_Success(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(resp)
 	}))
 
-	results, err := svc.SearchStrategy(context.Background(), "inst-1", "onboarding", 10)
+	results, err := svc.SearchStrategy(context.Background(), stubInstance, "onboarding", 10)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,7 +109,7 @@ func TestSearchStrategy_Success(t *testing.T) {
 
 func TestGetNeighbors_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})
-	_, err := svc.GetNeighbors(context.Background(), "inst-1", "fd-001")
+	_, err := svc.GetNeighbors(context.Background(), stubInstance, "fd-001")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -117,17 +119,13 @@ func TestGetNeighbors_NotConfigured(t *testing.T) {
 }
 
 func TestGetNeighbors_Success(t *testing.T) {
-	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	svc := stubService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
 			// GetObjectByKey — return the node by key filter.
 			resp := map[string]any{
 				"items": []map[string]any{
-					{
-						"id":   "obj-1",
-						"type": "feature",
-						"key":  "fd-001",
-					},
+					stamped("obj-1", "feature", "fd-001"),
 				},
 				"total": 1,
 			}
@@ -138,9 +136,9 @@ func TestGetNeighbors_Success(t *testing.T) {
 			// and all relationships connecting them.
 			resp := map[string]any{
 				"objects": []map[string]any{
-					{"id": "obj-1", "type": "feature", "key": "fd-001"},
-					{"id": "obj-2", "type": "persona", "key": "user-researcher"},
-					{"id": "obj-3", "type": "feature", "key": "fd-002"},
+					stamped("obj-1", "feature", "fd-001"),
+					stamped("obj-2", "persona", "user-researcher"),
+					stamped("obj-3", "feature", "fd-002"),
 				},
 				"relationships": []map[string]any{
 					{"id": "rel-1", "type": "contributes_to", "src_id": "obj-2", "dst_id": "obj-1"},
@@ -154,7 +152,7 @@ func TestGetNeighbors_Success(t *testing.T) {
 		}
 	}))
 
-	neighbors, err := svc.GetNeighbors(context.Background(), "inst-1", "fd-001")
+	neighbors, err := svc.GetNeighbors(context.Background(), stubInstance, "fd-001")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -179,7 +177,7 @@ func TestGetNeighbors_Success(t *testing.T) {
 
 func TestDetectContradictions_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})
-	_, err := svc.DetectContradictions(context.Background(), "inst-1")
+	_, err := svc.DetectContradictions(context.Background(), stubInstance)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -189,23 +187,23 @@ func TestDetectContradictions_NotConfigured(t *testing.T) {
 // DetectContradictions must (a) paginate ListObjects so instances with >200
 // objects are fully scanned, and (b) determine connectivity via the per-object
 // /edges endpoint — NOT the graph expand endpoint, which does not surface the
-// relationships reliably. Even-indexed objects have edges (connected);
-// odd-indexed have none (orphaned).
+// relationships reliably. Even-indexed objects have edges to each other
+// (connected); odd-indexed have none (orphaned).
 func TestDetectContradictions_PaginatesAndUsesEdges(t *testing.T) {
 	const total = 130 // spans multiple pages at pageSize 60
 
 	makeObj := func(i int) map[string]any {
-		return map[string]any{"id": "obj-" + itoa(i), "type": "feature", "key": "fd-" + itoa(i)}
+		return stamped("obj-"+itoa(i), "feature", "fd-"+itoa(i))
 	}
 
 	edgeCalls := 0
 	expandCalled := false
 
-	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	svc := stubService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
-			if r.URL.Query().Get("label") != "layer:artifact" {
-				t.Errorf("expected label=layer:artifact filter, got %q", r.URL.Query().Get("label"))
+			if r.URL.Query().Get("label") != "instance:"+stubInstance {
+				t.Errorf("expected label=instance:<id> filter, got %q", r.URL.Query().Get("label"))
 			}
 			const pageSize = 60
 			start := 0
@@ -234,7 +232,7 @@ func TestDetectContradictions_PaginatesAndUsesEdges(t *testing.T) {
 			resp := map[string]any{"incoming": []any{}, "outgoing": []any{}}
 			if idx%2 == 0 { // even = connected
 				resp["outgoing"] = []map[string]any{
-					{"id": "rel-" + id, "type": "enables", "src_id": id, "dst_id": "other"},
+					{"id": "rel-" + id, "type": "enables", "src_id": id, "dst_id": "obj-" + itoa((idx+2)%total)},
 				}
 			}
 			_ = json.NewEncoder(w).Encode(resp)
@@ -247,7 +245,7 @@ func TestDetectContradictions_PaginatesAndUsesEdges(t *testing.T) {
 		}
 	}))
 
-	got, err := svc.DetectContradictions(context.Background(), "inst-1")
+	got, err := svc.DetectContradictions(context.Background(), stubInstance)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -268,18 +266,22 @@ func TestDetectContradictions_PaginatesAndUsesEdges(t *testing.T) {
 // decomposed sub-objects, which would otherwise flood the result with false
 // positives (emergent.strategy#46).
 func TestDetectContradictions_ScopesToArtifactLayer(t *testing.T) {
-	svc := newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	svc := stubService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/api/graph/objects/search" && r.Method == http.MethodGet:
-			if label := r.URL.Query().Get("label"); label != "layer:artifact" {
-				t.Fatalf("contradiction scan must filter to layer:artifact; got label=%q", label)
+			if label := r.URL.Query().Get("label"); label != "instance:"+stubInstance {
+				t.Fatalf("contradiction scan must list by the instance label; got label=%q", label)
 			}
+			decomposed := stamped("dec-orphan", "Persona", "Persona:x")
+			decomposed["labels"] = []string{"instance:" + stubInstance, "layer:decomposed"}
 			resp := map[string]any{
 				"items": []map[string]any{
-					{"id": "art-feature", "type": "feature", "key": "fd-001"},
-					{"id": "art-orphan", "type": "north_star", "key": "north_star"},
+					stamped("art-feature", "feature", "fd-001"),
+					stamped("art-peer", "feature", "fd-002"),
+					stamped("art-orphan", "north_star", "north_star"),
+					decomposed,
 				},
-				"total": 2,
+				"total": 4,
 			}
 			_ = json.NewEncoder(w).Encode(resp)
 
@@ -288,7 +290,7 @@ func TestDetectContradictions_ScopesToArtifactLayer(t *testing.T) {
 			if strings.Contains(r.URL.Path, "art-feature") {
 				_ = json.NewEncoder(w).Encode(map[string]any{
 					"incoming": []any{},
-					"outgoing": []map[string]any{{"id": "rel-1", "type": "contributes_to", "src_id": "art-feature", "dst_id": "art-other"}},
+					"outgoing": []map[string]any{{"id": "rel-1", "type": "contributes_to", "src_id": "art-feature", "dst_id": "art-peer"}},
 				})
 				return
 			}
@@ -299,7 +301,7 @@ func TestDetectContradictions_ScopesToArtifactLayer(t *testing.T) {
 		}
 	}))
 
-	got, err := svc.DetectContradictions(context.Background(), "inst-1")
+	got, err := svc.DetectContradictions(context.Background(), stubInstance)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -317,7 +319,7 @@ func atoi(s string) int { n, _ := strconv.Atoi(s); return n }
 
 func TestRunScenario_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})
-	_, err := svc.RunScenario(context.Background(), "inst-1", "what if we double pricing", "")
+	_, err := svc.RunScenario(context.Background(), stubInstance, "what if we double pricing", "")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -334,7 +336,7 @@ func TestRunScenario_Success(t *testing.T) {
 		w.WriteHeader(404)
 	}))
 
-	scenarioID, err := svc.RunScenario(context.Background(), "inst-1", "test scenario", "")
+	scenarioID, err := svc.RunScenario(context.Background(), stubInstance, "test scenario", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -345,7 +347,7 @@ func TestRunScenario_Success(t *testing.T) {
 
 func TestCommitScenario_NotConfigured(t *testing.T) {
 	svc := NewService(Config{})
-	_, err := svc.CommitScenario(context.Background(), "sc-1", "inst-1")
+	_, err := svc.CommitScenario(context.Background(), "sc-1", stubInstance)
 	if err == nil {
 		t.Fatal("expected error")
 	}

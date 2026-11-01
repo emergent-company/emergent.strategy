@@ -31,7 +31,7 @@ Verified in the Memory source at `c0589c1`:
 | Fact | Where | Consequence |
 |---|---|---|
 | Object identity on the main branch is unique on `(project_id, type, key)`, **regardless of namespace** | `migrations/00017_…upsert_unique_index.sql` (`IDX_graph_objects_upsert_main`), still in force; `00107` adds a *second* namespace index but does not relax the first | Namespace cannot isolate instances. Two instances must never write the same `(type, key)`; the key prefix stays. |
-| `key` is at most 128 characters | `domain/graph/dto.go`, `CreateGraphObjectRequest.Key` (`max=128`) | A full 36-character UUID prefix risks overflowing long decomposed keys. Keep the 8-character prefix used since `4572524`, and make it collision-free in Postgres. |
+| `key` is at most 128 characters | `domain/graph/dto.go`, `CreateGraphObjectRequest.Key` (`max=128`) | A full 36-character UUID prefix risks overflowing long decomposed keys. Keep the 8-character prefix used since `4572524`, and make it collision-free in Postgres. The limit is not enforced on the upsert path of Memory v0.87 (keys of 129–146 characters were stored intact), but Memory is updated independently of this server, so it is treated as binding. Prefixed keys over 128 exist in real instances (8 of 2,129 in `docs/EPF/_instances/emergent`, 13 of 606 in the pilot-shaped instance), so they are shortened (see Decision 1). |
 | Upsert replaces `labels` and `properties` (no merge) | `domain/graph/service.go:1030` `CreateOrUpdate` | Labels and properties written by an ingest are exactly what the object carries afterwards. |
 | An upsert whose properties, status and labels are unchanged is a no-op: no new version, no re-embed | `service.go` ~1185–1200 (content-hash probe) | Re-ingesting unchanged content is cheap **as long as nothing per-ingest is written onto objects**. |
 | Small numeric properties are part of the embedding text | `pkg/embeddingtext/embeddingtext.go:121` | A per-ingest generation number in `properties` would create a new version and re-embed every object on every ingest (the 13 GB bloat fixed in `4572524`, plus embedding cost). Generation must not live on objects. |
@@ -49,6 +49,14 @@ Every object the server writes gets:
   first 8 hex characters of the instance UUID, as decomposed keys already use
   (`domain/ingest/service.go:889`). Artifact-layer keys, unprefixed today
   (`:413`, `:493`), gain the same prefix.
+- **Key length.** A scoped key never exceeds 128 bytes. One that would is
+  `<prefix>/<start of the key>~<first 16 hex characters of SHA-256 of the whole
+  key>`, cut at a character boundary: deterministic, distinct for distinct keys,
+  and not reversible. For those objects the writer also stores the original in
+  property `source_key` (`ingest.IsShortened` tells it when), and readers that
+  need the original key use that property, because `UnscopedKey` reports false
+  for a shortened key. Callers that pass a key in still pass the original;
+  `ScopedKey` maps it to the same shortened key on every read.
 - **Collision-free prefix.** Migration 045 adds a unique index on
   `left(id::text, 8)` over `strategy_instances` (all rows, deleted included,
   since purge can lag). Instance creation retries with a new UUID on a unique
@@ -155,6 +163,17 @@ Postgres stay visible, and objects rewritten in place show their newer content.
 All three converge on the next successful ingest (Decision 4 bounds the
 delay). No partially-built projection is ever visible.
 
+**Type changes.** Memory identifies an object by type and key; the manifest
+lists keys only. An artifact that keeps its key and changes type (found in 8.2,
+through `restore_version`, #121) gets a second object, and the key stays in the
+manifest, so the garbage collector kept both. Ingest now lists the instance's
+objects once, after the upserts, deletes any whose key is projected under
+another type before the manifest is committed, and fails if it cannot. The same
+listing feeds the garbage collector, so this costs no extra Memory read. A
+listing failure now fails the ingest where it used to skip the garbage
+collection with a warning, so a half-listed project can never be treated as
+clean.
+
 **Not ready.** An instance with `memory_generation = 0` (never ingested under
 this scheme, including every instance right after upgrade) returns an empty
 result with a `graph_not_ready` hint from every semantic read, never an error
@@ -172,7 +191,8 @@ instance. Measure in task 8.3.
 depends on a narrow `ManifestSource` interface (implemented in
 `domain/ingest`), so the semantic service stays free of `*bun.DB`:
 
-- `HasManifest(ctx, X)` (`memory_generation >= 1`), and `Visible(ctx, X, keys) (set, error)` as one
+- `HasManifest(ctx, X)` (`memory_generation >= 1`), `Visible(ctx, X, keys) (set, error)` for objects and
+  `VisibleRelationships(ctx, X, tuples) (set, error)` for relationship tuples, each as one
   `key = ANY(?)` query per read;
 - filters objects and relationships by the visibility rule;
 - counts dropped items and logs them at debug level, so leftover data shows up
@@ -191,9 +211,15 @@ Per read:
   over-fetch, not a query option. Without it, replacing `SearchStrategyScoped`
   would silently bring canonical definitions and templates back into answers.
 - **`GetNeighbors`**: scope the caller's key, return not-found for an invisible
-  root, filter the expansion.
+  root, filter the expansion. **Framework content is excluded here too**: a root
+  or neighbour with a framework `integrity_class` is dropped, as in search. On a
+  real scaffolded instance an unmodified AIM template appeared as an
+  `assessment_report --challenges--> roadmap_recipe` edge.
 - **`DetectContradictions`**: `ListObjects(label = instance:<X>)`, keep
-  `layer:artifact` in the server, filter.
+  `layer:artifact` in the server, filter. **Framework artifacts are neither
+  reported nor counted as a connection**: on the same instance all 136 findings
+  were canonical definitions and templates, none about authored content. "Nothing
+  found" is an empty list, not `null`.
 - **Lifecycle `enrichWithSemantics`** (`internal/mcpserver/lifecycle.go:154`):
   becomes a semantic-service method that lists by instance label and resolves
   the North Star by scoped key.
@@ -304,22 +330,39 @@ tool text stops promising synchronous deletion. Fix `delete_reason` → `reason`
 **Startup sweep and drift repair** add `deleted_at IS NULL` to their raw
 queries (#87 F2).
 
-**Orphan sweep.** New admin MCP tool `sweep_memory_orphans(apply=false)` and
-CLI `strategy-server memory sweep [--apply]`, both calling one domain function.
-It pages through every object in the project and classifies:
+**Orphan sweep.** CLI `strategy-server memory sweep [--apply]`, calling
+`ingest.Service.SweepOrphans`. It pages through every object in the project and
+classifies:
 
-- `no_owner`: no `instance_id` and no `instance:` label;
-- `unknown_owner`: owner is a deleted or nonexistent instance. Archived
-  instances keep their data and count as owners;
-- `not_in_manifest`: owned by a non-deleted instance with
-  `memory_generation >= 1`, but not in its manifest;
-- `legacy_key`: key not in `<prefix>/…` format.
+- `no_owner`: no `instance_id` property and no `instance:` label, or the two
+  name different instances (ingest never writes that);
+- `unknown_owner`: owner is a deleted or nonexistent instance, or not a UUID.
+  Archived instances keep their data and count as owners;
+- `legacy_key`: owned by a live instance, key does not start with the owner's
+  `<prefix>/`;
+- `not_in_manifest`: owned by a live instance with `memory_generation >= 1`,
+  correctly keyed, but not in its manifest.
 
-It reports counts per class and, with `apply`, deletes them with single
-deletes and retry. Instances whose lock is held (ingest in progress) or that
-have no manifest yet are skipped, so the sweep can never delete the only copy
-of an instance that has not been re-ingested. Dry run is the default; the MCP
-tool sits in the `admin` category and is write-gated.
+It reports counts and a few example keys per class and, with `apply`, deletes
+them with single deletes, one at a time. A failed delete is counted and the
+sweep carries on; running it again retries. A delete that finds the object
+already gone counts as `already_gone`. Instances whose lock is held (ingest in
+progress) or that have no manifest yet are skipped and listed, so the sweep can
+never delete the only copy of an instance that has not been re-ingested. Dry
+run is the default.
+
+**No MCP tool.** The first design also had an `admin` MCP tool. It is dropped:
+the sweep reads the whole project across every organisation, and the server has
+only org-level admin checks, so any tenant's `org_admin` could run a
+project-wide delete and read other tenants' instance ids and object keys. The CLI
+runs on the server's host like `token --mint`; the operator is whoever controls
+the deployment. If a platform-operator role is added later, the tool can come
+back behind it.
+
+**The sweep assumes a project dedicated to strategy-server.** Anything in the
+project that no instance accounts for is an orphan by definition. Pointing it at
+a project that also holds other data deletes that data on `--apply`; the CLI
+prints a warning, and the dry run is the default for that reason.
 
 **Migration 045:** the columns and the `memory_projection` table from Decision 2,
 the prefix unique index from Decision 1, and `memory_content_hash = NULL` on
@@ -330,8 +373,9 @@ active instances so the startup sweep re-ingests them.
 1. Deploy. The startup sweep ingests every active instance under the new
    scheme. Until an instance's first ingest completes, its semantic reads
    return `graph_not_ready`.
-2. Check each instance reports `memory_generation >= 1` (settings page or
-   `get_sync_status`).
+2. Check each instance reports `memory_generation >= 1` and no
+   `memory_dirty_since` (SQL on `strategy_instances`, or `memory_generation` in
+   the `get_instance` result; `get_sync_status` is the GitHub sync).
 3. Run the sweep as a dry run, check the counts, then run it with `--apply`.
 
 ## Decision 6: Content contract
@@ -342,6 +386,145 @@ Requirement text in the spec, plus tool descriptions:
   authoritative values use the structured tools (`get_product_vision`,
   `get_roadmap`, `list_features`, …).
 - `get_template`: an authoring template, never the instance's strategy.
+
+## Measurements (task 8.3)
+
+Real Memory v0.87.4 (`memory-passthrough`), an empty project, a scratch
+Postgres database, and the largest local instance (175 artifacts, 5.7 MB of
+YAML, imported with `strategy-server import`). Measured on an 8 GiB laptop with
+other containers running, so read them as orders of magnitude.
+
+| Measurement | Result |
+|---|---|
+| Objects / relationships in Memory | 2250 / 3416 (175 artifact objects, 2075 decomposed) |
+| First full ingest, empty Memory | about 43 s |
+| Unchanged re-ingest | about 10-15 s, **0 of 2250 object versions changed** (3 runs) |
+| Of which: upserting 2250 unchanged objects | 10.0-11.3 s |
+| Manifest replace | 113-174 ms |
+| GC pass (nothing to remove) | 346-403 ms |
+| Edit of one field in one artifact | exactly 1 object version changed (`north_star`) |
+| `health_check` through the MCP (reads `GraphStats`) | 0.37-0.49 s, 3 calls |
+| `detect_contradictions` (175 `ObjectEdges` calls) | 1.15-1.55 s, 2 calls |
+| `search_strategy`, auto mode | 0.04-0.19 s, 3 calls |
+| Postgres `memory_projection` rows | 5666 (2250 objects + 3416 relationships) |
+
+What this says:
+
+- The no-op claim holds at scale: an unchanged ingest creates no versions and
+  therefore no embedding work. It is not free. Each unchanged object is still one
+  upsert round trip, so an unchanged ingest of this instance costs 10-15 s of
+  wall clock. This is acceptable for a change-triggered ingest. If it ever
+  matters, skip the upsert for objects whose content hash is unchanged since the
+  last ingest; not needed for the pilot.
+- `health_check` (which calls `GraphStats`) stays under half a second here.
+  Node and edge counts come from the manifest, but `GraphStats` still lists the
+  instance's objects once (about 12 pages of 200 at this size) to take its
+  orphan sample, so its cost grows with instance size. It is not free of paging.
+  `detect_contradictions` calls `ObjectEdges` once per artifact object (175 here)
+  and took 1.2-1.6 s. At 10x the artifacts that would be 10-15 s; not a problem
+  for the pilot, worth knowing.
+- **Dropped job converges.** The instance was dirtied (generation 16), the server
+  was killed with `kill -9` 4 s into the ingest, and the instance stayed dirty. On
+  restart the startup sweep re-queued it, the ingest completed in 16 s,
+  generation 17, dirty flag cleared, and no object was lost or duplicated
+  (2250 before and after). A server that stays up re-queues a dirty instance on
+  the heartbeat after `dirtyGrace` (one minute).
+- Memory restarted twice while the scale server was up (cause not investigated).
+  Each time the drift check detected the new start time, re-queued the instance,
+  and the ingest completed with the same counts. This was not a controlled test.
+
+Found while measuring, not part of this change: `epfimport.ScanDirectory` reads
+files in map order, and `READY/05_roadmap_recipe.yaml` and
+`AIM/cycles/cycle-1/05_roadmap_recipe.yaml` both become the artifact
+`roadmap_recipe`. Which one wins differs from run to run, so two imports of the
+same directory produced different roadmaps (first run: older AIM cycle, second:
+READY). The ingest itself is deterministic given the stored artifacts; the
+nondeterminism is in the import. Removing the AIM copy made five consecutive
+imports identical. Tracked as a separate issue.
+
+## Verification on real data (task 8.2)
+
+Real Memory v0.87.4 (`memory-passthrough`, port 3012), a fresh Postgres database
+migrated to 046, and six instances imported from real GitHub checkouts into one empty
+project:
+11,405 objects and 16,803 relationships.
+
+| Check | Result |
+|---|---|
+| Every object has exactly one `instance:` label, equal to its `instance_id` property, a key with its own prefix, and an entry in its manifest | 11,405 of 11,405, 0 violations |
+| Relationships whose ends belong to different instances | 0 of 16,803 |
+| Manifest entries without a Memory object | 0 |
+| `search_strategy`, every instance asked for every instance's name, auto and semantic | 72 searches; every hit carries the queried instance's `instance_id`; the queried instance returned hits in all six, so the probe is not vacuous |
+| `get_neighbors` with a key that exists only in another instance | 27 probes, 27 empty |
+| `get_neighbors("north_star")`, a key all six instances share | each instance answers with its own neighbours |
+| `delete_instance` on an instance with 2,664 objects and 2,755 relationships | purge recorded after 19 s; exactly its objects and relationships removed; 0 other objects added, removed or versioned; manifest cleared |
+| Sweep dry run on the real data | 0 in every class |
+| Sweep with one planted orphan per class | dry run reports 1/1/1/1 and deletes nothing; apply deletes exactly those 4 (0 failed); 0 real objects removed or versioned; a second apply finds 0 |
+
+### The #99 acceptance criteria, by hand
+
+Same project, then with two template-scaffolded instances ("Acme", "Acme Two",
+41 canonical keys in common) and an imported copy of a real instance
+("Rivalco") added to the six above. Every write went through the MCP, except the
+import, which is the CLI; the checks read Memory and Postgres directly and
+compared the whole project before and after each step. The server was a scratch
+`strategy-server` on the same build, not `task dev-up-full`.
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Two instances from the same templates: reads for A return nothing of B | 72 searches over all 9 instances, auto and semantic: no hit carries another instance's `instance_id`. `get_neighbors("north_star")` gives the same 2 neighbours for both scaffolds, not 4. Before an edit the scaffolds return no search hits at all (unmodified templates are excluded as framework text), so the search half of this probe only means something after step 4, where the marker is found in A and in 0 hits for B. |
+| 2 | Objects with no owner are never returned | Two ownerless objects planted (one with a template key, one with a unique marker); raw Memory finds both, so the probe is not vacuous. 9 instances x 3 queries x 2 modes: 0 returned, `get_neighbors` empty. The sweep then reported exactly those 2 and deleted them. |
+| 3 | Removing an artifact removes its objects at once | By commit: archiving a feature in A removed its 3 objects and its search hits with no restart. By import: re-importing a real instance without one artifact file removed exactly that artifact's 3 objects, 0 added, 0 outside the instance changed; the removed definition has no search hits and no neighbours. |
+| 4 | A changed artifact is searchable, the old content is not | By commit (North Star purpose and a core belief, then `commit_batch`) and by import (a definition renamed): the new text is found with no restart; in Memory no object of the instance still carries the old text. |
+| 5 | `restore_version`: reads reflect the restored version only | After restoring, the changed text was gone (0 objects, 0 search hits) and the old text was back. Doing this found two defects, see below. |
+| 6 | `commit_batch` on a North Star value updates decomposed `Belief` objects | Both Belief objects (`purpose`, `core_beliefs.about_our_market[0]`) carried the new text after the commit; the other scaffold kept its own. |
+| 7 | Archiving in A never hides B's object with the same key | The same feature key created in both, archived in A: B's 3 objects kept the same keys and versions, and B's search still finds them. |
+| 8 | Deleting an instance removes objects, relationships and branches; restart does not bring them back | An instance with 44 objects and a real scenario branch: exactly its 44 objects and 55 relationships and the branch were removed in 2 s, 0 other objects added or versioned, manifest cleared. After a server restart the startup sweep skipped it and nothing returned. |
+| 9 | A crash or full queue leaves the instance marked and it converges | Not repeated here. Covered by 8.3 (a dropped job converged) and by the real failed ingest recorded below. |
+| 10 | Lifecycle mode is independent of other instances | For all 9 instances `graph_node_count` in the lifecycle signals equals the number of objects that instance owns in Memory (a 6-artifact scaffold reports 39, not 12,700). |
+| 11 | Search results include instance, layer and source artifact | True for hits from Memory. Keyword-fallback hits (`match: keyword`, read from Postgres) carry none of the three. They were checked to be the instance's own artifacts, so this is a gap in the output, not a leak. |
+
+After all of it the instances were deleted again and the project was back to
+11,405 objects, 16,803 relationships and 0 violations from the isolation check.
+
+The two gated live-Memory ripple tests (`RUN_SEMANTIC_TESTS=1`) were run against
+a scratch Memory project, with the upsert concurrency lowered to 2 for the run:
+both pass (11 s and 8 s). They wire no exporter, so only the artifact layer (174
+objects) was in Memory, and their embedding wait returned at once with 0
+completed. I did not check how strongly their phases assert.
+
+Defects found while doing this:
+
+- **A type change left two objects for one key (this change, fixed in #122).**
+  Memory identifies an object by type and key; the manifest lists keys. After
+  `restore_version` an artifact came back with another type, the old object was
+  kept, and two owned, visible objects answered for one key.
+- **`restore_version` loses artifact type, name, track and status (#121, not
+  this change).** It rebuilds each row from the key alone; for an imported
+  instance 138 of 143 artifacts would come back as type `unknown` (computed from
+  the key rules, not by restoring a real instance).
+
+Also found, none caused by this change:
+
+- **A failed ingest left the fence intact.** Memory's own Postgres was
+  OOM-killed mid-ingest (the Docker VM had 4 GiB), 165 of 1,093 relationship
+  writes got 401, and the ingest returned an error before touching the manifest.
+  The instance stayed at generation 0 and dirty; its 1,213 objects were in Memory
+  but invisible, and a retry converged.
+- **A project-wide read through a proxy that ignores `X-Project-ID`** (the nginx
+  in front of Memory on 3002 answers from the default project) sent an import to
+  the wrong project. The fence does not help here: it keys on the instance, not
+  the project. The upgrade runbook must say to point strategy-server at Memory
+  directly or at a proxy that honours the header.
+- **Importer issues:** nondeterministic file order (#119) and nested instance
+  directories imported into the parent (#120; 132 of 326 artifacts in one repo).
+- **`read_with` on decomposed search hits can name an artifact that does not
+  exist** (the exporter drops sub-folders and doubles the `value_model_` prefix).
+  The fix for the exporter is on `fix/export-preserve-artifact-paths`
+  (`1d7c7590`), which is not in `fence/slice-2`; I did not test it.
+- **Concurrency:** bulk upserts and cascade deletes at 8 and 4 workers pushed a
+  4 GiB Docker VM into the OOM killer three times. At 2 workers the same imports
+  peaked at 1.7 GiB and nothing was killed. The 8 is hard-coded.
 
 ## Risks and open questions
 

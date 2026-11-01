@@ -260,6 +260,13 @@ These tools were removed as redundant. Use the equivalent:
 
 ## Semantic Strategy Engine
 
+> **Never point `epf ingest` or `epf sync` at a Memory project that strategy-server uses.**
+> The CLI writes unscoped keys without the `instance:<uuid>` owner label and without
+> a manifest, so its objects belong to no instance: strategy-server cannot read them,
+> and the orphan sweep will treat them as leftovers. Use a separate Memory project
+> for the CLI. How strategy-server isolates instances is described in
+> `apps/strategy-server/AGENTS.md` ("Memory isolation model").
+
 The EPF CLI includes a semantic strategy engine that treats EPF artifacts as a live semantic graph in emergent.memory. Configure with environment variables:
 
 ```bash

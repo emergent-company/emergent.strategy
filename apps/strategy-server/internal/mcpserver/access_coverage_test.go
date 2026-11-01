@@ -35,7 +35,15 @@ import (
 // the thing that actually regresses: someone adds a tool and forgets the
 // check. Behavioural proof that the check denies correctly lives in the unit
 // tests for assertInstanceAccess itself.
-func TestAllInstanceToolsCheckAccess(t *testing.T) {
+func TestAllInstanceToolsCheckAccess(t *testing.T) { checkToolsRequiring(t, "instance_id") }
+
+// TestAllWorkspaceToolsCheckAccess is the same guard for tools that take a
+// workspace_id. It did not exist, and delete_workspace and
+// assign_workspace_to_org went unchecked behind it.
+func TestAllWorkspaceToolsCheckAccess(t *testing.T) { checkToolsRequiring(t, "workspace_id") }
+
+func checkToolsRequiring(t *testing.T, param string) {
+	t.Helper()
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("glob: %v", err)
@@ -71,7 +79,7 @@ func TestAllInstanceToolsCheckAccess(t *testing.T) {
 				return true
 			}
 
-			name, requiresInstance := toolNameAndInstanceArg(call.Args[0])
+			name, requiresInstance := toolNameAndRequiredArg(call.Args[0], param)
 			if name == "" {
 				return true
 			}
@@ -95,15 +103,16 @@ func TestAllInstanceToolsCheckAccess(t *testing.T) {
 	}
 
 	if total == 0 {
-		t.Fatal("found no tools requiring instance_id — the AST matcher is broken, " +
-			"not the codebase; check isAddToolCall and toolNameAndInstanceArg")
+		t.Fatalf("found no tools requiring %s — the AST matcher is broken, "+
+			"not the codebase; check isAddToolCall and toolNameAndRequiredArg", param)
 	}
 
 	if len(unchecked) > 0 {
-		t.Errorf("%d of %d instance-scoped tools do not call assertInstanceAccess "+
-			"(or an equivalent guard). Each one lets any authenticated caller read or "+
-			"mutate an instance belonging to another tenant by passing its UUID:",
-			len(unchecked), total)
+		t.Errorf("%d of %d tools taking %s do not call an access guard "+
+			"(assertInstanceAccess, assertWorkspaceAccess, ...). Each one lets any "+
+			"authenticated caller read or mutate data belonging to another tenant by "+
+			"passing its UUID:",
+			len(unchecked), total, param)
 		for _, u := range unchecked {
 			t.Errorf("  %s:%d  %s", u.file, u.line, u.tool)
 		}
@@ -116,13 +125,13 @@ func isAddToolCall(call *ast.CallExpr) bool {
 	return ok && sel.Sel.Name == "AddTool"
 }
 
-// toolNameAndInstanceArg extracts the tool name from an mcp.NewTool(...)
-// expression and reports whether it declares a required instance_id parameter.
+// toolNameAndRequiredArg extracts the tool name from an mcp.NewTool(...)
+// expression and reports whether it declares a required parameter called param.
 //
 // Required is the operative word: a tool with an optional instance_id filter
 // (list_workspaces, say) is not necessarily instance-scoped, and forcing a
 // check there would deny legitimate unscoped listing.
-func toolNameAndInstanceArg(arg ast.Expr) (name string, requiresInstance bool) {
+func toolNameAndRequiredArg(arg ast.Expr, param string) (name string, required bool) {
 	newTool, ok := arg.(*ast.CallExpr)
 	if !ok || !isNewToolCall(newTool) || len(newTool.Args) == 0 {
 		return "", false
@@ -147,7 +156,7 @@ func toolNameAndInstanceArg(arg ast.Expr) (name string, requiresInstance bool) {
 			continue
 		}
 		argLit, ok := optCall.Args[0].(*ast.BasicLit)
-		if !ok || strings.Trim(argLit.Value, `"`) != "instance_id" {
+		if !ok || strings.Trim(argLit.Value, `"`) != param {
 			continue
 		}
 		for _, sub := range optCall.Args[1:] {
@@ -199,7 +208,7 @@ func bodyAssertsAccess(handler ast.Expr) bool {
 			return false
 		}
 		switch ident.Name {
-		case "assertInstanceAccess", "assertWorkspaceAccess", "assertInstanceWrite":
+		case "assertInstanceAccess", "assertWorkspaceAccess", "assertWorkspaceAdmin", "assertInstanceWrite":
 			found = true
 			return false
 		}

@@ -343,3 +343,195 @@ a wrong password.
 **Access tokens are unaffected**, so scoped MCP access works on a deploy with
 this bug present. The key is already mounted, so fixing #91 is a code change
 with no accompanying deploy change.
+
+---
+
+## 7. Upgrading to the fenced Memory graph (#99, fence slice 2)
+
+Applies to the first deploy of a build that contains the Memory fence (OpenSpec
+change `fence-memory-graph-per-instance`). Tracks A (ingest) and B (reads) ship
+together; do not deploy a build that has one without the other.
+
+What changes: every object strategy-server writes to Memory is owned by one
+instance (key prefix, `instance_id` property, `instance:<uuid>` label) and listed
+in a per-instance manifest in Postgres. Every read returns only objects that are
+owned by the instance asked for **and** in its manifest. Anything else in the
+Memory project, whoever wrote it, is invisible. The graph is a projection of
+Postgres, so it can always be rebuilt by re-ingesting.
+
+### 7.1 Before you deploy
+
+1. **Memory version at least v0.85.0.** The server logs the Memory version at
+   startup and warns below the minimum. Tested against v0.87.4. Write the version
+   you deploy against into the release notes: the log line is the only record, and
+   a later Memory upgrade has to be compared with it.
+2. **Point `EPF_MEMORY_URL` at Memory itself, or at a proxy that forwards the
+   `X-Project-ID` header.** A proxy that drops the header answers every request
+   from its default project; the fence cannot detect that, because it keys on the
+   instance and not on the project. In development this sent an import to the
+   wrong project. Check, with the service's own URL, token and project id:
+
+   ```bash
+   curl -s -H "X-API-Key: $EPF_MEMORY_TOKEN" \
+     -H "X-Project-ID: 00000000-1111-2222-3333-444444444444" \
+     "$EPF_MEMORY_URL/api/graph/objects/count"
+   ```
+
+   Expected: `{"error":{"code":"not_found","message":"project '…' not found"}}`.
+   If you get a `count`, the header is ignored. **Stop and fix the URL first.**
+3. **The Memory project must be dedicated to strategy-server.** The sweep (7.3)
+   treats every object that no instance accounts for as an orphan. `epf-cli`
+   `ingest` and `sync`, including the `epf-strategy` service, must never target
+   this project. Look at what is in it before you sweep.
+4. **Memory capacity.** Ingest writes objects 8 at a time (fixed in code), and
+   two instances can ingest at once. In development, bulk ingests on a Docker VM
+   with 4 GiB shared by several containers got Memory's database OOM-killed. A
+   failed ingest is safe (see 7.5): the previous state stays in force and a retry
+   converges. Give Memory headroom, and do not run the sweep while a large ingest
+   is running.
+
+### 7.2 Deploy and verify
+
+Deploy as in section 3. This build adds **no migration**: 045 (the manifest
+table, the instance columns and the unique index on the instance key prefix,
+shipped with slice 1) and 046 are already on `main`, and the migration job
+applies them if the database does not have them yet.
+
+After the new revision is up:
+
+1. The startup sweep queues an ingest for every active instance whose
+   `memory_generation` is 0. Slice 1 never writes the generation or the manifest,
+   so after slice 1 every instance is at 0 and all of them are re-ingested. The
+   log line is `ingest: startup sweep: queuing work`. Two ingest workers run at a
+   time. Measured: the first ingest of a 2,250-object instance took about 43
+   seconds.
+2. **Until an instance's first ingest completes** (`memory_generation` is 0),
+   semantic reads of it are empty on purpose:
+   - `search_strategy` in the default mode falls back to keyword search;
+   - `search_strategy` with `mode=semantic`, `get_neighbors` and
+     `detect_contradictions` return an empty result with `graph_not_ready: true`;
+   - `get_outline`, `get_section` and other reads of the stored strategy are not
+     affected.
+3. Check every active instance has completed an ingest and nothing is pending:
+
+   ```sql
+   SELECT name, memory_generation, memory_dirty_since
+   FROM strategy_instances WHERE deleted_at IS NULL ORDER BY name;
+   ```
+
+   Done when every row has `memory_generation >= 1` and `memory_dirty_since` is
+   null. The instance object returned by `get_instance` also carries
+   `memory_generation`. (`get_sync_status` is the GitHub sync, not this.)
+   An instance that is dirty, or still at `memory_generation` 0 and not dirty, is
+   retried by the heartbeat (every 5 minutes by default; `HEARTBEAT_INTERVAL=0`
+   disables it, and with it this retry); the log
+   names the error (`ingest:` warnings). A failed first ingest marks nothing, so
+   it is the generation-0 retry that covers it.
+
+### 7.3 Remove what predates the fence: the sweep
+
+A project that held data from before the fence contains objects without an owner,
+with unprefixed keys, or left behind by instances that no longer exist. They are
+invisible to every read, so they do no harm, but they take space. The sweep
+finds and deletes them. It is a CLI command, not an MCP tool, because it reads
+the whole project across every organisation:
+
+```bash
+strategy-server memory sweep            # dry run, the default: reports, deletes nothing
+strategy-server memory sweep --apply    # deletes what the dry run reported
+```
+
+It needs the same environment as the service (`PG*`, `EPF_MEMORY_URL`,
+`EPF_MEMORY_PROJECT`, `EPF_MEMORY_TOKEN`). On Cloud Run, run it as a job from the
+same image, like the migration job in section 3, with `--args="memory,sweep"` and
+then `--args="memory,sweep,--apply"`, and the service's Memory settings. The
+command line is verified on real Memory; this job definition has not been run in
+production.
+
+1. Run it **after** 7.2 step 3. Instances that have no manifest yet, or whose
+   ingest is running, are skipped and listed, so the sweep can never delete the
+   only copy of an instance that has not been re-ingested.
+2. Read the dry run. It reports counts and example keys for four classes:
+   `no_owner`, `unknown_owner`, `legacy_key` and `not_in_manifest`. On a project
+   with pre-fence data the first counts can be large. **Check that the example
+   keys look like strategy-server data.** If they do not, the project is not
+   dedicated to strategy-server: stop.
+3. Run with `--apply`. A failed delete is counted and the sweep carries on;
+   running it again retries. Then run the dry run again: all four classes should
+   be 0.
+
+On the six-instance development project (11,405 objects) the dry run reported 0
+in every class. With one planted orphan per class it reported exactly those four,
+and `--apply` deleted exactly those four and changed nothing else.
+
+### 7.4 Deleting an instance
+
+`delete_instance` and `delete_workspace` soft-delete in Postgres and purge the
+graph in the background: the instance's objects, relationships and scenario
+branches. `memory_purged_at` on the instance row records the outcome. Measured: 2
+seconds for 44 objects, 19 seconds for 2,664 objects and 2,755 relationships. A
+purge that fails is retried by the startup sweep and the heartbeat. Deleted
+instances are never re-ingested.
+
+### 7.5 Rollback across this upgrade
+
+- **Rolling back the revision removes the fence.** The previous build does not
+  know the manifest, and per #99 its semantic reads are not scoped to the
+  instance. Roll back only if you must, and treat semantic reads as unscoped
+  while it is in place.
+- No migration is involved, so nothing to undo in Postgres. Rolling forward again
+  works: the manifests are still there, and what the old build wrote without an
+  owner is invisible to the fenced build and is removed by the next sweep. The
+  roll-back and roll-forward path has not been tested.
+- A failed ingest does not need a rollback. In development, Memory's database was
+  killed during an ingest; the instance stayed at its previous state and
+  invisible-until-complete, and a retry converged.
+
+### 7.6 Known limitations at this cutover
+
+- **`restore_version` damages imported instances (#121).** It rebuilds each
+  artifact from its key alone, so type, name, track and status are lost for any
+  key it does not recognise. For an imported instance of 143 artifacts that is
+  138 by the key rules. Do not use it on an imported instance until #121 is fixed.
+- **The importer (#119, #120).** Two files that name the same artifact (for
+  example `READY/05_roadmap_recipe.yaml` and a copy under `AIM/cycles/`) are
+  resolved the same way on every import: the shallowest path wins and the other
+  is logged. The `AIM/cycles/**` copies are skipped, not imported as their own
+  artifacts. Nested instance directories are still imported into the parent
+  (#120): import from a directory that holds exactly one instance, and check the
+  instance name and artifact count afterwards.
+- **Keyword hits carry no `instance_id`, layer or source artifact.** They come
+  from the instance's own stored artifacts, never from the graph. Each says which
+  query words it contains and which it does not (`matched_terms`,
+  `missing_terms`); a hit that lacks the distinctive word is not an answer.
+- **Search is discovery, not the answer.** By default `search_strategy` returns
+  mostly keyword hits and keeps a fifth of the limit for semantic hits. On the
+  pilot instance's question bank this reached the sections the bank names for 25
+  of 49 key results in the top 10, which means a single search misses about half:
+  the agent has to follow the hit with `get_section`, rephrase, or read
+  `get_outline`. About half of an authored instance's text is not projected into
+  the graph at all (confidence gaps, milestones, change logs, per-trend evidence),
+  so semantic search cannot find it; keyword search and `get_section` can.
+- **`read_with` on a decomposed search hit can name an artifact that does not
+  exist** when the exporter drops a sub-folder (a fix is on
+  `fix/export-preserve-artifact-paths`, not in this build). `get_section` then
+  answers `defined: false`; search again or use `get_outline`. On the pilot-shaped
+  instance, 211 of 211 semantic hits resolved.
+- **Scenarios.** `evaluate_scenario` lists the instance's own nodes on the branch;
+  it does not compare the branch with main, and nothing in the MCP can change a
+  branch. `commit_scenario` is a dry run and returns a summary string where its
+  field is called `batch_id` (#134).
+- **Framework content is in the graph.** An instance scaffolded from the framework
+  holds hundreds of canonical definitions and templates (46% of the decomposed
+  objects of the pilot-shaped instance: 629 of 1,366). Reads exclude them; tools whose purpose is to list
+  them (`list_definitions`, `list_templates`, `health_check`) show them, and
+  `list_mutations` includes their import history without saying so (#135).
+- **Ingest concurrency is fixed at 8** and not configurable.
+
+### 7.7 Local development
+
+`scripts/dev-setup.sh` rewrites `.env.local` and, as read (not run), takes its
+Memory project from the proxy on port 3002, which ignores `X-Project-ID`. For the
+fence use Memory directly (port 3012 in the local compose setup) with a project
+dedicated to the dev database, and do not rerun the script over a working
+`.env.local`.

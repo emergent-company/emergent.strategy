@@ -197,23 +197,12 @@ func (s *Server) probeMemoryHealth(ctx context.Context) ui.MemoryHealthStatus {
 		ProjectID:  cfg.Project,
 	}
 
-	client := s.semanticSvc.Client()
-	if client == nil {
-		status.Error = langs.T(ctx, "error.memory_client_not_initialized")
-		return status
-	}
-
-	// Fetch total artifact object count from Memory graph (best-effort).
-	if count, err := client.CountArtifactObjects(ctx); err == nil {
-		status.TotalGraphObjects = count
-	}
-
 	// Fetch detailed health from Memory server via the shared client.
 	// Uses the same auth mode, connection pool, and retry logic as all other calls.
 	healthCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	detail, err := client.HealthDetailed(healthCtx)
+	detail, err := s.semanticSvc.HealthDetailed(healthCtx)
 	if err != nil {
 		status.Error = langs.T(ctx, "error.memory_health_check_failed")
 		return status

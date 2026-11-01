@@ -30,6 +30,9 @@ type KeywordHit struct {
 	Score        float64 `json:"score"`
 	SizeChars    int     `json:"size_chars"`
 	ReadWith     string  `json:"read_with"`
+	// MatchedTerms and MissingTerms: see strategyread.Hit.
+	MatchedTerms []string `json:"matched_terms,omitempty"`
+	MissingTerms []string `json:"missing_terms,omitempty"`
 }
 
 type searchRow struct {
@@ -82,6 +85,8 @@ func (s *Service) SearchAuthored(ctx context.Context, instanceID uuid.UUID, quer
 				Score:        h.Score,
 				SizeChars:    h.SizeChars,
 				ReadWith:     readWith(row.ArtifactKey, h.Path),
+				MatchedTerms: h.MatchedTerms,
+				MissingTerms: h.MissingTerms,
 			})
 		}
 	}

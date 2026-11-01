@@ -51,6 +51,14 @@ type SearchResult struct {
 	ReadWith         string `json:"read_with,omitempty"`
 	// Match says how the hit was found: "semantic" or "keyword".
 	Match string `json:"match,omitempty"`
+	// MatchedTerms and MissingTerms are set on keyword hits: which of the query's
+	// terms the section contains and which it does not.
+	MatchedTerms []string `json:"matched_terms,omitempty"`
+	MissingTerms []string `json:"missing_terms,omitempty"`
+	// InstanceID, Layer and SourceArtifact say where the hit comes from.
+	InstanceID     string `json:"instance_id,omitempty"`
+	Layer          string `json:"layer,omitempty"`
+	SourceArtifact string `json:"source_artifact,omitempty"`
 }
 
 // SearchOutcome is a search result with what was filtered out, so the filtering
@@ -63,6 +71,7 @@ type SearchOutcome struct {
 	// instance. Memory does not scope the search by instance; the fence change
 	// does that at the source. This is a second line of defence.
 	ExcludedOtherInstance int `json:"excluded_other_instance,omitempty"`
+	ExcludedNotInGraph    int `json:"excluded_not_in_graph,omitempty"`
 }
 
 // Neighbor represents a connected graph node.
@@ -91,8 +100,9 @@ type ScenarioResult struct {
 // Service wraps the emergent.memory client with strategy-server domain operations.
 // All methods return ErrSemanticUnavailable when Memory is not configured.
 type Service struct {
-	cfg    Config
-	client *memory.Client
+	cfg      Config
+	client   *memory.Client
+	manifest ManifestSource
 }
 
 // NewService creates a semantic Service. If cfg is not configured, all methods
@@ -148,6 +158,14 @@ func (s *Service) Ping(ctx context.Context) error {
 	return s.client.Healthy(ctx)
 }
 
+// HealthDetailed returns the Memory server's version and subsystem health.
+func (s *Service) HealthDetailed(ctx context.Context) (memory.HealthDetail, error) {
+	if err := s.requireClient(); err != nil {
+		return memory.HealthDetail{}, err
+	}
+	return s.client.HealthDetailed(ctx)
+}
+
 // requireClient returns ErrSemanticUnavailable if the client is nil.
 func (s *Service) requireClient() error {
 	if s.client == nil {
@@ -156,9 +174,17 @@ func (s *Service) requireClient() error {
 	return nil
 }
 
-// searchOverFetch is how many hits are requested per hit wanted, so filtering
-// framework and foreign hits cannot leave the page short.
-const searchOverFetch = 3
+// searchOverFetch is how many hits are requested per hit wanted, up to
+// searchFetchCap, so that dropping framework hits and leftover objects of the
+// same instance does not leave the page short.
+const (
+	searchOverFetch = 2
+	searchFetchCap  = 100
+)
+
+func fetchLimit(limit int) int {
+	return min(limit*searchOverFetch, searchFetchCap)
+}
 
 // SearchStrategy performs semantic search over the strategy graph and returns
 // the hits that survive filtering. See SearchStrategyScoped for the counts.
@@ -170,33 +196,30 @@ func (s *Service) SearchStrategy(ctx context.Context, instanceID, query string, 
 	return out.Results, nil
 }
 
-// SearchStrategyScoped searches the strategy graph, drops hits on unmodified
-// framework content and hits that belong to another instance, and reports how
-// many it dropped. It over-fetches so that dropping does not starve the page.
+// SearchStrategyScoped searches the instance's part of the graph. Memory is
+// asked for exactly one label, instance:<id>; what comes back is checked again
+// against the instance's owner stamp and manifest, hits on unmodified framework
+// content are dropped, and the counts of what was dropped are reported. It
+// returns ErrGraphNotReady for an instance that has not been ingested.
 func (s *Service) SearchStrategyScoped(ctx context.Context, instanceID, query string, limit int) (*SearchOutcome, error) {
-	if err := s.requireClient(); err != nil {
+	sc, err := s.scope(ctx, instanceID)
+	if err != nil {
 		return nil, err
 	}
 	if limit <= 0 {
 		limit = 10
 	}
 
-	results, err := s.client.Search(ctx, memory.SearchRequest{
-		Query: query,
-		Limit: limit * searchOverFetch,
-	})
+	hits, err := sc.search(ctx, query, limit, nil)
 	if err != nil {
 		return nil, fmt.Errorf("search strategy: %w", err)
 	}
 
 	out := &SearchOutcome{Results: make([]*SearchResult, 0, limit)}
-	for _, r := range results {
-		props := r.Object.Properties
-		if hitInstance, _ := props["instance_id"].(string); hitInstance != "" && hitInstance != instanceID {
-			out.ExcludedOtherInstance++
-			continue
-		}
-		if class, _ := props["integrity_class"].(string); isFrameworkClass(class) {
+	out.ExcludedOtherInstance, out.ExcludedNotInGraph = sc.notOwned, sc.notInGraph
+	for _, h := range hits {
+		props := h.obj.Properties
+		if isFrameworkObject(&h.obj) {
 			out.ExcludedFramework++
 			continue
 		}
@@ -206,22 +229,73 @@ func (s *Service) SearchStrategyScoped(ctx context.Context, instanceID, query st
 		artifactType, _ := props["artifact_type"].(string)
 		snippet, _ := props["snippet"].(string)
 		if snippet == "" {
-			// Fallback: use the object's name or description property.
 			if name, ok := props["name"].(string); ok {
 				snippet = name
 			}
 		}
-		artifact, path := sectionOf(r.Object.Key, props)
+		layer := layerOf(&h.obj)
+		artifact, path := sectionOf(layer, h.key, props)
 		out.Results = append(out.Results, &SearchResult{
-			ArtifactType: artifactType,
-			ArtifactKey:  r.Object.Key,
-			Snippet:      snippet,
-			Score:        r.Score,
-			Artifact:     artifact,
-			Path:         path,
+			ArtifactType:   artifactType,
+			ArtifactKey:    h.key,
+			Snippet:        snippet,
+			Score:          h.score,
+			Artifact:       artifact,
+			Path:           path,
+			InstanceID:     sc.id.String(),
+			Layer:          layer,
+			SourceArtifact: sourceFile(props),
 		})
 	}
 	return out, nil
+}
+
+type scopedHit struct {
+	obj   memory.Object
+	key   string // the original, unscoped key
+	score float64
+}
+
+// search runs one Memory search labelled with the instance and returns the
+// visible hits best first, at most fetchLimit(limit) before filtering. Hits that
+// are not the instance's are counted in the scope, not returned.
+func (sc *scope) search(ctx context.Context, query string, limit int, types []string) ([]scopedHit, error) {
+	results, err := sc.svc.client.Search(ctx, memory.SearchRequest{
+		Query:  query,
+		Limit:  fetchLimit(limit),
+		Types:  types,
+		Labels: []string{sc.label},
+	})
+	if err != nil {
+		return nil, err
+	}
+	objs := make([]memory.Object, len(results))
+	for i, r := range results {
+		objs[i] = r.Object
+	}
+	vis, err := sc.filter(ctx, objs)
+	if err != nil {
+		return nil, err
+	}
+	score := make(map[string]float64, len(results))
+	for _, r := range results {
+		score[r.Object.StableID()] = r.Score
+	}
+	out := make([]scopedHit, 0, len(vis))
+	for _, o := range vis {
+		out = append(out, scopedHit{obj: o, key: sc.originalKey(&o), score: score[o.StableID()]})
+	}
+	return out, nil
+}
+
+// isFrameworkObject reports whether a graph object was derived from unmodified
+// framework content (a canonical definition, a template, a packaged default).
+// Both layers carry the class of their source artifact. Such an object is in the
+// graph because the instance holds the file, not because the company wrote it,
+// so no read presents it, or a relationship to it, as the company's strategy.
+func isFrameworkObject(o *memory.Object) bool {
+	class, _ := o.Properties["integrity_class"].(string)
+	return isFrameworkClass(class)
 }
 
 // isFrameworkClass reports whether an integrity class marks framework content.
@@ -233,182 +307,140 @@ func isFrameworkClass(class string) bool {
 	return false
 }
 
-// sectionOf derives the stored section a hit came from: a decomposed object
-// names its source file and section path; an artifact-level object is the
-// artifact itself. It returns empty values when neither can be established.
-func sectionOf(key string, props map[string]any) (artifact, path string) {
+// sourceFile names the file a graph object was derived from: the decomposer's
+// source_artifact, or file_path on the artifact nodes it creates.
+func sourceFile(props map[string]any) string {
 	if src, _ := props["source_artifact"].(string); src != "" {
+		return src
+	}
+	src, _ := props["file_path"].(string)
+	return src
+}
+
+// sectionOf derives the stored section a hit came from: a decomposed object
+// names its source file and section path; an artifact-layer object is the
+// artifact itself (key is the original, unscoped key). It returns empty values
+// when neither can be established.
+func sectionOf(layer, key string, props map[string]any) (artifact, path string) {
+	if src := sourceFile(props); src != "" && layer != layerArtifact {
 		path, _ = props["section_path"].(string)
 		return epfimport.ArtifactKey(src, filepath.Base(src)), path
 	}
-	_, hasType := props["artifact_type"].(string)
-	_, hasInstance := props["instance_id"].(string)
-	if hasType && hasInstance {
+	if layer == layerArtifact {
 		return key, ""
 	}
 	return "", ""
 }
 
-// GetNeighbors returns the semantic graph neighbourhood of a node.
-// Uses a single Expand(depth=1) call to fetch all connected nodes and edges,
-// replacing the previous N+2 API call pattern (key lookup + edges + N GetObject).
+// GetNeighbors returns the neighbourhood of a node of the instance. nodeKey is
+// the artifact key as the caller knows it. A key that is not part of the
+// instance's projection, including one that only another instance has, reads as
+// a node that does not exist.
 func (s *Service) GetNeighbors(ctx context.Context, instanceID, nodeKey string) ([]*Neighbor, error) {
-	if err := s.requireClient(); err != nil {
+	sc, err := s.scope(ctx, instanceID)
+	if err != nil {
 		return nil, err
 	}
-
-	// Look up the object by exact key.
-	obj, err := s.client.GetObjectByKey(ctx, nodeKey)
+	root, err := sc.lookup(ctx, nodeKey)
 	if err != nil {
-		return nil, fmt.Errorf("get neighbors: lookup node %q: %w", nodeKey, err)
+		return nil, fmt.Errorf("get neighbors: %w", err)
 	}
-	if obj == nil {
+	if root == nil || isFrameworkObject(root) {
 		return []*Neighbor{}, nil
 	}
-
-	// Single BFS expansion at depth 1 returns all connected objects and
-	// their relationships in one API call.
-	objectID := obj.StableID()
-	expanded, err := s.client.Expand(ctx, memory.ExpandRequest{
-		RootIDs:  []string{objectID},
-		MaxDepth: 1,
-		MaxNodes: 500,
-	})
+	objs, rels, err := sc.neighborhood(ctx, root, 1, 500)
 	if err != nil {
-		return nil, fmt.Errorf("get neighbors: expand: %w", err)
+		return nil, fmt.Errorf("get neighbors: %w", err)
 	}
+	byID := indexByID(objs)
+	rootID := root.StableID()
 
-	// Index expanded objects by ID for fast lookup.
-	objByID := make(map[string]*memory.Object, len(expanded.Objects))
-	for i := range expanded.Objects {
-		o := &expanded.Objects[i]
-		objByID[o.StableID()] = o
-	}
-
-	out := make([]*Neighbor, 0, len(expanded.Relationships))
-	for _, rel := range expanded.Relationships {
+	out := make([]*Neighbor, 0, len(rels))
+	for _, rel := range rels {
 		var connectedID, dir string
-		if rel.FromID == objectID {
-			connectedID = rel.ToID
-			dir = "outbound"
-		} else if rel.ToID == objectID {
-			connectedID = rel.FromID
-			dir = "inbound"
-		} else {
-			continue // edge between two neighbors, not touching our root
+		switch rootID {
+		case rel.FromID:
+			connectedID, dir = rel.ToID, "outbound"
+		case rel.ToID:
+			connectedID, dir = rel.FromID, "inbound"
+		default:
+			continue
 		}
-		connected, ok := objByID[connectedID]
-		if !ok {
+		connected, ok := byID[connectedID]
+		if !ok || isFrameworkObject(connected) {
 			continue
 		}
 		out = append(out, &Neighbor{
-			NodeKey:  connected.Key,
+			NodeKey:  sc.originalKey(connected),
 			NodeType: connected.Type,
 			EdgeType: rel.Type,
 			EdgeDir:  dir,
 		})
 	}
-
 	return out, nil
 }
 
-// DetectContradictions runs a contradiction scan on the strategy graph.
-// This uses Memory's quality audit capabilities to find structural issues.
-// Uses Expand(depth=1) to detect orphaned nodes in a single API call,
-// replacing the previous 1+N pattern (ListObjects + per-object ObjectEdges).
+// DetectContradictions reports artifact-layer objects of the instance that have
+// no relationship in its projection. The graph also holds a decomposed layer
+// where relationship-free nodes are normal, so only the artifact layer is
+// scanned. Framework content (see isFrameworkObject) is neither reported nor
+// counted as a connection: an instance scaffolded from the framework holds
+// hundreds of definitions with no relationships, and none of them is a defect in
+// the company's strategy.
+//
+// Connectivity comes from the per-object edges endpoint, one call per object,
+// so every edge is attributed to the object it was asked about. Edges count only
+// when they are in the manifest.
 func (s *Service) DetectContradictions(ctx context.Context, instanceID string) ([]*Contradiction, error) {
-	if err := s.requireClient(); err != nil {
+	sc, err := s.scope(ctx, instanceID)
+	if err != nil {
 		return nil, err
 	}
-
-	// A full contradiction detection engine would use the propagation circuit
-	// from epf-cli. This implementation provides basic structural checks
-	// by detecting orphaned nodes (objects with zero relationships).
-
-	// Scope orphan detection to the ARTIFACT layer only. The graph also holds a
-	// decomposed layer (fine-grained sub-objects like ValueModelComponent,
-	// PainPoint, Capability) where relationship-free nodes are normal and not
-	// contradictions; including them produced thousands of false positives.
-	//
-	// Fetch all artifact-layer objects via cursor pagination. A single
-	// ListObjects(Limit: 200) silently ignores instances with more than 200
-	// objects, which would report false orphans (and miss real ones).
-	rootIDs, objByID, err := s.listAllObjects(ctx, artifactLayerLabel)
+	all, err := sc.list(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("detect contradictions: list objects: %w", err)
 	}
-	if len(rootIDs) == 0 {
-		return nil, nil
+	var artifacts []memory.Object
+	for i := range all {
+		if layerOf(&all[i]) == layerArtifact && !isFrameworkObject(&all[i]) {
+			artifacts = append(artifacts, all[i])
+		}
 	}
+	if len(artifacts) == 0 {
+		return []*Contradiction{}, nil
+	}
+	byID := indexByID(artifacts)
 
-	// Determine connectivity per object via the per-object edges endpoint.
-	//
-	// NOTE: we deliberately do NOT use the graph Expand endpoint here. Expand
-	// keys traversal differently from how relationships are stored (it returned
-	// zero relationships even for objects that demonstrably have edges via
-	// /objects/{id}/edges), which made every artifact look orphaned. The edges
-	// endpoint reliably reports an object's relationships. This is a bounded
-	// 1+N over the artifact layer (~hundreds of objects), which is acceptable
-	// for this non-hot-path structural check.
-	var contradictions []*Contradiction
-	for _, id := range rootIDs {
-		edges, err := s.client.ObjectEdges(ctx, id)
+	var candidates []memory.Relationship
+	for _, o := range artifacts {
+		edges, err := s.client.ObjectEdges(ctx, o.StableID())
 		if err != nil {
 			return nil, fmt.Errorf("detect contradictions: object edges: %w", err)
 		}
-		if len(edges.Incoming) > 0 || len(edges.Outgoing) > 0 {
-			continue // connected — not an orphan
+		candidates = append(candidates, edges.Incoming...)
+		candidates = append(candidates, edges.Outgoing...)
+	}
+	rels, err := sc.filterRelationships(ctx, candidates, byID)
+	if err != nil {
+		return nil, fmt.Errorf("detect contradictions: %w", err)
+	}
+	connected := make(map[string]bool, len(rels)*2)
+	for _, r := range rels {
+		connected[r.FromID], connected[r.ToID] = true, true
+	}
+
+	contradictions := []*Contradiction{}
+	for _, o := range artifacts {
+		if connected[o.StableID()] {
+			continue
 		}
-		obj := objByID[id]
+		key := sc.originalKey(&o)
 		contradictions = append(contradictions, &Contradiction{
-			Description: fmt.Sprintf("Orphaned node: %s (%s) has no relationships", obj.Key, obj.Type),
-			FixWith:     fmt.Sprintf("Add relationships connecting %s to other strategy artifacts", obj.Key),
+			Description: fmt.Sprintf("Orphaned node: %s (%s) has no relationships", key, o.Type),
+			FixWith:     fmt.Sprintf("Add relationships connecting %s to other strategy artifacts", key),
 		})
 	}
-
 	return contradictions, nil
-}
-
-// listObjectsPageLimit is the per-page size used when paginating all objects.
-const listObjectsPageLimit = 200
-
-// artifactLayerLabel scopes object listings to top-level EPF artifacts,
-// excluding the decomposed sub-object layer. Set at ingest time on every
-// artifact-layer object (see domain/ingest).
-const artifactLayerLabel = "layer:artifact"
-
-// listAllObjects fetches every object in the graph via cursor pagination,
-// returning their stable IDs (in order) and a lookup map by ID. When label is
-// non-empty, only objects carrying that label are returned.
-func (s *Service) listAllObjects(ctx context.Context, label string) ([]string, map[string]*memory.Object, error) {
-	var ids []string
-	objByID := make(map[string]*memory.Object)
-
-	cursor := ""
-	for {
-		page, err := s.client.ListObjects(ctx, memory.ListObjectsOptions{
-			Limit:  listObjectsPageLimit,
-			Label:  label,
-			Cursor: cursor,
-		})
-		if err != nil {
-			return nil, nil, err
-		}
-		for i := range page.Items {
-			obj := &page.Items[i]
-			id := obj.StableID()
-			if _, seen := objByID[id]; seen {
-				continue
-			}
-			ids = append(ids, id)
-			objByID[id] = obj
-		}
-		if page.NextCursor == "" {
-			break
-		}
-		cursor = page.NextCursor
-	}
-	return ids, objByID, nil
 }
 
 // RunScenario creates a what-if graph branch. Returns a scenario ID (branch ID).
@@ -457,7 +489,12 @@ func (s *Service) ownedBranch(ctx context.Context, instanceID, scenarioID string
 	return branch, nil
 }
 
-// EvaluateScenario assesses the impact of a what-if scenario on the strategy graph.
+// EvaluateScenario reports the instance's view of a what-if scenario branch. A
+// branch shows the whole project through it, so the read goes through the same
+// scope as every other read: only objects the instance owns and its manifest
+// holds are named, by the keys the instance knows them by. The branch is not
+// compared with main yet, so the list is the instance's nodes on the branch, not
+// a diff.
 func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID string) (map[string]any, error) {
 	if err := s.requireClient(); err != nil {
 		return nil, err
@@ -467,20 +504,19 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 	if err != nil {
 		return nil, err
 	}
-
-	// Use a branch-scoped client to list objects on the scenario branch.
-	branchClient := s.client.WithBranch(scenarioID)
-	page, err := branchClient.ListObjects(ctx, memory.ListObjectsOptions{
-		Limit: 100,
-	})
+	sc, err := s.scope(ctx, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	sc.client = s.client.WithBranch(scenarioID)
+	objs, err := sc.list(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("evaluate scenario: list branch objects: %w", err)
 	}
 
-	// Collect affected node keys.
-	affectedNodes := make([]string, 0, len(page.Items))
-	for _, obj := range page.Items {
-		affectedNodes = append(affectedNodes, obj.Key)
+	affectedNodes := make([]string, 0, len(objs))
+	for i := range objs {
+		affectedNodes = append(affectedNodes, sc.originalKey(&objs[i]))
 	}
 
 	return map[string]any{
@@ -489,7 +525,7 @@ func (s *Service) EvaluateScenario(ctx context.Context, scenarioID, instanceID s
 		"branch_status":     branch.Status,
 		"affected_nodes":    affectedNodes,
 		"propagation_depth": 0, // would need propagation circuit for real depth
-		"impact_summary":    fmt.Sprintf("Scenario affects %d nodes", len(affectedNodes)),
+		"impact_summary":    fmt.Sprintf("The branch shows %d nodes of this instance; changes made on the branch are not compared with main yet", len(affectedNodes)),
 	}, nil
 }
 

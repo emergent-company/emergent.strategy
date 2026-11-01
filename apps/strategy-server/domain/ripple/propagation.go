@@ -10,7 +10,6 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // AffectedArtifact describes a single artifact impacted by a change.
@@ -52,9 +51,9 @@ type StructuralRippleReport struct {
 
 // AnalyzeStructuralRipple walks the relationship graph from a changed artifact
 // and identifies all connected artifacts that may need attention.
-// mem is optional: when non-nil, multi-hop co-reference traversal uses Memory
-// Expand() instead of per-target SQL queries. When nil, falls back to SQL.
-func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, mem *memory.Client, instanceID uuid.UUID, changedKey, changedType string) (*StructuralRippleReport, error) {
+// graph is optional: when non-nil, multi-hop co-reference traversal uses the
+// semantic graph instead of per-target SQL queries. When nil, falls back to SQL.
+func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, graph Graph, instanceID uuid.UUID, changedKey, changedType string) (*StructuralRippleReport, error) {
 	report := &StructuralRippleReport{
 		ChangedKey:  changedKey,
 		ChangedType: changedType,
@@ -195,7 +194,7 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, mem *memory.Client
 	//          fd-003 tests_assumption asm-001
 	//          → fd-003 should get a ripple signal because asm-001's status changed.
 	//
-	// When a Memory client is available, use Expand() for BFS traversal — one
+	// When the semantic graph is available, use its neighbourhood for BFS traversal — one
 	// API call instead of N SQL queries (one per upstream relationship target).
 	// Falls back to SQL if Memory is unavailable or the object is not indexed.
 	alreadyAffected := make(map[string]bool, len(report.AffectedArtifacts))
@@ -203,7 +202,7 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, mem *memory.Client
 		alreadyAffected[a.ArtifactKey] = true
 	}
 
-	transitiveAffected, memUsed := multiHopTransitive(ctx, db, mem, instanceID, changedKey, upstreamRels, artifactMap, alreadyAffected, changeTime)
+	transitiveAffected, memUsed := multiHopTransitive(ctx, db, graph, instanceID, changedKey, upstreamRels, artifactMap, alreadyAffected, changeTime)
 	slog.Debug("ripple: multi-hop traversal",
 		"instance_id", instanceID, "changed_key", changedKey,
 		"transitive_count", len(transitiveAffected), "memory_used", memUsed)
@@ -225,14 +224,14 @@ func AnalyzeStructuralRipple(ctx context.Context, db *bun.DB, mem *memory.Client
 }
 
 // multiHopTransitive finds artifacts that co-reference the same intermediate
-// nodes as the changed artifact (2-hop propagation). Uses Memory Expand() when
-// available; falls back to per-target SQL queries.
+// nodes as the changed artifact (2-hop propagation). Uses the semantic graph
+// when available; falls back to per-target SQL queries.
 // Returns the list of newly discovered transitive artifacts and a bool
-// indicating whether Memory was used (true) or SQL (false).
+// indicating whether the graph was used (true) or SQL (false).
 func multiHopTransitive(
 	ctx context.Context,
 	db *bun.DB,
-	mem *memory.Client,
+	graph Graph,
 	instanceID uuid.UUID,
 	changedKey string,
 	upstreamRels []domain.StrategyRelationship,
@@ -244,14 +243,14 @@ func multiHopTransitive(
 		return nil, false
 	}
 
-	// Try Memory path: Expand from the changed artifact with depth=2 to find
-	// all nodes within 2 hops, then filter to those not already affected.
-	if mem != nil {
-		affected, ok := multiHopViaMemory(ctx, mem, db, instanceID, changedKey, alreadyAffected, artifactMap, changeTime)
+	// Try the graph: everything within 2 hops of the changed artifact that is
+	// not already affected.
+	if graph != nil {
+		affected, ok := multiHopViaMemory(ctx, graph, db, instanceID, changedKey, alreadyAffected, artifactMap, changeTime)
 		if ok {
 			return affected, true
 		}
-		slog.Debug("ripple: Memory expand unavailable or object not indexed, falling back to SQL",
+		slog.Debug("ripple: graph neighbourhood unavailable or object not indexed, falling back to SQL",
 			"changed_key", changedKey)
 	}
 
@@ -259,11 +258,12 @@ func multiHopTransitive(
 	return multiHopViaSQL(ctx, db, instanceID, changedKey, upstreamRels, artifactMap, alreadyAffected, changeTime), false
 }
 
-// multiHopViaMemory uses Memory Expand() to find 2-hop transitively affected artifacts.
-// Returns (results, true) on success; (nil, false) if the object isn't indexed or expand fails.
+// multiHopViaMemory uses the semantic graph to find 2-hop transitively affected
+// artifacts. Returns (results, true) on success; (nil, false) if the object isn't
+// in the instance's graph or the read fails.
 func multiHopViaMemory(
 	ctx context.Context,
-	mem *memory.Client,
+	graph Graph,
 	db *bun.DB,
 	instanceID uuid.UUID,
 	changedKey string,
@@ -271,27 +271,18 @@ func multiHopViaMemory(
 	artifactMap map[string]*domain.StrategyArtifact,
 	changeTime time.Time,
 ) ([]AffectedArtifact, bool) {
-	// Look up the Memory object ID for the changed artifact.
-	obj, err := mem.GetObjectByKey(ctx, changedKey)
-	if err != nil || obj == nil {
-		return nil, false // not indexed — fall back
-	}
-
-	// BFS expand with depth=2 to capture co-referencing nodes.
-	expand, err := mem.Expand(ctx, memory.ExpandRequest{
-		RootIDs:  []string{obj.StableID()},
-		MaxDepth: 2,
-		MaxNodes: 200,
-	})
-	if err != nil {
-		slog.Debug("ripple: Memory Expand failed", "changed_key", changedKey, "err", err)
+	nodes, ok, err := graph.Neighborhood(ctx, changedKey, 2, 200)
+	if err != nil || !ok {
+		if err != nil {
+			slog.Debug("ripple: graph neighbourhood failed", "changed_key", changedKey, "err", err)
+		}
 		return nil, false
 	}
 
-	// Collect artifact keys from the expanded objects.
+	// Collect artifact keys from the neighbourhood.
 	var affected []AffectedArtifact
-	for _, expandedObj := range expand.Objects {
-		key := expandedObj.Key
+	for _, node := range nodes {
+		key := node.Key
 		if key == "" || key == changedKey || alreadyAffected[key] {
 			continue
 		}

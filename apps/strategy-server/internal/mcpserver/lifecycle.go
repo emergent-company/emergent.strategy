@@ -2,14 +2,15 @@ package mcpserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/semantic"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/memory"
 )
 
 // LifecycleMode identifies where an instance is in its strategic lifecycle.
@@ -142,132 +143,47 @@ func detectLifecycleMode(
 
 	// Enrich with semantic signals from the Memory graph (non-blocking).
 	if svc.Semantic != nil && svc.Semantic.IsAvailable() {
-		enrichWithSemantics(ctx, svc.Semantic.Client(), &signals)
+		enrichWithSemantics(ctx, svc.Semantic, inst.ID, &signals)
 	}
 
 	// Determine mode.
 	return assessMode(signals, inst.ID)
 }
 
-// enrichWithSemantics queries the Memory graph to add semantic maturity signals.
-// Non-fatal — if Memory is unavailable, signals stay nil.
-func enrichWithSemantics(ctx context.Context, client *memory.Client, signals *LifecycleSignals) {
-	if client == nil {
+// enrichWithSemantics adds the instance's graph signals to the lifecycle
+// assessment. They come from the semantic service, scoped to this instance.
+// Non-fatal: when the graph is unavailable or not built yet, the signals stay
+// unset and the assessment rests on the stored artifacts alone.
+func enrichWithSemantics(ctx context.Context, svc *semantic.Service, instanceID uuid.UUID, signals *LifecycleSignals) {
+	st, err := svc.GraphStats(ctx, instanceID.String())
+	if err != nil {
+		if !errors.Is(err, semantic.ErrGraphNotReady) {
+			slog.Debug("lifecycle: graph stats unavailable", "instance_id", instanceID, "err", err)
+		}
 		return
 	}
-
-	sem := &SemanticSignals{}
-
-	// 1. Count objects by type.
-	objectPage, err := client.ListObjects(ctx, memory.ListObjectsOptions{Limit: 1})
-	if err != nil {
-		slog.Debug("lifecycle: memory list objects failed", "err", err)
-		return // Memory not reachable — skip semantic enrichment
+	sem := &SemanticSignals{
+		GraphNodeCount:          st.NodeCount,
+		GraphEdgeCount:          st.EdgeCount,
+		OrphanedNodeCount:       st.OrphanedNodeCount,
+		OrphanedNodes:           st.OrphanedNodes,
+		VisionConnected:         st.VisionConnected,
+		VisionReachableFeatures: st.VisionReachableFeatures,
+		ContributesToEdges:      st.ContributesToEdges,
+		TestsAssumptionEdges:    st.TestsAssumptionEdges,
+		DependsOnEdges:          st.DependsOnEdges,
+		PersonaCount:            st.PersonaCount,
+		CapabilityCount:         st.CapabilityCount,
+		AssumptionCount:         st.AssumptionCount,
 	}
-	sem.GraphNodeCount = objectPage.Total
-
-	// Count specific types.
-	for _, objType := range []struct {
-		memType string
-		target  *int
-	}{
-		{"Persona", &sem.PersonaCount},
-		{"Capability", &sem.CapabilityCount},
-		{"Assumption", &sem.AssumptionCount},
-	} {
-		page, err := client.ListObjects(ctx, memory.ListObjectsOptions{
-			Type:  objType.memType,
-			Limit: 1,
-		})
-		if err == nil {
-			*objType.target = page.Total
-		}
+	if st.NodeCount > 0 {
+		sem.AvgEdgesPerNode = float64(st.EdgeCount) / float64(st.NodeCount)
 	}
+	setMaturity(sem, signals)
+}
 
-	// 2. Count relationships by type.
-	relPage, err := client.ListRelationships(ctx, memory.ListRelationshipsOptions{Limit: 1})
-	if err == nil {
-		sem.GraphEdgeCount = relPage.Total
-	}
-
-	// Average edges per node.
-	if sem.GraphNodeCount > 0 {
-		sem.AvgEdgesPerNode = float64(sem.GraphEdgeCount) / float64(sem.GraphNodeCount)
-	}
-
-	// Count specific relationship types.
-	for _, relType := range []struct {
-		memType string
-		target  *int
-	}{
-		{"contributes_to", &sem.ContributesToEdges},
-		{"tests_assumption", &sem.TestsAssumptionEdges},
-		{"depends_on", &sem.DependsOnEdges},
-	} {
-		page, err := client.ListRelationships(ctx, memory.ListRelationshipsOptions{
-			Type:  relType.memType,
-			Limit: 1,
-		})
-		if err == nil {
-			*relType.target = page.Total
-		}
-	}
-
-	// 3. Check vision connectivity — can we reach features from the north star?
-	northStar, err := client.GetObjectByKey(ctx, "Artifact:READY/00_north_star.yaml")
-	if err == nil && northStar != nil {
-		sem.VisionConnected = true
-		// BFS from north star to find reachable features.
-		expandResult, err := client.Expand(ctx, memory.ExpandRequest{
-			RootIDs:  []string{northStar.StableID()},
-			MaxDepth: 4,
-			MaxNodes: 200,
-		})
-		if err == nil {
-			for _, obj := range expandResult.Objects {
-				if obj.Type == "Feature" {
-					sem.VisionReachableFeatures++
-				}
-			}
-		}
-	}
-
-	// 4. Find orphaned nodes (nodes with 0 edges).
-	// Sample up to 50 objects and use a single Expand(depth=1) to find
-	// which ones have relationships, replacing the previous 1+50 API call pattern.
-	samplePage, err := client.ListObjects(ctx, memory.ListObjectsOptions{Limit: 50})
-	if err == nil && len(samplePage.Items) > 0 {
-		rootIDs := make([]string, 0, len(samplePage.Items))
-		idToKey := make(map[string]string, len(samplePage.Items))
-		for _, obj := range samplePage.Items {
-			id := obj.StableID()
-			rootIDs = append(rootIDs, id)
-			idToKey[id] = obj.Key
-		}
-
-		expanded, expandErr := client.Expand(ctx, memory.ExpandRequest{
-			RootIDs:  rootIDs,
-			MaxDepth: 1,
-			MaxNodes: 500,
-		})
-		if expandErr == nil {
-			// Build set of IDs that appear in any relationship.
-			connected := make(map[string]bool, len(expanded.Relationships)*2)
-			for _, rel := range expanded.Relationships {
-				connected[rel.FromID] = true
-				connected[rel.ToID] = true
-			}
-			for _, id := range rootIDs {
-				if !connected[id] {
-					sem.OrphanedNodeCount++
-					if len(sem.OrphanedNodes) < 5 { // cap at 5 examples
-						sem.OrphanedNodes = append(sem.OrphanedNodes, idToKey[id])
-					}
-				}
-			}
-		}
-	}
-
+// setMaturity scores the signals and records them on the assessment.
+func setMaturity(sem *SemanticSignals, signals *LifecycleSignals) {
 	// 5. Compute maturity score (0-100).
 	sem.MaturityScore = computeMaturityScore(sem, signals)
 	switch {

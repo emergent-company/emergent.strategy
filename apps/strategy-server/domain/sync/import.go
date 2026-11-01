@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
@@ -591,16 +592,20 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		return 0, fmt.Errorf("get HEAD commit info post-fetch: %w", shaErr)
 	}
 
-	// Reimport artifacts into the instance.
-	if err := s.instSvc.ReimportArtifacts(ctx, inst.ID, payloads); err != nil {
+	// Replace the instance's artifacts and rebuild the strategic index in one
+	// transaction. The Memory graph is told about the instance once, after the
+	// commit: a notification between the wipe and the refill would project an
+	// empty instance and delete the graph.
+	var count int
+	err = s.instSvc.ReimportArtifactsIndexed(ctx, inst.ID, payloads, func(ctx context.Context, tx bun.Tx) error {
+		n, err := s.strategySvc.BackfillIndexTx(ctx, tx, inst.ID)
+		count = n
+		return err
+	})
+	if err != nil {
 		return 0, fmt.Errorf("reimport artifacts: %w", err)
 	}
-
-	// Backfill the strategic index.
-	count, bfErr := s.strategySvc.BackfillIndex(ctx, inst.ID)
-	if bfErr != nil {
-		slog.WarnContext(ctx, "backfill index failed after import", "err", bfErr)
-	}
+	s.strategySvc.RecordBackfill(ctx, inst.ID, count)
 
 	// Update commit SHA and branch on instance.
 	newBranch := (*string)(nil)

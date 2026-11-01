@@ -10,15 +10,29 @@ import (
 
 func hit(key string, props map[string]any, score float64) map[string]any {
 	return map[string]any{
-		"object": map[string]any{"id": "id-" + key, "type": "x", "key": key, "properties": props},
+		"object": map[string]any{"id": "id-" + key, "type": "x", "key": key, "labels": ownerLabels, "properties": props},
 		"score":  score,
 		"source": "vector",
 	}
 }
 
+func decomposedHit(key string, props map[string]any, score float64) map[string]any {
+	h := hit(key, props, score)
+	h["object"].(map[string]any)["labels"] = []string{"instance:" + stubInstance, "layer:decomposed"}
+	return h
+}
+
+// unlayeredHit carries the owner label but neither layer label, so nothing about
+// where it came from can be established.
+func unlayeredHit(key string, props map[string]any, score float64) map[string]any {
+	h := hit(key, props, score)
+	h["object"].(map[string]any)["labels"] = []string{"instance:" + stubInstance}
+	return h
+}
+
 func searchServer(t *testing.T, hits []map[string]any, gotLimit *int) *Service {
 	t.Helper()
-	return newTestService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return stubService(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/graph/search" {
 			w.WriteHeader(404)
 			return
@@ -37,14 +51,14 @@ func searchServer(t *testing.T, hits []map[string]any, gotLimit *int) *Service {
 
 func TestSearchStrategyScoped_DropsFrameworkAndOtherInstanceHitsAndCountsThem(t *testing.T) {
 	hits := []map[string]any{
-		hit("sd-001", map[string]any{"artifact_type": "definition", "instance_id": "inst-1", "integrity_class": "canonical_reference", "snippet": "framework"}, 0.99),
-		hit("north_star", map[string]any{"artifact_type": "north_star", "instance_id": "inst-1", "snippet": "ours"}, 0.9),
-		hit("other-tenant-thing", map[string]any{"artifact_type": "north_star", "instance_id": "inst-OTHER", "snippet": "theirs"}, 0.8),
+		hit("sd-001", map[string]any{"artifact_type": "definition", "instance_id": stubInstance, "integrity_class": "canonical_reference", "snippet": "framework"}, 0.99),
+		hit("north_star", map[string]any{"artifact_type": "north_star", "instance_id": stubInstance, "snippet": "ours"}, 0.9),
+		hit("other-tenant-thing", map[string]any{"artifact_type": "north_star", "instance_id": "00000000-0000-0000-0000-00000000dead", "snippet": "theirs"}, 0.8),
 		hit("kr-1", map[string]any{"artifact_type": "roadmap_recipe", "snippet": "no instance property"}, 0.7),
 	}
 	svc := searchServer(t, hits, nil)
 
-	out, err := svc.SearchStrategyScoped(context.Background(), "inst-1", "anything", 10)
+	out, err := svc.SearchStrategyScoped(context.Background(), stubInstance, "anything", 10)
 	if err != nil {
 		t.Fatalf("SearchStrategyScoped: %v", err)
 	}
@@ -58,28 +72,42 @@ func TestSearchStrategyScoped_DropsFrameworkAndOtherInstanceHitsAndCountsThem(t 
 	if keys["other-tenant-thing"] {
 		t.Error("a hit belonging to another instance was returned")
 	}
-	if !keys["north_star"] || !keys["kr-1"] {
-		t.Errorf("results = %v, want the instance's own hits and hits that cannot be attributed", keys)
+	if keys["kr-1"] {
+		t.Error("a hit with no instance_id was returned; unattributed data is never returned (fence 9.2)")
 	}
-	if out.ExcludedFramework != 1 || out.ExcludedOtherInstance != 1 {
-		t.Errorf("excluded framework=%d other_instance=%d, want 1 and 1", out.ExcludedFramework, out.ExcludedOtherInstance)
+	if !keys["north_star"] {
+		t.Errorf("results = %v, want the instance's own hit", keys)
+	}
+	if out.ExcludedFramework != 1 || out.ExcludedOtherInstance != 2 {
+		t.Errorf("excluded framework=%d not_owned=%d, want 1 and 2 (another instance's hit and an unattributed one)", out.ExcludedFramework, out.ExcludedOtherInstance)
+	}
+}
+
+func TestSearchStrategyScoped_OverFetchIsCappedAt100(t *testing.T) {
+	var gotLimit int
+	svc := searchServer(t, nil, &gotLimit)
+	if _, err := svc.SearchStrategyScoped(context.Background(), stubInstance, "q", 80); err != nil {
+		t.Fatal(err)
+	}
+	if gotLimit != 100 {
+		t.Errorf("asked Memory for %d hits, want the cap of 100", gotLimit)
 	}
 }
 
 func TestSearchStrategyScoped_OverFetchesThenTrims(t *testing.T) {
 	var hits []map[string]any
 	for i := 0; i < 9; i++ {
-		hits = append(hits, hit("k"+string(rune('a'+i)), map[string]any{"artifact_type": "x", "instance_id": "inst-1"}, 0.9))
+		hits = append(hits, hit("k"+string(rune('a'+i)), map[string]any{"artifact_type": "x", "instance_id": stubInstance}, 0.9))
 	}
 	var gotLimit int
 	svc := searchServer(t, hits, &gotLimit)
 
-	out, err := svc.SearchStrategyScoped(context.Background(), "inst-1", "q", 3)
+	out, err := svc.SearchStrategyScoped(context.Background(), stubInstance, "q", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotLimit != 9 {
-		t.Errorf("asked Memory for %d hits, want 9 (limit 3 over-fetched threefold) so filtering cannot starve the page", gotLimit)
+	if gotLimit != 6 {
+		t.Errorf("asked Memory for %d hits, want 6 (limit 3 over-fetched twofold) so filtering cannot starve the page", gotLimit)
 	}
 	if len(out.Results) != 3 {
 		t.Errorf("returned %d results, want 3", len(out.Results))
@@ -88,18 +116,18 @@ func TestSearchStrategyScoped_OverFetchesThenTrims(t *testing.T) {
 
 func TestSearchStrategyScoped_HitsPointToTheRead(t *testing.T) {
 	hits := []map[string]any{
-		hit("north_star", map[string]any{"artifact_type": "north_star", "instance_id": "inst-1"}, 0.9),
-		hit("Belief:north_star:vision", map[string]any{
-			"source_artifact": "READY/00_north_star.yaml", "section_path": "north_star.vision",
+		hit("north_star", map[string]any{"artifact_type": "north_star", "instance_id": stubInstance}, 0.9),
+		decomposedHit("Belief:north_star:vision", map[string]any{
+			"source_artifact": "READY/00_north_star.yaml", "section_path": "north_star.vision", "instance_id": stubInstance,
 		}, 0.8),
-		hit("Objective:x", map[string]any{
-			"source_artifact": "READY/05_roadmap_recipe.yaml", "section_path": "roadmap.tracks.commercial.okrs[0]",
+		decomposedHit("Objective:x", map[string]any{
+			"source_artifact": "READY/05_roadmap_recipe.yaml", "section_path": "roadmap.tracks.commercial.okrs[0]", "instance_id": stubInstance,
 		}, 0.7),
-		hit("mystery", map[string]any{"name": "no pointers"}, 0.6),
+		unlayeredHit("mystery", map[string]any{"name": "no pointers", "instance_id": stubInstance}, 0.6),
 	}
 	svc := searchServer(t, hits, nil)
 
-	out, err := svc.SearchStrategyScoped(context.Background(), "inst-1", "q", 10)
+	out, err := svc.SearchStrategyScoped(context.Background(), stubInstance, "q", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,14 +144,14 @@ func TestSearchStrategyScoped_HitsPointToTheRead(t *testing.T) {
 	if r := by["Objective:x"]; r.Artifact != "roadmap_recipe" || r.Path != "roadmap.tracks.commercial.okrs[0]" {
 		t.Errorf("roadmap hit: artifact=%q path=%q", r.Artifact, r.Path)
 	}
-	if r := by["mystery"]; r.Artifact != "" {
+	if r := by["mystery"]; r == nil || r.Artifact != "" {
 		t.Errorf("a hit with no provenance must not invent a pointer: %+v", r)
 	}
 }
 
 func TestSearchStrategy_StillReturnsResults(t *testing.T) {
-	svc := searchServer(t, []map[string]any{hit("fd-001", map[string]any{"artifact_type": "feature", "instance_id": "inst-1"}, 0.9)}, nil)
-	res, err := svc.SearchStrategy(context.Background(), "inst-1", "q", 5)
+	svc := searchServer(t, []map[string]any{hit("fd-001", map[string]any{"artifact_type": "feature", "instance_id": stubInstance}, 0.9)}, nil)
+	res, err := svc.SearchStrategy(context.Background(), stubInstance, "q", 5)
 	if err != nil || len(res) != 1 {
 		t.Fatalf("res=%v err=%v", res, err)
 	}

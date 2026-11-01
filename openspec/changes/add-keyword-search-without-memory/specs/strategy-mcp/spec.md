@@ -6,10 +6,14 @@ The system SHALL let `search_strategy` find text in an instance's authored
 artifacts without Memory. `search_strategy` SHALL accept an optional `mode` of
 `auto` (default), `semantic` or `keyword`.
 
-In `auto`, the system SHALL run semantic search when Memory is configured, and
-SHALL run keyword search instead when semantic search returns an error or leaves
-no hit after framework and other-instance filtering. When Memory is not
-configured, the system SHALL run keyword search.
+In `auto`, the system SHALL run keyword search and, when Memory is configured
+and the instance has a graph, semantic search, and SHALL return at most `limit`
+hits (at most 25): keyword hits first, then semantic hits, with a fifth of the
+limit (at least one hit, when the limit is two or more) kept for semantic hits.
+A side that has fewer hits than its share SHALL give the room to the other. A
+section found by both searches SHALL be listed once, as the keyword hit. When
+semantic search returns an error, is not configured, or has no graph for the
+instance, the system SHALL return keyword hits alone.
 
 Keyword search SHALL match query terms against the text of the instance's
 current, authored artifacts. A term matches a token that equals it, or that
@@ -39,7 +43,27 @@ smallest object whose own text contains the match, not the artifact.
 #### Scenario: Semantic search finds nothing of the instance's own
 
 - **WHEN** every semantic hit is framework content or belongs to another instance
-- **THEN** in `auto` mode the client receives keyword hits
+- **THEN** in `auto` mode the client receives keyword hits alone
+
+#### Scenario: Both searches have hits
+
+- **WHEN** a client calls `search_strategy` in `auto` mode with a limit of 10, and
+  keyword search finds 20 sections and semantic search 10 objects of the instance
+- **THEN** the client receives 10 hits: the 8 best keyword hits, then 2 semantic
+  hits
+- **AND** each hit's `match` says which search found it
+
+#### Scenario: One side has less than its share
+
+- **WHEN** keyword search finds 3 sections and semantic search finds 10 objects
+- **THEN** the client receives the 3 keyword hits and 7 semantic hits
+- **AND** when semantic search finds 1 object and keyword search finds 20
+  sections, the client receives 9 keyword hits and 1 semantic hit
+
+#### Scenario: One section found both ways
+
+- **WHEN** a keyword hit and a semantic hit name the same artifact and path
+- **THEN** the client receives that section once, as the keyword hit
 
 #### Scenario: Semantic search is forced
 
