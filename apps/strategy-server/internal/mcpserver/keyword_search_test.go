@@ -11,14 +11,16 @@ import (
 )
 
 type searchHit struct {
-	ArtifactKey      string  `json:"artifact_key"`
-	Artifact         string  `json:"artifact"`
-	Path             string  `json:"path"`
-	Snippet          string  `json:"snippet"`
-	Score            float64 `json:"score"`
-	SectionSizeChars int     `json:"section_size_chars"`
-	ReadWith         string  `json:"read_with"`
-	Match            string  `json:"match"`
+	ArtifactKey      string   `json:"artifact_key"`
+	Artifact         string   `json:"artifact"`
+	Path             string   `json:"path"`
+	Snippet          string   `json:"snippet"`
+	Score            float64  `json:"score"`
+	SectionSizeChars int      `json:"section_size_chars"`
+	ReadWith         string   `json:"read_with"`
+	Match            string   `json:"match"`
+	MatchedTerms     []string `json:"matched_terms"`
+	MissingTerms     []string `json:"missing_terms"`
 }
 
 // keywordClient serves an instance with the bounded-reads fixture. mem is the
@@ -180,5 +182,23 @@ func TestMCP_SearchStrategy_NothingMatchingIsAnEmptyArray(t *testing.T) {
 	r := c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "zzzznotthere"}).assertOK().decode(&hits)
 	if len(hits) != 0 || !strings.HasPrefix(strings.TrimSpace(r.text), "[") {
 		t.Errorf("want an empty array, got %q", r.text)
+	}
+}
+
+// What the client sees: a hit that matched two of three words says which word
+// found nothing, so a query about something the strategy does not contain does
+// not read as an answer.
+func TestMCP_SearchStrategy_KeywordHitsNameTheWordsThatFoundNothing(t *testing.T) {
+	c, instID := keywordClient(t, nil, nil)
+	var hits []searchHit
+	c.call(1, "search_strategy", map[string]any{"instance_id": instID, "query": "zzqqxx Rivalco offline"}).assertOK().decode(&hits)
+	if len(hits) == 0 {
+		t.Fatal("no hits")
+	}
+	if got := strings.Join(hits[0].MissingTerms, ","); got != "zzqqxx" {
+		t.Errorf("missing_terms = %q, want zzqqxx", got)
+	}
+	if len(hits[0].MatchedTerms) != 2 {
+		t.Errorf("matched_terms = %v, want rivalco and offline", hits[0].MatchedTerms)
 	}
 }

@@ -228,3 +228,35 @@ func TestSearch_DoesNotMatchKeysOnlyText(t *testing.T) {
 func quote(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
 }
+
+// A hit says which of the query's words it contains and which it does not. The
+// score alone reads as relevance: two common words of a three-word query give
+// 0.67 whether or not the one distinctive word is anywhere in the strategy.
+func TestSearch_AHitNamesTheQueryWordsItDoesNotContain(t *testing.T) {
+	payload := decode(t, roadmapFixture)
+	hits := strategyread.Search("roadmap_recipe", payload, "zzqqxx paid conversions")
+	if len(hits) == 0 {
+		t.Fatal("no hits")
+	}
+	h := hits[0]
+	if got := strings.Join(h.MissingTerms, ","); got != "zzqqxx" {
+		t.Errorf("missing terms = %q, want zzqqxx", got)
+	}
+	if got := strings.Join(h.MatchedTerms, ","); got != "paid,conversions" {
+		t.Errorf("matched terms = %q, want paid,conversions", got)
+	}
+}
+
+func TestSearch_AHitThatContainsEveryWordHasNoMissingTerms(t *testing.T) {
+	payload := decode(t, roadmapFixture)
+	hits := strategyread.Search("roadmap_recipe", payload, "paid conversions")
+	if len(hits) == 0 {
+		t.Fatal("no hits")
+	}
+	if len(hits[0].MissingTerms) != 0 {
+		t.Errorf("missing terms = %v, want none", hits[0].MissingTerms)
+	}
+	if len(hits[0].MatchedTerms) != 2 {
+		t.Errorf("matched terms = %v, want 2", hits[0].MatchedTerms)
+	}
+}
