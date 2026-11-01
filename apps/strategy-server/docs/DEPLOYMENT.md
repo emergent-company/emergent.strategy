@@ -362,7 +362,9 @@ Postgres, so it can always be rebuilt by re-ingesting.
 ### 7.1 Before you deploy
 
 1. **Memory version at least v0.85.0.** The server logs the Memory version at
-   startup and warns below the minimum. Tested against v0.87.4.
+   startup and warns below the minimum. Tested against v0.87.4. Write the version
+   you deploy against into the release notes: the log line is the only record, and
+   a later Memory upgrade has to be compared with it.
 2. **Point `EPF_MEMORY_URL` at Memory itself, or at a proxy that forwards the
    `X-Project-ID` header.** A proxy that drops the header answers every request
    from its default project; the fence cannot detect that, because it keys on the
@@ -491,16 +493,39 @@ instances are never re-ingested.
   artifact from its key alone, so type, name, track and status are lost for any
   key it does not recognise. For an imported instance of 143 artifacts that is
   138 by the key rules. Do not use it on an imported instance until #121 is fixed.
-- **The importer (#119, #120).** The same checkout can create differently named
-  instances, and nested instance directories are imported into the parent. Import
-  from a directory that holds exactly one instance, and check the instance name
-  and artifact count afterwards.
-- **Search hits from the stored text** (keyword fallback) carry no `instance_id`,
-  layer or source artifact. They are the instance's own artifacts.
-- **`read_with` on some decomposed search hits names an artifact that does not
-  exist**, because the exporter drops sub-folders (a fix is on
+- **The importer (#119, #120).** Two files that name the same artifact (for
+  example `READY/05_roadmap_recipe.yaml` and a copy under `AIM/cycles/`) are
+  resolved the same way on every import: the shallowest path wins and the other
+  is logged. The `AIM/cycles/**` copies are skipped, not imported as their own
+  artifacts. Nested instance directories are still imported into the parent
+  (#120): import from a directory that holds exactly one instance, and check the
+  instance name and artifact count afterwards.
+- **Keyword hits carry no `instance_id`, layer or source artifact.** They come
+  from the instance's own stored artifacts, never from the graph. Each says which
+  query words it contains and which it does not (`matched_terms`,
+  `missing_terms`); a hit that lacks the distinctive word is not an answer.
+- **Search is discovery, not the answer.** By default `search_strategy` returns
+  mostly keyword hits and keeps a fifth of the limit for semantic hits. On the
+  pilot instance's question bank this reached the sections the bank names for 25
+  of 49 key results in the top 10, which means a single search misses about half:
+  the agent has to follow the hit with `get_section`, rephrase, or read
+  `get_outline`. About half of an authored instance's text is not projected into
+  the graph at all (confidence gaps, milestones, change logs, per-trend evidence),
+  so semantic search cannot find it; keyword search and `get_section` can.
+- **`read_with` on a decomposed search hit can name an artifact that does not
+  exist** when the exporter drops a sub-folder (a fix is on
   `fix/export-preserve-artifact-paths`, not in this build). `get_section` then
-  answers `defined: false`; search again or use `get_outline`.
+  answers `defined: false`; search again or use `get_outline`. On the pilot-shaped
+  instance, 211 of 211 semantic hits resolved.
+- **Scenarios.** `evaluate_scenario` lists the instance's own nodes on the branch;
+  it does not compare the branch with main, and nothing in the MCP can change a
+  branch. `commit_scenario` is a dry run and returns a summary string where its
+  field is called `batch_id` (#134).
+- **Framework content is in the graph.** An instance scaffolded from the framework
+  holds hundreds of canonical definitions and templates (46% of the decomposed
+  objects of the pilot-shaped instance: 629 of 1,366). Reads exclude them; tools whose purpose is to list
+  them (`list_definitions`, `list_templates`, `health_check`) show them, and
+  `list_mutations` includes their import history without saying so (#135).
 - **Ingest concurrency is fixed at 8** and not configurable.
 
 ### 7.7 Local development
