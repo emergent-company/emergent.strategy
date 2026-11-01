@@ -719,7 +719,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 	}
 
 	// Personas and pain points
-	for _, tu := range raw.TargetUsers {
+	for i, tu := range raw.TargetUsers {
 		personaID := sanitizeKey(tu.Persona)
 		personaKey := objectKey("Persona", fmt.Sprintf("persona:%s", personaID))
 		goalsStr := strings.Join(tu.CurrentState.Goals, "; ")
@@ -731,6 +731,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 				"persona_id": personaID, "role": tu.Persona,
 				"goals": goalsStr, "inertia_tier": "2",
 				"source_artifact": "READY/01_insight_analyses.yaml",
+				"section_path":    fmt.Sprintf("target_users[%d]", i),
 			},
 		})
 		d.seenPersonas[personaKey] = true
@@ -744,7 +745,7 @@ func (d *Decomposer) decomposeInsightAnalysesRaw(result *Result, raw *rawInsight
 					"name": truncate(prob.Problem, 60), "description": prob.Problem,
 					"severity": prob.Severity, "persona_ref": personaID,
 					"inertia_tier": "2", "source_artifact": "READY/01_insight_analyses.yaml",
-					"section_path": fmt.Sprintf("target_users[%s].problems[%d]", personaID, j),
+					"section_path": fmt.Sprintf("target_users[%d].problems[%d]", i, j),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", ppKey, "PainPoint")
@@ -896,7 +897,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 
 	for trackName, track := range rm.Tracks {
 		// OKRs and Key Results
-		for _, okr := range track.OKRs {
+		for oi, okr := range track.OKRs {
 			okrKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", okr.ID))
 			d.addObject(result, GraphObject{
 				Type: "OKR", Key: okrKey,
@@ -905,11 +906,12 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 					"okr_id": okr.ID, "track": trackName,
 					"cycle": cycle, "status": "", "target_value": "",
 					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+					"section_path": fmt.Sprintf("roadmap.tracks.%s.okrs[%d]", trackName, oi),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", okrKey, "OKR")
 
-			for _, kr := range okr.KeyResults {
+			for ki, kr := range okr.KeyResults {
 				krKey := objectKey("OKR", fmt.Sprintf("roadmap:%s", kr.ID))
 				d.addObject(result, GraphObject{
 					Type: "OKR", Key: krKey,
@@ -918,6 +920,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 						"okr_id": kr.ID, "track": trackName,
 						"cycle": cycle, "status": kr.Status, "target_value": kr.Target,
 						"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
+						"section_path": fmt.Sprintf("roadmap.tracks.%s.okrs[%d].key_results[%d]", trackName, oi, ki),
 					},
 				})
 				d.addContains(result, okrKey, "OKR", krKey, "OKR")
@@ -933,7 +936,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 		}
 
 		// Riskiest assumptions
-		for _, asm := range track.RiskiestAssumptions {
+		for i, asm := range track.RiskiestAssumptions {
 			if asm.ID == "" {
 				continue
 			}
@@ -945,7 +948,7 @@ func (d *Decomposer) decomposeRoadmapRaw(result *Result, raw *rawRoadmap) {
 					"hypothesis": asm.Description, "category": asm.Type,
 					"criticality": asm.Criticality, "status": "pending",
 					"inertia_tier": "4", "source_artifact": "READY/05_roadmap_recipe.yaml",
-					"section_path": fmt.Sprintf("roadmap.tracks.%s.riskiest_assumptions[%s]", trackName, asm.ID),
+					"section_path": fmt.Sprintf("roadmap.tracks.%s.riskiest_assumptions[%d]", trackName, i),
 				},
 			})
 			d.addContains(result, artKey, "Artifact", asmKey, "Assumption")
