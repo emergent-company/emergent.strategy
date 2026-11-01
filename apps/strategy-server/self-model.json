@@ -3135,7 +3135,7 @@
     },
     {
       "name": "search_strategy",
-      "description": "USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). A keyword hit lists matched_terms and missing_terms: a hit with missing terms does not contain every word you asked for, so a hit missing the distinctive word is not an answer about it. With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline.",
+      "description": "USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: keyword (the words you typed, matched in the instance's own text, no synonyms) or semantic (Memory, by meaning). By default most of the hits are keyword hits, followed by a few semantic ones; without Memory, or when the instance's graph is not built, all are keyword hits. A keyword hit lists matched_terms and missing_terms: a hit with missing terms does not contain every word you asked for, so a hit missing the distinctive word is not an answer about it. An empty result does not mean the strategy is silent; check get_outline.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -3148,7 +3148,7 @@
             "type": "string"
           },
           "mode": {
-            "description": "auto (default): semantic search, then keyword search if it is unavailable or finds nothing of the instance's own. semantic: Memory only. keyword: match the words in the instance's authored text only.",
+            "description": "auto (default): mostly keyword hits (the words in the instance's authored text) plus a share of semantic hits (Memory); keyword hits alone when Memory is unavailable or has no graph for the instance. semantic: Memory only. keyword: match the words in the instance's authored text only.",
             "type": "string"
           },
           "query": {

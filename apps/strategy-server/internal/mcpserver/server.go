@@ -850,11 +850,11 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 
 func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("search_strategy",
-		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). A keyword hit lists matched_terms and missing_terms: a hit with missing terms does not contain every word you asked for, so a hit missing the distinctive word is not an answer about it. With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline."),
+		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: keyword (the words you typed, matched in the instance's own text, no synonyms) or semantic (Memory, by meaning). By default most of the hits are keyword hits, followed by a few semantic ones; without Memory, or when the instance's graph is not built, all are keyword hits. A keyword hit lists matched_terms and missing_terms: a hit with missing terms does not contain every word you asked for, so a hit missing the distinctive word is not an answer about it. An empty result does not mean the strategy is silent; check get_outline."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
 		mcp.WithString("limit", mcp.Description("Max results (default 10, at most 25 for keyword search)")),
-		mcp.WithString("mode", mcp.Description("auto (default): semantic search, then keyword search if it is unavailable or finds nothing of the instance's own. semantic: Memory only. keyword: match the words in the instance's authored text only.")),
+		mcp.WithString("mode", mcp.Description("auto (default): mostly keyword hits (the words in the instance's authored text) plus a share of semantic hits (Memory); keyword hits alone when Memory is unavailable or has no graph for the instance. semantic: Memory only. keyword: match the words in the instance's authored text only.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -2548,31 +2548,92 @@ const (
 	searchModeKeyword  = "keyword"
 )
 
-// searchStrategy runs the search the mode asks for. In auto mode it tries
-// semantic search first and falls back to keyword search when semantic search
-// fails or leaves nothing that belongs to the instance, so a client gets an
-// answer whether or not Memory is up.
+// maxSearchHits is the most hits one search returns, as for keyword search.
+const maxSearchHits = 25
+
+// searchStrategy runs the search the mode asks for.
+//
+// keyword searches the instance's own text; semantic asks Memory and fails
+// without it. auto runs both and returns mostly keyword hits: measured on a real
+// instance against a bank of 59 management questions, semantic search with the
+// question as the query put the sections the bank names in its top 10 for 5 of
+// 49 key results, keyword search for 26. A share of the limit still goes to
+// semantic hits, which find what the words of the query do not. When Memory is
+// not configured, fails, or has no graph for the instance, auto is keyword
+// search alone, so a client gets an answer whether or not Memory is up.
 func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int, mode string) ([]*semantic.SearchResult, error) {
-	if mode != searchModeKeyword {
+	switch mode {
+	case searchModeKeyword:
+		return keywordSearch(ctx, svc, instID, query, limit)
+	case searchModeSemantic:
 		hits, err := semanticSearch(ctx, svc, instID, query, limit)
-		switch {
-		case err == nil && (len(hits) > 0 || mode == searchModeSemantic):
+		if err == nil {
 			return hits, nil
-		case err != nil && mode == searchModeSemantic:
-			if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
-				return nil, apperror.ErrSemanticUnavailable.WithDetail(
-					"emergent.memory not configured; call search_strategy without mode, or with mode=keyword, to search the text directly")
-			}
-			return nil, err
-		case errors.Is(err, semantic.ErrGraphNotReady):
-			slog.InfoContext(ctx, "search_strategy: the instance's graph is not built yet, using keyword search",
-				"instance_id", instID)
-		case err != nil:
-			slog.WarnContext(ctx, "search_strategy: semantic search failed, using keyword search",
-				"instance_id", instID, "err", err)
+		}
+		if ae := apperror.AsAppError(err); ae != nil && ae.Code == apperror.ErrSemanticUnavailable.Code {
+			return nil, apperror.ErrSemanticUnavailable.WithDetail(
+				"emergent.memory not configured; call search_strategy without mode, or with mode=keyword, to search the text directly")
+		}
+		return nil, err
+	}
+
+	kw, err := keywordSearch(ctx, svc, instID, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	sem, err := semanticSearch(ctx, svc, instID, query, limit)
+	switch {
+	case err == nil:
+	case errors.Is(err, semantic.ErrGraphNotReady):
+		slog.InfoContext(ctx, "search_strategy: the instance's graph is not built yet, using keyword search",
+			"instance_id", instID)
+	default:
+		slog.WarnContext(ctx, "search_strategy: semantic search failed, using keyword search",
+			"instance_id", instID, "err", err)
+	}
+	return mergeSearchHits(kw, sem, limit), nil
+}
+
+// mergeSearchHits returns up to limit hits: keyword hits first, then semantic
+// hits, with a fifth of the limit (at least one, when the limit is two or more)
+// kept for the semantic hits. A side with less than its share gives the room to
+// the other. A section found both ways is listed once, as the keyword hit.
+func mergeSearchHits(kw, sem []*semantic.SearchResult, limit int) []*semantic.SearchResult {
+	n := limit
+	if n <= 0 {
+		n = 10
+	}
+	if n > maxSearchHits {
+		n = maxSearchHits
+	}
+	semShare := n / 5
+	if semShare == 0 && n >= 2 {
+		semShare = 1
+	}
+
+	type section struct{ artifact, path string }
+	inKeyword := make(map[section]bool, len(kw))
+	for _, h := range kw {
+		inKeyword[section{h.Artifact, h.Path}] = true
+	}
+	var semOnly []*semantic.SearchResult
+	for _, h := range sem {
+		if !inKeyword[section{h.Artifact, h.Path}] || h.Artifact == "" {
+			semOnly = append(semOnly, h)
 		}
 	}
 
+	kwTake := min(len(kw), n-semShare)
+	semTake := min(len(semOnly), n-kwTake)
+	kwTake = min(len(kw), n-semTake)
+	out := make([]*semantic.SearchResult, 0, kwTake+semTake)
+	out = append(out, kw[:kwTake]...)
+	return append(out, semOnly[:semTake]...)
+}
+
+// keywordSearch searches the instance's own text and shapes the hits like
+// semantic ones.
+func keywordSearch(ctx context.Context, svc Services, instID uuid.UUID, query string, limit int) ([]*semantic.SearchResult, error) {
 	found, err := svc.Strategy.SearchAuthored(ctx, instID, query, limit)
 	if err != nil {
 		return nil, err

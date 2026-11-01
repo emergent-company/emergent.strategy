@@ -87,13 +87,32 @@ Default limit 10, hard cap 25. The response stays a plain array.
 
 - `keyword`: keyword search only.
 - `semantic`: today's behaviour, including the error when Memory is unavailable.
-- `auto`: semantic search first when Memory is configured. Fall back to keyword
-  search when semantic search returns an error, or returns no hit left after
-  framework and other-instance filtering. When Memory is not configured, go
-  straight to keyword.
+- `auto`: run keyword search and, when Memory is configured and the instance has
+  a graph, semantic search. Return up to `limit` hits (at most 25), keyword hits
+  first, then semantic ones, keeping a fifth of the limit (at least one, for a
+  limit of two or more) for semantic hits. A side with less than its share gives
+  the room to the other. A section found both ways is listed once, as the keyword
+  hit. Without Memory, with an error, or without a graph, return keyword hits
+  alone.
 
 The fallback on an error is logged at warn level, with the cause, so an outage
 is visible to an operator even though the client sees a normal result.
+
+**Why keyword first (revised after the pilot's question bank).** The first
+version ran semantic search first and used keyword search only as a fallback,
+because semantic search ranks by meaning. Replayed against the 59-question bank
+of a real instance, on one search per question with the question as the query:
+semantic search put the section the bank names in its top 10 for 5 of 49 key
+results (list-style questions excluded), keyword search for 26. Reaching the
+right artifact among the top 10: 45 of 57 (semantic), 53 (keyword), 55
+(keyword 8 + semantic 2). A fifteen-question paraphrase set that avoids the
+strategy's own wording: 11 of 15 (semantic), 11 (keyword), 12 (keyword 8 +
+semantic 2). Rank fusion and interleaving were measured too: weighting the fusion
+toward keyword gave the keyword-only numbers, because semantic hits then never
+reach the top 10; an even interleave scored 19 of 49. The 80/20 split was picked
+from these runs, a single instance, so it is a judgement; what the numbers do
+support is that keyword-heavy beats semantic-first on every measure. Semantic
+hits keep a share because they find what the query's words do not.
 
 ### D7. Scope
 

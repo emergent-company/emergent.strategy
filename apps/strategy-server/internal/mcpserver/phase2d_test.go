@@ -158,11 +158,13 @@ func TestMCP_SemanticSearch_WithMemory(t *testing.T) {
 	c := newMCPClient(t, svc)
 	id := 1
 
-	// search_strategy — should return ranked results.
+	// search_strategy in semantic mode: ranked results from the graph. (This was
+	// the default before auto mode added keyword hits.)
 	r := c.call(id, "search_strategy", map[string]any{
 		"instance_id": instID.String(),
 		"query":       "knowledge graph",
 		"limit":       "10",
+		"mode":        "semantic",
 	})
 	r.assertOK()
 
