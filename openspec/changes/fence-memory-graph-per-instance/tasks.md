@@ -334,3 +334,17 @@ and the pilot hit the confusion they prevent.
       re-ingest exactly one object answers for the key, with the new type, and
       the manifest equals Memory. If the old-type object cannot be removed the
       ingest fails, the generation does not move, and the retry converges.
+- [x] 9.33 Objects deleted from Memory behind the server's back (#146): the check
+      reports them as missing and a report-only run changes nothing; the shape
+      of the rollback damage (owned objects deleted, ownerless look-alikes
+      written) counts as all missing.
+- [x] 9.34 Repair re-ingests and the next check is clean; extra owned objects are
+      reported, not deleted, and do not fail the check; dirty, locked and
+      manifest-less instances are skipped.
+- [x] 9.35 The heartbeat heals an instance whose objects are missing and compares
+      each instance at most once per interval.
+- [x] 9.36 The command's repair keeps both layers (found live: a service without
+      the exporter shrank the manifest to the artifact layer). On the dev
+      project, verified live: three objects deleted, reported, repaired, clean;
+      and the heartbeat of a second server healed one deleted object in 18 s
+      where the startup sweep had said "all instances unchanged".
