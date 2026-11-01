@@ -850,7 +850,7 @@ func registerArtifactMutationTools(s *server.MCPServer, svc Services) {
 
 func registerSemanticReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("search_strategy",
-		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline."),
+		mcp.WithDescription("USE WHEN you need to discover where something is mentioned in an instance's own strategy. Search is discovery, not the answer: each hit is a short snippet, not authoritative text. A hit with artifact and path names the stored section it came from; confirm it with get_section (read_with gives the call) before answering, and cite that. Framework templates and definitions are excluded. Hits say how they were found in match: semantic (Memory) or keyword (the words you typed, matched in the instance's own text, no synonyms). A keyword hit lists matched_terms and missing_terms: a hit with missing terms does not contain every word you asked for, so a hit missing the distinctive word is not an answer about it. With Memory unavailable or finding nothing of the instance's own, keyword search runs instead. An empty result does not mean the strategy is silent; check get_outline."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("query", mcp.Required(), mcp.Description("Natural language search query")),
 		mcp.WithString("limit", mcp.Description("Max results (default 10, at most 25 for keyword search)")),
@@ -2589,6 +2589,8 @@ func searchStrategy(ctx context.Context, svc Services, instID uuid.UUID, query s
 			SectionSizeChars: h.SizeChars,
 			ReadWith:         h.ReadWith,
 			Match:            searchModeKeyword,
+			MatchedTerms:     h.MatchedTerms,
+			MissingTerms:     h.MissingTerms,
 		})
 	}
 	return out, nil

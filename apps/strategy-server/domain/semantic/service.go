@@ -51,6 +51,10 @@ type SearchResult struct {
 	ReadWith         string `json:"read_with,omitempty"`
 	// Match says how the hit was found: "semantic" or "keyword".
 	Match string `json:"match,omitempty"`
+	// MatchedTerms and MissingTerms are set on keyword hits: which of the query's
+	// terms the section contains and which it does not.
+	MatchedTerms []string `json:"matched_terms,omitempty"`
+	MissingTerms []string `json:"missing_terms,omitempty"`
 	// InstanceID, Layer and SourceArtifact say where the hit comes from.
 	InstanceID     string `json:"instance_id,omitempty"`
 	Layer          string `json:"layer,omitempty"`
