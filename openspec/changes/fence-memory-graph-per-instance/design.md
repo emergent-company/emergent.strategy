@@ -211,9 +211,15 @@ Per read:
   over-fetch, not a query option. Without it, replacing `SearchStrategyScoped`
   would silently bring canonical definitions and templates back into answers.
 - **`GetNeighbors`**: scope the caller's key, return not-found for an invisible
-  root, filter the expansion.
+  root, filter the expansion. **Framework content is excluded here too**: a root
+  or neighbour with a framework `integrity_class` is dropped, as in search. On a
+  real scaffolded instance an unmodified AIM template appeared as an
+  `assessment_report --challenges--> roadmap_recipe` edge.
 - **`DetectContradictions`**: `ListObjects(label = instance:<X>)`, keep
-  `layer:artifact` in the server, filter.
+  `layer:artifact` in the server, filter. **Framework artifacts are neither
+  reported nor counted as a connection**: on the same instance all 136 findings
+  were canonical definitions and templates, none about authored content. "Nothing
+  found" is an empty list, not `null`.
 - **Lifecycle `enrichWithSemantics`** (`internal/mcpserver/lifecycle.go:154`):
   becomes a semantic-service method that lists by instance label and resolves
   the North Star by scoped key.

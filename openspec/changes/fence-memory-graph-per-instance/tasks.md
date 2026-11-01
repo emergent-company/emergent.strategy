@@ -131,6 +131,12 @@ and the pilot hit the confusion they prevent.
       filter expansion.
 - [x] 3.5 `DetectContradictions`: list by `instance:<uuid>` + `layer:artifact`,
       filter.
+- [x] 3.5b Framework content is excluded from `GetNeighbors` (root and
+      neighbours) and `DetectContradictions` (findings and connections), as it is
+      from search, and "nothing found" is `[]`. Found by reading the pilot
+      instance through the MCP: 136 of 136 findings were framework content and
+      one neighbour was the unmodified AIM template (tests in
+      `domain/semantic/framework_reads_test.go`).
 - [x] 3.6 Move lifecycle `enrichWithSemantics` (`internal/mcpserver/lifecycle.go:154`)
       into a semantic-service method using the scope helper. Its North Star
       lookup uses the key `Artifact:READY/00_north_star.yaml`, which ingest has
