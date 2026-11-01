@@ -6,11 +6,89 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // ============================================================
 // Phase 1b: Strategy Formula Expansion (6 new sections)
 // ============================================================
+
+// The schema allows several of these lists to hold plain strings as well as
+// mappings. A plain string becomes an entry that has only its name, so one of
+// them does not stop the decoder.
+
+type constraintEntry struct {
+	Constraint string `yaml:"constraint"`
+	Impact     string `yaml:"impact"`
+	Response   string `yaml:"response"`
+	// Implication and Strategy are the older names for Impact and Response.
+	Implication string `yaml:"implication"`
+	Strategy    string `yaml:"strategy"`
+}
+
+func (c *constraintEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		c.Constraint = n.Value
+		return nil
+	}
+	type plain constraintEntry
+	return n.Decode((*plain)(c))
+}
+
+type valueDriverEntry struct {
+	Driver    string `yaml:"driver"`
+	Mechanism string `yaml:"mechanism"`
+	Flywheel  string `yaml:"flywheel"`
+}
+
+func (v *valueDriverEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		v.Driver = n.Value
+		return nil
+	}
+	type plain valueDriverEntry
+	return n.Decode((*plain)(v))
+}
+
+type capabilityEntry struct {
+	Capability   string `yaml:"capability"`
+	Description  string `yaml:"description"`
+	Status       string `yaml:"status"`
+	WhyCritical  string `yaml:"why_critical"`
+	CurrentState string `yaml:"current_state"`
+}
+
+func (c *capabilityEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		c.Capability = n.Value
+		return nil
+	}
+	type plain capabilityEntry
+	return n.Decode((*plain)(c))
+}
+
+type growthEngineEntry struct {
+	Engine     string `yaml:"engine"`
+	Mechanism  string `yaml:"mechanism"`
+	Timeline   string `yaml:"timeline"`
+	Investment string `yaml:"investment"`
+}
+
+func (g *growthEngineEntry) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		g.Engine = n.Value
+		return nil
+	}
+	type plain growthEngineEntry
+	return n.Decode((*plain)(g))
+}
+
+type metricEntry struct {
+	Metric    string `yaml:"metric"`
+	Target    string `yaml:"target"`
+	Rationale string `yaml:"rationale"`
+}
 
 type rawStrategyFormulaExpanded struct {
 	Strategy struct {
@@ -31,45 +109,35 @@ type rawStrategyFormulaExpanded struct {
 		} `yaml:"ecosystem_differentiation"`
 
 		ValueCreation struct {
-			ValueDrivers []struct {
-				Driver    string `yaml:"driver"`
-				Mechanism string `yaml:"mechanism"`
-				Flywheel  string `yaml:"flywheel"`
-			} `yaml:"value_drivers"`
-			KeyCapabilities []struct {
-				Capability   string `yaml:"capability"`
-				WhyCritical  string `yaml:"why_critical"`
-				CurrentState string `yaml:"current_state"`
-			} `yaml:"key_capabilities"`
+			ValueDrivers    []valueDriverEntry `yaml:"value_drivers"`
+			KeyCapabilities []capabilityEntry  `yaml:"key_capabilities"`
 		} `yaml:"value_creation"`
 
 		BusinessModel struct {
-			RevenueModel      string `yaml:"revenue_model"`
+			RevenueModel string `yaml:"revenue_model"`
+			// PricingStrategy is the schema's name; PricingPhilosophy is the older one.
+			PricingStrategy   string `yaml:"pricing_strategy"`
 			PricingPhilosophy string `yaml:"pricing_philosophy"`
 			PricingTiers      []struct {
-				Tier    string `yaml:"tier"`
-				Price   string `yaml:"price"`
-				Limits  string `yaml:"limits"`
-				Purpose string `yaml:"purpose"`
+				Tier     string   `yaml:"tier"`
+				Target   string   `yaml:"target"`
+				Price    string   `yaml:"price"`
+				Features []string `yaml:"features"`
+				Limits   string   `yaml:"limits"`
+				Purpose  string   `yaml:"purpose"`
 			} `yaml:"pricing_tiers"`
-			GrowthEngines []struct {
-				Engine     string `yaml:"engine"`
-				Mechanism  string `yaml:"mechanism"`
-				Investment string `yaml:"investment"`
-			} `yaml:"growth_engines"`
+			GrowthEngines []growthEngineEntry `yaml:"growth_engines"`
 		} `yaml:"business_model"`
 
-		Constraints []struct {
-			Constraint  string `yaml:"constraint"`
-			Implication string `yaml:"implication"`
-			Strategy    string `yaml:"strategy"`
-		} `yaml:"constraints"`
+		Constraints []constraintEntry `yaml:"constraints"`
 
 		TradeOffs []struct {
-			Decision     string `yaml:"decision"`
+			Decision  string `yaml:"decision"`
+			Over      string `yaml:"over"`
+			Rationale string `yaml:"rationale"`
+			// WhatWeGain and WhatWeGiveUp are the older names for Over.
 			WhatWeGain   string `yaml:"what_we_gain"`
 			WhatWeGiveUp string `yaml:"what_we_give_up"`
-			Rationale    string `yaml:"rationale"`
 		} `yaml:"trade_offs"`
 
 		Risks []struct {
@@ -81,6 +149,9 @@ type rawStrategyFormulaExpanded struct {
 		} `yaml:"risks"`
 
 		SuccessMetrics struct {
+			LeadingIndicators []metricEntry `yaml:"leading_indicators"`
+			LaggingIndicators []metricEntry `yaml:"lagging_indicators"`
+			// NorthStarMetric and SupportingMetrics are the older shape.
 			NorthStarMetric   string `yaml:"north_star_metric"`
 			SupportingMetrics []struct {
 				Metric       string `yaml:"metric"`
@@ -148,13 +219,18 @@ func (d *Decomposer) decomposeStrategyFormulaExpandedRaw(result *Result, raw *ra
 		key := objectKey("Positioning", "strategy_formula:business_model")
 		tiers := []string{}
 		for _, t := range raw.Strategy.BusinessModel.PricingTiers {
-			tiers = append(tiers, fmt.Sprintf("%s (%s): %s", t.Tier, t.Price, t.Purpose))
+			what := firstNonEmpty(t.Purpose, t.Target)
+			if len(t.Features) > 0 {
+				what = strings.TrimPrefix(what+"; "+strings.Join(t.Features, ", "), "; ")
+			}
+			tiers = append(tiers, fmt.Sprintf("%s (%s): %s", t.Tier, t.Price, what))
 		}
 		d.addObject(result, GraphObject{
 			Type: "Positioning", Key: key,
 			Properties: map[string]any{
 				"name":            "Business Model: " + raw.Strategy.BusinessModel.RevenueModel,
-				"claim":           raw.Strategy.BusinessModel.PricingPhilosophy,
+				"claim":           firstNonEmpty(raw.Strategy.BusinessModel.PricingStrategy, raw.Strategy.BusinessModel.PricingPhilosophy),
+				"pricing_tiers":   strings.Join(tiers, "; "),
 				"moat_type":       "business_model",
 				"inertia_tier":    "3",
 				"source_artifact": "READY/04_strategy_formula.yaml",
@@ -174,7 +250,7 @@ func (d *Decomposer) decomposeStrategyFormulaExpandedRaw(result *Result, raw *ra
 			Type: "Constraint", Key: key,
 			Properties: map[string]any{
 				"name":            truncate(c.Constraint, 60),
-				"description":     fmt.Sprintf("%s → Implication: %s → Strategy: %s", c.Constraint, c.Implication, c.Strategy),
+				"description":     constraintText(c),
 				"constraint_type": "strategic",
 				"inertia_tier":    "3",
 				"source_artifact": "READY/04_strategy_formula.yaml",
@@ -194,7 +270,7 @@ func (d *Decomposer) decomposeStrategyFormulaExpandedRaw(result *Result, raw *ra
 			Type: "KeyInsight", Key: key,
 			Properties: map[string]any{
 				"name":                  truncate(t.Decision, 60),
-				"insight":               fmt.Sprintf("Trade-off: %s — Gain: %s — Give up: %s", t.Decision, t.WhatWeGain, t.WhatWeGiveUp),
+				"insight":               tradeOffText(t.Decision, t.Over, t.WhatWeGain, t.WhatWeGiveUp),
 				"strategic_implication": t.Rationale,
 				"inertia_tier":          "3",
 				"source_artifact":       "READY/04_strategy_formula.yaml",
@@ -228,16 +304,23 @@ func (d *Decomposer) decomposeStrategyFormulaExpandedRaw(result *Result, raw *ra
 	}
 
 	// Success metrics → KeyInsight objects
-	if raw.Strategy.SuccessMetrics.NorthStarMetric != "" {
+	sm := raw.Strategy.SuccessMetrics
+	if text, title := successMetricsText(sm.NorthStarMetric, sm.LeadingIndicators, sm.LaggingIndicators); text != "" || sm.NorthStarMetric != "" {
 		key := objectKey("KeyInsight", "strategy_formula:success_metrics.north_star")
-		metrics := []string{fmt.Sprintf("North Star: %s", raw.Strategy.SuccessMetrics.NorthStarMetric)}
-		for _, m := range raw.Strategy.SuccessMetrics.SupportingMetrics {
-			metrics = append(metrics, fmt.Sprintf("%s (target: %s, why: %s)", m.Metric, m.TargetPhase1, m.Why))
+		metrics := []string{}
+		if sm.NorthStarMetric != "" {
+			metrics = append(metrics, fmt.Sprintf("North Star: %s", sm.NorthStarMetric))
+			for _, m := range sm.SupportingMetrics {
+				metrics = append(metrics, fmt.Sprintf("%s (target: %s, why: %s)", m.Metric, m.TargetPhase1, m.Why))
+			}
+		}
+		if text != "" {
+			metrics = append(metrics, text)
 		}
 		d.addObject(result, GraphObject{
 			Type: "KeyInsight", Key: key,
 			Properties: map[string]any{
-				"name":                  "Success Metrics: " + truncate(raw.Strategy.SuccessMetrics.NorthStarMetric, 40),
+				"name":                  "Success Metrics: " + truncate(title, 40),
 				"insight":               strings.Join(metrics, "; "),
 				"strategic_implication": "These metrics define success for the strategy",
 				"inertia_tier":          "3",
@@ -941,4 +1024,57 @@ func (d *Decomposer) decomposeTrackDefinitions(result *Result) {
 			d.warn(result, fmt.Sprintf("track definitions walk error for %s: %v", track.name, err))
 		}
 	}
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// constraintText reads impact and response (the schema's names), falling back
+// to implication and strategy; a constraint with neither is just its text.
+func constraintText(c constraintEntry) string {
+	impact := firstNonEmpty(c.Impact, c.Implication)
+	response := firstNonEmpty(c.Response, c.Strategy)
+	switch {
+	case c.Impact != "" || c.Response != "":
+		return fmt.Sprintf("%s → Impact: %s → Response: %s", c.Constraint, c.Impact, c.Response)
+	case impact != "" || response != "":
+		return fmt.Sprintf("%s → Implication: %s → Strategy: %s", c.Constraint, impact, response)
+	}
+	return c.Constraint
+}
+
+func tradeOffText(decision, over, gain, giveUp string) string {
+	if over != "" {
+		return fmt.Sprintf("Trade-off: %s — Chosen over: %s", decision, over)
+	}
+	return fmt.Sprintf("Trade-off: %s — Gain: %s — Give up: %s", decision, gain, giveUp)
+}
+
+// successMetricsText lists leading and lagging indicators; title is the first
+// metric named, for the object's name when there is no north star metric.
+func successMetricsText(northStar string, leading, lagging []metricEntry) (text, title string) {
+	var parts []string
+	add := func(label string, ms []metricEntry) {
+		for _, m := range ms {
+			if m.Metric == "" {
+				continue
+			}
+			if title == "" {
+				title = m.Metric
+			}
+			parts = append(parts, fmt.Sprintf("%s: %s (target: %s, why: %s)", label, m.Metric, m.Target, m.Rationale))
+		}
+	}
+	add("Leading", leading)
+	add("Lagging", lagging)
+	if northStar != "" {
+		title = northStar
+	}
+	return strings.Join(parts, "; "), title
 }
