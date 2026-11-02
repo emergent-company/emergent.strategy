@@ -1413,7 +1413,7 @@
     },
     {
       "name": "get_outline",
-      "description": "USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section.",
+      "description": "USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section. When the company has installed its own answering rules, the whole-instance outline carries them as guidance: follow them when you answer.",
       "category": "core",
       "input_schema": {
         "properties": {

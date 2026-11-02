@@ -1200,6 +1200,10 @@ ANSWERING QUESTIONS ABOUT A COMPANY'S STRATEGY
    or kr-c-002. Tell people what they mean using the response's labels, not the
    raw ids.
 
+10. FOLLOW THE GUIDANCE IN THE OUTLINE. get_outline for a whole instance carries
+   guidance: how to answer from the strategy, and the company's own rules when
+   it has installed them. Follow both when you write the answer.
+
 Call the "strategy-server" prompt (get_prompt) at session start for the full
 domain knowledge base including EPF vocabulary, tool-use patterns, and
 workflow guidance.`

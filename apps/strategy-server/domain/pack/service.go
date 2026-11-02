@@ -334,6 +334,24 @@ func (s *Service) ResolveSkill(ctx context.Context, instanceID uuid.UUID, skillN
 	return resolveFromEmbedded(skillName)
 }
 
+// InstalledSkill returns the skill installed in the instance under name, or nil
+// when there is none. Canonical skills are never returned.
+func (s *Service) InstalledSkill(ctx context.Context, instanceID uuid.UUID, name string) (*ResolvedSkill, error) {
+	var row domain.InstalledSkill
+	err := s.db.NewSelect().Model(&row).
+		Where("instance_id = ? AND skill_name = ?", instanceID, name).
+		OrderExpr("installed_at DESC").
+		Limit(1).
+		Scan(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read installed skill %q: %w", name, err)
+	}
+	return installedSkillToResolved(&row), nil
+}
+
 // ListAvailableSkills returns all skills available for an instance: installed skills
 // union canonical embedded skills, with installed taking precedence by name.
 func (s *Service) ListAvailableSkills(ctx context.Context, instanceID uuid.UUID, sourceFilter string) ([]*ResolvedSkill, error) {
