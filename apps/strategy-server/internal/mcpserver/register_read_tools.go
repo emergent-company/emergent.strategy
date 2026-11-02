@@ -16,7 +16,7 @@ import (
 // category so a client sees them without a set_tool_filter call.
 func registerBoundedReadTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("get_outline",
-		mcp.WithDescription("USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section."),
+		mcp.WithDescription("USE FIRST to answer any question about what a company's strategy says. Returns which strategy documents this instance defines (north star, insights, foundations, formula, roadmap), each with its sections and their sizes, and which documents are not defined and why. Unmodified framework templates and definitions are counted, never listed as the company's strategy. Returns no content; read a section next with get_section. When the company has installed its own answering rules, the whole-instance outline carries them as guidance: follow them when you answer."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("artifact", mcp.Description("Optional artifact key, e.g. strategy_formula. Describes that artifact's sections with a one-line gist each.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -27,11 +27,19 @@ func registerBoundedReadTools(s *server.MCPServer, svc Services) {
 		if err := assertInstanceAccess(ctx, svc, id); err != nil {
 			return toolErr(ctx, err), nil
 		}
-		out, err := svc.Strategy.ReadOutline(ctx, id, argString(req, "artifact"))
+		artifact := argString(req, "artifact")
+		out, err := svc.Strategy.ReadOutline(ctx, id, artifact)
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(out)
+		if artifact != "" {
+			return mustJSON(out)
+		}
+		guidance, err := answeringGuidance(ctx, svc, id)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		return mustJSON(outlineWithGuidance{OutlineResult: out, Guidance: guidance})
 	})
 
 	s.AddTool(mcp.NewTool("get_section",
