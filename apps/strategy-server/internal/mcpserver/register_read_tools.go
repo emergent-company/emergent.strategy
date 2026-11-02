@@ -56,13 +56,13 @@ func registerBoundedReadTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("get_view",
-		mcp.WithDescription("USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - objective and key result ids and text by track; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section."),
+		mcp.WithDescription("USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - every objective and key result id and text of the roadmap, all tracks in one read unless a track is given; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("view", mcp.Required(), mcp.Description("One of: "+viewList())),
 		mcp.WithString("name", mcp.Description("Competitor name, for the competitor view")),
 		mcp.WithString("id", mcp.Description("Key result id, for the key_result view, e.g. kr-c-001")),
 		mcp.WithString("track", mcp.Description("Roadmap track, for the objectives view")),
-		mcp.WithString("max_chars", mcp.Description("Shared response budget in characters (default 12000, cap 40000)")),
+		mcp.WithString("max_chars", mcp.Description("Shared response budget in characters (default 12000, 24000 for the objectives view, cap 40000)")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {

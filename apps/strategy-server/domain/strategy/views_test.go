@@ -2,6 +2,7 @@ package strategy_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -89,6 +90,55 @@ func TestReadView_ObjectivesAndKeyResult(t *testing.T) {
 	}
 	if none.Parts[0].Defined || none.Parts[0].Reason == "" {
 		t.Errorf("an unknown key result must be reported as not defined: %+v", none.Parts[0])
+	}
+}
+
+func bigRoadmap(tracks, objectives, keyResults int) map[string]any {
+	trackMap := map[string]any{}
+	for ti := 0; ti < tracks; ti++ {
+		var okrs []any
+		for oi := 0; oi < objectives; oi++ {
+			var krs []any
+			for ki := 0; ki < keyResults; ki++ {
+				krs = append(krs, map[string]any{
+					"id":          fmt.Sprintf("kr-%d-%d-%d", ti, oi, ki),
+					"description": strings.Repeat("a measurable result stated in plain words ", 5),
+					"target":      "3",
+				})
+			}
+			okrs = append(okrs, map[string]any{"id": fmt.Sprintf("okr-%d-%d", ti, oi), "objective": "An objective", "key_results": krs})
+		}
+		trackMap[fmt.Sprintf("track%d", ti)] = map[string]any{"okrs": okrs}
+	}
+	return map[string]any{"roadmap": map[string]any{"id": "rm-big", "tracks": trackMap}}
+}
+
+func TestReadView_ObjectivesReturnsEveryKeyResultWithoutAnExplicitBudget(t *testing.T) {
+	svc, _, inst := seedRead(t)
+	ctx := context.Background()
+	commitAuto(t, svc, inst, "roadmap_recipe", "roadmap_recipe", domain.MutationActionUpdate, bigRoadmap(4, 3, 5))
+
+	res, err := svc.ReadView(ctx, inst, "objectives", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	part := res.Parts[0]
+	if part.SizeChars <= 12000 {
+		t.Fatalf("fixture is %d characters; it must be over the default budget to test anything", part.SizeChars)
+	}
+	if part.Truncated || res.Truncated || part.Content == nil {
+		t.Fatalf("the objectives view must return the whole roadmap index in one call: truncated=%v size=%d", part.Truncated, part.SizeChars)
+	}
+	if got := strings.Count(mustMarshal(t, part.Content), `"kr-`); got != 60 {
+		t.Errorf("key results returned = %d, want 60", got)
+	}
+
+	small, err := svc.ReadView(ctx, inst, "objectives", nil, 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !small.Parts[0].Truncated || len(small.Parts[0].Children) == 0 {
+		t.Errorf("an explicit smaller budget must still be honoured: %+v", small.Parts[0])
 	}
 }
 
