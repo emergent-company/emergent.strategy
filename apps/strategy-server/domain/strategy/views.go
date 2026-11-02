@@ -50,6 +50,12 @@ func ViewReads() []ViewRead {
 	}
 }
 
+// objectivesDefaultMaxChars is the budget of the objectives view when the caller
+// gives none. The view is the index of every objective and key result, which
+// questions about a function need whole: with the general default it was only
+// just over budget and came back as four track names.
+const objectivesDefaultMaxChars = 24000
+
 // ViewNames lists the question-shaped views, in documentation order.
 var ViewNames = []string{"competitor", "objectives", "key_result", "personas", "competitive_position"}
 
@@ -75,6 +81,9 @@ type ViewResult struct {
 // ReadView resolves a named view. The error is for an unknown view, a missing
 // or malformed argument, or a failed query.
 func (s *Service) ReadView(ctx context.Context, instanceID uuid.UUID, view string, args map[string]string, maxChars int) (*ViewResult, error) {
+	if view == "objectives" && maxChars <= 0 {
+		maxChars = objectivesDefaultMaxChars
+	}
 	budget, capped := strategyread.NormaliseBudget(maxChars)
 	out := &ViewResult{View: view, Args: args, MaxChars: budget}
 	if capped {

@@ -1804,7 +1804,7 @@
     },
     {
       "name": "get_view",
-      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - objective and key result ids and text by track; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
+      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - every objective and key result id and text of the roadmap, all tracks in one read unless a track is given; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -1817,7 +1817,7 @@
             "type": "string"
           },
           "max_chars": {
-            "description": "Shared response budget in characters (default 12000, cap 40000)",
+            "description": "Shared response budget in characters (default 12000, 24000 for the objectives view, cap 40000)",
             "type": "string"
           },
           "name": {
