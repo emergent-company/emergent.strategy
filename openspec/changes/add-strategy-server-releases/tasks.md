@@ -2,7 +2,7 @@
 
 ## 0. Preconditions (an admin, before any workflow is merged)
 
-- [ ] 0.1 Push the bootstrap tag `strategy-server/v0.1.0` on `16c2756` from a machine with push rights. Confirm with `git ls-remote origin 'refs/tags/strategy-server/*'`.
+- [x] 0.1 Push the bootstrap tag `strategy-server/v0.1.0` on `16c2756` from a machine with push rights. Confirm with `git ls-remote origin 'refs/tags/strategy-server/*'`. Done 3 November 2026 (annotated tag on `16c2756`). `release.yaml` did not run, which confirms that `v*` does not match `strategy-server/v*`.
 - [ ] 0.2 Install the CI GitHub App (`emergent-strategy-ci`) on `emergent.strategy` with Contents: write and Pull requests: write. If that is not possible, enable "Allow GitHub Actions to create and approve pull requests" and record the `GITHUB_TOKEN` fallback (design decision 2).
 - [ ] 0.3 Repository settings: make squash merge the default, and set the default squash commit message to "Pull request title".
 
