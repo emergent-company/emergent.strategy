@@ -1,0 +1,40 @@
+name: tmp bump echo
+
+# One-off helper: resolves the echo upgrade with the repo's Go toolchain and
+# commits go.mod/go.sum back to this branch. Removed before merge.
+
+on:
+  push:
+    branches: [chore/bump-echo]
+    paths: [".github/workflows/tmp-bump-echo.yaml"]
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/strategy-server/go.mod
+      - name: Bump echo
+        working-directory: apps/strategy-server
+        run: |
+          go get github.com/labstack/echo/v4@v4.16.3
+          go mod tidy
+      - name: Sync workspace
+        run: go work sync
+      - name: Build
+        working-directory: apps/strategy-server
+        run: go build ./...
+      - name: Commit
+        run: |
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          git add -A apps/
+          git diff --cached --stat
+          git commit -m "chore(strategy-server): bump labstack/echo to v4.16.3" -m "Resolves the 2026 echo security advisories fixed after v4.15.2." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+          Claude-Session: https://claude.ai/code/session_0199zLo74jPrcMMVJaRCv3oH"
+          git push origin HEAD:chore/bump-echo
