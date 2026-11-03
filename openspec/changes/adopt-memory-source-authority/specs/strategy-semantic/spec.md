@@ -22,28 +22,32 @@ owns, and SHALL NOT modify any graph object it did not write.
 
 ---
 
-### Requirement: Source Descriptor and Revision on Projected Objects
+### Requirement: Recorded Source Revision of Projected Objects
 
-Every graph object the system writes SHALL carry `properties.source`
-(`strategy-server`), `properties.source_schema` (the schema version it was
-produced under), `properties.layer` (its type's layer, once the ontology
-registry is embedded) and `properties.source_revision` (a hash of the
-artifact's canonical payload, changing only when its content changes).
+The system SHALL record, for every graph object in an instance's current
+projection, the `source_revision` it represents (a hash of the artifact's
+canonical payload, changing only when its content changes) and a
+`revision_seq` that increases monotonically per instance. The system SHALL NOT
+write provenance as graph object properties.
 
-#### Scenario: Artifact object carries its revision
+#### Scenario: Artifact object revision is recorded
 - **WHEN** an instance is ingested
-- **THEN** each artifact-layer object carries `source`, `source_schema` and a
+- **THEN** the projection records, for each artifact-layer object, a
   `source_revision` equal to the hash of the artifact's canonical payload
 
-#### Scenario: Schema and layer come from the ontology
-- **WHEN** an instance is ingested with the ontology registry embedded
-- **THEN** `source_schema` equals the registry's `ontology_version`
-- **AND** `layer` equals the registry's layer for the object's type
+#### Scenario: No provenance properties
+- **WHEN** an instance is ingested
+- **THEN** no object written to Memory carries a property holding source,
+  schema version, layer or revision
 
-#### Scenario: Decomposed object carries its parent's revision
+#### Scenario: Decomposed object takes its parent's revision
 - **WHEN** an artifact is decomposed into objects during ingest
-- **THEN** each decomposed object carries the parent artifact's
-  `source_revision`
+- **THEN** the projection records the parent artifact's `source_revision`
+  for each decomposed object
+
+#### Scenario: Revisions are ordered
+- **WHEN** an instance is ingested twice with a content change in between
+- **THEN** the second ingest records a higher `revision_seq` than the first
 
 #### Scenario: Identical content keeps its revision
 - **WHEN** an artifact is re-committed, imported or restored with a payload
@@ -63,7 +67,7 @@ projection. Every result SHALL carry a `class` of `source` or `synthesized`.
 
 #### Scenario: Default read excludes synthesis
 - **WHEN** `search_strategy` is called without `include_synthesized`
-- **THEN** no result lacks `source = strategy-server`
+- **THEN** every result is in the instance's current projection
 - **AND** every result has `class: source`
 
 #### Scenario: Anchored synthesis is returned on request

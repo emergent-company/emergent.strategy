@@ -4,6 +4,11 @@ Tracking: emergent-company/emergent.memory#2376 (RFC: Memory as a subsystem of
 source systems). Builds on `fence-memory-graph-per-instance`. Implements D5–D7
 of `decide-strategy-source-of-truth` on the Memory side.
 
+**Revised 2026-11-03** after the memory team accepted source-authoritative
+mode on #2376 and sequenced it in five slices (attribution, credential
+scoping, atomic changesets, synthesis lineage, adoption feedback). Provenance
+no longer goes into object properties; see design D1 and D7.
+
 ## Why
 
 strategy-server is the system of record for strategy data: PostgreSQL holds the
@@ -46,16 +51,17 @@ memory team provides it.
   are authoritative; Memory is never read back as a source for writes.
   strategy-server writes only objects it owns and never modifies objects it
   did not write.
-- **Per-object source revision.** Every artifact-layer and decomposed object
-  carries `properties.source_revision`: a hash of the canonical payload it was
-  projected from. It changes only when content changes, so it creates no extra
-  Memory versions and no re-embedding. Readers, including Memory-side agents,
-  can tell which revision of the source an object represents.
-- **Source descriptor on every projection.** Objects carry
-  `properties.source` (`strategy-server`), `properties.source_schema` (the
-  canonical ontology version) and `properties.layer` (`definition` or
-  `runtime`), so Memory and its agents can tell source data from synthesis
-  without knowing EPF. The schema itself reaches Memory as the pack
+- **Per-object source revision, kept out of properties.** For every projected
+  object, the projection manifest records a content-hash `source_revision`
+  and a monotonic `revision_seq`. Memory hashes and embeds all object
+  properties, so provenance stamped there would create versions and pollute
+  every vector. When Memory's changeset API ships, the same values are pushed
+  as the contribution's `external_revision` and `external_revision_seq`, which
+  makes them visible to Memory-side readers.
+- **Registered as a Memory source.** strategy-server registers in Memory's
+  `kb.sources` so it can own its objects (`data_class = source`,
+  `owner_source_id`) and, once credential scoping ships, write with a
+  source-scoped key. The schema reaches Memory as the pack
   `adopt-canonical-ontology` generates from the ontology.
 - **Guessed edges are synthesis.** Relations whose ontology provenance is
   `inferred` or `embedding` are returned as `class: synthesized` and never
@@ -76,27 +82,27 @@ memory team provides it.
   to is owned by the instance and in its current projection, and always
   labelled `class: synthesized`. Default reads stay fail-closed and return only
   source data.
-- **Forward path.** If Memory adopts native source registration, per-object
-  source provenance and atomic changesets (emergent.memory#2376), the server
-  moves its projection onto them and retires the duplicated local mechanisms.
-  This change does not depend on that.
+- **Forward path, slice by slice.** Each Memory slice maps to a follow-up on
+  this side (design D7): source-scoped key, ingest as an atomic changeset
+  (retiring the manifest swap), lineage-based anchoring, and adoption feedback
+  with Memory-minted origin tokens. strategy-server offers to be the first
+  integration of the changeset API (emergent.memory#2462).
 
 ## Impact
 
 - Affected specs: `strategy-semantic` (added requirements), `strategy-ripple`
   (added requirements).
-- Affected code: `domain/ingest` (source descriptor and revision on writes),
+- Affected code: `domain/ingest` (revision and sequence into the manifest;
+  source registration),
   `domain/semantic` (result classes, opt-in synthesis inside the scoped read
   helper), `domain/ripple` (`semantic.go` revision check; signal resolution
-  origin; dismissal suppression), `internal/memory` (object properties),
+  origin; dismissal suppression), `internal/memory` (source registration),
   `internal/mcpserver` (semantic tool parameter and result fields).
-- Depends on: `fence-memory-graph-per-instance` slice 2 (prefixed keys and the
-  scoped read helper). Requirements here assume that helper exists.
-- No migration is required for Postgres: origin is stored in the existing
+- Depends on: `fence-memory-graph-per-instance` slice 2 (merged, #145).
+- Postgres: one migration adding `source_revision` and `revision_seq` to
+  `memory_projection`. Origin uses the existing
   `strategy_mutations.batch_metadata` and `ripple_signals.metadata` columns.
-- Memory: one full re-ingest per instance to stamp `source_revision`, which the
-  fence upgrade already forces. Objects receive one new version; content and
-  embeddings are unchanged.
+- Memory: no object changes and no re-embedding; one `kb.sources` row.
 - Out of scope: Memory-side changes (owned by the memory team via
   emergent.memory#2376); pushing adoption decisions to Memory before Memory
   has an API for them; changes to `epf-cli`.

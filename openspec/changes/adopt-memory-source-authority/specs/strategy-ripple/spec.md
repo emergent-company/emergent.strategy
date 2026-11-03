@@ -3,20 +3,20 @@
 ### Requirement: Revision-Bound Use of Memory Results
 
 The system SHALL use a Memory-derived score in change classification only when
-the indexed object it was computed against carries the `source_revision` of
-the artifact's pre-change payload. Otherwise the system SHALL fall back to
+the indexed object it was computed against is recorded as holding the
+`source_revision` of the artifact's pre-change payload. Otherwise the system SHALL fall back to
 text classification and SHALL NOT assign the autonomous authority tier.
 
 #### Scenario: Matching revision
-- **WHEN** a change is classified and the artifact's indexed object carries
-  the revision of the pre-change payload
+- **WHEN** a change is classified and the artifact's indexed object is
+  recorded with the revision of the pre-change payload
 - **THEN** the Memory similarity score is used for class and authority tier
 - **AND** the result records the Memory key, the expected revision and the
   observed revision
 
 #### Scenario: Stale projection
-- **WHEN** a change is classified and the indexed object carries a different
-  revision than the pre-change payload
+- **WHEN** a change is classified and the indexed object is recorded with a
+  different revision than the pre-change payload
 - **THEN** text fallback classification is used
 - **AND** the authority tier is at most `gated`
 
@@ -31,7 +31,7 @@ text classification and SHALL NOT assign the autonomous authority tier.
 
 Signals produced from Memory analysis SHALL record their origin: the analyzer,
 the Memory object keys and scores used, and the source revisions those
-objects carried. When a batch resolves such a signal, the resulting mutation
+objects were recorded with. When a batch resolves such a signal, the resulting mutation
 SHALL record which signals it adopted and their origin.
 
 #### Scenario: Semantic signal records origin
