@@ -17,6 +17,10 @@ the team prefers to archive decisions on acceptance.
       origin on accepted suggestions; early validation framed under D3.
 - [x] 1.4 Amend epf-canonical `add-strategy-ontology` (`layer` field) and
       `unify-reference-identity` (stable IDs as merge prerequisite) (#27).
+- [x] 1.4b Update D5 and D6 after the memory team accepted
+      source-authoritative mode on emergent.memory#2376 (credential-scoped
+      ownership, provenance in columns, ordered revisions, Memory-minted
+      origin tokens).
 - [ ] 1.5 Team review of D1–D7. Record the outcome (accepted / accepted with
       changes / rejected) at the top of `decision.md`.
 

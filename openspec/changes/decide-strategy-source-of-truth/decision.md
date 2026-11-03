@@ -104,16 +104,33 @@ informed them is linked from their origin.
 Memory holds a projection of the loaded version plus selected runtime state,
 and Memory's own synthesis. strategy-server pushes; Memory indexes, embeds and
 synthesizes. The contract — source ownership, per-object source revision,
-atomic visibility, labelled synthesis, adoption feedback — is proposed to the
-memory team in emergent.memory#2376 and implemented on this side by
-`fence-memory-graph-per-instance` and `adopt-memory-source-authority`.
+atomic visibility, labelled synthesis, adoption feedback — was proposed to the
+memory team in emergent.memory#2376. They accepted source-authoritative mode
+for data with an external owner (2026-11-03) and are building it in five
+slices: write attribution (shipped), credential scoping, atomic changeset
+apply (#2462), synthesis lineage, adoption feedback. This side is
+implemented by `fence-memory-graph-per-instance` and
+`adopt-memory-source-authority`, whose follow-ups track those slices.
+
+- **Ownership is enforced by credentials, not by convention.** Memory's
+  answer to "only the source writes its objects" is a key scoped to a
+  registered source (`kb.sources`), compared with each object's
+  `owner_source_id`. strategy-server registers as a source.
+- **Provenance lives in Memory's columns and contribution rows, never in
+  object properties.** Properties are hashed and embedded, so provenance there
+  would version and pollute every object. Until the changeset API ships,
+  strategy-server keeps revisions in its projection manifest.
+- **Revisions are ordered.** Every push carries a monotonic sequence alongside
+  the content hash, so Memory can reject a stale push.
 
 - The schema strategy-server pushes to Memory is generated from the canonical
   ontology (`adopt-canonical-ontology`). A schema pack is data; installing it
   does not make Memory EPF-aware.
 - Isolation: one Memory project per strategy-server today, fenced per
   instance. A project per organisation with a namespace per source is the
-  intended end state. It is cheap to migrate to because the projection is
+  intended end state. Namespace is an ownership axis, not an isolation
+  boundary: reads cross namespaces unless they filter explicitly, so the
+  project stays the tenant boundary. It is cheap to migrate to because the projection is
   rebuildable, as long as the move happens before Memory-only synthesis
   accumulates (tracked in #99, D1b).
 - Once D4 lands, `source_revision` on projected objects becomes the release
@@ -136,7 +153,10 @@ released through D3. Each adopted proposal records its **origin**.
 
 Origin uses one shape everywhere (kind, producer, the inputs and their
 revisions). Recorded origin is what prevents a feedback loop from treating its
-own earlier output as independent confirmation.
+own earlier output as independent confirmation. Where the proposal is Memory
+synthesis, the origin carries the opaque, verifiable token Memory mints for it
+(slice 5), so a source cannot fabricate corroboration, and adoption decisions
+are reported back to Memory with that token.
 
 ### D7. Every persisted type and relation is classified by layer
 
@@ -201,7 +221,7 @@ one.
 | Change | Repo | Status | Implements | Alignment |
 |---|---|---|---|---|
 | `fence-memory-graph-per-instance` | strategy | In progress; slice 1 landed | D5 | Aligned. Ships first (pilot deadline). Namespace instead of key prefix considered and deferred to the project-per-org move. |
-| `adopt-memory-source-authority` | strategy (#126) | Open | D5, D6, D7 | **Amended:** generated schema pack from the ontology replaces the "no schema install" decision; `source_schema` is the ontology version; synthesis classified by provenance; origin shape shared with D6. |
+| `adopt-memory-source-authority` | strategy (#126) | Open | D5, D6, D7 | **Amended twice:** generated schema pack from the ontology; synthesis classified by provenance; origin shape shared with D6. Then, after the memory team's response on #2376: no provenance properties (revision and sequence kept in the manifest), registration in `kb.sources`, and follow-ups mapped to Memory's slices 2–5. |
 | `adopt-canonical-ontology` | strategy (#111) | Open | D2, D7 | **Amended:** reads the layer from the registry and stamps it on projected objects; references this record. |
 | `adopt-explicit-strategy-references` | strategy (#111) | Open | D2, D3, D6 | **Amended:** accepting a suggestion records origin in the D6 shape; rejections are keyed on artifact revisions, so a suggestion returns when content changes; reference validation framed as early validation under D3. |
 | `add-strategy-ontology` | canonical (#27) | Open | D2, D7 | **Amended:** adds `layer` (definition, runtime, synthesis) to entity and relation types; inferred and embedding relations must be `synthesis`; AIM artifacts are `definition` (matches D4). |
@@ -224,7 +244,7 @@ Sequence:
 
 - Authors routinely leave work unreleased for long periods (the workspace
   becomes the de facto truth) — revisit release ergonomics, not D1.
-- The memory team rejects source-authoritative mode in emergent.memory#2376 —
-  D5 still holds on this side, but the contract stays local to strategy-server.
+- Memory's slices stall or change shape — D5 still holds on this side; the
+  manifest stays the source of revision truth until the changeset API lands.
 - A customer needs strategy without any git hosting — D1's server-held release
   history covers it; revisit only if that becomes the common case.
