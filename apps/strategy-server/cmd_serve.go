@@ -480,7 +480,7 @@ func runServer(cfg *config.Config) error {
 
 	go func() {
 		log.Info("listening", "addr", srv.Addr)
-		if err := e.StartServer(srv); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := serveHTTP(srv); err != nil {
 			log.Error("server error", "err", err)
 			stop()
 		}
@@ -491,11 +491,27 @@ func runServer(cfg *config.Config) error {
 	log.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := e.Shutdown(shutdownCtx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("graceful shutdown: %w", err)
 	}
 
 	log.Info("shutdown complete")
+	return nil
+}
+
+// serveHTTP serves srv until it is shut down and returns nil on a clean
+// shutdown.
+//
+// It uses srv.ListenAndServe, not Echo's e.StartServer(srv). Echo wraps the
+// listener in its own tcpKeepAliveListener, whose Accept returns the
+// setsockopt(SO_KEEPALIVE) error as fatal (EINVAL on macOS when a client resets
+// a connection immediately after connecting), and http.Server.Serve then stops
+// the whole server. Go's own listener sets TCP keep-alive without returning that
+// per-connection error. TestServeHTTP_SurvivesClientResets reproduces it on macOS.
+func serveHTTP(srv *http.Server) error {
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
 	return nil
 }
 
