@@ -124,3 +124,25 @@ func TestMCP_OutlineListsGuidanceBeforeTheOutline(t *testing.T) {
 		t.Errorf("guidance must come before the outline listing: guidance at %d, artifacts at %d", g, a)
 	}
 }
+
+func TestMCP_DescribePackFormatNamesTheReservedAnsweringRulesSkill(t *testing.T) {
+	svc := buildSvc(t)
+	c := newMCPClient(t, svc)
+
+	var result struct {
+		ReservedSkills []struct {
+			Name   string `json:"name"`
+			Effect string `json:"effect"`
+		} `json:"reserved_skill_names"`
+	}
+	c.call(1, "describe_pack_format", nil).assertOK().decode(&result)
+
+	if len(result.ReservedSkills) != 1 || result.ReservedSkills[0].Name != "answering-rules" {
+		t.Fatalf("reserved skill names = %+v, want answering-rules", result.ReservedSkills)
+	}
+	for _, want := range []string{"get_outline", "company_rules", "8000"} {
+		if !strings.Contains(result.ReservedSkills[0].Effect, want) {
+			t.Errorf("the effect must say %q, got: %s", want, result.ReservedSkills[0].Effect)
+		}
+	}
+}

@@ -771,7 +771,7 @@
     },
     {
       "name": "describe_pack_format",
-      "description": "USE WHEN you need to understand the pack, skill, or app YAML format for authoring a new pack. Returns schemas and a complete example.",
+      "description": "USE WHEN you need to understand the pack, skill, or app YAML format for authoring a new pack. Returns schemas, a complete example, and the reserved skill names the server gives a meaning to (answering-rules).",
       "category": "packs",
       "input_schema": {
         "properties": {},
