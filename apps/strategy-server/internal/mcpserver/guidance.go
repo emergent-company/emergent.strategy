@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"fmt"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -77,4 +78,16 @@ func installedCompanyRules(ctx context.Context, svc Services, instanceID uuid.UU
 		g.Truncated = true
 	}
 	return g, nil
+}
+
+// reservedSkillNames describes the skill names the server gives a meaning to,
+// for describe_pack_format. A pack author cannot find them anywhere else.
+func reservedSkillNames() []map[string]string {
+	return []map[string]string{{
+		"name": answeringRulesSkill,
+		"effect": fmt.Sprintf("A prompt skill with this name gives the instance its own rules for answering questions about its strategy "+
+			"(vocabulary, audience, format). get_outline for the whole instance returns its prompt as guidance.company_rules, next to the "+
+			"general rules in guidance.how_to_answer, cut at %d characters (size_chars and truncated say so). It is guidance for the reader and "+
+			"is never run. Replace an installed version with install_pack force: true.", guidanceMaxChars),
+	}}
 }

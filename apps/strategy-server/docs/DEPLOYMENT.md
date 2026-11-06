@@ -596,3 +596,56 @@ Memory project from the proxy on port 3002, which ignores `X-Project-ID`. For th
 fence use Memory directly (port 3012 in the local compose setup) with a project
 dedicated to the dev database, and do not rerun the script over a working
 `.env.local`.
+
+---
+
+## 8. Company rules for answering (per instance)
+
+Optional. `get_outline` for a whole instance always carries the general rules for
+answering from a strategy (`guidance.how_to_answer`, embedded in the server). A
+company that wants its own rules on top (words it does not allow, who the audience
+is, how decisions are dated, answer format) installs them in its instance. Without
+them, clients get the general rules only.
+
+The rules are a **prompt skill named exactly `answering-rules`** inside a pack.
+Any other skill name is ignored. The text is returned to clients as
+`guidance.company_rules`; it is never run.
+
+### 8.1 Install
+
+After the instance exists in this environment, call `install_pack` with the
+instance id, a `pack_yaml`, and one skill. Example (placeholders only):
+
+```
+pack_yaml: |
+  name: acme-answering
+  version: "1.0.0"
+  description: "Acme's rules for answering questions about its strategy"
+  trusted: false
+skills: [{"name": "answering-rules",
+          "skill_yaml": "name: answering-rules\nversion: \"1.0.0\"\ntype: analysis\ndescription: \"Acme's answering rules\"\nexecution: prompt-delivery\n",
+          "prompt_md": "Rules for Acme, on top of the general rules.\n\n- Do not use the word ...\n- Audience: ..."}]
+```
+
+To change the text later, call `install_pack` again with `force: true`. To remove it,
+call `uninstall_pack` with the pack name. `describe_pack_format` lists the reserved
+name for anyone authoring a pack.
+
+### 8.2 Verify
+
+Call `get_outline` with the instance id and no `artifact`. The response starts with
+`guidance`; `guidance.company_rules` must be present, with `truncated` false. The
+text is cut at 8,000 characters and `size_chars` gives the full length, so keep the
+rules shorter than that: they are read at the start of every question.
+
+### 8.3 What to remember
+
+- **Packs are not synced from the instance's GitHub repo.** They are installed per
+  environment: do this step in each environment (local, production) once the
+  instance has been imported there. A re-import or a deploy does not remove them;
+  deleting the instance does.
+- **Keep the source text with the instance it belongs to**, under version control
+  in that instance's own repository. This repository never holds a company's
+  rules.
+- The text is not validated. Check an answer after changing it.
+

@@ -495,7 +495,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `internal/pipeline/` | Post-commit pipeline (ripple analysis, Memory ingestion, validation) |
 | `internal/auth/` | Zitadel OIDC introspection + PostgreSQL cache |
 | `internal/memory/` | emergent.memory REST API client (7 files) |
-| `internal/agent/` | Task routing (`get_agent_for_task`) + domain knowledge base (30 topics) |
+| `internal/agent/` | Task routing (`get_agent_for_task`) + domain knowledge base (30 topics) + the embedded answering rules (`answering_rules.md`) |
 | `internal/embedded/` | go:embed EPF schemas, templates, agents, skills, field manifest |
 | `internal/github/` | GitHub App client (JWT, installation tokens, Git tree API) |
 | `internal/web/` | Auth + audit + lang middleware |
@@ -508,6 +508,40 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `internal/adk/` | Generic ADK Go v2 session-store infra (`SessionStore`), kept for whichever engine the authoring bot chooses (baseline open question 6, still open) — no longer AIM-specific since the DBOS cutover |
 | `internal/domain/` | Shared struct definitions with bun tags |
 | `internal/index/` | Strategic relationship index derivation |
+
+### Answering guidance: two layers — read before editing the rules
+
+`get_outline` for a whole instance leads with `guidance`. It has two layers, and
+what goes in which is a rule, not a preference:
+
+| Layer | Lives in | Reaches the client as |
+|---|---|---|
+| General rules for answering from any company's strategy | `internal/agent/answering_rules.md`, embedded (`agent.AnsweringRules()`) | `guidance.how_to_answer` |
+| One company's own rules: vocabulary it forbids, audience, how decisions are dated, format | The instance, as a **prompt skill named exactly `answering-rules`** in a pack, installed with `install_pack` | `guidance.company_rules`, cut at 8,000 characters and flagged when cut |
+
+- **The general layer names no company, customer or competitor.** Anything that
+  belongs to one company goes in that instance's pack, never in this repo. The
+  OpenSpec requirement states it; no test can check it, so reviewers hold the text
+  to it.
+- **The skill name is a contract.** `reservedSkillNames()` in
+  `internal/mcpserver/guidance.go` publishes it through `describe_pack_format`,
+  because a pack author cannot find it anywhere else. The prompt is guidance for
+  the reader and is never run.
+- **Why the outline and not the instructions.** The server instructions are held
+  under 5,000 characters (a test), the general rules need about 4,000, and nothing
+  tells an agent to fetch an installed skill. The outline is the first call of every
+  answer. In the one comparison made (one run each), guidance placed after the
+  listing was followed less than guidance placed before it, so it comes first.
+- **Packs are not read from the instance's GitHub repo.** They are installed per
+  environment, survive a re-import, and are deleted with the instance. See
+  `docs/DEPLOYMENT.md` section 8.
+- **Change the general rules by measuring, not by reading.** Run a question bank
+  end to end with `scripts/eval/bank_eval.py`. Two identical runs differ by a
+  standard deviation of about 4 points on 136, so a difference under about 8 on
+  one run means nothing. Write rules from failure *types* (codes in the body,
+  stopping at a cut section, rounded dates), not from the facts of one company's
+  bank, or the result only describes that bank. Spec: `strategy-mcp`, "Answering
+  Guidance In The Outline".
 
 ### Memory isolation model — read before touching ingest, search or purge
 

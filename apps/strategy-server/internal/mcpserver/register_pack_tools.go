@@ -736,7 +736,7 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 
 	// describe_pack_format
 	s.AddTool(mcp.NewTool("describe_pack_format",
-		mcp.WithDescription("USE WHEN you need to understand the pack, skill, or app YAML format for authoring a new pack. Returns schemas and a complete example."),
+		mcp.WithDescription("USE WHEN you need to understand the pack, skill, or app YAML format for authoring a new pack. Returns schemas, a complete example, and the reserved skill names the server gives a meaning to (answering-rules)."),
 	), func(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return mustJSON(map[string]any{
 			"pack_yaml_schema": map[string]any{
@@ -783,6 +783,7 @@ func registerAppPlatformTools(s *server.MCPServer, svc Services) {
 				{"mode": "script", "description": "Subprocess receives JSON on stdin, returns JSON on stdout"},
 				{"mode": "inline", "description": "Compiled Go handler — reserved for core embedded skills only"},
 			},
+			"reserved_skill_names": reservedSkillNames(),
 			"example_pack": map[string]any{
 				"pack_yaml":  "name: my-pack\nversion: \"1.0.0\"\ndescription: \"Example pack\"\nauthor: \"Your Name\"\ntrusted: false\n",
 				"skill_yaml": "name: my-skill\nversion: \"1.0.0\"\ntype: creation\nphase: FIRE\ndescription: \"Does something useful\"\nexecution: prompt-delivery\n",

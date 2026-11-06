@@ -31,11 +31,15 @@ covers and see it fail.
       with the guidance after the listing, 103 with it first (injected skill:
       105 twice; no guidance: 89 and 97). Function questions: 15 of 24, the
       open gap named in the proposal.
-- [ ] 3.2 Held-out questions: write 10 to 15 new questions with gold answers
-      that the rules were not derived from, and run them. Not done; the
-      development-set caveat stands until then.
+
+Not done, by decision on 6 November 2026: held-out questions. The pilot instance
+was a calibration case and is closed. The development-set caveat in the proposal
+stands.
 
 ## 4. Spec
 
 - [x] 4.1 Requirements in `specs/strategy-mcp/spec.md`.
 - [x] 4.2 `openspec validate add-answering-guidance --strict`.
+- [x] 4.3 Documented where an operator looks: `strategy-server/AGENTS.md` ("Answering
+      guidance: two layers"), `docs/DEPLOYMENT.md` section 8, and the reserved name in
+      `describe_pack_format` (test seen failing first).

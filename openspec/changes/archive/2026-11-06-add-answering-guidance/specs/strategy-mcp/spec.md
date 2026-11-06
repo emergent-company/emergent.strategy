@@ -58,6 +58,18 @@ outline.
 - **WHEN** a client calls `get_outline` with an `artifact`
 - **THEN** the response carries no guidance
 
+### Requirement: Reserved Skill Name Is Discoverable
+
+`describe_pack_format` SHALL list the skill names the server gives a meaning to
+(`reserved_skill_names`), each with what it does. It SHALL list `answering-rules`
+and say that its prompt is returned by `get_outline` as `guidance.company_rules`,
+cut at 8,000 characters, and never run.
+
+#### Scenario: A pack author asks for the format
+
+- **WHEN** a client calls `describe_pack_format`
+- **THEN** the response lists `answering-rules` with its effect
+
 ### Requirement: Objectives View Returns The Whole Index
 
 The `objectives` view SHALL use a default budget of 24,000 characters when the
