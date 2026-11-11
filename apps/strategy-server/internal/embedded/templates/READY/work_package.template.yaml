@@ -23,6 +23,17 @@
 # It is DERIVED server-side from targets, never written here - so it cannot be
 # under-declared. You only author targets.
 #
+# TWO PLACES A WORK PACKAGE CAN ORIGINATE
+# - EPF-authored (source.authoring_tool: custom | partner-native): written here,
+#   before execution, as a statement-of-work handover. Typical for org-ops,
+#   commercial and partner work.
+# - Implementation-authored (source.authoring_tool: openspec): written in the
+#   code repository (product and code work only splits into work packages once
+#   the implementation spec exists) and mirrored one way into EPF. Treat the
+#   mirrored file as read-only here; source.reference points to the tracker item
+#   (e.g. an issue URL). Estimates, tasks, repos and PRs stay in the tracker.
+#   Mirroring tools must never move a status backward.
+#
 # Related Resources:
 # - Schema:    ../../schemas/work_package_schema.json
 # - Wizard:    ../../wizards/work_package.wizard.md
@@ -48,9 +59,11 @@ track: "product"
 # WHAT THIS WP ADVANCES. All three arrays are MANY-TO-MANY references into
 # existing strategy artifacts. The validator checks each reference resolves.
 targets:
-  # Value Model L1.L2.L3 paths. Format: {Track}.{L2 Theme}.{l3-capability}
-  # Track is Title case (Product|Strategy|OrgOps|Commercial). L2 allows spaces/&.
-  # L3 is kebab-case. May span multiple tracks. Part of the footprint.
+  # Value Model paths. Format: {Track}.{Segment}.{Segment}[.{Segment}] (3-4 segments,
+  # same as feature definition contributes_to). Track is Title case
+  # (Product|Strategy|OrgOps|Commercial). Segments may be display names
+  # ("Core Platform", "csv-import") or PascalCase ("CorePlatform", "CsvImport").
+  # May span multiple tracks. Part of the footprint.
   value_model_paths:
     - "Product.Core Platform.csv-import"
 
@@ -74,9 +87,11 @@ status: "proposed"
 
 # Authoring-tool provenance.
 source:
-  # openspec | custom | partner-native  (categories, not specific products)
+  # custom | partner-native = EPF-authored; openspec = implementation-authored,
+  # mirrored into EPF and read-only here. (categories, not specific products)
   authoring_tool: "custom"
-  # Optional opaque pointer back to the authoring artifact.
+  # Optional pointer back to the authoring artifact, e.g. a spec id or the URL
+  # of the tracker item this work package is mirrored from.
   # reference: "spec:example-work-package"
 
 # Time-boxing metadata - a WP is non-permanent and expected to close.

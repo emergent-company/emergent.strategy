@@ -53,7 +53,7 @@ var errorPatterns = []struct {
 	},
 	// Pattern mismatch errors
 	{
-		pattern: regexp.MustCompile(`does not match pattern '([^']+)'`),
+		pattern: regexp.MustCompile(`does not match pattern '(.+)'`),
 		explanation: func(matches []string, message string) ErrorExplanation {
 			pattern := matches[1]
 			return ErrorExplanation{
@@ -213,13 +213,21 @@ func suggestForMultipleUnknownFields(fields []string) string {
 	return "These fields are not defined in the schema. Check spelling or remove them"
 }
 
+// unescapeSchemaPattern undoes the escaping the schema compiler applies to the
+// pattern it reports (`\\.` instead of `\.`, `\'` instead of `'`), so patterns can
+// be looked up by their regex form.
+func unescapeSchemaPattern(pattern string) string {
+	return strings.NewReplacer(`\\`, `\`, `\'`, `'`).Replace(pattern)
+}
+
 // explainPattern provides human-readable explanations for common regex patterns
 func explainPattern(pattern string) string {
 	// Common EPF patterns
 	patterns := map[string]string{
 		// contributes_to patterns (old and new)
-		`^(Product|Commercial|Strategy|OrgOps)\.[A-Za-z]+\.[A-Za-z]+`: "Format: '{Track}.{Layer}.{Component}' where Track is Product/Commercial/Strategy/OrgOps. Example: 'Product.Layer1LocalTools.EpfCliValidate'",
-		`^(Product|Commercial|Strategy|OrgOps)(\.[A-Za-z0-9]+){2,3}$`: "Format: '{Track}.{Layer}.{Component}[.{SubComponent}]' (3-4 segments). Example: 'Product.Layer3PlatformServices.WorkspaceIsolation.AccessControl'",
+		`^(Product|Commercial|Strategy|OrgOps)\.[A-Za-z]+\.[A-Za-z]+`:         "Format: '{Track}.{Layer}.{Component}' where Track is Product/Commercial/Strategy/OrgOps. Example: 'Product.Layer1LocalTools.EpfCliValidate'",
+		`^(Product|Commercial|Strategy|OrgOps)(\.[A-Za-z0-9]+){2,3}$`:         "Format: '{Track}.{Layer}.{Component}[.{SubComponent}]' (3-4 segments). Example: 'Product.Layer3PlatformServices.WorkspaceIsolation.AccessControl'",
+		`^(Product|Strategy|OrgOps|Commercial)(\.[A-Za-z0-9 &()/,'-]+){2,3}$`: "Format: '{Track}.{Segment}.{Segment}[.{Segment}]' (3-4 segments, Track is Product/Strategy/OrgOps/Commercial). Segments may be display names or PascalCase. Examples: 'Product.Core Platform.csv-import', 'Product.CorePlatform.CsvImport'",
 
 		// Feature ID pattern
 		`^fd-\d{3}$`: "Format: 'fd-XXX' where XXX is a 3-digit number. Example: 'fd-001'",
@@ -239,6 +247,7 @@ func explainPattern(pattern string) string {
 		`^[a-zA-Z][a-zA-Z0-9_]*$`: "Letters, numbers, and underscores only. Must start with a letter. Example: 'myFeature_1'",
 	}
 
+	pattern = unescapeSchemaPattern(pattern)
 	if explanation, ok := patterns[pattern]; ok {
 		return explanation
 	}
