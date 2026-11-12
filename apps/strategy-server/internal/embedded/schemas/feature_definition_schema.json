@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "feature_definition_schema.json",
   "title": "EPF Feature Definition Schema",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.1: Added feature_maturity for tracking capability-level delivery progress and overall feature maturity stage. Version 2.2: Added optional tools_ecosystem (matching the strategy/org_ops/commercial track schemas) so the product track can carry tool recommendations (EPF issue #25). Version 2.3: Capability ids accept the hierarchical form cap-NNN-NN (matching practitioner-scenario ids), aligning with canonical product example definitions (EPF issue #24 product-track follow-up).",
   "$comment": "This schema validates YAML feature definition files located in _instances/{product}/features/READY/. Feature definitions are the bridge between strategic EPF artifacts (North Star, Strategy Formula, Value Model, Roadmap Recipe) and implementation tools (OpenSpec, Linear, Cursor, etc.). They capture WHAT users need (job-to-be-done), WHY it matters (value propositions), HOW it works (capabilities, scenarios), and WHERE it fits (strategic context, dependencies). GRANULARITY GUIDANCE: A feature should represent a coherent job-to-be-done that users recognize as a complete capability. Use the one-sentence test (can you describe it without \"and\" connecting unrelated functions?), the 4-persona limit (if you need more, split the feature), and the 2-15 capability range. See FEATURE_DEFINITION_GRANULARITY_GUIDE.md for comprehensive guidance. Enhanced validation ensures high-quality, tool-consumable feature definitions.",
   "type": "object",
@@ -15,6 +15,14 @@
     "definition"
   ],
   "additionalProperties": false,
+  "definitions": {
+    "value_model_path": {
+      "type": "string",
+      "pattern": "^(Product|Strategy|OrgOps|Commercial)(\\.[A-Za-z0-9 &()/,'-]+){2,3}$",
+      "description": "A Value Model path: {Track}.{Segment}.{Segment}[.{Segment}] - three or four dot-separated segments. Track is Title case (Product|Strategy|OrgOps|Commercial). Segments accept either the display-name form ('Product.Core Platform.csv-import') or the PascalCase form ('Product.CorePlatform.CsvImport'), so paths copied between feature definitions, track definitions and work packages all validate.",
+      "$comment": "SINGLE SOURCE OF TRUTH FOR THE PATTERN: this definition is duplicated verbatim in work_package_schema.json and feature_definition_schema.json (kept local, not a cross-file $ref, so each schema stays loadable on its own). validate-schemas.sh fails if the two copies diverge. Edit both together. It is a superset of the previous work_package and feature_definition patterns, so existing artifacts remain valid."
+    }
+  },
   "properties": {
     "id": {
       "type": "string",
@@ -131,11 +139,7 @@
       "properties": {
         "contributes_to": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^(Product|Commercial|Strategy|OrgOps)(\\.[A-Za-z0-9]+){2,3}$",
-            "description": "Value Model path that receives value from this feature. Format: {Track}.{Layer}.{Component}[.{SubComponent}]"
-          },
+          "items": { "$ref": "#/definitions/value_model_path" },
           "minItems": 1,
           "description": "Value Model paths that receive value from this feature. Supports 3-4 segment paths for component/sub-component targeting.",
           "$comment": "Value Model paths use hierarchical dot notation. Level 1 = Track (Product, Commercial, Strategy, OrgOps). Level 2 = Layer (e.g., Product.Layer1LocalTools). Level 3 = Component (e.g., Product.Layer1LocalTools.EpfCliValidate). Level 4 (optional) = SubComponent for fine-grained targeting (e.g., Product.Layer3PlatformServices.WorkspaceIsolation.AccessControl). A feature can contribute to multiple paths - this is normal for platform features. Reference Value Model (value_model_schema.json) for valid paths.",

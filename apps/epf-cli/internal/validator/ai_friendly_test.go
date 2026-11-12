@@ -1,7 +1,11 @@
 package validator
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
+
+	"github.com/emergent-company/emergent-strategy/apps/epf-cli/internal/embedded"
 )
 
 // TestJsonPointerToPath tests conversion of JSON pointers to human-readable paths
@@ -445,6 +449,7 @@ func TestKnownPatternExplanations(t *testing.T) {
 		`^ctx-[0-9]+$`,
 		`^scn-[0-9]+$`,
 	}
+	mustHave = append(mustHave, embeddedValueModelPathPatterns(t)...)
 	for _, pattern := range mustHave {
 		if _, ok := knownPatternExplanations[pattern]; !ok {
 			t.Errorf("knownPatternExplanations missing pattern %q", pattern)
@@ -456,5 +461,62 @@ func TestKnownPatternExplanations(t *testing.T) {
 		if explanation == "" {
 			t.Errorf("knownPatternExplanations[%q] has empty explanation", pattern)
 		}
+	}
+}
+
+// embeddedValueModelPathPatterns returns the shared value_model_path pattern
+// from every embedded schema that defines one, so a canonical change to the
+// pattern fails here until a human-readable explanation is added.
+func embeddedValueModelPathPatterns(t *testing.T) []string {
+	t.Helper()
+	var patterns []string
+	for _, name := range []string{"work_package_schema.json", "feature_definition_schema.json"} {
+		data, err := embedded.GetSchema(name)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", name, err)
+		}
+		var schema struct {
+			Definitions struct {
+				ValueModelPath struct {
+					Pattern string `json:"pattern"`
+				} `json:"value_model_path"`
+			} `json:"definitions"`
+		}
+		if err := json.Unmarshal(data, &schema); err != nil {
+			t.Fatalf("parse %s: %v", name, err)
+		}
+		if schema.Definitions.ValueModelPath.Pattern == "" {
+			t.Fatalf("%s has no definitions/value_model_path pattern", name)
+		}
+		patterns = append(patterns, schema.Definitions.ValueModelPath.Pattern)
+	}
+	return patterns
+}
+
+func TestValueModelPathPatternExplainedWhenJSONEscaped(t *testing.T) {
+	for _, pattern := range embeddedValueModelPathPatterns(t) {
+		escaped := strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(pattern)
+		got := explainPattern(escaped)
+		if !strings.Contains(got, "3-4 segments") {
+			t.Errorf("explainPattern(%q) = %q, want the value model path explanation", escaped, got)
+		}
+		if hint, ok := knownPatternExplanations[unescapeSchemaPattern(escaped)]; !ok || hint == "" {
+			t.Errorf("no ai-friendly explanation for escaped pattern %q", escaped)
+		}
+	}
+}
+
+func TestPatternMismatchMessageWithApostropheIsNotTruncated(t *testing.T) {
+	pattern := embeddedValueModelPathPatterns(t)[0]
+	escaped := strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(pattern)
+	message := "does not match pattern '" + escaped + "'"
+
+	m := patternMismatchPattern.FindStringSubmatch(message)
+	if m == nil || m[1] != escaped {
+		t.Fatalf("ai-friendly extraction truncated the pattern: got %v, want %q", m, escaped)
+	}
+	got := explainPattern(m[1])
+	if !strings.Contains(got, "3-4 segments") {
+		t.Errorf("explainPattern(extracted) = %q", got)
 	}
 }

@@ -2,12 +2,20 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "work_package_schema.json",
   "title": "EPF Work Package Schema",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A work package is the bounded, non-permanent execution unit that binds stable strategy (Value Model L1-L3, Definitions, Key Results) into a scoped statement of work with a clear outcome and bounded time. It is the tool-agnostic, four-track HANDOVER CONTRACT between strategy authoring and downstream execution substrates (coding agents, strategy-as-code, ecosystem partners). It is deliberately THIN: it declares outcome + targets via references, and each execution substrate decomposes it its own way. Tasks, scheduling, and collision detection are intentionally out of scope - they belong to the execution substrate and orchestrator, not to this schema.",
-  "$comment": "WORK PACKAGE ARCHITECTURE: EPF models stable strategy at L1-L3 (Value Model -> Definitions -> Key Results). The work package fills the gap between that stable strategy and disposable execution. DESIGN PRINCIPLES: (1) Thin binding - a work package REFERENCES value model paths, definition ids, and KR ids; it never copies their content. (2) Four-track aware - a single work package may advance multiple tracks. (3) Many-to-many targets - a WP advances multiple KRs and a KR spans multiple WPs (1:1 was rejected because WPs would grow too large and KRs too numerous to stay meaningful). (4) Non-permanent - a WP is time-boxed and disposable, with an explicit lifecycle and a 'cancelled' terminal state honoring the 'not forever' property. (5) Substrate-agnostic - no task model; execution substrates own decomposition. HISTORICAL NOTE: An earlier 'work_packages' concept (removed in EPF v1.9.6) was a THICK task/ticket object that duplicated Linear/Jira. This schema is intentionally different: it is a binding CONTRACT, not a ticket. CONVENTIONS: This schema BORROWS conventions from track_definition_base_schema.json (four-track enum, status lifecycle, value-model path format) but does NOT extend it - a work package is an execution INSTANCE, not a procedural definition with maturity tiers. FOOTPRINT: A WP's footprint (the collision key used by orchestrators to compute parallel-safe waves) is the union of value_model_paths + definition_ids it touches. The footprint is DERIVED server-side from targets, never authored here, so it cannot be under-declared. This schema only models the targets. additionalProperties is set to false to keep the contract thin and prevent accidental task/scheduling fields from leaking in.",
+  "$comment": "WORK PACKAGE ARCHITECTURE: EPF models stable strategy at L1-L3 (Value Model -> Definitions -> Key Results). The work package fills the gap between that stable strategy and disposable execution. DESIGN PRINCIPLES: (1) Thin binding - a work package REFERENCES value model paths, definition ids, and KR ids; it never copies their content. (2) Four-track aware - a single work package may advance multiple tracks. (3) Many-to-many targets - a WP advances multiple KRs and a KR spans multiple WPs (1:1 was rejected because WPs would grow too large and KRs too numerous to stay meaningful). (4) Non-permanent - a WP is time-boxed and disposable, with an explicit lifecycle and a 'cancelled' terminal state honoring the 'not forever' property. (5) Substrate-agnostic - no task model; execution substrates own decomposition. TWO ORIGINS: A work package can originate on either side of the strategy/implementation boundary. (a) EPF-authored (source.authoring_tool = custom | partner-native): written in EPF before execution as a statement-of-work handover, typically for org-ops, commercial and partner work. (b) Implementation-authored (source.authoring_tool = openspec): written in the code repository, where product and code work only splits into work packages once the implementation spec exists, then mirrored one way into EPF and treated as read-only there; source.reference points to the tracker item (e.g. an issue URL). Execution detail (estimates, tasks, repos, PRs) stays in the tracker in both cases. HISTORICAL NOTE: An earlier 'work_packages' concept (removed in EPF v1.9.6) was a THICK task/ticket object that duplicated Linear/Jira. This schema is intentionally different: it is a binding CONTRACT, not a ticket. CONVENTIONS: This schema BORROWS conventions from track_definition_base_schema.json (four-track enum, status lifecycle) and shares its value-model path pattern with feature_definition_schema.json via definitions/value_model_path but does NOT extend it - a work package is an execution INSTANCE, not a procedural definition with maturity tiers. FOOTPRINT: A WP's footprint (the collision key used by orchestrators to compute parallel-safe waves) is the union of value_model_paths + definition_ids it touches. The footprint is DERIVED server-side from targets, never authored here, so it cannot be under-declared. This schema only models the targets. additionalProperties is set to false to keep the contract thin and prevent accidental task/scheduling fields from leaking in.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "title", "intent", "track", "targets", "risk_class", "status", "source", "lifecycle"],
+  "definitions": {
+    "value_model_path": {
+      "type": "string",
+      "pattern": "^(Product|Strategy|OrgOps|Commercial)(\\.[A-Za-z0-9 &()/,'-]+){2,3}$",
+      "description": "A Value Model path: {Track}.{Segment}.{Segment}[.{Segment}] - three or four dot-separated segments. Track is Title case (Product|Strategy|OrgOps|Commercial). Segments accept either the display-name form ('Product.Core Platform.csv-import') or the PascalCase form ('Product.CorePlatform.CsvImport'), so paths copied between feature definitions, track definitions and work packages all validate.",
+      "$comment": "SINGLE SOURCE OF TRUTH FOR THE PATTERN: this definition is duplicated verbatim in work_package_schema.json and feature_definition_schema.json (kept local, not a cross-file $ref, so each schema stays loadable on its own). validate-schemas.sh fails if the two copies diverge. Edit both together. It is a superset of the previous work_package and feature_definition patterns, so existing artifacts remain valid."
+    }
+  },
   "properties": {
     "id": {
       "type": "string",
@@ -48,11 +56,8 @@
       "properties": {
         "value_model_paths": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^(Product|Strategy|OrgOps|Commercial)\\.[A-Za-z0-9 &-]+\\.[a-z0-9-]+$"
-          },
-          "description": "Value Model L1.L2.L3 paths this work package advances. Format mirrors track_definition_base_schema.json 'contributes_to': {L1-Pillar}.{L2-Theme}.{L3-Capability}. Track segment is Title case (Product|Strategy|OrgOps|Commercial). L2 may contain spaces and ampersands. L3 is kebab-case. May span multiple tracks. Part of the footprint collision key.",
+          "items": { "$ref": "#/definitions/value_model_path" },
+          "description": "Value Model L1.L2.L3 paths this work package advances. Format: {Track}.{Segment}.{Segment}[.{Segment}] - 3 or 4 segments, identical to feature_definition 'strategic_context.contributes_to', so paths can be copied from a feature definition unchanged. Track segment is Title case (Product|Strategy|OrgOps|Commercial). Segments may be display names ('Core Platform', 'csv-import') or PascalCase ('CorePlatform', 'CsvImport'). May span multiple tracks. Part of the footprint collision key.",
           "examples": [
             ["Product.Core Platform.csv-import"],
             ["Strategy.Market Expansion.enterprise-gtm", "Commercial.Monetization.enterprise-plan"]
@@ -87,7 +92,7 @@
     "status": {
       "type": "string",
       "enum": ["proposed", "approved", "scheduled", "executing", "done", "cancelled"],
-      "description": "Lifecycle status. Normal flow: proposed -> approved -> scheduled -> executing -> done. 'cancelled' is a terminal state reachable from any non-terminal state, honoring the 'not forever' property of work packages (mirrors Shape-Up's 'rejected'). The status state-machine (allowed transitions, side effects, journal events) is enforced downstream in strategy-server; this schema only constrains the set of valid values.",
+      "description": "Lifecycle status. Normal flow: proposed -> approved -> scheduled -> executing -> done. 'cancelled' is a terminal state reachable from any non-terminal state, honoring the 'not forever' property of work packages (mirrors Shape-Up's 'rejected'). The status state-machine (allowed transitions, side effects, journal events) is enforced downstream in strategy-server; this schema only constrains the set of valid values. Tools that mirror a work package from an implementation tracker (source.authoring_tool = openspec) must not move its status backward along the normal flow; status only advances (or becomes cancelled).",
       "$comment": "TERMINAL STATES: done and cancelled. 'scheduled' records that the WP has been placed into an execution wave; the actual scheduling/collision logic lives in the orchestrator, not here. This schema deliberately does not model transitions - it only validates the value."
     },
     "source": {
@@ -99,14 +104,14 @@
         "authoring_tool": {
           "type": "string",
           "enum": ["openspec", "custom", "partner-native"],
-          "description": "Which kind of tool authored this WP. openspec = authored via an OpenSpec-style spec flow; custom = authored directly (manual/wizard); partner-native = authored in an ecosystem partner's native tooling and handed over.",
+          "description": "Which kind of tool authored this WP, and therefore where it originates. openspec = implementation-authored: written in the code repository via an OpenSpec-style spec flow and mirrored one way into EPF, read-only there; custom = EPF-authored directly (manual/wizard); partner-native = EPF-side handover of work authored in an ecosystem partner's native tooling.",
           "$comment": "This enum is intentionally generic and product-neutral per CANONICAL_PURITY_RULES.md - it names CATEGORIES of authoring tool, not specific products or organizations."
         },
         "reference": {
           "type": "string",
           "maxLength": 300,
-          "description": "Optional opaque pointer back to the authoring artifact (e.g. a spec id or external reference). Free-form; not resolved by EPF.",
-          "examples": ["spec:csv-import-hardening", "ext:authoring-tool/wp-001"]
+          "description": "Optional pointer back to the authoring artifact (e.g. a spec id, or the URL of the tracker item the work package is mirrored from). Free-form; not resolved by EPF.",
+          "examples": ["spec:csv-import-hardening", "ext:authoring-tool/wp-001", "https://example.com/org/repo/issues/42"]
         }
       }
     },

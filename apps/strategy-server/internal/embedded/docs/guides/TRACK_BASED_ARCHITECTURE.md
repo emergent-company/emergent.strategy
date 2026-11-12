@@ -15,7 +15,7 @@ As of EPF v1.9.7, the roadmap (`05_roadmap_recipe.yaml`) is structured around **
 
 **Key Results (KRs) are the lowest level that EPF defines.** They are measurable strategic milestones that represent meaningful progress toward objectives.
 
-**Work packages, tasks, and tickets are the responsibility of spec-driven development tools** (Linear, Jira, GitHub Projects, Notion, etc.). These tools:
+**Tasks and tickets are the responsibility of spec-driven development tools** (Linear, Jira, GitHub Projects, Notion, etc.). EPF also defines a thin **work package** (`work_package_schema.json`) that binds value model paths, definition ids and KR ids; it can be EPF-authored, or authored in the implementation repository and mirrored read-only into EPF (see `wizards/work_package.wizard.md`). Implementation tools:
 - Consume EPF's strategic context (OKRs, KRs, assumptions)
 - Create implementation-level work items
 - Track day-to-day execution progress
@@ -169,7 +169,7 @@ strategic_insights:
 When a roadmap is approved, the Key Results are handed off to spec-driven development tools which:
 
 1. **Parse the roadmap** to understand strategic context
-2. **Create work packages** (epics, projects) for each KR
+2. **Create work packages** (epics, projects) for each KR, or mirror them back into EPF as `wp-NNN.yaml` with `source.authoring_tool: openspec`
 3. **Break down into tasks** based on solution_scaffold components
 4. **Link assumptions** to discovery/validation work
 5. **Track progress** and report completion status
