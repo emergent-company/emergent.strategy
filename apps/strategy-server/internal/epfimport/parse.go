@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -171,6 +172,13 @@ func ArtifactKey(relPath, name string) string {
 		return base
 	}
 
+	// Work packages: work_packages/wp-NNN.yaml → wp-NNN, the key the work
+	// package tools take. The directory is matched as a path segment, so an
+	// instance below the repository root works too.
+	if isWorkPackageFile(relPath, base) {
+		return base
+	}
+
 	// Value models: use track name from path segment
 	if strings.Contains(relPath, "value_models/") {
 		return "value_model_" + base
@@ -179,6 +187,15 @@ func ArtifactKey(relPath, name string) string {
 	// Default: slash path without extension
 	ext := filepath.Ext(relPath)
 	return strings.TrimSuffix(relPath, ext)
+}
+
+// isWorkPackageFile says the file is work_packages/wp-*.yaml: the layout the
+// export writes and the decomposer reads.
+func isWorkPackageFile(relPath, base string) bool {
+	if !strings.HasPrefix(base, "wp-") {
+		return false
+	}
+	return path.Base(path.Dir(relPath)) == "work_packages"
 }
 
 // normalizeYAML recursively converts yaml.v3 map[interface{}]interface{} values
