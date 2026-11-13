@@ -118,3 +118,21 @@ func TestParseFiles_FilesWithoutACollisionAreAllKept(t *testing.T) {
 		}
 	}
 }
+
+// A work package file is stored under the key the work package tools take
+// (wp-001), not under its path, so it can be fetched by id.
+func TestArtifactKey_WorkPackageFilesTakeTheirID(t *testing.T) {
+	cases := []struct{ rel, want string }{
+		{"work_packages/wp-001.yaml", "wp-001"},
+		{"work_packages/wp-042.yml", "wp-042"},
+		{"_instances/acme/work_packages/wp-007.yaml", "wp-007"}, // instance below the repo root
+		{"work_packages/notes.yaml", "work_packages/notes"},     // not a work package file
+		{"FIRE/wp-001.yaml", "FIRE/wp-001"},                     // not in work_packages/
+		{"FIRE/definitions/product/fd-001_x.yaml", "fd-001_x"},  // others unchanged
+	}
+	for _, c := range cases {
+		if got := epfimport.ArtifactKey(c.rel, c.rel[strings.LastIndex(c.rel, "/")+1:]); got != c.want {
+			t.Errorf("ArtifactKey(%q) = %q, want %q", c.rel, got, c.want)
+		}
+	}
+}

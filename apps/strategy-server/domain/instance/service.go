@@ -600,6 +600,10 @@ func inferArtifactType(key string) string {
 	if strings.HasPrefix(key, "fd-") {
 		return "feature"
 	}
+	// Work packages: wp-* keys (see epfimport.ArtifactKey)
+	if strings.HasPrefix(key, "wp-") {
+		return "work_package"
+	}
 	// Path-based FIRE definitions
 	switch {
 	case strings.HasPrefix(key, "FIRE/definitions/commercial/"):
