@@ -101,7 +101,11 @@ func artifactKeyToFilename(artifactType, artifactKey string) string {
 	case "mappings":
 		return "mappings.yaml"
 	case "value_model":
-		return artifactKey + ".yaml"
+		name := strings.TrimPrefix(artifactKey, "value_model_")
+		if strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml") {
+			return name
+		}
+		return name + ".yaml"
 	case "work_package":
 		// Work package files must be named wp-*.yaml for the decomposer.
 		// Strip any "work_package:" prefix and use just the wp- id.
@@ -113,6 +117,25 @@ func artifactKeyToFilename(artifactType, artifactKey string) string {
 	default:
 		return base + ".yaml"
 	}
+}
+
+// artifactExportRelPath computes the instance-relative YAML path for an artifact.
+// When artifactKey already carries an explicit EPF phase path (e.g.
+// "FIRE/definitions/commercial/financing/cd-010-investor-pitch-decks",
+// "READY/06_product_portfolio", "AIM/living_reality_assessment"), that directory
+// structure is preserved so category subdirectories are not flattened on export.
+func artifactExportRelPath(artifactType, artifactKey string) string {
+	for _, prefix := range []string{"READY/", "FIRE/", "AIM/", "work_packages/"} {
+		if strings.HasPrefix(artifactKey, prefix) {
+			if strings.HasSuffix(artifactKey, ".yaml") || strings.HasSuffix(artifactKey, ".yml") {
+				return artifactKey
+			}
+			return artifactKey + ".yaml"
+		}
+	}
+	dir := artifactTypeToDirPath(artifactType)
+	filename := artifactKeyToFilename(artifactType, artifactKey)
+	return path.Join(dir, filename)
 }
 
 // ---------------------------------------------------------------------------
@@ -174,9 +197,7 @@ func (s *Service) ExportInstance(ctx context.Context, instanceID uuid.UUID) (*Ex
 				"err", err)
 			continue
 		}
-		dir := artifactTypeToDirPath(a.ArtifactType)
-		filename := artifactKeyToFilename(a.ArtifactType, a.ArtifactKey)
-		relPath := path.Join(dir, filename)
+		relPath := artifactExportRelPath(a.ArtifactType, a.ArtifactKey)
 
 		result.Files = append(result.Files, ExportEntry{
 			RelPath:      relPath,
@@ -207,9 +228,7 @@ func (s *Service) ExportFeature(ctx context.Context, instanceID uuid.UUID, featu
 		return nil, fmt.Errorf("export feature %q: %w", featureKey, err)
 	}
 
-	dir := artifactTypeToDirPath(artifact.ArtifactType)
-	filename := artifactKeyToFilename(artifact.ArtifactType, featureKey)
-	relPath := path.Join(dir, filename)
+	relPath := artifactExportRelPath(artifact.ArtifactType, featureKey)
 
 	return &ExportEntry{
 		RelPath:      relPath,
