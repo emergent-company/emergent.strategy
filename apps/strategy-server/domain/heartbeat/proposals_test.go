@@ -305,6 +305,47 @@ func TestProposal_Defer_DefaultDuration(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestProposal_Defer_ReturnsWhatWasStored
+// ---------------------------------------------------------------------------
+
+// The deadline is computed by the database, so the proposal DeferProposal
+// returns must carry the stored value, not a locally computed one.
+func TestProposal_Defer_ReturnsWhatWasStored(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := context.Background()
+	instID := seedInstance(t, db)
+	svc := heartbeat.NewService(db, firedEval("time", "overdue"))
+
+	if _, err := svc.EvaluateAll(ctx); err != nil {
+		t.Fatalf("EvaluateAll: %v", err)
+	}
+	proposals, _ := svc.ListProposals(ctx, instID, "pending")
+	if len(proposals) == 0 {
+		t.Fatal("expected pending proposal")
+	}
+
+	deferred, err := svc.DeferProposal(ctx, proposals[0].ID, 90*time.Minute)
+	if err != nil {
+		t.Fatalf("DeferProposal: %v", err)
+	}
+	if deferred.Status != "deferred" || deferred.SnoozedUntil == nil || deferred.ResolvedAt == nil {
+		t.Fatalf("returned proposal = %+v, want status deferred with snooze_until and resolved_at set", deferred)
+	}
+	if got := deferred.SnoozedUntil.Sub(*deferred.ResolvedAt); got < 89*time.Minute+59*time.Second || got > 90*time.Minute+time.Second {
+		t.Errorf("snooze_until - resolved_at = %v, want 90m", got)
+	}
+
+	var stored time.Time
+	if err := db.NewSelect().TableExpr("cycle_proposals").ColumnExpr("snooze_until").
+		Where("id = ?", proposals[0].ID).Scan(ctx, &stored); err != nil {
+		t.Fatal(err)
+	}
+	if d := stored.Sub(*deferred.SnoozedUntil); d < -time.Millisecond || d > time.Millisecond {
+		t.Errorf("stored snooze_until %v differs from the returned %v", stored, *deferred.SnoozedUntil)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestProposal_ExpireStale
 // ---------------------------------------------------------------------------
 

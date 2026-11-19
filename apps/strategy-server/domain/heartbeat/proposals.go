@@ -241,16 +241,16 @@ func (s *Service) DeferProposal(ctx context.Context, proposalID uuid.UUID, durat
 		duration = DefaultSnoozeDuration
 	}
 
-	now := time.Now().UTC()
-	snoozeUntil := now.Add(duration)
-	row.Status = domain.CycleProposalStatusDeferred
-	row.SnoozedUntil = &snoozeUntil
-	row.ResolvedAt = &now
-
+	// The deadline is computed by the database, not the app: expiry and the
+	// pending-proposal guard compare snooze_until with the database's now(), and
+	// the two clocks can differ by tens of milliseconds.
 	if _, err := s.db.NewUpdate().
 		Model(&row).
-		Column("status", "snooze_until", "resolved_at").
+		Set("status = ?", domain.CycleProposalStatusDeferred).
+		Set("snooze_until = now() + make_interval(secs => ?)", duration.Seconds()).
+		Set("resolved_at = now()").
 		WherePK().
+		Returning("status, snooze_until, resolved_at").
 		Exec(ctx); err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func (s *Service) DeferProposal(ctx context.Context, proposalID uuid.UUID, durat
 	slog.InfoContext(ctx, "heartbeat: proposal deferred",
 		"proposal_id", proposalID,
 		"instance_id", row.InstanceID,
-		"snooze_until", snoozeUntil,
+		"snooze_until", row.SnoozedUntil,
 	)
 	return &p, nil
 }
