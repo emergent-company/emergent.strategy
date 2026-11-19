@@ -1,0 +1,19 @@
+id: "wp-001"
+title: "Relationship Validation and add_relationship Fix"
+intent: >-
+  validate_relationships produces actionable output (≤14 real findings instead of
+  171 false positives on the reference instance), and add_relationship actually
+  persists relationships so they appear in ListRelationships and all downstream
+  consumers.
+track: "product"
+targets:
+  value_model_paths: []
+  definition_ids: []
+  kr_ids: []
+risk_class: "medium"
+status: "proposed"
+source:
+  authoring_tool: "openspec"
+  reference: "https://github.com/emergent-company/emergent.strategy/issues/157"
+lifecycle:
+  created_at: "2026-11-19T08:00:00Z"

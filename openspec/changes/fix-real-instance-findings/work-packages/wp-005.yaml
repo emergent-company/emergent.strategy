@@ -1,0 +1,19 @@
+id: "wp-005"
+title: "Operational Visibility for GitHub Sync"
+intent: >-
+  Agents and operators know when GitHub sync is unavailable and why, without
+  reading server logs or source code. health_check, get_instance and tool
+  descriptions report the sync state, and a stub tool explains the situation
+  when the full sync tools are not registered.
+track: "product"
+targets:
+  value_model_paths: []
+  definition_ids: []
+  kr_ids: []
+risk_class: "low"
+status: "proposed"
+source:
+  authoring_tool: "openspec"
+  reference: "https://github.com/emergent-company/emergent.strategy/issues/157"
+lifecycle:
+  created_at: "2026-11-19T08:00:00Z"
