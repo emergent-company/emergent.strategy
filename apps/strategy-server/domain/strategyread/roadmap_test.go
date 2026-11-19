@@ -75,3 +75,82 @@ func TestKeyResult_ReturnsItWithObjectiveAssumptionsAndDependencies(t *testing.T
 		t.Error("an unknown key result must not be found")
 	}
 }
+
+const roadmapWithFutureOKRs = `{"roadmap":{"id":"rm-1","tracks":{
+  "product":{"track_objective":"Ship the core",
+   "okrs":[{"id":"okr-p-001","objective":"Now","key_results":[{"id":"kr-p-001","description":"Current KR"}],
+     "riskiest_assumptions":[{"id":"asm-p-099","linked_to_kr":["kr-p-001"]}]}],
+   "future_okrs_q3_2026":[{"id":"okr-p-010","objective":"Later","key_results":[
+     {"id":"kr-p-010","description":"Future KR"},{"id":"kr-p-011","description":"Another future KR"}]}],
+   "future_okrs_note":"not a list of objectives",
+   "riskiest_assumptions":[{"id":"asm-p-001","description":"Track level","linked_to_kr":["kr-p-010"]}]}}}}`
+
+func TestOKRGroups_CurrentFirstThenFutureInNameOrder_IgnoringNonLists(t *testing.T) {
+	track := map[string]any{
+		"future_okrs_q4_2026":  []any{},
+		"okrs":                 []any{},
+		"future_okrs_q3_2026":  []any{},
+		"future_okrs_note":     "text, not a list",
+		"riskiest_assumptions": []any{},
+	}
+	var names []string
+	for _, g := range strategyread.OKRGroups(track) {
+		names = append(names, g.Name)
+	}
+	if got, want := strings.Join(names, ","), "okrs,future_okrs_q3_2026,future_okrs_q4_2026"; got != want {
+		t.Errorf("groups = %s, want %s", got, want)
+	}
+}
+
+func TestObjectives_WalksFutureOKRGroupsAndNamesTheGroup(t *testing.T) {
+	roadmap := decode(t, roadmapWithFutureOKRs)
+
+	tracks := strategyread.Objectives(roadmap, "")
+	if len(tracks) != 1 || len(tracks[0].Objectives) != 2 {
+		t.Fatalf("objectives = %+v, want the current and the future objective", tracks)
+	}
+	krs := 0
+	groups := map[string]string{}
+	for _, o := range tracks[0].Objectives {
+		groups[o.ID] = o.Group
+		krs += len(o.KeyResults)
+	}
+	if krs != 3 {
+		t.Errorf("key results = %d, want all 3 (1 current + 2 future)", krs)
+	}
+	if groups["okr-p-001"] != "okrs" || groups["okr-p-010"] != "future_okrs_q3_2026" {
+		t.Errorf("groups = %v", groups)
+	}
+}
+
+func TestKeyResult_FindsAKeyResultInAFutureGroup(t *testing.T) {
+	roadmap := decode(t, roadmapWithFutureOKRs)
+
+	kr, ok := strategyread.KeyResult(roadmap, "kr-p-010")
+	if !ok {
+		t.Fatal("a key result under future_okrs_q3_2026 must be found")
+	}
+	if kr.Group != "future_okrs_q3_2026" || kr.Objective.ID != "okr-p-010" || kr.Track != "product" {
+		t.Errorf("detail = %+v", kr)
+	}
+	if len(kr.Assumptions) != 1 || !strings.Contains(mustJSON(t, kr.Assumptions[0]), "asm-p-001") {
+		t.Errorf("assumptions = %s, want the track-level one linked to this key result", mustJSON(t, kr.Assumptions))
+	}
+
+	current, ok := strategyread.KeyResult(roadmap, "kr-p-001")
+	if !ok || current.Group != "okrs" {
+		t.Errorf("current key result = %+v ok=%v, want group okrs", current, ok)
+	}
+}
+
+func TestRoadmapIDs_CoversEveryGroupAndBothAssumptionLocations(t *testing.T) {
+	ids := strategyread.RoadmapIDs(decode(t, roadmapWithFutureOKRs))
+	for _, want := range []string{"kr-p-001", "kr-p-010", "kr-p-011", "asm-p-001", "asm-p-099"} {
+		if !ids[want] {
+			t.Errorf("id %s missing from %v", want, ids)
+		}
+	}
+	if ids["okr-p-010"] || ids["kr-nope"] {
+		t.Errorf("ids = %v, objectives and unknown ids must not be included", ids)
+	}
+}

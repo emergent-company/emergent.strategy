@@ -209,3 +209,34 @@ func TestReadView_CompetitivePositionIncludesPerCompetitorPositioning(t *testing
 		t.Errorf("the formula's per-competitor positioning must be included: %s", byName["positioning_by_competitor"])
 	}
 }
+
+func TestReadView_ObjectivesAndKeyResultIncludeFutureOKRGroups(t *testing.T) {
+	svc, _, inst := seedRead(t)
+	ctx := context.Background()
+	roadmap := map[string]any{"roadmap": map[string]any{"id": "rm-1", "tracks": map[string]any{"commercial": map[string]any{
+		"okrs": []any{map[string]any{"id": "okr-c-001", "objective": "Land three pilots", "key_results": []any{
+			map[string]any{"id": "kr-c-001", "description": "Three signed pilots"}}}},
+		"future_okrs_q3_2026": []any{map[string]any{"id": "okr-c-010", "objective": "Expand to ten accounts", "key_results": []any{
+			map[string]any{"id": "kr-c-010", "description": "Ten paying accounts"}}}},
+	}}}}
+	commitAuto(t, svc, inst, "roadmap_recipe", "roadmap_recipe", domain.MutationActionUpdate, roadmap)
+
+	obj, err := svc.ReadView(ctx, inst, "objectives", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := mustMarshal(t, obj.Parts[0].Content)
+	for _, want := range []string{"kr-c-001", "kr-c-010", "future_okrs_q3_2026"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("objectives view is missing %q: %s", want, content)
+		}
+	}
+
+	kr, err := svc.ReadView(ctx, inst, "key_result", map[string]string{"id": "kr-c-010"}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !kr.Parts[0].Defined || !strings.Contains(mustMarshal(t, kr.Parts[0].Content), "Expand to ten accounts") {
+		t.Errorf("a key result under future_okrs_q3_2026 must be readable: %+v", kr.Parts[0])
+	}
+}

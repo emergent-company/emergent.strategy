@@ -2964,10 +2964,10 @@ func TestMCP_ValidationAndExportTools(t *testing.T) {
 	}).assertOK().decode(&vrel)
 	id++
 
-	// Relationship from fd-v1 → asm-v-001 is type "assumption" which IS checked.
-	// Since asm-v-001 is not an artifact in strategy_artifacts, it will appear as broken.
-	// This is correct behaviour — tests_assumption refs are often to assumption keys
-	// that live in a separate artifact file.
+	// Relationship from fd-v1 → asm-v-001 is type "assumption", which resolves
+	// against the roadmap's riskiest_assumptions. This instance has no roadmap,
+	// so it is reported as broken. See validate_relationships_test.go for the
+	// resolving cases.
 	t.Logf("validate_relationships: checked=%d broken=%d valid=%v",
 		vrel.RelationshipsChecked, vrel.BrokenCount, vrel.Valid)
 

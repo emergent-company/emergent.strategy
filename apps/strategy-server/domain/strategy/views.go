@@ -318,7 +318,7 @@ func (s *Service) keyResultView(ctx context.Context, instanceID uuid.UUID, args 
 	if id == "" {
 		return apperror.ErrBadRequest.WithDetail("the key_result view needs an id argument, for example kr-c-001")
 	}
-	part, err := s.roadmapPart(ctx, instanceID, "key_result", "tracks.*.okrs[*].key_results[id="+id+"]", func(payload any) (any, string) {
+	part, err := s.roadmapPart(ctx, instanceID, "key_result", "tracks.*.<okr group>[*].key_results[id="+id+"]", func(payload any) (any, string) {
 		detail, ok := strategyread.KeyResult(payload, id)
 		if !ok {
 			return nil, fmt.Sprintf("no key result with id %q in the roadmap", id)
