@@ -175,6 +175,8 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractEvidenceRelationships(artifactKey, raw)
 	case "work_package":
 		return extractWorkPackageRelationships(artifactKey, raw)
+	case "relationship":
+		return extractExplicitRelationships(raw)
 	}
 	return nil
 }
@@ -678,6 +680,34 @@ func extractWorkPackageRelationships(key string, raw map[string]any) []Relations
 		})
 	}
 
+	return rels
+}
+
+// extractExplicitRelationships handles the "relationship" artifact type
+// produced by add_relationship. The payload shape is:
+//
+//	{"relationships": [{"source_key":"…","target_key":"…","relationship":"…","target_type":"…"}]}
+func extractExplicitRelationships(raw map[string]any) []Relationship {
+	arr, ok := raw["relationships"].([]any)
+	if !ok {
+		return nil
+	}
+	var rels []Relationship
+	for _, item := range arr {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		targetKey := strField(m, "target_key")
+		if targetKey == "" {
+			continue
+		}
+		rels = append(rels, Relationship{
+			TargetKey:    targetKey,
+			TargetType:   strField(m, "target_type"),
+			Relationship: strField(m, "relationship"),
+		})
+	}
 	return rels
 }
 

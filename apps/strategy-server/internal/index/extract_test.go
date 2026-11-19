@@ -671,3 +671,77 @@ func TestExtractRelationships_Evidence_EmptyLinkedArtifacts(t *testing.T) {
 		t.Errorf("evidence with no linked_artifacts should produce 0 rels, got %d", len(rels))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Explicit relationship (add_relationship payload)
+// ---------------------------------------------------------------------------
+
+func TestExtractRelationships_ExplicitRelationship(t *testing.T) {
+	payload := mustMarshal(map[string]any{
+		"relationships": []map[string]any{
+			{
+				"source_key":   "fd-001",
+				"target_key":   "Product.Core Platform.csv-import",
+				"relationship": "contributes_to",
+				"target_type":  "value_path",
+			},
+		},
+	})
+	rels := index.ExtractRelationships("relationship", "rel:fd-001:contributes_to:Product.Core Platform.csv-import", payload)
+	if len(rels) != 1 {
+		t.Fatalf("expected 1 relationship, got %d", len(rels))
+	}
+	r := rels[0]
+	if r.TargetKey != "Product.Core Platform.csv-import" {
+		t.Errorf("TargetKey = %q, want %q", r.TargetKey, "Product.Core Platform.csv-import")
+	}
+	if r.TargetType != "value_path" {
+		t.Errorf("TargetType = %q, want %q", r.TargetType, "value_path")
+	}
+	if r.Relationship != "contributes_to" {
+		t.Errorf("Relationship = %q, want %q", r.Relationship, "contributes_to")
+	}
+}
+
+func TestExtractRelationships_ExplicitRelationship_Multiple(t *testing.T) {
+	payload := mustMarshal(map[string]any{
+		"relationships": []map[string]any{
+			{
+				"source_key":   "fd-001",
+				"target_key":   "fd-002",
+				"relationship": "depends_on",
+				"target_type":  "feature",
+			},
+			{
+				"source_key":   "fd-001",
+				"target_key":   "fd-003",
+				"relationship": "enables",
+				"target_type":  "feature",
+			},
+		},
+	})
+	rels := index.ExtractRelationships("relationship", "rel:fd-001:depends_on:fd-002", payload)
+	if len(rels) != 2 {
+		t.Fatalf("expected 2 relationships, got %d", len(rels))
+	}
+}
+
+func TestExtractRelationships_ExplicitRelationship_Empty(t *testing.T) {
+	payload := mustMarshal(map[string]any{"relationships": []map[string]any{}})
+	rels := index.ExtractRelationships("relationship", "rel:x:y:z", payload)
+	if len(rels) != 0 {
+		t.Errorf("expected 0 relationships for empty array, got %d", len(rels))
+	}
+}
+
+func TestExtractRelationships_ExplicitRelationship_MissingTargetKey(t *testing.T) {
+	payload := mustMarshal(map[string]any{
+		"relationships": []map[string]any{
+			{"source_key": "fd-001", "relationship": "depends_on"},
+		},
+	})
+	rels := index.ExtractRelationships("relationship", "rel:x:y:z", payload)
+	if len(rels) != 0 {
+		t.Errorf("expected 0 relationships when target_key is missing, got %d", len(rels))
+	}
+}

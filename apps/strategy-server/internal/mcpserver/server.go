@@ -2116,7 +2116,8 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Build a set of all known artifact keys.
+		// Build a set of all known artifact keys and collect payloads
+		// that may contain embedded objects (key_result, assumption).
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
 			return toolErr(ctx, err), nil
@@ -2125,6 +2126,10 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 		for _, a := range artifacts {
 			knownKeys[a.ArtifactKey] = true
 		}
+
+		// Build a set of embedded key_result and assumption IDs from
+		// roadmap payloads, since these are not standalone artifacts.
+		embeddedIDs := extractEmbeddedIDs(ctx, svc, instID)
 
 		// Load all relationships.
 		type brokenRef struct {
@@ -2146,13 +2151,41 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 					continue // only check outbound
 				}
 				totalChecked++
-				// Only check references to artifact types that land in strategy_artifacts.
-				// Value model paths and track names are strings, not artifact keys — skip them.
+				// Only check references to artifact types that land in
+				// strategy_artifacts or are resolvable from roadmap payloads.
+				// track: never stored as artifacts, just string labels — skip.
+				// value_path: dotted paths into the value model — skip.
 				checkableTypes := map[string]bool{
-					"feature": true, "assumption": true, "key_result": true,
-					"track": true, "persona": true,
+					"feature": true, "persona": true,
 				}
-				if !checkableTypes[r.TargetType] {
+				embeddedTypes := map[string]bool{
+					"key_result": true, "assumption": true,
+				}
+				if !checkableTypes[r.TargetType] && !embeddedTypes[r.TargetType] {
+					continue
+				}
+				if embeddedTypes[r.TargetType] {
+					if !embeddedIDs[r.TargetKey] {
+						broken = append(broken, brokenRef{
+							SourceKey:    r.SourceKey,
+							Relationship: r.Relationship,
+							TargetKey:    r.TargetKey,
+							TargetType:   r.TargetType,
+						})
+					}
+					continue
+				}
+				// For features, try both exact match and id-prefix match
+				// (feature keys include a slug suffix, e.g. fd-014_business_directory).
+				if r.TargetType == "feature" && !knownKeys[r.TargetKey] {
+					if !matchesByPrefix(knownKeys, r.TargetKey) {
+						broken = append(broken, brokenRef{
+							SourceKey:    r.SourceKey,
+							Relationship: r.Relationship,
+							TargetKey:    r.TargetKey,
+							TargetType:   r.TargetType,
+						})
+					}
 					continue
 				}
 				if !knownKeys[r.TargetKey] {
@@ -2271,6 +2304,78 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 			verdict.New(integ.Scanned, findings).WithSummary("%s", summary),
 			detail)
 	})
+}
+
+// extractEmbeddedIDs collects key_result and assumption IDs from roadmap
+// payloads. These objects are not standalone artifacts in strategy_artifacts;
+// they live inside the roadmap payload. Returns a set of their IDs.
+func extractEmbeddedIDs(ctx context.Context, svc Services, instID uuid.UUID) map[string]bool {
+	ids := make(map[string]bool)
+	roadmaps, _ := svc.Strategy.ListCurrentArtifacts(ctx, instID, "roadmap")
+	recipes, _ := svc.Strategy.ListCurrentArtifacts(ctx, instID, "roadmap_recipe")
+	roadmaps = append(roadmaps, recipes...)
+	for _, rm := range roadmaps {
+		var raw map[string]any
+		if err := json.Unmarshal(rm.Payload, &raw); err != nil {
+			continue
+		}
+		rmObj := raw
+		if nested, ok := raw["roadmap"].(map[string]any); ok {
+			rmObj = nested
+		}
+		tracks, ok := rmObj["tracks"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, trackData := range tracks {
+			track, ok := trackData.(map[string]any)
+			if !ok {
+				continue
+			}
+			okrs, _ := track["okrs"].([]any)
+			for _, okrItem := range okrs {
+				okr, ok := okrItem.(map[string]any)
+				if !ok {
+					continue
+				}
+				krs, _ := okr["key_results"].([]any)
+				for _, krItem := range krs {
+					kr, ok := krItem.(map[string]any)
+					if !ok {
+						continue
+					}
+					if id, ok := kr["id"].(string); ok && id != "" {
+						ids[id] = true
+					}
+				}
+				asms, _ := okr["riskiest_assumptions"].([]any)
+				for _, asmItem := range asms {
+					asm, ok := asmItem.(map[string]any)
+					if !ok {
+						continue
+					}
+					if id, ok := asm["id"].(string); ok && id != "" {
+						ids[id] = true
+					}
+				}
+			}
+		}
+	}
+	return ids
+}
+
+// matchesByPrefix checks if any key in the set starts with targetKey followed
+// by an underscore. This handles the common case where feature relationships
+// use short IDs like "fd-014" but the actual artifact key is
+// "fd-014_business_directory".
+func matchesByPrefix(knownKeys map[string]bool, targetKey string) bool {
+	prefix := targetKey + "_"
+	for key := range knownKeys {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
