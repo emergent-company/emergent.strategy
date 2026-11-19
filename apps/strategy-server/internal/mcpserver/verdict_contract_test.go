@@ -34,6 +34,7 @@ var verdictTools = []string{
 	"validate_with_plan",
 	"check_content_readiness",
 	"validate_value_model_links",
+	"validate_kr_target_fitness",
 }
 
 // publishedOutputSchema returns the compiled outputSchema the server actually

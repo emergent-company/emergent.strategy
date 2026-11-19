@@ -168,6 +168,61 @@ func KeyResult(roadmap any, id string) (KeyResultDetail, bool) {
 	return KeyResultDetail{}, false
 }
 
+// KRTarget is one key result with the value model target it declares, if any.
+// Track and TargetTrack are as written in the roadmap; the caller normalises.
+type KRTarget struct {
+	Track       string // roadmap track the key result sits under
+	Group       string // OKR group: "okrs" or a "future_okrs_*" list
+	ObjectiveID string
+	ID          string
+	Description string
+	// TargetTrack is value_model_target.track, or Track when it names none.
+	TargetTrack string
+	// ComponentPath is value_model_target.component_path; empty when the key
+	// result declares no target or no path.
+	ComponentPath string
+}
+
+// KeyResultTargets lists every key result of a roadmap, whichever OKR group
+// holds it, with its value model target. Key results without a target are
+// included: a coverage check needs them in its denominator.
+func KeyResultTargets(roadmap any) []KRTarget {
+	tracks := roadmapTracks(roadmap)
+	names := make([]string, 0, len(tracks))
+	for name := range tracks {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var out []KRTarget
+	for _, name := range names {
+		tm, _ := tracks[name].(map[string]any)
+		for _, g := range OKRGroups(tm) {
+			for _, o := range g.Items {
+				om, _ := o.(map[string]any)
+				for _, k := range listOf(om, "key_results") {
+					km, _ := k.(map[string]any)
+					if km == nil {
+						continue
+					}
+					t := KRTarget{
+						Track: name, Group: g.Name, ObjectiveID: str(om, "id"),
+						ID: str(km, "id"), Description: str(km, "description"), TargetTrack: name,
+					}
+					if vmt, ok := km["value_model_target"].(map[string]any); ok {
+						t.ComponentPath = str(vmt, "component_path")
+						if tt := str(vmt, "track"); tt != "" {
+							t.TargetTrack = tt
+						}
+					}
+					out = append(out, t)
+				}
+			}
+		}
+	}
+	return out
+}
+
 // RoadmapIDs returns the id of every key result and riskiest assumption in a
 // roadmap, whichever OKR group or track list holds it. They are objects inside
 // the roadmap rather than artifacts of their own, so this is how a reference to
