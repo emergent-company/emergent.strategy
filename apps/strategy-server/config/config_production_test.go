@@ -214,3 +214,20 @@ func TestIsProduction(t *testing.T) {
 		}
 	}
 }
+
+func TestGithubOAuthRedirectURL(t *testing.T) {
+	tests := []struct {
+		base string
+		want string
+	}{
+		{"https://strategy.example.com", "https://strategy.example.com/github/connect/callback"},
+		{"https://strategy.example.com/", "https://strategy.example.com/github/connect/callback"},
+		{"http://localhost:8090", "http://localhost:8090/github/connect/callback"},
+		{"", "/github/connect/callback"},
+	}
+	for _, tt := range tests {
+		if got := config.GithubOAuthRedirectURL(tt.base); got != tt.want {
+			t.Errorf("GithubOAuthRedirectURL(%q) = %q, want %q", tt.base, got, tt.want)
+		}
+	}
+}

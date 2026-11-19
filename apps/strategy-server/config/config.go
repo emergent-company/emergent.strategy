@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -357,6 +358,12 @@ func (c *Config) GithubAppInstallURL() string {
 // Checks new env vars first, falls back to legacy EPF_OAUTH_CLIENT_ID.
 func (c *Config) GithubOAuthConfigured() bool {
 	return c.effectiveOAuthClientID() != "" && c.effectiveOAuthClientSecret() != ""
+}
+
+// GithubOAuthRedirectURL returns the OAuth callback URL for a server reachable
+// at base. A trailing slash on base is ignored.
+func GithubOAuthRedirectURL(base string) string {
+	return strings.TrimRight(base, "/") + "/github/connect/callback"
 }
 
 // effectiveOAuthClientID returns the OAuth client ID, preferring new vars over legacy.
