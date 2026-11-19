@@ -31,6 +31,8 @@ type ConsistencyResult struct {
 	Alignment AlignPortfolioResult
 	// AlignmentErr is non-nil when the alignment sub-check failed.
 	AlignmentErr error
+	// AlignmentSkipped is true when the instance turned automatic alignment off.
+	AlignmentSkipped bool
 
 	// StaleRunsCleaned is the number of stale skill runs marked as failed.
 	StaleRunsCleaned int
@@ -48,20 +50,24 @@ type ConsistencyResult struct {
 func (s *Service) RunConsistencyCheck(ctx context.Context, instanceID uuid.UUID) (ConsistencyResult, error) {
 	var result ConsistencyResult
 
-	// Sub-check 1: Value model alignment.
-	alignment, err := s.AlignPortfolio(ctx, instanceID)
-	result.Alignment = alignment
-	result.AlignmentErr = err
-	if err != nil {
-		slog.WarnContext(ctx, "consistency-check: alignment sub-check failed",
-			"instance_id", instanceID, "err", err)
-	} else if alignment.TracksChanged > 0 {
-		slog.InfoContext(ctx, "consistency-check: alignment drift corrected",
-			"instance_id", instanceID,
-			"tracks_changed", alignment.TracksChanged,
-			"activated", alignment.TotalActivated,
-			"deactivated", alignment.TotalDeactivated,
-		)
+	// Sub-check 1: Value model alignment, unless the instance turned it off.
+	if s.AlignmentAutomatic(ctx, instanceID) {
+		alignment, err := s.AlignPortfolio(ctx, instanceID)
+		result.Alignment = alignment
+		result.AlignmentErr = err
+		if err != nil {
+			slog.WarnContext(ctx, "consistency-check: alignment sub-check failed",
+				"instance_id", instanceID, "err", err)
+		} else if alignment.TracksChanged > 0 {
+			slog.InfoContext(ctx, "consistency-check: alignment drift corrected",
+				"instance_id", instanceID,
+				"tracks_changed", alignment.TracksChanged,
+				"activated", alignment.TotalActivated,
+				"deactivated", alignment.TotalDeactivated,
+			)
+		}
+	} else {
+		result.AlignmentSkipped = true
 	}
 
 	// Sub-check 2: Stale skill run cleanup.

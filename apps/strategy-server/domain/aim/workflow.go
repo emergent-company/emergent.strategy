@@ -26,7 +26,9 @@ type PortfolioAlignResult struct {
 	TracksChanged    int
 	TotalActivated   int
 	TotalDeactivated int
+	KRsFound         int
 	KRsWithTargets   int
+	KRsByGroup       map[string]int
 	NoRoadmap        bool
 }
 
@@ -160,12 +162,13 @@ func (w *CycleWorkflow) CycleSteps() []Step {
 }
 
 // Plan implements Planner. It filters CycleSteps()'s default order by two
-// things: names already in completed, and — the one real, already-existing
-// per-instance signal found for this (TriggerConfig.SkipFoundations,
-// itself read via Service.GetTriggerConfig, the same best-effort,
-// defaults-on-any-error load path EvaluateTriggers already relies on for
-// per-instance behavior) — whether adapt_foundations should be attempted
-// for this instance at all.
+// things: names already in completed, and — the real, already-existing
+// per-instance signals (TriggerConfig.SkipFoundations and
+// TriggerConfig.SkipAlignPortfolio, themselves read via
+// Service.GetTriggerConfig, the same best-effort, defaults-on-any-error load
+// path EvaluateTriggers already relies on for per-instance behavior) —
+// whether adapt_foundations and align_portfolio should be attempted for this
+// instance at all.
 //
 // svc == nil (only reachable in tests that construct a bare CycleWorkflow)
 // is treated as "no per-instance config available," not an error: the
@@ -177,14 +180,18 @@ func (w *CycleWorkflow) Plan(ctx context.Context, instanceID uuid.UUID, complete
 		done[c.Step] = true
 	}
 
-	skipFoundations := false
+	skipFoundations, skipAlign := false, false
 	if w.svc != nil {
-		skipFoundations = w.svc.GetTriggerConfig(ctx, instanceID).SkipFoundations
+		cfg := w.svc.GetTriggerConfig(ctx, instanceID)
+		skipFoundations, skipAlign = cfg.SkipFoundations, cfg.SkipAlignPortfolio
 	}
 
 	remaining := make([]string, 0, len(w.CycleSteps()))
 	for _, step := range w.CycleSteps() {
 		if step.Name == "adapt_foundations" && skipFoundations {
+			continue
+		}
+		if step.Name == "align_portfolio" && skipAlign {
 			continue
 		}
 		if done[step.Name] {
@@ -365,7 +372,9 @@ func (w *CycleWorkflow) stepAlignPortfolio(ctx context.Context, in StepInput) (S
 			"tracks_changed":    result.TracksChanged,
 			"total_activated":   result.TotalActivated,
 			"total_deactivated": result.TotalDeactivated,
+			"krs_found":         result.KRsFound,
 			"krs_with_targets":  result.KRsWithTargets,
+			"krs_by_group":      result.KRsByGroup,
 			"no_roadmap":        result.NoRoadmap,
 		},
 	}, nil

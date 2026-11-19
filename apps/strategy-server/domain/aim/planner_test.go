@@ -186,3 +186,56 @@ func assertStepNames(t *testing.T, got, want []string) {
 		}
 	}
 }
+
+// An instance that turns automatic alignment off keeps every other step.
+func TestPlan_SkipAlignPortfolio_DropsOnlyThatStep(t *testing.T) {
+	db := database.TestDB(t)
+	w := NewCycleWorkflow(NewService(db), nil)
+	ctx := context.Background()
+
+	skipInstance := seedInstance(t, db)
+	seedTriggerConfig(t, db, skipInstance, TriggerConfig{SkipAlignPortfolio: true})
+	bothInstance := seedInstance(t, db)
+	seedTriggerConfig(t, db, bothInstance, TriggerConfig{SkipAlignPortfolio: true, SkipFoundations: true})
+
+	skipPlan, err := w.Plan(ctx, skipInstance, nil)
+	if err != nil {
+		t.Fatalf("Plan(skipInstance): %v", err)
+	}
+	bothPlan, err := w.Plan(ctx, bothInstance, nil)
+	if err != nil {
+		t.Fatalf("Plan(bothInstance): %v", err)
+	}
+
+	assertStepNames(t, skipPlan, []string{"draft_assessment", "draft_calibration", "adapt_strategy", "adapt_foundations", "snapshot_cycle"})
+	assertStepNames(t, bothPlan, []string{"draft_assessment", "draft_calibration", "adapt_strategy", "snapshot_cycle"})
+}
+
+type fakeAligner struct{ result PortfolioAlignResult }
+
+func (f fakeAligner) AlignPortfolio(context.Context, uuid.UUID) (PortfolioAlignResult, error) {
+	return f.result, nil
+}
+
+// The step reports what the alignment considered, so a cycle's run log can be
+// traced to the Key Results it saw and not only to what it changed.
+func TestStepAlignPortfolio_ReportsWhatItConsidered(t *testing.T) {
+	w := NewCycleWorkflow(nil, nil).WithPortfolioAligner(fakeAligner{PortfolioAlignResult{
+		TracksProcessed: 4, TracksChanged: 2, TotalActivated: 7, TotalDeactivated: 3,
+		KRsFound: 52, KRsWithTargets: 40,
+		KRsByGroup: map[string]int{"okrs": 9, "future_okrs_q3_2026": 43},
+	}})
+
+	out, err := w.stepAlignPortfolio(context.Background(), StepInput{InstanceID: uuid.New()})
+	if err != nil {
+		t.Fatalf("stepAlignPortfolio: %v", err)
+	}
+
+	if out.Meta["krs_found"] != 52 || out.Meta["krs_with_targets"] != 40 {
+		t.Errorf("meta = %v, want 52 Key Results found and 40 with targets", out.Meta)
+	}
+	groups, _ := out.Meta["krs_by_group"].(map[string]int)
+	if groups["okrs"] != 9 || groups["future_okrs_q3_2026"] != 43 {
+		t.Errorf("krs_by_group = %v, want okrs=9 and future_okrs_q3_2026=43", out.Meta["krs_by_group"])
+	}
+}

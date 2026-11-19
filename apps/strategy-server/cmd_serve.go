@@ -1004,7 +1004,9 @@ func (a *strategyPortfolioAlignerAdapter) AlignPortfolio(ctx context.Context, in
 		TracksChanged:    result.TracksChanged,
 		TotalActivated:   result.TotalActivated,
 		TotalDeactivated: result.TotalDeactivated,
+		KRsFound:         result.KRsFound,
 		KRsWithTargets:   result.KRsWithTargets,
+		KRsByGroup:       result.KRsByGroup,
 		NoRoadmap:        result.NoRoadmap,
 	}, nil
 }
