@@ -72,8 +72,9 @@ content.
   canonical-incomplete diagnostics stop nagging. Detection pattern bugs are
   fixed in `epf-cli`.
 - **Canonical EPF companion** (separate repository): an integrity manifest per
-  release, the anchor field, sample values replaced by `not_defined` in shipped
-  templates, and authoring rules in the distributed `AGENTS.md`.
+  release, the anchor field, a written rule for unknown values and unfilled
+  templates with honest AIM template samples (`emergent-company/epf-canonical#31`),
+  and authoring rules in the distributed `AGENTS.md`.
 
 Not in this change: the read-side fence (own change), cleaning the pilot
 repository, the client skill for the management team, and the evaluation

@@ -107,10 +107,22 @@ Order: 1 first. 2 and 3 follow. 4 needs the callers identified (open question 2)
       that produces many findings. Tools that need more than an instance id are not covered.
       The four that are not exports are now bounded (task 8.1); the list holds only
       `export_instance_yaml`.
-- [ ] 7.2 Acceptance table: parse the question bank's "where it lives" entries
-      into a test data file. For each, assert the location is reachable in two
-      calls or fewer within the default budget and returns the fact the gold
-      answer needs.
+- [ ] 7.2 Acceptance table, built on our own instance. **Changed:** the pilot's question
+      bank is customer data and stays out of this repository: no customer text or
+      locations are committed. Instead a question bank for the Emergent instance
+      (`docs/EPF/_instances/emergent`, the strategy server's own strategy) lives in
+      `apps/strategy-server/testdata/`. The kinds of question follow what customers
+      actually asked (a fact in a named section, an objective or Key Result by name,
+      a persona, a competitor, a date or figure, something the strategy does not
+      define), while the content comes from the Emergent instance. Each entry records
+      the artifact, the path or id, whether the section is large, and a stable anchor
+      (an id or a key phrase) instead of gold-answer prose, which drifts as the
+      instance changes. A table-driven test imports the instance through the server's
+      own import path and asserts, per entry, that the location is reachable in two
+      calls or fewer within the default budget, and that the returned content holds
+      the anchor. It skips with a reason when the instance submodule is absent (CI runs
+      without submodules by design). Original: parse the question bank's "where it
+      lives" entries into a test data file and assert the same against the gold answer.
 - [ ] 7.3 Test with a real client session: does it inject `instructions`, does it
       re-list after `tools/list_changed` (open question 3). Record the result in
       the change.

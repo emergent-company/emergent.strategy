@@ -133,9 +133,10 @@ checked by the access gate.
 - A contract test on a fixture sized like the pilot (over 1 MB): no read tool
   returns more than the cap unless asked for full, and truncation is always
   flagged.
-- An acceptance table built from the question bank: every recorded location is
-  reachable in at most two calls, each within budget, and returns the fact the
-  gold answer needs.
+- An acceptance table built from a question bank for the Emergent instance (our own
+  strategy, committed under `apps/strategy-server/testdata/`; no customer data):
+  every recorded location is reachable in at most two calls, each within budget,
+  and returns the entry's stable anchor. Skipped when the instance is absent.
 - Output schemas published and validated, as for the verdict tools.
 
 ## Risks

@@ -147,12 +147,19 @@ contains each rule and that descriptions name their authority.
 
 ### D8. Canonical companion
 
-In canonical-epf: the manifest generator, the anchor schema field,
-`not_defined` in place of sample values (`Example Product Objective`, `TBD`,
-`Your Organization Name`) in shipped templates, and authoring rules in the
-distributed `AGENTS.md`: cite a source per claim, use `PLACEHOLDER:` for unknowns,
-ask rather than fill in, and prune files you do not use. Schema and template
-changes belong there per the constitution, then sync to both apps.
+In canonical-epf: the anchor schema field, the written rule for unknown values
+and for an unfilled copy of a template, honest AIM template samples (with a
+`pending` Key Result status in the schema), and one placeholder pattern list.
+The authoring rules (cite a source per claim, use `PLACEHOLDER:` for unknowns, ask
+rather than fill in) live in the distributed `AGENTS.md`. Schema and template
+changes belong in canonical per the constitution, then sync to both apps. The
+manifest generator lives in `apps/epf-cli/scripts/gen-integrity-manifest`.
+
+This section first proposed `not_defined` in place of sample values. Reading the
+framework showed that `not_defined` is not a stored marker anywhere in it: it is
+only the read-result key of `get_outline`, meaning "absent or unmodified framework
+content". The stated rule is `PLACEHOLDER: <hint>`. The canonical work is tracked in
+`emergent-company/epf-canonical#31`.
 
 ## Risks
 
@@ -177,7 +184,8 @@ are classified by the reclassify step on first start. No data is deleted.
 1. When should `init` stop copying definitions by default? After the overlap,
    to be set with the owners.
 2. Should the `aim` domain ignore `unmodified_template` assessment reports and
-   calibration memos? Likely yes. Needs a read of `domain/aim` before deciding.
+   calibration memos? **Resolved: yes, and for every artifact it reads**, including
+   the roadmap and the reality assessment (task 4.5).
 3. Should strict mode be the default for CI pipelines that run `epf-cli health`?
 
 ## Appendix A: writers that must set the class
