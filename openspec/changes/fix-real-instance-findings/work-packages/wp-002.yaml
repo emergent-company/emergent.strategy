@@ -1,0 +1,19 @@
+id: "wp-002"
+title: "OKR and Key Result Visibility"
+intent: >-
+  Every Key Result in the roadmap — whether under okrs or future_okrs_* groups —
+  is visible to get_view, AlignPortfolio, and all validators. Components are no
+  longer incorrectly marked dormant because the alignment only saw a subset of
+  Key Results. A KR-target fitness check surfaces real coverage gaps.
+track: "product"
+targets:
+  value_model_paths: []
+  definition_ids: []
+  kr_ids: []
+risk_class: "high"
+status: "proposed"
+source:
+  authoring_tool: "openspec"
+  reference: "https://github.com/emergent-company/emergent.strategy/issues/157"
+lifecycle:
+  created_at: "2026-11-19T08:00:00Z"

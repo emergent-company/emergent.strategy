@@ -1,0 +1,19 @@
+id: "wp-004"
+title: "Schema and Read Gaps"
+intent: >-
+  The roadmap schema validates future_okrs_* groups and timeline, the KR id
+  pattern allows production ids with suffixes, parked Key Results are expressible,
+  get_section never silently drops content, and commit_batch refuses a roadmap
+  missing required tracks.
+track: "product"
+targets:
+  value_model_paths: []
+  definition_ids: []
+  kr_ids: []
+risk_class: "medium"
+status: "proposed"
+source:
+  authoring_tool: "openspec"
+  reference: "https://github.com/emergent-company/emergent.strategy/issues/157"
+lifecycle:
+  created_at: "2026-11-19T08:00:00Z"
