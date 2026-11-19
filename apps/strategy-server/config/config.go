@@ -25,6 +25,8 @@ type ImportCmd struct {
 	Country      string `arg:"--country,env:IMPORT_COUNTRY" help:"ISO country code (default: NO)"`
 	Activate     bool   `arg:"--activate,env:IMPORT_ACTIVATE" default:"true" help:"Activate the instance after import"`
 	Reingest     bool   `arg:"--reingest,env:IMPORT_REINGEST" default:"true" help:"Ingest artifacts into Memory graph after import (skipped when Memory is not configured)"`
+	DryRun       bool   `arg:"--dry-run,env:IMPORT_DRY_RUN" help:"Compare the source with what the server holds, print the difference, and write nothing"`
+	Force        bool   `arg:"--force,env:IMPORT_FORCE" help:"Re-import even when it would discard edits made on the server or staged changes"`
 }
 
 // MemoryCmd is the subcommand for operating on the Memory graph.
