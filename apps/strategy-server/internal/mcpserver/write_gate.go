@@ -186,6 +186,7 @@ var ToolAccess = map[string]string{
 	"check_content_readiness":    AccessRead,
 	"validate_with_plan":         AccessRead,
 	"validate_value_model_links": AccessRead,
+	"validate_kr_target_fitness": AccessRead,
 	"export_instance_yaml":       AccessRead,
 	"export_feature_yaml":        AccessRead,
 	"export_report":              AccessRead,

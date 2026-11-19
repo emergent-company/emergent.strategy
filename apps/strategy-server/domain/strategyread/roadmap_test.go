@@ -154,3 +154,45 @@ func TestRoadmapIDs_CoversEveryGroupAndBothAssumptionLocations(t *testing.T) {
 		t.Errorf("ids = %v, objectives and unknown ids must not be included", ids)
 	}
 }
+
+func TestKeyResultTargets_ListsEveryKeyResultWithItsTarget(t *testing.T) {
+	roadmap := decode(t, `{"roadmap":{"tracks":{
+	  "product":{
+	    "okrs":[{"id":"okr-p-1","key_results":[
+	      {"id":"kr-1","description":"has target","value_model_target":{"track":"Product","component_path":"Product.Core.Search"}},
+	      {"id":"kr-2","description":"no target"},
+	      {"id":"kr-3","description":"target without path","value_model_target":{"track":"product"}}]}],
+	    "future_okrs_q3_2026":[{"id":"okr-p-2","key_results":[
+	      {"id":"kr-4","description":"future","value_model_target":{"component_path":"Product.Edge.Api"}}]}]},
+	  "commercial":{"okrs":[{"id":"okr-c-1","key_results":[{"id":"kr-5"}]}]}}}}`)
+
+	got := strategyread.KeyResultTargets(roadmap)
+	if len(got) != 5 {
+		t.Fatalf("got %d key results, want all 5, including the one without a target and the one in a future group: %+v", len(got), got)
+	}
+	// Track-name order (commercial, product), then OKR group order within a track.
+	var ids []string
+	for _, k := range got {
+		ids = append(ids, k.ID)
+	}
+	if want := "kr-5,kr-1,kr-2,kr-3,kr-4"; strings.Join(ids, ",") != want {
+		t.Errorf("order = %v, want %s", ids, want)
+	}
+
+	byID := map[string]strategyread.KRTarget{}
+	for _, k := range got {
+		byID[k.ID] = k
+	}
+	if k := byID["kr-1"]; k.ComponentPath != "Product.Core.Search" || k.TargetTrack != "Product" || k.Group != "okrs" || k.ObjectiveID != "okr-p-1" {
+		t.Errorf("kr-1 = %+v", k)
+	}
+	if k := byID["kr-2"]; k.ComponentPath != "" || k.TargetTrack != "product" {
+		t.Errorf("a key result with no target falls back to its roadmap track: %+v", k)
+	}
+	if k := byID["kr-3"]; k.ComponentPath != "" {
+		t.Errorf("a target without a component_path declares no path: %+v", k)
+	}
+	if k := byID["kr-4"]; k.Group != "future_okrs_q3_2026" || k.TargetTrack != "product" || k.ComponentPath != "Product.Edge.Api" {
+		t.Errorf("kr-4 = %+v: a target naming no track falls back to the roadmap track", k)
+	}
+}

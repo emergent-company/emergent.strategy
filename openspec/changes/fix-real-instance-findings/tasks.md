@@ -60,11 +60,18 @@ and WP-005 (operational visibility) are independent of everything else.
       `internal/index/extract.go` (also read assumptions where the schema keeps
       them, on the track), and the `validate_relationships` resolver. Left for
       `fix-ui-schema-rendering-gaps`: the three web handler files above.
-- [ ] 2.7 Add a KR-target fitness check (tool or finding family):
-      `kr.no_component_path`, `kr.path_not_in_value_model`,
-      `kr.reached_only_by_parent`, `feature.reaches_no_kr` (severity:
-      `draft`→warning, `in-progress`→error). Wire into `validate_instance` or
-      expose as a separate tool.
+- [x] 2.7 Add a KR-target fitness check as the tool `validate_kr_target_fitness`
+      (verdict envelope; analysis in `domain/strategy/fitness.go`):
+      `kr.no_component_path` (warning), `kr.path_not_in_value_model` (error),
+      `kr.reached_only_by_parent` (warning), `feature.reaches_no_kr` (severity by
+      the feature's status: `in-progress` error, `draft`/`ready` warning,
+      `delivered` info). A Key Result target and a `contributes_to` path each
+      resolve to a value model node (layer, component, sub-component); two
+      nodes are related when one is the other or its ancestor. A Key Result is
+      "reached only by parent" when contributors exist only at ancestors of its
+      target. Key Results in `future_okrs_*` groups are included. A Key Result
+      that nothing serves at all is deliberately not a finding (not one of the
+      four rules).
 
 ## 3. Sync and import integrity (WP-003)
 

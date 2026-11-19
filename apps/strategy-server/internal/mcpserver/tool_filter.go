@@ -173,6 +173,7 @@ var ToolCategories = map[string]string{
 	"check_content_readiness":    CategoryValidation,
 	"validate_with_plan":         CategoryValidation,
 	"validate_value_model_links": CategoryValidation,
+	"validate_kr_target_fitness": CategoryValidation,
 	"export_instance_yaml":       CategoryValidation,
 	"export_feature_yaml":        CategoryValidation,
 	"export_report":              CategoryValidation,

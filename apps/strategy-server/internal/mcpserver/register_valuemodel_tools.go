@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -12,20 +11,6 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/valuemodel"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/verdict"
 )
-
-// trackDefTypes maps a value model's track to the artifact type carrying the
-// definitions that may contribute to it.
-var trackDefTypes = map[string]string{
-	"product":    "feature",
-	"strategy":   "strategy_def",
-	"org_ops":    "org_ops_def",
-	"orgops":     "org_ops_def",
-	"commercial": "commercial_def",
-}
-
-func normTrack(s string) string {
-	return strings.ToLower(strings.NewReplacer("-", "", "_", "", " ", "").Replace(s))
-}
 
 // valueModelLinkReport is the detail channel of validate_value_model_links.
 //
@@ -67,6 +52,7 @@ type componentRef struct {
 }
 
 func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
+	registerKRFitnessTool(s, svc)
 	s.AddTool(mcp.NewTool("validate_value_model_links",
 		mcp.WithDescription("USE WHEN you need to check that every contributes_to path names a real value model component, and that every active component has at least one mechanism serving it. Reports two independent pairs: paths resolved of paths found, and active components served of active components. Components marked inactive are canonical scaffolding the instance does not use — they are excluded from both denominators and reported only as a count."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
@@ -106,7 +92,7 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 				return toolErr(ctx, fmt.Errorf("value model %s: %w", vm.ArtifactKey, err)), nil
 			}
 			m := valuemodel.ParseModel(payload)
-			byTrack[normTrack(m.Track)] = append(byTrack[normTrack(m.Track)], modelRef{vm.ArtifactKey, m})
+			byTrack[valuemodel.NormalizeTrack(m.Track)] = append(byTrack[valuemodel.NormalizeTrack(m.Track)], modelRef{vm.ArtifactKey, m})
 			for _, l := range m.Layers {
 				for _, c := range l.Components {
 					if c.Active() {
@@ -121,7 +107,7 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 
 		// Definitions, per track, resolved against that track's models.
 		for track, models := range byTrack {
-			defType, ok := trackDefTypes[track]
+			defType, ok := valuemodel.DefinitionTypes[track]
 			if !ok {
 				continue
 			}
@@ -172,6 +158,60 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 				WithSummary("%d of %d contributes_to paths resolve; %d of %d active components served (%d dormant components ignored)",
 					rep.PathsResolved, rep.PathsFound, rep.ActiveServed, rep.ActiveComponents, rep.DormantComponents),
 			rep)
+	})
+}
+
+// krFitnessReport is the detail channel of validate_kr_target_fitness. Each
+// count is a pair against a denominator that does not depend on the check
+// succeeding: every Key Result in the roadmap, every feature in the instance.
+type krFitnessReport struct {
+	InstanceID       string `json:"instance_id"`
+	KRsTotal         int    `json:"krs_total"`
+	KRsWithPath      int    `json:"krs_with_component_path"`
+	KRsResolved      int    `json:"krs_resolved_in_value_model"`
+	KRsServed        int    `json:"krs_served"`
+	FeaturesTotal    int    `json:"features_total"`
+	FeaturesReaching int    `json:"features_reaching_a_kr"`
+}
+
+func registerKRFitnessTool(s *server.MCPServer, svc Services) {
+	s.AddTool(mcp.NewTool("validate_kr_target_fitness",
+		mcp.WithDescription("USE WHEN you need to check that the roadmap's Key Results and the features aim at the same parts of the value model. Reports kr.no_component_path (a Key Result names no value_model_target.component_path), kr.path_not_in_value_model (its path resolves in no value model), kr.reached_only_by_parent (only definitions serving a broader component contribute to it) and feature.reaches_no_kr (a feature serves nothing any Key Result targets; error when in-progress, warning when draft or ready, info when delivered). Key Results in future_okrs_* groups are included. ok is advisory: it is false whenever any error finding exists, and a tolerated backlog keeps it false."),
+		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
+		withVerdictOutput(),
+	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		instID, err := parseUUID(argString(req, "instance_id"))
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+			return toolErr(ctx, err), nil
+		}
+		rep, err := svc.Strategy.KRTargetFitness(ctx, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
+		findings := make([]verdict.Finding, 0, len(rep.Findings))
+		for _, f := range rep.Findings {
+			sev := verdict.SeverityWarning
+			switch f.Severity {
+			case "error":
+				sev = verdict.SeverityError
+			case "info":
+				sev = verdict.SeverityInfo
+			}
+			findings = append(findings, verdict.Finding{Severity: sev, Key: f.Key, Rule: f.Rule, Path: f.Path, Message: f.Message})
+		}
+		return verdictResult(
+			verdict.New(rep.KRsTotal+rep.FeaturesTotal, findings).
+				WithSummary("%d of %d Key Results name a component path, %d resolve, %d are served; %d of %d features reach a Key Result",
+					rep.KRsWithPath, rep.KRsTotal, rep.KRsResolved, rep.KRsServed, rep.FeaturesReaching, rep.FeaturesTotal),
+			krFitnessReport{
+				InstanceID: instID.String(), KRsTotal: rep.KRsTotal, KRsWithPath: rep.KRsWithPath,
+				KRsResolved: rep.KRsResolved, KRsServed: rep.KRsServed,
+				FeaturesTotal: rep.FeaturesTotal, FeaturesReaching: rep.FeaturesReaching,
+			})
 	})
 }
 

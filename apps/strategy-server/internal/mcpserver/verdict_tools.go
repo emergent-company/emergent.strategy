@@ -2,9 +2,10 @@ package mcpserver
 
 // Verdict plumbing for the validation tools.
 //
-// Six tools render a judgement rather than returning data: validate_artifact,
+// Seven tools render a judgement rather than returning data: validate_artifact,
 // validate_instance, validate_relationships, validate_with_plan,
-// check_content_readiness and validate_value_model_links. Each publishes the same envelope through
+// check_content_readiness, validate_value_model_links and
+// validate_kr_target_fitness. Each publishes the same envelope through
 // outputSchema and returns it as structuredContent, so a consumer can read
 // `ok` and `findings` without knowing which tool it called.
 //

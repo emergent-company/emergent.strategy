@@ -182,3 +182,41 @@ func TestParseModelSurvivesMalformedPayload(t *testing.T) {
 		_ = valuemodel.ParseModel(p)
 	}
 }
+
+// A Key Result may target a whole layer. Resolve reads a two-segment path as a
+// component, so ResolveLayer is the fallback for callers that accept layers.
+func TestResolveLayerNamesAWholeLayerInAnySpelling(t *testing.T) {
+	m := realShapes()
+	for _, path := range []string{
+		"Product.MemoryReasoningEngine",
+		"Product.memory-reasoning",
+		"Product.Memory Reasoning Engine",
+	} {
+		got, err := m.ResolveLayer(path)
+		if err != nil {
+			t.Errorf("ResolveLayer(%q): %v", path, err)
+			continue
+		}
+		if got.LayerID != "memory-reasoning" || got.ComponentID != "" || got.SubID != "" {
+			t.Errorf("ResolveLayer(%q) = %+v, want the layer only", path, got)
+		}
+		if _, err := m.Resolve(path); err == nil {
+			t.Errorf("Resolve(%q) unexpectedly succeeded; the layer fallback would be unreachable", path)
+		}
+	}
+}
+
+func TestResolveLayerRejectsWhatIsNotALayerPath(t *testing.T) {
+	m := realShapes()
+	for _, path := range []string{
+		"Product.NoSuchLayer",
+		"Commercial.MemoryReasoningEngine",       // wrong track
+		"Product.MemoryReasoningEngine.Anything", // three segments
+		"Product",
+		"",
+	} {
+		if got, err := m.ResolveLayer(path); err == nil {
+			t.Errorf("ResolveLayer(%q) = %+v, want an error", path, got)
+		}
+	}
+}

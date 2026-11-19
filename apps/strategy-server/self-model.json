@@ -53,7 +53,7 @@
     {
       "name": "validation",
       "description": "Validation, content readiness, fix plans, export",
-      "tool_count": 9
+      "tool_count": 10
     },
     {
       "name": "admin",
@@ -3872,6 +3872,97 @@
           },
           "max_chars": {
             "description": "Budget for the text in characters (default 12000, cap 40000)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      },
+      "output_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "additionalProperties": false,
+            "properties": {
+              "checked": {
+                "type": "integer"
+              },
+              "error": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "warning": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "error",
+              "warning",
+              "info",
+              "checked"
+            ],
+            "type": "object"
+          },
+          "findings": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "rule",
+                "message"
+              ],
+              "type": "object"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "summary",
+          "counts",
+          "findings"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "validate_kr_target_fitness",
+      "description": "USE WHEN you need to check that the roadmap's Key Results and the features aim at the same parts of the value model. Reports kr.no_component_path (a Key Result names no value_model_target.component_path), kr.path_not_in_value_model (its path resolves in no value model), kr.reached_only_by_parent (only definitions serving a broader component contribute to it) and feature.reaches_no_kr (a feature serves nothing any Key Result targets; error when in-progress, warning when draft or ready, info when delivered). Key Results in future_okrs_* groups are included. ok is advisory: it is false whenever any error finding exists, and a tolerated backlog keeps it false.",
+      "category": "validation",
+      "input_schema": {
+        "properties": {
+          "instance_id": {
+            "description": "Strategy instance UUID",
             "type": "string"
           }
         },
