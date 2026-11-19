@@ -656,7 +656,11 @@ Read tools:
 Write tools:
   - add_relationship(instance_id, source_key, target_key, relationship,
     target_type?) — stages a new cross-artifact relationship. Target type is
-    auto-inferred from the relationship type when not provided.
+    auto-inferred from the relationship type when not provided. The source
+    must already be committed; a short id such as fd-014 resolves to its
+    artifact key (fd-014_business_directory), and an unknown or ambiguous
+    source is rejected. The committed edge belongs to the source and survives
+    later updates of it.
     Stages a mutation; call commit_batch after review.
 
 Always run suggest_relationships after creating or updating a feature to ensure

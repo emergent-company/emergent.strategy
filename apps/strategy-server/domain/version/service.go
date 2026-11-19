@@ -53,6 +53,10 @@ type RelationshipEntry struct {
 	TargetKey    string `json:"target_key"`
 	TargetType   string `json:"target_type"`
 	Relationship string `json:"relationship"`
+	// Metadata keeps the origin of an explicit edge across a restore. Without it
+	// the edge would come back as a derived one and be deleted the next time its
+	// source artifact is committed.
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 // SnapshotMetadata captures context about the snapshot.
@@ -162,6 +166,7 @@ func (s *Service) Publish(ctx context.Context, instanceID uuid.UUID, label, desc
 			TargetKey:    r.TargetKey,
 			TargetType:   r.TargetType,
 			Relationship: r.Relationship,
+			Metadata:     r.Metadata,
 		})
 	}
 
@@ -568,6 +573,7 @@ func (s *Service) Restore(ctx context.Context, instanceID, versionID uuid.UUID) 
 				TargetKey:    r.TargetKey,
 				TargetType:   r.TargetType,
 				Relationship: r.Relationship,
+				Metadata:     r.Metadata,
 			}
 			if _, err := tx.NewInsert().Model(rel).Exec(ctx); err != nil {
 				return fmt.Errorf("insert relationship: %w", err)
