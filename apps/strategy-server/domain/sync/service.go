@@ -120,16 +120,22 @@ func (s *Service) IsConfigured() bool {
 type SyncParams struct {
 	InstanceID uuid.UUID
 	VersionID  *uuid.UUID // nil = draft sync (current working state)
+	// Full writes every artifact instead of only those changed since the last
+	// import or merged sync.
+	Full bool
 }
 
 // SyncResult is the outcome of a sync operation.
 type SyncResult struct {
-	LogID         uuid.UUID `json:"log_id"`
-	BranchName    string    `json:"branch_name"`
-	PRNumber      *int      `json:"pr_number,omitempty"`
-	PRUrl         *string   `json:"pr_url,omitempty"`
-	ArtifactCount int       `json:"artifact_count"`
-	Status        string    `json:"status"`
+	LogID      uuid.UUID `json:"log_id"`
+	BranchName string    `json:"branch_name"`
+	PRNumber   *int      `json:"pr_number,omitempty"`
+	PRUrl      *string   `json:"pr_url,omitempty"`
+	// ArtifactCount is the number of files written. UnchangedCount is the number
+	// of artifacts left as they are in the repository.
+	ArtifactCount  int    `json:"artifact_count"`
+	UnchangedCount int    `json:"unchanged_count"`
+	Status         string `json:"status"`
 }
 
 // SyncToGithub exports artifacts and creates a PR on the instance's GitHub repo.
@@ -156,9 +162,10 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 	}
 	defer s.remote.invalidateRepo(owner, repo)
 
+	startedAt := syncStartedAt()
+
 	// Get files to push.
-	var files []FileEntry
-	var artifactCount int
+	var exportResult *strategy.ExportResult
 	var versionLabel string
 
 	if p.VersionID != nil {
@@ -175,12 +182,11 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 		// YAML and directory structure. For simplicity, export current state.
 		// If the version matches current state, this is correct. For full
 		// fidelity we'd need to reconstruct from snapshot — acceptable for v1.
-		exportResult, eErr := s.strategySvc.ExportInstance(ctx, p.InstanceID)
+		var eErr error
+		exportResult, eErr = s.strategySvc.ExportInstance(ctx, p.InstanceID)
 		if eErr != nil {
 			return nil, fmt.Errorf("export instance: %w", eErr)
 		}
-		files = exportEntriesToFiles(exportResult, inst.GithubBasePath)
-		artifactCount = exportResult.ArtifactCount
 		if ver.Label != nil {
 			versionLabel = *ver.Label
 		} else {
@@ -188,18 +194,32 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 		}
 	} else {
 		// Draft sync: export current working state.
-		exportResult, eErr := s.strategySvc.ExportInstance(ctx, p.InstanceID)
+		var eErr error
+		exportResult, eErr = s.strategySvc.ExportInstance(ctx, p.InstanceID)
 		if eErr != nil {
 			return nil, fmt.Errorf("export instance: %w", eErr)
 		}
-		files = exportEntriesToFiles(exportResult, inst.GithubBasePath)
-		artifactCount = exportResult.ArtifactCount
 		versionLabel = "draft"
 	}
 
-	if len(files) == 0 {
+	if len(exportResult.Files) == 0 {
 		return nil, apperror.ErrBadRequest.WithDetail("no artifacts to sync")
 	}
+
+	// Write only what the repository does not have yet. A merged sync pull
+	// request moves that baseline, so refresh the pull request states first.
+	if !p.Full {
+		s.CheckAndUpdateSyncStatus(ctx, p.InstanceID)
+	}
+	entries, summary, err := s.selectEntries(ctx, p.InstanceID, exportResult, p.Full)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return &SyncResult{UnchangedCount: summary.Unchanged, Status: StatusNoChanges}, nil
+	}
+	files := exportEntriesToFiles(entries, inst.GithubBasePath)
+	artifactCount := len(files)
 
 	// Generate branch name.
 	branchName := generateBranchName(inst.Name, versionLabel)
@@ -214,6 +234,7 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 		Status:        domain.SyncStatusPending,
 		ArtifactCount: artifactCount,
 		CreatedBy:     actorID,
+		CreatedAt:     startedAt,
 	}
 	if _, err := s.db.NewInsert().Model(logEntry).Exec(ctx); err != nil {
 		return nil, fmt.Errorf("insert sync log: %w", err)
@@ -252,7 +273,7 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 
 	// Create PR.
 	prTitle := fmt.Sprintf("Strategy sync: %s (%s)", inst.Name, versionLabel)
-	prBody := generatePRBody(inst.Name, versionLabel, artifactCount, p.VersionID)
+	prBody := generatePRBody(inst.Name, versionLabel, summary, p.VersionID)
 	prResult, err := s.writer.CreatePullRequest(ctx, token, owner, repo, branchName, defaultBranch, prTitle, prBody)
 	if err != nil {
 		s.failSyncLog(ctx, logEntry.ID, fmt.Sprintf("files pushed but PR creation failed: %v", err))
@@ -278,12 +299,13 @@ func (s *Service) SyncToGithub(ctx context.Context, p SyncParams) (*SyncResult, 
 	})
 
 	return &SyncResult{
-		LogID:         logEntry.ID,
-		BranchName:    branchName,
-		PRNumber:      &prResult.Number,
-		PRUrl:         &prResult.URL,
-		ArtifactCount: artifactCount,
-		Status:        domain.SyncStatusPRCreated,
+		LogID:          logEntry.ID,
+		BranchName:     branchName,
+		PRNumber:       &prResult.Number,
+		PRUrl:          &prResult.URL,
+		ArtifactCount:  artifactCount,
+		UnchangedCount: summary.Unchanged,
+		Status:         domain.SyncStatusPRCreated,
 	}, nil
 }
 
@@ -297,6 +319,7 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 	}
 
 	slog.InfoContext(ctx, "aim auto-push: starting", "instance_id", instanceID, "cycle", cycleNumber)
+	startedAt := syncStartedAt()
 
 	inst, err := s.loadInstance(ctx, instanceID)
 	if err != nil || inst.GithubRepo == nil || *inst.GithubRepo == "" {
@@ -342,12 +365,23 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("export: %v", err))
 		return
 	}
-	files := exportEntriesToFiles(exportResult, inst.GithubBasePath)
-
-	if len(files) == 0 {
+	if len(exportResult.Files) == 0 {
 		slog.InfoContext(ctx, "aim auto-push: no artifacts to push", "instance_id", instanceID)
 		return
 	}
+
+	s.CheckAndUpdateSyncStatus(ctx, instanceID)
+	entries, summary, err := s.selectEntries(ctx, instanceID, exportResult, false)
+	if err != nil {
+		slog.WarnContext(ctx, "aim auto-push: could not tell what changed", "err", err)
+		s.recordSyncFailure(ctx, instanceID, *inst.GithubRepo, branchName, versionID, cycleNumber, fmt.Sprintf("select changed artifacts: %v", err))
+		return
+	}
+	if len(entries) == 0 {
+		slog.InfoContext(ctx, "aim auto-push: nothing changed since the last import or merged sync", "instance_id", instanceID)
+		return
+	}
+	files := exportEntriesToFiles(entries, inst.GithubBasePath)
 
 	if err := s.writer.CreateBranch(ctx, token, owner, repo, baseBranch, branchName); err != nil {
 		slog.WarnContext(ctx, "aim auto-push: create branch failed", "err", err)
@@ -363,7 +397,7 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 	}
 
 	prTitle := fmt.Sprintf("Strategy sync: AIM cycle %d — %s (%s)", cycleNumber, calibrationDecisionLabel(decision), inst.Name)
-	prBody := generateAIMPRBody(inst.Name, cycleNumber, decision, versionID, exportResult.ArtifactCount)
+	prBody := generateAIMPRBody(inst.Name, cycleNumber, decision, versionID, summary)
 
 	prResult, err := s.writer.CreatePullRequest(ctx, token, owner, repo, branchName, baseBranch, prTitle, prBody)
 	if err != nil {
@@ -385,8 +419,9 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 		Status:        domain.SyncStatusPRCreated,
 		Direction:     domain.SyncDirectionExport,
 		Source:        domain.SyncSourceAIMCycle,
-		ArtifactCount: exportResult.ArtifactCount,
+		ArtifactCount: len(files),
 		CreatedBy:     actorID,
+		CreatedAt:     startedAt,
 	}
 	if _, logErr := s.db.NewInsert().Model(logEntry).Exec(ctx); logErr != nil {
 		slog.WarnContext(ctx, "aim auto-push: failed to record sync log", "err", logErr)
@@ -394,7 +429,7 @@ func (s *Service) SyncAfterAIMCycle(ctx context.Context, instanceID uuid.UUID, c
 
 	slog.InfoContext(ctx, "aim auto-push: complete",
 		"instance_id", instanceID, "cycle", cycleNumber,
-		"pr_url", prResult.URL, "artifacts", exportResult.ArtifactCount)
+		"pr_url", prResult.URL, "artifacts", len(files))
 }
 
 // recordSyncFailure logs an AIM auto-push failure in the sync log.
@@ -472,13 +507,13 @@ func generateBranchSegment(name string) string {
 	return result
 }
 
-func generateAIMPRBody(instanceName string, cycleNumber int, decision string, versionID uuid.UUID, artifactCount int) string {
+func generateAIMPRBody(instanceName string, cycleNumber int, decision string, versionID uuid.UUID, summary syncSummary) string {
 	var sb strings.Builder
 	sb.WriteString("## AIM Cycle Strategy Sync\n\n")
 	fmt.Fprintf(&sb, "**Instance:** %s\n", instanceName)
 	fmt.Fprintf(&sb, "**Cycle:** %d\n", cycleNumber)
 	fmt.Fprintf(&sb, "**Calibration decision:** %s\n", calibrationDecisionLabel(decision))
-	fmt.Fprintf(&sb, "**Artifacts:** %d files\n\n", artifactCount)
+	summary.writeChanges(&sb)
 	fmt.Fprintf(&sb, "Version ID: `%s`\n\n", versionID.String())
 	sb.WriteString("---\n\n")
 	sb.WriteString("This PR was automatically created by Emergent Strategy after an AIM cycle completed.\n")
@@ -533,9 +568,9 @@ func (s *Service) updateSyncLog(ctx context.Context, logID uuid.UUID, status str
 	}
 }
 
-func exportEntriesToFiles(result *strategy.ExportResult, basePath *string) []FileEntry {
-	files := make([]FileEntry, 0, len(result.Files))
-	for _, entry := range result.Files {
+func exportEntriesToFiles(entries []strategy.ExportEntry, basePath *string) []FileEntry {
+	files := make([]FileEntry, 0, len(entries))
+	for _, entry := range entries {
 		path := entry.RelPath
 		if basePath != nil && *basePath != "" {
 			path = strings.TrimSuffix(*basePath, "/") + "/" + path
@@ -571,12 +606,12 @@ func generateBranchName(instanceName, versionLabel string) string {
 	return fmt.Sprintf("strategy-sync/%s/%s", name, label)
 }
 
-func generatePRBody(instanceName, versionLabel string, artifactCount int, versionID *uuid.UUID) string {
+func generatePRBody(instanceName, versionLabel string, summary syncSummary, versionID *uuid.UUID) string {
 	var sb strings.Builder
 	sb.WriteString("## Strategy Sync\n\n")
 	fmt.Fprintf(&sb, "**Instance:** %s\n", instanceName)
 	fmt.Fprintf(&sb, "**Version:** %s\n", versionLabel)
-	fmt.Fprintf(&sb, "**Artifacts:** %d files\n\n", artifactCount)
+	summary.writeChanges(&sb)
 
 	if versionID != nil {
 		fmt.Fprintf(&sb, "Version ID: `%s`\n\n", versionID.String())

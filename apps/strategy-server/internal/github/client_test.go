@@ -237,6 +237,63 @@ func TestCommitFiles(t *testing.T) {
 	}
 }
 
+// CommitFiles must build its tree on the branch's current tree and send only the
+// files it was given. GitHub keeps every file the new tree does not mention, so
+// a file the server has no artifact for (_meta.yaml, a README, a hand-written
+// note) survives a sync. Without base_tree the new tree would hold only the
+// pushed files and drop everything else.
+func TestCommitFiles_KeepsFilesItIsNotGiven(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/owner/repo/git/ref/", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{
+			"ref":    "refs/heads/strategy-sync/test",
+			"object": map[string]any{"sha": "branchsha", "type": "commit"},
+		})
+	})
+	mux.HandleFunc("/repos/owner/repo/git/commits/branchsha", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"sha": "branchsha", "tree": map[string]any{"sha": "treesha"}})
+	})
+
+	var treeReq struct {
+		BaseTree string `json:"base_tree"`
+		Tree     []struct {
+			Path    string  `json:"path"`
+			SHA     *string `json:"sha"`
+			Content string  `json:"content"`
+		} `json:"tree"`
+	}
+	mux.HandleFunc("/repos/owner/repo/git/trees", func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&treeReq); err != nil {
+			t.Errorf("decode tree request: %v", err)
+		}
+		writeJSON(w, map[string]any{"sha": "newtreesha"})
+	})
+	mux.HandleFunc("/repos/owner/repo/git/commits", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"sha": "newcommitsha", "tree": map[string]any{"sha": "newtreesha"}})
+	})
+	mux.HandleFunc("/repos/owner/repo/git/refs/", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"ref": "refs/heads/strategy-sync/test", "object": map[string]any{"sha": "newcommitsha"}})
+	})
+
+	c, _ := newTestClient(t, mux)
+	files := []FileEntry{
+		{Path: "docs/EPF/FIRE/feature_definitions/fd-002.yaml", Content: "name: Two\n"},
+	}
+	if err := c.CommitFiles(context.Background(), "tok", "owner", "repo", "strategy-sync/test", files, "sync"); err != nil {
+		t.Fatalf("CommitFiles: %v", err)
+	}
+
+	if treeReq.BaseTree != "treesha" {
+		t.Errorf("base_tree = %q, want the branch's current tree %q: without it every file not in this push is dropped", treeReq.BaseTree, "treesha")
+	}
+	if len(treeReq.Tree) != 1 || treeReq.Tree[0].Path != files[0].Path {
+		t.Fatalf("tree entries = %+v, want exactly the one file given", treeReq.Tree)
+	}
+	if treeReq.Tree[0].SHA != nil {
+		t.Errorf("entry sha = %q, want no sha: an entry with a null sha deletes the file", *treeReq.Tree[0].SHA)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // CreatePullRequest
 // ---------------------------------------------------------------------------
