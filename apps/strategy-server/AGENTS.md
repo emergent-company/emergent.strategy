@@ -843,6 +843,17 @@ Enterprise sales (higher natural tension between Product and Commercial):
   fixes for low-authority signals for human review, rather than applying them
   directly.
 
+### Automatic value model alignment
+
+`AlignPortfolio` sets the `active` flags of value model components from the Key
+Result targets in the roadmap, and auto-commits without review. It runs on its own
+in two places: the heartbeat's consistency check (every tick, every instance) and
+the AIM cycle's `align_portfolio` step. An instance turns both off with
+`skip_align_portfolio: true` in its `aim_trigger_config`; calling the
+`align-portfolio` skill still works. A run that changes something records a summary
+and what it considered on the mutations it writes, and `health_check` reports it in
+`value_model_alignment`.
+
 ### Strategy Versioning Workflow
 
 1. Mutate artifacts via MCP tools (create/update features, north star, etc.)

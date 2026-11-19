@@ -1920,7 +1920,7 @@
     },
     {
       "name": "health_check",
-      "description": "USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own.",
+      "description": "USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed.",
       "category": "core",
       "input_schema": {
         "properties": {

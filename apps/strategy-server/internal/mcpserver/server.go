@@ -412,13 +412,37 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	registerHealthCheckTool(s, svc)
 }
 
+// alignmentHealth reports the state of automatic value model alignment.
+func alignmentHealth(ctx context.Context, svc Services, id uuid.UUID) map[string]any {
+	automatic := svc.Strategy.AlignmentAutomatic(ctx, id)
+	block := map[string]any{"automatic": automatic}
+	if automatic {
+		block["note"] = "The heartbeat and the AIM cycle re-align value model active flags with Key Result targets, without review. Set skip_align_portfolio: true in the instance's aim_trigger_config to stop that; the align-portfolio skill still runs when called."
+	} else {
+		block["note"] = "Automatic alignment is off for this instance (skip_align_portfolio in its aim_trigger_config). The align-portfolio skill still runs when called."
+	}
+	rec, err := svc.Strategy.LastAlignment(ctx, id)
+	if err != nil || rec == nil {
+		return block
+	}
+	block["last_changed_at"] = rec.AppliedAt
+	block["summary"] = rec.Summary
+	block["tracks_changed"] = rec.TracksChanged
+	block["total_activated"] = rec.TotalActivated
+	block["total_deactivated"] = rec.TotalDeactivated
+	block["krs_found"] = rec.KRsFound
+	block["krs_with_targets"] = rec.KRsWithTargets
+	block["krs_by_group"] = rec.KRsByGroup
+	return block
+}
+
 // registerHealthCheckTool registers health_check. Split out of
 // registerInstanceReadTools to keep that function under the gocognit
 // threshold: health_check aggregates pack, schema, ripple, equilibrium and
 // watchdog status, each behind its own nil-service guard.
 func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("health_check",
-		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own."),
+		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -492,6 +516,11 @@ func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 				"source":  integ.Source,
 			}
 		}
+
+		// Automatic alignment of value model flags to Key Result targets: whether it
+		// is on, and when and what it last changed. It runs on the heartbeat and in
+		// the AIM cycle, and writes without review.
+		result["value_model_alignment"] = alignmentHealth(ctx, svc, id)
 
 		// Add ripple signal summary when available.
 		if svc.Ripple != nil {

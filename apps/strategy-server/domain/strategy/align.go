@@ -119,6 +119,11 @@ func (s *Service) AlignPortfolio(ctx context.Context, instanceID uuid.UUID) (Ali
 	for _, track := range tracks {
 		s.alignOneTrack(ctx, instanceID, batchID, track, krTargetsByTrack[track], vmByTrack[track], &result)
 	}
+	if result.TracksChanged > 0 {
+		if err := s.recordAlignment(ctx, batchID, result); err != nil {
+			slog.WarnContext(ctx, "align-portfolio: could not record the change", "instance_id", instanceID, "err", err)
+		}
+	}
 
 	slog.InfoContext(ctx, "align-portfolio: complete",
 		"instance_id", instanceID,

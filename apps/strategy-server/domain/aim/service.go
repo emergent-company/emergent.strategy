@@ -83,6 +83,13 @@ type TriggerConfig struct {
 	// Part C4. Default false: every instance without this artifact, or
 	// without this field set, keeps today's fixed six-step order.
 	SkipFoundations bool `json:"skip_foundations,omitempty"`
+
+	// SkipAlignPortfolio, when true, turns automatic portfolio alignment off for
+	// this instance: align_portfolio is dropped from its AIM cycle plan, and the
+	// heartbeat's consistency check stops aligning it (domain/strategy reads the
+	// same key from this artifact). An explicit call, the align-portfolio skill,
+	// still works. Default false.
+	SkipAlignPortfolio bool `json:"skip_align_portfolio,omitempty"`
 }
 
 // EvidenceTrigger configures the evidence-count trigger.

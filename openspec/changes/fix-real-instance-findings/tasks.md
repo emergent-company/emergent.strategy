@@ -128,10 +128,23 @@ and WP-005 (operational visibility) are independent of everything else.
       pins the request (base tree set, exactly the given entries, no null sha) and
       fails when `base_tree` is dropped. The server also never deletes files for
       archived artifacts; the tool description now says so.
-- [ ] 3.6 `AlignPortfolio` write-back: document or add a way to disable
+- [x] 3.6 `AlignPortfolio` write-back: document or add a way to disable
       automatic dormant marking per instance, so a re-import followed by
       heartbeat does not silently flip value model flags. At minimum, record in
       `get_instance` or `health_check` that classification was applied and when.
+      Done. The automatic caller is the heartbeat ticker (`RunConsistencyCheckForAll`,
+      every tick, every instance), plus the AIM cycle's `align_portfolio` step.
+      Switch: `skip_align_portfolio: true` in the instance's `aim_trigger_config`,
+      like `skip_foundations`; it stops both automatic runs and an explicit
+      `align-portfolio` call still works. Record: a run that changes anything puts a
+      summary and what it considered (Key Results found, with targets, by group) on
+      the mutations it writes (`batch_description`, `batch_metadata`), so history and
+      the sync PR from 3.4 show it; `health_check` gains `value_model_alignment`
+      (automatic or not, how to turn it off, last change and counts). The AIM step
+      metadata now carries `krs_found` and `krs_by_group`. The record lives on the
+      mutations, so a re-import, which replaces the history, clears it. Root cause of
+      the flipping (Key Results under `future_okrs_*` invisible to alignment) was fixed
+      in WP-002.
 
 ## 4. Schema and read gaps (WP-004)
 
