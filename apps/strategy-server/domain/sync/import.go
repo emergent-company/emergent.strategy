@@ -271,8 +271,10 @@ func (s *Service) determineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		localSHA = *inst.GithubCommitSHA
 	}
 
-	// hasLocalChanges is true when the instance has unpushed work:
-	// staged mutations OR committed mutations created after the last GitHub sync.
+	// hasLocalChanges is true when the instance has unpushed work: staged
+	// mutations OR committed mutations created after the last GitHub sync.
+	// Mutations written by an import or by the server itself are not local
+	// work: an imported instance holds what its source holds.
 	stagedCount, dbErr := s.db.NewSelect().
 		TableExpr("strategy_mutations").
 		Where("instance_id = ?", instanceID).
@@ -285,7 +287,7 @@ func (s *Service) determineSyncState(ctx context.Context, instanceID uuid.UUID, 
 		TableExpr("strategy_mutations").
 		Where("instance_id = ?", instanceID).
 		Where("status = ?", domain.MutationStatusCommitted).
-		Where("source != ?", "system").
+		Where("source NOT IN (?)", bun.List([]string{domain.MutationSourceSystem, domain.MutationSourceImport})).
 		Where(`created_at > COALESCE(
 			(SELECT MAX(created_at) FROM github_sync_log WHERE instance_id = ?), ?
 		)`, instanceID, "1970-01-01").
