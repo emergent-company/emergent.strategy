@@ -75,10 +75,16 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 3. Sync and import integrity (WP-003)
 
-- [ ] 3.1 `domain/sync/import.go`: exclude `source = 'import'` from the
+- [x] 3.1 `domain/sync/import.go`: exclude `source = 'import'` from the
       `committedAfterSync` count in `determineSyncState`. Test: import an
       instance, link it to a repo, verify `get_sync_state` returns `in_sync` or
-      `github_ahead`, not `server_ahead`.
+      `github_ahead`, not `server_ahead`. Done: `import` and `system` are both
+      excluded. Tests in `domain/sync/sync_state_import_test.go` use the real import
+      path (`ImportInstance` with initial payloads under an import context) and
+      fail without the change (`server_ahead`, local changes true); the authored
+      sources `mcp`, `web` and `mcp_token` still read as local work. Note that
+      `CommitAuto` always stamps `ripple_auto`, so it cannot stand in for an import
+      in a test.
 - [ ] 3.2 `cmd_import.go`: add `--dry-run` flag. When set, parse and diff
       against existing artifacts, print added/removed/changed keys, and exit
       without writing. Refuse re-import without `--force` when the server holds
