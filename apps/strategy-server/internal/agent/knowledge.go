@@ -459,9 +459,12 @@ skills — use list_installed_skills instead.`,
   - validate_relationships(instance_id) — checks cross-artifact reference
     integrity: do contributes_to paths exist in the value model? Do depends_on
     IDs point to real features? Run after bulk imports or structural changes.
-  - check_content_readiness(instance_id, artifact_key?) — scores content quality
-    (0–100). Detects TBD/TODO placeholders, thin narratives, missing sections.
-    Use before sharing strategy artifacts externally.`,
+  - check_content_readiness(instance_id, artifact_key?) — scores content
+    completeness (0–100) by checking that recommended fields are present and not
+    empty, and reports unmodified templates, packaged defaults and canonical
+    definitions. It does not read the text: a field holding "TBD" or
+    "PLACEHOLDER: ..." counts as present. Use before sharing strategy artifacts
+    externally.`,
 	},
 	{
 		Topic: "Agents and skills for guided authoring",

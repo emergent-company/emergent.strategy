@@ -17,24 +17,38 @@ part. Section 5 follows 2 and 3.
       `apps/epf-cli/scripts/gen-integrity-manifest` on `internal/integrity`, not as
       a script in canonical-epf, so the normalisation exists in Go once and both
       apps are tested against shared vectors. Output `integrity-manifest.json`.
-- [~] 1.2 Anchor schema (done on branch `integrity-anchor-fields` of the canonical
-      repo, staged but NOT committed: its commit hook requires a version bump, a
-      release decision for the canonical owner, MINOR 2.32.0 as it adds optional
-      fields; the pin in `.epf-canonical-version` moves when it merges): `canonical_definitions: installed | omitted` and
-      `adopted_canonical: [ids]`.
-- [ ] 1.3 (NOT STARTED, needs owner review: it changes template content and every
-      template hash) Shipped templates: replace sample values (`Example Product Objective`,
-      `Example ... Key Result`, `TBD`, `Your Organization Name`,
-      `YYYY-MM-DD`) with `not_defined` where the schema allows, and keep the
-      `PLACEHOLDER:` convention where it does not.
-- [ ] 1.3b (NOT STARTED) Product value model, AIM templates: header comment and status say
-      template. Do not reuse real-looking IDs and outcomes in the AIM templates.
-- [~] 1.4 `apps/epf-cli/AGENTS.md` detected-patterns list corrected to match the
-      code; the authoring rules (cite a source per claim, `PLACEHOLDER:`, ask rather
-      than fill in, prune) are NOT written yet. Original: distributed `AGENTS.md`: authoring rules (cite a source per claim, use
-      `PLACEHOLDER:` for unknowns, ask rather than fill in, prune files you do not
-      use, definitions are reference). Fix the claim that unsupported patterns are
-      detected.
+- [x] 1.2 Anchor schema: `canonical_definitions: installed | omitted` and
+      `adopted_canonical: [ids]`. Committed on canonical `main` in `92bbf86`
+      ("Release: Bump version to 2.32.0"), in `schemas/_epf_anchor_schema.json`.
+- [ ] 1.3 Shipped templates: stop shipping sample values that read as strategy.
+      **Moved to canonical and changed:** the framework does not define `not_defined`
+      as a stored marker. The only stated rule is `PLACEHOLDER: <hint>`, so the sample
+      values (`Example Product Objective`, `Example ... Key Result`, `TBD`,
+      `Your Organization Name`, `YYYY-MM-DD`) are aligned to that rule, after the rule
+      is written into canonical. Tracked in `emergent-company/epf-canonical#31`
+      (items 1, 2 and 4). Done here when canonical releases it and both apps are
+      re-synced with a regenerated manifest. Original: replace the sample values with
+      `not_defined` where the schema allows, and keep `PLACEHOLDER:` where it does not.
+- [ ] 1.3b Product value model and AIM templates. **Changed:** the AIM sample ids stay,
+      because canonical `MAINTENANCE.md` requires them to trace to the READY roadmap
+      template (`roadmap-001`, `okr-p-001`, `kr-p-001`). The invented outcomes go
+      (`met` / `partially_met` on KRs, `valid` / `healthy` verdicts), which needs a
+      `pending` Key Result status in the schema (approved by the maintainer).
+      Tracked in `emergent-company/epf-canonical#31` (items 2 and 3). Done here when
+      canonical releases it and both apps are re-synced. Original: do not reuse
+      real-looking IDs and outcomes in the AIM templates.
+- [x] 1.4 Authoring rules are in the distributed `AGENTS.md`, which is
+      `apps/epf-cli/AGENTS.md` (copied into `apps/epf-cli/internal/embedded/` and
+      written into instances by `epf init`, not emitted by strategy-server): section
+      "Authoring Content Discipline" (cite or leave it out, never invent and write
+      `PLACEHOLDER:`, ask rather than fill in, templates and definitions are
+      reference, check before you finish). The detected-patterns list matches the code.
+      Guarded by `TestEmbeddedAgentsMDMatchesItsSource` and
+      `TestAgentsMDStatesTheAuthoringRules`. Not done, deliberately: the "prune files
+      you do not use" wording beyond templates, and the rules in the inline fallback
+      strings of `cmd/init.go` and `internal/mcp/instance_tools.go`, which are used
+      only when the embedded copy is empty. epf-cli is in maintenance mode (bug
+      fixes only).
 - [x] 1.5 `sync-embedded` (both apps) copies the manifest from canonical if it
       ships one, else generates it from canonical's git history, else writes an
       empty stub so the build never breaks. `make sync-embedded` into both apps. Never edit `internal/embedded/`
@@ -131,6 +145,18 @@ part. Section 5 follows 2 and 3.
       Test with a mock Memory that returns a flagged hit.
 - [ ] 4.5 Decide open question 2 (AIM domain and unmodified AIM templates) after
       reading `domain/aim`, and either implement or record the follow-up.
+      **Decided: implement.** Every AIM reader uses authored content only: a row whose
+      `integrity_class` is a framework class (`unmodified_template`,
+      `canonical_reference`, `packaged_default`) counts as absent. This covers
+      `assessment_report`, `calibration_memo`, the roadmap and the reality assessment.
+      Basis: a missing assessment is the documented first-cycle state, and the trigger
+      then fires with "No assessment report exists yet" (`add-aim-agent-loop`); the
+      `draft-assessment` prompt says not to fabricate. Without the filter an unfilled
+      template suppresses that trigger, seeds sample outcomes into the next draft, and
+      makes calibration report a 0% hit rate and recommend a pivot. Call sites:
+      `EvaluateTriggers`, `AssembleAssessmentParams`, `AssembleCalibrationParams`,
+      `loadArtifactPayload`, the `skillexec` context builder, and the `has*` flags in
+      the AIM summary and phase page.
 
 ## 5. Instructions, descriptions and evidence
 

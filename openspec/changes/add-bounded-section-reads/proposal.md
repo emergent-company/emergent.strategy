@@ -65,7 +65,7 @@ Consequences, from reading the code and from test runs:
   Read-only sessions do not list write tools by default. This shapes
   `tools/list` only. It is not a security boundary.
 - **Budgets enforced by test:** a default response budget, a hard cap, and an
-  acceptance table built from the question bank.
+  acceptance table built from a question bank for the Emergent instance.
 
 Not in this change: the client skill (answer discipline, citation format, "my
 reading" marking), which is delivered as client configuration, and content
