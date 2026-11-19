@@ -12,14 +12,14 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 1. Relationship validation and `add_relationship` (WP-001)
 
-- [ ] 1.1 `validate_relationships`: resolve feature targets by id prefix match
+- [x] 1.1 `validate_relationships`: resolve feature targets by id prefix match
       (e.g. `fd-014` resolves to `fd-014_business_directory`), not only by exact
       artifact key. Add test with both short and full keys.
-- [ ] 1.2 `validate_relationships`: resolve `key_result` and `assumption` target
+- [x] 1.2 `validate_relationships`: resolve `key_result` and `assumption` target
       types against the roadmap recipe payload (they live inside
-      `tracks.*.okrs[].key_results[]` and `tracks.*.assumptions[]`, not as
-      standalone artifacts). Add test.
-- [ ] 1.3 `validate_relationships`: remove `track` from `checkableTypes` (tracks
+      `tracks.*.<okr group>[].key_results[]` and `tracks.*.riskiest_assumptions[]`,
+      not as standalone artifacts). Add test.
+- [x] 1.3 `validate_relationships`: remove `track` from `checkableTypes` (tracks
       are never stored as artifacts; this produces 51 false positives on the
       real instance).
 - [ ] 1.4 `add_relationship`: add a `"relationship"` case to
@@ -27,26 +27,39 @@ and WP-005 (operational visibility) are independent of everything else.
       relationship mutation inserts a row into `strategy_relationships`. Test
       end-to-end: stage via `add_relationship`, commit, verify the relationship
       appears in `ListRelationships`.
+      OPEN: extraction is in place, but the row is stored with the synthetic
+      `rel:<source>:<type>:<target>` artifact key as its `source_key`, so
+      `ListRelationships(<real source>)` still returns nothing. Storing it on the
+      real source needs a decision on how explicit edges survive a re-commit of
+      that source (derived rows are deleted and re-inserted per source key).
 - [ ] 1.5 `add_relationship`: verify that `validate_relationships` sees the new
-      relationship after commit.
+      relationship after commit. OPEN with 1.4.
 
 ## 2. OKR and Key Result visibility (WP-002)
 
-- [ ] 2.1 `domain/strategyread/roadmap.go`: extend `Objectives()` to walk
+- [x] 2.1 `domain/strategyread/roadmap.go`: extend `Objectives()` to walk
       `future_okrs_*` groups alongside `okrs`. Return a marker or group label
       so the caller knows which group each objective came from.
-- [ ] 2.2 `domain/strategyread/roadmap.go`: extend `KeyResult()` to find Key
+- [x] 2.2 `domain/strategyread/roadmap.go`: extend `KeyResult()` to find Key
       Results in `future_okrs_*` groups.
-- [ ] 2.3 `domain/strategy/views.go`: verify `objectivesView` and
+- [x] 2.3 `domain/strategy/views.go`: verify `objectivesView` and
       `keyResultView` pick up the extended readers. Add test with a roadmap
       payload containing both `okrs` and `future_okrs_q3_2026`.
-- [ ] 2.4 `domain/strategy/align.go`: extend `extractKRTargets` to walk
+- [x] 2.4 `domain/strategy/align.go`: extend `extractKRTargets` to walk
       `future_okrs_*` groups. Add test: a component targeted only by a
       `future_okrs_*` Key Result stays `active: true`.
-- [ ] 2.5 Decide: should `get_roadmap` and the Roadmap web page report how many
+- [x] 2.5 Decide: should `get_roadmap` and the Roadmap web page report how many
       Key Results were found and in which groups? If yes, add the counts.
-- [ ] 2.6 `domain/strategyread/fit.go` and any other KR consumer: audit for
-      `okrs`-only reads and extend.
+      Decided: `AlignPortfolioResult` reports `KRsFound` and `KRsByGroup`, and
+      every objective and key result in `get_view` carries its `group`. The
+      Roadmap web page and `get_roadmap` counts belong with the web handlers
+      that still read only `okrs` (`handler_roadmap.go`, `handler_execution.go`,
+      `queries_phases.go`), which are covered by `fix-ui-schema-rendering-gaps`.
+- [x] 2.6 `domain/strategyread/fit.go` and any other KR consumer: audit for
+      `okrs`-only reads and extend. `fit.go` has no KR logic. Fixed: `align.go`,
+      `internal/index/extract.go` (also read assumptions where the schema keeps
+      them, on the track), and the `validate_relationships` resolver. Left for
+      `fix-ui-schema-rendering-gaps`: the three web handler files above.
 - [ ] 2.7 Add a KR-target fitness check (tool or finding family):
       `kr.no_component_path`, `kr.path_not_in_value_model`,
       `kr.reached_only_by_parent`, `feature.reaches_no_kr` (severity:

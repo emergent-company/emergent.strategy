@@ -862,3 +862,72 @@ func findL3(vm map[string]any, id string) map[string]any {
 	}
 	return nil
 }
+
+// ── AlignPortfolio: key results under future_okrs_* groups ────────────────────
+
+func TestAlignPortfolio_FutureOKRTargetStaysActiveAndGroupsAreCounted(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	target := func(path string) map[string]any {
+		return map[string]any{"track": "strategy", "component_path": path}
+	}
+	roadmap := map[string]any{"roadmap": map[string]any{"tracks": map[string]any{"strategy": map[string]any{
+		"okrs": []any{map[string]any{"id": "okr-s-001", "objective": "Now", "key_results": []any{
+			map[string]any{"id": "kr-s-001", "value_model_target": target("l1-vision.l2-brand.l3-messaging")},
+		}}},
+		"future_okrs_q3_2026": []any{map[string]any{"id": "okr-s-010", "objective": "Later", "key_results": []any{
+			map[string]any{"id": "kr-s-010", "value_model_target": target("l1-vision.l2-brand.l3-positioning")},
+			map[string]any{"id": "kr-s-011", "description": "no target yet"},
+		}}},
+	}}}}
+	commitArtifact(t, db, instID, domain.ArtifactTypeRoadmap, "roadmap_recipe", roadmap)
+
+	// l3-positioning is targeted only by the future key result and starts active;
+	// l3-other is targeted by nothing and starts active.
+	vm := buildValueModel("strategy", []l3Component{
+		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-messaging", active: false},
+		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-positioning", active: true},
+		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-other", active: true},
+	})
+	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model.strategy", vmWithName(vm, "Strategy"))
+
+	result, err := svc.AlignPortfolio(ctx, instID)
+	if err != nil {
+		t.Fatalf("AlignPortfolio: %v", err)
+	}
+
+	if result.KRsFound != 3 || result.KRsWithTargets != 2 {
+		t.Errorf("found=%d with targets=%d, want 3 and 2", result.KRsFound, result.KRsWithTargets)
+	}
+	if result.KRsByGroup["okrs"] != 1 || result.KRsByGroup["future_okrs_q3_2026"] != 2 {
+		t.Errorf("by group = %v, want okrs:1 future_okrs_q3_2026:2", result.KRsByGroup)
+	}
+
+	committed, err := svc.GetCurrentArtifact(ctx, instID, "value_model.strategy")
+	if err != nil {
+		t.Fatalf("GetCurrentArtifact: %v", err)
+	}
+	var updated map[string]any
+	if err := json.Unmarshal(committed, &updated); err != nil {
+		t.Fatalf("unmarshal committed: %v", err)
+	}
+	active := func(id string) bool {
+		c := findL3(updated, id)
+		if c == nil {
+			t.Fatalf("%s not found in committed payload", id)
+		}
+		a, _ := c["active"].(bool)
+		return a
+	}
+	if !active("l3-messaging") {
+		t.Error("l3-messaging is targeted by a current key result and must be active")
+	}
+	if !active("l3-positioning") {
+		t.Error("l3-positioning is targeted by a future_okrs_* key result and must stay active, not be marked dormant")
+	}
+	if active("l3-other") {
+		t.Error("l3-other is targeted by nothing and must be inactive")
+	}
+}

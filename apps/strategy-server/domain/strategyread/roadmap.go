@@ -12,11 +12,47 @@ type KeyResultSummary struct {
 	Description string `json:"description,omitempty"`
 }
 
-// ObjectiveSummary is an objective with its key results.
+// ObjectiveSummary is an objective with its key results. Group names the list
+// it was found in: "okrs" or a "future_okrs_*" group.
 type ObjectiveSummary struct {
 	ID         string             `json:"id"`
+	Group      string             `json:"group"`
 	Objective  string             `json:"objective"`
 	KeyResults []KeyResultSummary `json:"key_results"`
+}
+
+const (
+	currentOKRGroup = "okrs"
+	futureOKRPrefix = "future_okrs_"
+)
+
+// OKRGroup is one list of objectives on a roadmap track.
+type OKRGroup struct {
+	Name  string
+	Items []any
+}
+
+// OKRGroups returns the objective lists of a roadmap track: "okrs" first, then
+// every "future_okrs_*" list in name order. Every reader of objectives and key
+// results goes through it, so none can see only part of a roadmap.
+func OKRGroups(track map[string]any) []OKRGroup {
+	var groups []OKRGroup
+	if items, ok := track[currentOKRGroup].([]any); ok {
+		groups = append(groups, OKRGroup{Name: currentOKRGroup, Items: items})
+	}
+	future := make(map[string][]any)
+	var names []string
+	for name, v := range track {
+		if items, ok := v.([]any); ok && strings.HasPrefix(name, futureOKRPrefix) {
+			future[name] = items
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		groups = append(groups, OKRGroup{Name: name, Items: future[name]})
+	}
+	return groups
 }
 
 // TrackObjectives is one roadmap track reduced to its objectives.
@@ -53,16 +89,17 @@ func Objectives(roadmap any, track string) []TrackObjectives {
 	for _, name := range names {
 		tm, _ := tracks[name].(map[string]any)
 		to := TrackObjectives{Track: name, TrackObjective: str(tm, "track_objective"), Objectives: []ObjectiveSummary{}}
-		okrs, _ := tm["okrs"].([]any)
-		for _, o := range okrs {
-			om, _ := o.(map[string]any)
-			os := ObjectiveSummary{ID: str(om, "id"), Objective: str(om, "objective"), KeyResults: []KeyResultSummary{}}
-			krs, _ := om["key_results"].([]any)
-			for _, k := range krs {
-				km, _ := k.(map[string]any)
-				os.KeyResults = append(os.KeyResults, KeyResultSummary{ID: str(km, "id"), Description: str(km, "description")})
+		for _, g := range OKRGroups(tm) {
+			for _, o := range g.Items {
+				om, _ := o.(map[string]any)
+				os := ObjectiveSummary{ID: str(om, "id"), Group: g.Name, Objective: str(om, "objective"), KeyResults: []KeyResultSummary{}}
+				krs, _ := om["key_results"].([]any)
+				for _, k := range krs {
+					km, _ := k.(map[string]any)
+					os.KeyResults = append(os.KeyResults, KeyResultSummary{ID: str(km, "id"), Description: str(km, "description")})
+				}
+				to.Objectives = append(to.Objectives, os)
 			}
-			to.Objectives = append(to.Objectives, os)
 		}
 		out = append(out, to)
 	}
@@ -73,6 +110,7 @@ func Objectives(roadmap any, track string) []TrackObjectives {
 // question about it.
 type KeyResultDetail struct {
 	Track     string `json:"track"`
+	Group     string `json:"group"`
 	Objective struct {
 		ID        string `json:"id"`
 		Objective string `json:"objective"`
@@ -95,38 +133,73 @@ func KeyResult(roadmap any, id string) (KeyResultDetail, bool) {
 
 	for _, name := range names {
 		tm, _ := tracks[name].(map[string]any)
-		okrs, _ := tm["okrs"].([]any)
-		for _, o := range okrs {
-			om, _ := o.(map[string]any)
-			krs, _ := om["key_results"].([]any)
-			for _, k := range krs {
-				km, _ := k.(map[string]any)
-				if str(km, "id") != id {
-					continue
-				}
-				d := KeyResultDetail{Track: name, KeyResult: km, Assumptions: []any{}, Dependencies: []any{}}
-				d.Objective.ID = str(om, "id")
-				d.Objective.Objective = str(om, "objective")
+		for _, g := range OKRGroups(tm) {
+			for _, o := range g.Items {
+				om, _ := o.(map[string]any)
+				krs, _ := om["key_results"].([]any)
+				for _, k := range krs {
+					km, _ := k.(map[string]any)
+					if str(km, "id") != id {
+						continue
+					}
+					d := KeyResultDetail{Track: name, Group: g.Name, KeyResult: km, Assumptions: []any{}, Dependencies: []any{}}
+					d.Objective.ID = str(om, "id")
+					d.Objective.Objective = str(om, "objective")
 
-				assumptions, _ := tm["riskiest_assumptions"].([]any)
-				for _, a := range assumptions {
-					am, _ := a.(map[string]any)
-					if linked, _ := am["linked_to_kr"].([]any); containsString(linked, id) {
-						d.Assumptions = append(d.Assumptions, a)
+					assumptions, _ := tm["riskiest_assumptions"].([]any)
+					for _, a := range assumptions {
+						am, _ := a.(map[string]any)
+						if linked, _ := am["linked_to_kr"].([]any); containsString(linked, id) {
+							d.Assumptions = append(d.Assumptions, a)
+						}
 					}
-				}
-				rm, _ := view("roadmap_recipe", roadmap).(map[string]any)
-				deps, _ := rm["cross_track_dependencies"].([]any)
-				for _, dep := range deps {
-					if raw, err := json.Marshal(dep); err == nil && strings.Contains(string(raw), `"`+id+`"`) {
-						d.Dependencies = append(d.Dependencies, dep)
+					rm, _ := view("roadmap_recipe", roadmap).(map[string]any)
+					deps, _ := rm["cross_track_dependencies"].([]any)
+					for _, dep := range deps {
+						if raw, err := json.Marshal(dep); err == nil && strings.Contains(string(raw), `"`+id+`"`) {
+							d.Dependencies = append(d.Dependencies, dep)
+						}
 					}
+					return d, true
 				}
-				return d, true
 			}
 		}
 	}
 	return KeyResultDetail{}, false
+}
+
+// RoadmapIDs returns the id of every key result and riskiest assumption in a
+// roadmap, whichever OKR group or track list holds it. They are objects inside
+// the roadmap rather than artifacts of their own, so this is how a reference to
+// one is resolved.
+func RoadmapIDs(roadmap any) map[string]bool {
+	ids := make(map[string]bool)
+	add := func(list []any) {
+		for _, v := range list {
+			if m, ok := v.(map[string]any); ok {
+				if id := str(m, "id"); id != "" {
+					ids[id] = true
+				}
+			}
+		}
+	}
+	for _, tv := range roadmapTracks(roadmap) {
+		tm, _ := tv.(map[string]any)
+		add(listOf(tm, "riskiest_assumptions"))
+		for _, g := range OKRGroups(tm) {
+			for _, o := range g.Items {
+				om, _ := o.(map[string]any)
+				add(listOf(om, "key_results"))
+				add(listOf(om, "riskiest_assumptions"))
+			}
+		}
+	}
+	return ids
+}
+
+func listOf(m map[string]any, key string) []any {
+	l, _ := m[key].([]any)
+	return l
 }
 
 func containsString(list []any, s string) bool {

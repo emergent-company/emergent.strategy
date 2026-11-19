@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 )
 
 // ArtifactFields holds the top-level scalar fields extracted from a payload
@@ -310,20 +312,28 @@ func extractRoadmapRelationships(key string, raw map[string]any) []Relationship 
 			if track == nil {
 				continue
 			}
-			for _, okr := range mapSlice(track, "okrs") {
-				for _, asm := range mapSlice(okr, "riskiest_assumptions") {
-					asmID := strField(asm, "id")
-					if asmID == "" {
-						continue
+			// The schema keeps riskiest_assumptions on the track; assumptions
+			// nested under an OKR are read too, as older payloads put them there.
+			asms := mapSlice(track, "riskiest_assumptions")
+			for _, group := range strategyread.OKRGroups(track) {
+				for _, o := range group.Items {
+					if okr, ok := o.(map[string]any); ok {
+						asms = append(asms, mapSlice(okr, "riskiest_assumptions")...)
 					}
-					for _, kr := range strSlice(asm, "linked_to_kr") {
-						rels = append(rels, Relationship{
-							TargetKey:    kr,
-							TargetType:   "key_result",
-							Relationship: "linked_to_kr",
-							Metadata:     map[string]any{"assumption_id": asmID},
-						})
-					}
+				}
+			}
+			for _, asm := range asms {
+				asmID := strField(asm, "id")
+				if asmID == "" {
+					continue
+				}
+				for _, kr := range strSlice(asm, "linked_to_kr") {
+					rels = append(rels, Relationship{
+						TargetKey:    kr,
+						TargetType:   "key_result",
+						Relationship: "linked_to_kr",
+						Metadata:     map[string]any{"assumption_id": asmID},
+					})
 				}
 			}
 		}

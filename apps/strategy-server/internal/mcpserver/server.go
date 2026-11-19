@@ -2116,22 +2116,19 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Build a set of all known artifact keys and collect payloads
-		// that may contain embedded objects (key_result, assumption).
 		artifacts, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, "")
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		knownKeys := make(map[string]bool, len(artifacts))
+		resolver := relationshipResolver{knownKeys: make(map[string]bool, len(artifacts))}
 		for _, a := range artifacts {
-			knownKeys[a.ArtifactKey] = true
+			resolver.knownKeys[a.ArtifactKey] = true
+		}
+		resolver.embeddedIDs, err = extractEmbeddedIDs(ctx, svc, instID)
+		if err != nil {
+			return toolErr(ctx, err), nil
 		}
 
-		// Build a set of embedded key_result and assumption IDs from
-		// roadmap payloads, since these are not standalone artifacts.
-		embeddedIDs := extractEmbeddedIDs(ctx, svc, instID)
-
-		// Load all relationships.
 		type brokenRef struct {
 			SourceKey    string `json:"source_key"`
 			Relationship string `json:"relationship"`
@@ -2151,44 +2148,7 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 					continue // only check outbound
 				}
 				totalChecked++
-				// Only check references to artifact types that land in
-				// strategy_artifacts or are resolvable from roadmap payloads.
-				// track: never stored as artifacts, just string labels — skip.
-				// value_path: dotted paths into the value model — skip.
-				checkableTypes := map[string]bool{
-					"feature": true, "persona": true,
-				}
-				embeddedTypes := map[string]bool{
-					"key_result": true, "assumption": true,
-				}
-				if !checkableTypes[r.TargetType] && !embeddedTypes[r.TargetType] {
-					continue
-				}
-				if embeddedTypes[r.TargetType] {
-					if !embeddedIDs[r.TargetKey] {
-						broken = append(broken, brokenRef{
-							SourceKey:    r.SourceKey,
-							Relationship: r.Relationship,
-							TargetKey:    r.TargetKey,
-							TargetType:   r.TargetType,
-						})
-					}
-					continue
-				}
-				// For features, try both exact match and id-prefix match
-				// (feature keys include a slug suffix, e.g. fd-014_business_directory).
-				if r.TargetType == "feature" && !knownKeys[r.TargetKey] {
-					if !matchesByPrefix(knownKeys, r.TargetKey) {
-						broken = append(broken, brokenRef{
-							SourceKey:    r.SourceKey,
-							Relationship: r.Relationship,
-							TargetKey:    r.TargetKey,
-							TargetType:   r.TargetType,
-						})
-					}
-					continue
-				}
-				if !knownKeys[r.TargetKey] {
+				if !resolver.resolves(r.TargetType, r.TargetKey) {
 					broken = append(broken, brokenRef{
 						SourceKey:    r.SourceKey,
 						Relationship: r.Relationship,
@@ -2306,62 +2266,50 @@ func registerRelationshipValidationTools(s *server.MCPServer, svc Services) {
 	})
 }
 
-// extractEmbeddedIDs collects key_result and assumption IDs from roadmap
-// payloads. These objects are not standalone artifacts in strategy_artifacts;
-// they live inside the roadmap payload. Returns a set of their IDs.
-func extractEmbeddedIDs(ctx context.Context, svc Services, instID uuid.UUID) map[string]bool {
+// relationshipResolver decides whether a relationship target exists.
+type relationshipResolver struct {
+	knownKeys   map[string]bool // artifact keys of the instance
+	embeddedIDs map[string]bool // key result and assumption ids inside roadmaps
+}
+
+// resolves reports whether the target exists. Target types that are labels or
+// paths rather than artifacts (a track name, a value model path) are not
+// checkable and resolve.
+func (r relationshipResolver) resolves(targetType, targetKey string) bool {
+	switch targetType {
+	case "key_result", "assumption":
+		return r.embeddedIDs[targetKey]
+	case "feature":
+		// Feature artifact keys carry a slug (fd-014_business_directory);
+		// relationships name the short id (fd-014).
+		return r.knownKeys[targetKey] || matchesByPrefix(r.knownKeys, targetKey)
+	case "persona":
+		return r.knownKeys[targetKey]
+	}
+	return true
+}
+
+// extractEmbeddedIDs collects the ids of key results and assumptions from the
+// instance's roadmaps. They are objects inside the roadmap payload, not
+// artifacts of their own, so relationship targets of those types resolve here.
+func extractEmbeddedIDs(ctx context.Context, svc Services, instID uuid.UUID) (map[string]bool, error) {
 	ids := make(map[string]bool)
-	roadmaps, _ := svc.Strategy.ListCurrentArtifacts(ctx, instID, "roadmap")
-	recipes, _ := svc.Strategy.ListCurrentArtifacts(ctx, instID, "roadmap_recipe")
-	roadmaps = append(roadmaps, recipes...)
-	for _, rm := range roadmaps {
-		var raw map[string]any
-		if err := json.Unmarshal(rm.Payload, &raw); err != nil {
-			continue
+	for _, artifactType := range []string{"roadmap", "roadmap_recipe"} {
+		roadmaps, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, artifactType)
+		if err != nil {
+			return nil, err
 		}
-		rmObj := raw
-		if nested, ok := raw["roadmap"].(map[string]any); ok {
-			rmObj = nested
-		}
-		tracks, ok := rmObj["tracks"].(map[string]any)
-		if !ok {
-			continue
-		}
-		for _, trackData := range tracks {
-			track, ok := trackData.(map[string]any)
-			if !ok {
+		for _, rm := range roadmaps {
+			var payload any
+			if err := json.Unmarshal(rm.Payload, &payload); err != nil {
 				continue
 			}
-			okrs, _ := track["okrs"].([]any)
-			for _, okrItem := range okrs {
-				okr, ok := okrItem.(map[string]any)
-				if !ok {
-					continue
-				}
-				krs, _ := okr["key_results"].([]any)
-				for _, krItem := range krs {
-					kr, ok := krItem.(map[string]any)
-					if !ok {
-						continue
-					}
-					if id, ok := kr["id"].(string); ok && id != "" {
-						ids[id] = true
-					}
-				}
-				asms, _ := okr["riskiest_assumptions"].([]any)
-				for _, asmItem := range asms {
-					asm, ok := asmItem.(map[string]any)
-					if !ok {
-						continue
-					}
-					if id, ok := asm["id"].(string); ok && id != "" {
-						ids[id] = true
-					}
-				}
+			for id := range strategyread.RoadmapIDs(payload) {
+				ids[id] = true
 			}
 		}
 	}
-	return ids
+	return ids, nil
 }
 
 // matchesByPrefix checks if any key in the set starts with targetKey followed

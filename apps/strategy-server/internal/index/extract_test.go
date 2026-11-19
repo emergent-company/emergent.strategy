@@ -745,3 +745,30 @@ func TestExtractRelationships_ExplicitRelationship_MissingTargetKey(t *testing.T
 		t.Errorf("expected 0 relationships when target_key is missing, got %d", len(rels))
 	}
 }
+
+func TestExtractRelationships_Roadmap_LinkedToKR_FromTrackLevelAssumptionsAndFutureGroups(t *testing.T) {
+	payload := mustMarshal(map[string]any{"roadmap": map[string]any{"tracks": map[string]any{"product": map[string]any{
+		"okrs": []any{map[string]any{"id": "okr-p-001", "key_results": []any{map[string]any{"id": "kr-p-001"}},
+			// older payloads nest assumptions under the OKR
+			"riskiest_assumptions": []any{map[string]any{"id": "asm-p-002", "linked_to_kr": []any{"kr-p-001"}}}}},
+		"future_okrs_q3_2026": []any{map[string]any{"id": "okr-p-010", "key_results": []any{map[string]any{"id": "kr-p-010"}},
+			"riskiest_assumptions": []any{map[string]any{"id": "asm-p-003", "linked_to_kr": []any{"kr-p-010"}}}}},
+		// the schema keeps assumptions on the track
+		"riskiest_assumptions": []any{map[string]any{"id": "asm-p-001", "linked_to_kr": []any{"kr-p-010"}}},
+	}}}})
+
+	rels := relsByKind(index.ExtractRelationships("roadmap_recipe", "roadmap_recipe", payload), "linked_to_kr")
+	got := map[string]string{}
+	for _, r := range rels {
+		got[r.Metadata["assumption_id"].(string)] = r.TargetKey
+	}
+	want := map[string]string{"asm-p-001": "kr-p-010", "asm-p-002": "kr-p-001", "asm-p-003": "kr-p-010"}
+	if len(got) != len(want) {
+		t.Fatalf("linked_to_kr = %v, want %v", got, want)
+	}
+	for asm, kr := range want {
+		if got[asm] != kr {
+			t.Errorf("assumption %s links to %q, want %q", asm, got[asm], kr)
+		}
+	}
+}

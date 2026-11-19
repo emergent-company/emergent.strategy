@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
@@ -39,6 +40,11 @@ type AlignPortfolioResult struct {
 	UnresolvablePaths []string
 	// KRsWithTargets is the number of KRs that had value_model_target fields.
 	KRsWithTargets int
+	// KRsFound is the number of KRs in the roadmap, with or without a target.
+	KRsFound int
+	// KRsByGroup counts KRs per OKR group ("okrs", "future_okrs_q3_2026", ...),
+	// so a run can be traced to what it actually considered.
+	KRsByGroup map[string]int
 	// NoRoadmap is true when no roadmap_recipe exists for the instance.
 	NoRoadmap bool
 	// TrackResults holds per-track details.
@@ -71,14 +77,19 @@ func (s *Service) AlignPortfolio(ctx context.Context, instanceID uuid.UUID) (Ali
 	}
 
 	// 2. Extract KR targets grouped by track.
-	krTargetsByTrack, krsWithTargets, _ := extractKRTargets(roadmapPayload)
+	krs := extractKRTargets(roadmapPayload)
+	krTargetsByTrack := krs.ByTrack
 	result := AlignPortfolioResult{
-		KRsWithTargets: krsWithTargets,
+		KRsWithTargets: krs.WithTargets,
+		KRsFound:       krs.Found,
+		KRsByGroup:     krs.ByGroup,
 	}
 
-	if krsWithTargets == 0 {
+	if krs.WithTargets == 0 {
 		slog.InfoContext(ctx, "align-portfolio: no KR targets found, skipping",
-			"instance_id", instanceID)
+			"instance_id", instanceID,
+			"krs_found", krs.Found,
+			"krs_by_group", krs.ByGroup)
 		return result, nil
 	}
 
@@ -115,7 +126,9 @@ func (s *Service) AlignPortfolio(ctx context.Context, instanceID uuid.UUID) (Ali
 		"tracks_changed", result.TracksChanged,
 		"total_activated", result.TotalActivated,
 		"total_deactivated", result.TotalDeactivated,
+		"krs_found", result.KRsFound,
 		"krs_with_targets", result.KRsWithTargets,
+		"krs_by_group", result.KRsByGroup,
 		"unresolvable_paths", len(result.UnresolvablePaths),
 	)
 
@@ -242,12 +255,23 @@ type krTarget struct {
 	TargetMaturity string // optional ("emerging", "practising", "leading")
 }
 
-// extractKRTargets walks the roadmap payload and collects all value_model_target refs.
-// Returns: targets grouped by track, total KRs with targets, and unresolvable note.
-func extractKRTargets(payload json.RawMessage) (map[string][]krTarget, int, []string) {
+// krExtract is what extractKRTargets found in a roadmap.
+type krExtract struct {
+	ByTrack     map[string][]krTarget // value_model_target refs, by target track
+	WithTargets int                   // KRs that carry a usable value_model_target
+	Found       int                   // all KRs, with or without a target
+	ByGroup     map[string]int        // all KRs per OKR group
+}
+
+// extractKRTargets walks every OKR group of every track
+// (roadmap.tracks.{track}.okrs and .future_okrs_*) and collects the
+// value_model_target refs of their key results.
+func extractKRTargets(payload json.RawMessage) krExtract {
+	out := krExtract{ByTrack: make(map[string][]krTarget), ByGroup: make(map[string]int)}
+
 	var roadmap map[string]any
 	if err := json.Unmarshal(payload, &roadmap); err != nil {
-		return nil, 0, nil
+		return out
 	}
 
 	// The roadmap payload may be: {"roadmap": {...}} or the unwrapped object.
@@ -255,65 +279,58 @@ func extractKRTargets(payload json.RawMessage) (map[string][]krTarget, int, []st
 		roadmap = inner
 	}
 
-	byTrack := make(map[string][]krTarget)
-	total := 0
-
-	// Walk roadmap.tracks.{track}.okrs[].key_results[].value_model_target
 	tracksMap, _ := roadmap["tracks"].(map[string]any)
-	if tracksMap == nil {
-		// Some roadmap formats use top-level okrs or per-track keys directly.
-		// Try top-level okrs as fallback.
-		return byTrack, 0, nil
-	}
-
 	for trackName, trackVal := range tracksMap {
 		trackSlug := normaliseTrackSlug(trackName)
 		trackObj, _ := trackVal.(map[string]any)
 		if trackObj == nil {
 			continue
 		}
-		okrs, _ := trackObj["okrs"].([]any)
-		for _, okrVal := range okrs {
-			okr, _ := okrVal.(map[string]any)
-			if okr == nil {
-				continue
-			}
-			krs, _ := okr["key_results"].([]any)
-			for _, krVal := range krs {
-				kr, _ := krVal.(map[string]any)
-				if kr == nil {
+		for _, group := range strategyread.OKRGroups(trackObj) {
+			for _, okrVal := range group.Items {
+				okr, _ := okrVal.(map[string]any)
+				if okr == nil {
 					continue
 				}
-				vmt, _ := kr["value_model_target"].(map[string]any)
-				if vmt == nil {
-					continue
+				krs, _ := okr["key_results"].([]any)
+				for _, krVal := range krs {
+					kr, _ := krVal.(map[string]any)
+					if kr == nil {
+						continue
+					}
+					out.Found++
+					out.ByGroup[group.Name]++
+					vmt, _ := kr["value_model_target"].(map[string]any)
+					if vmt == nil {
+						continue
+					}
+					targetTrack, _ := vmt["track"].(string)
+					if targetTrack == "" {
+						targetTrack = trackSlug
+					} else {
+						targetTrack = normaliseTrackSlug(targetTrack)
+					}
+					compPath, _ := vmt["component_path"].(string)
+					if compPath == "" {
+						continue
+					}
+					out.WithTargets++
+					krID, _ := kr["id"].(string)
+					krDesc, _ := kr["description"].(string)
+					maturity, _ := vmt["target_maturity"].(string)
+					out.ByTrack[targetTrack] = append(out.ByTrack[targetTrack], krTarget{
+						KRID:           krID,
+						KRDescription:  krDesc,
+						Track:          targetTrack,
+						ComponentPath:  compPath,
+						TargetMaturity: maturity,
+					})
 				}
-				targetTrack, _ := vmt["track"].(string)
-				if targetTrack == "" {
-					targetTrack = trackSlug
-				} else {
-					targetTrack = normaliseTrackSlug(targetTrack)
-				}
-				compPath, _ := vmt["component_path"].(string)
-				if compPath == "" {
-					continue
-				}
-				total++
-				krID, _ := kr["id"].(string)
-				krDesc, _ := kr["description"].(string)
-				maturity, _ := vmt["target_maturity"].(string)
-				byTrack[targetTrack] = append(byTrack[targetTrack], krTarget{
-					KRID:           krID,
-					KRDescription:  krDesc,
-					Track:          targetTrack,
-					ComponentPath:  compPath,
-					TargetMaturity: maturity,
-				})
 			}
 		}
 	}
 
-	return byTrack, total, nil
+	return out
 }
 
 // normaliseTrackSlug normalises a track name to the canonical slug used in the DB.
