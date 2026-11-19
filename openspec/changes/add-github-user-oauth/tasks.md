@@ -12,8 +12,9 @@
 - [x] 2.3 Add `GithubOAuthStateSecret string` with env `GITHUB_OAUTH_STATE_SECRET`
       (falls back to `EPF_SESSION_SECRET` if set)
 - [x] 2.4 Add `GithubOAuthConfigured() bool` helper — returns true when client ID + secret set
-- [ ] 2.5 Add `GithubOAuthRedirectURL(base string) string` helper — `{base}/github/connect/callback`
-  - **Not done:** redirect URL is constructed inline in `cmd_serve.go` instead of via a named helper on `Config`
+- [x] 2.5 Add `GithubOAuthRedirectURL(base string) string` helper — `{base}/github/connect/callback`
+  - Package-level function in `config/config.go`, used by `cmd_serve.go`. Ignores a trailing slash on `base`.
+    Tested by `TestGithubOAuthRedirectURL`.
 
 ## 3. GitHub Client — ListUserInstallations
 
@@ -85,8 +86,10 @@
 
 - [x] 7.1 Unit test `ListUserInstallations` (mock HTTP, pagination)
   - `TestListUserInstallations` in `client_test.go` — basic case covered; multi-page pagination not explicitly tested
-- [ ] 7.2 Unit test state generation, signing, verification
-  - **Not done:** no tests for `GenerateState`, `SignState`, `VerifyState` in `oauth.go`
+- [x] 7.2 Unit test state generation, signing, verification
+  - `internal/github/oauth_test.go`. Verification rejects a wrong secret, a changed state, a changed
+    or truncated MAC, a missing or empty MAC, and a state containing the separator. With the MAC
+    comparison disabled, 8 of the 10 rejection cases fail.
 - [x] 7.3 Run full test suite: `go test ./...` — all 34 packages pass
 - [x] 7.4 Run lint: `task lint` — clean
 

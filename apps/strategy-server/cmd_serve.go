@@ -439,7 +439,7 @@ func runServer(cfg *config.Config) error {
 			ClientID:     cfg.EffectiveOAuthClientID(),
 			ClientSecret: cfg.EffectiveOAuthClientSecret(),
 			StateSecret:  cfg.EffectiveOAuthStateSecret(),
-			RedirectURL:  cfg.ServerURL + "/github/connect/callback",
+			RedirectURL:  config.GithubOAuthRedirectURL(cfg.ServerURL),
 		}
 		log.Info("github oauth configured", "client_id", cfg.EffectiveOAuthClientID())
 	}

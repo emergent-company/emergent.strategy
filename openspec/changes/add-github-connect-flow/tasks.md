@@ -64,9 +64,9 @@
 - [x] 4.3 Add `RepoScanResult` type to `domain/sync/service.go`
   - Extended with: `ScanTruncated`, `ScanError`, `HasAppInstall`, `SubmoduleRefs`, `UsedByRepos`
 - [x] 4.4 Add scan cache: `struct { mu sync.Mutex; entries map[string]scanCacheEntry }` where entry has result + expiry
-- [ ] 4.5 Integration test: mock reader returning 3 repos, verify concurrent scan, EPF detection, caching
-  - **Not done:** mock stubs exist in `service_test.go` to satisfy the interface, but no dedicated
-    test exercises the full `ScanInstallationRepos` concurrency + cache-hit path
+- [x] 4.5 Integration test: mock reader returning 3 repos, verify concurrent scan, EPF detection, caching
+  - `TestScanInstallationRepos_Basic` (3 repos, EPF detected in 2, 3 detect calls) and
+    `TestScanInstallationRepos_CacheHit` (second call makes no new detect calls) in `domain/sync/service_test.go`
 
 ## 5. MCP Tools
 
@@ -83,11 +83,12 @@
 
 ## 6. Connect Flow Web UI
 
-- [ ] 6.1 Add `ConnectGitHub` screen to `navigation_graph.yaml`
+- [x] 6.1 Add `ConnectGitHub` screen to `navigation_graph.yaml`
   - Route: `GET /github/connect`
   - Not in sidebar; accessible from settings and new-instance flow
   - **N/A:** Navigation system is implemented in Go code (`internal/navigation/`), not YAML.
-    The `/github/connect` route is registered in `handler.go` and accessible from settings.
+    The `/github/connect` route is registered in `handler.go` and linked from the settings page
+    (`internal/ui/settings.templ`). Not a screen in the navigation graph.
 - [x] 6.2 Register route in `handler.go`: `GET /github/connect`, `POST /github/connect/scan`
   - Also registered: `GET /github/connect/repos`, `GET /github/connect/authorize`,
     `GET /github/connect/callback`, `POST /github/connect/import`
@@ -112,6 +113,6 @@
   - Multiple instances in one repo
   - No EPF found
   - Truncated tree (recursive response has `truncated: true`)
-- [ ] 7.3 Integration test for `ScanInstallationRepos` (mock reader, concurrency, cache hit)
-  - **Not done** — same gap as 4.5
+- [x] 7.3 Integration test for `ScanInstallationRepos` (mock reader, concurrency, cache hit)
+  - Same tests as 4.5
 - [x] 7.4 Run full test suite: `go test ./...` — all 34 test packages pass
