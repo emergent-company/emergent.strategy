@@ -89,16 +89,35 @@ and WP-005 (operational visibility) are independent of everything else.
       against existing artifacts, print added/removed/changed keys, and exit
       without writing. Refuse re-import without `--force` when the server holds
       non-import mutations the source does not.
-- [ ] 3.3 `domain/sync/service.go` / `SyncToGithub`: change to write only
+- [x] 3.3 `domain/sync/service.go` / `SyncToGithub`: change to write only
       artifacts that changed since the last import or sync. Use the mutations
       table to identify changed artifact keys; export only those; pass unchanged
-      files through from the existing tree.
-- [ ] 3.4 `SyncToGithub`: build the publish PR body from batch descriptions
+      files through from the existing tree. Done in `domain/sync/changed.go`, for
+      `SyncToGithub` and the AIM auto-push alike. An artifact is changed when the
+      latest mutation applied to it (`strategy_artifacts.mutation_id`, not a
+      timestamp: `CommitBatch` does not touch `created_at`, so a batch staged before
+      a sync and committed after would be missed) is not an import, and the artifact
+      was updated after the last merged export sync started. A sync whose PR is open
+      or closed does not move the baseline, so the result is a superset, never a
+      miss. Unchanged files are untouched because `CommitFiles` builds its tree on the
+      branch's tree. A sync that changes nothing writes nothing and returns status
+      `no_changes`. `full=true` (tool argument, `SyncParams.Full`) writes everything.
+      A never-imported instance has no import mutations, so its first push writes
+      everything. The safety PR before a diverged import stays a full export.
+- [x] 3.4 `SyncToGithub`: build the publish PR body from batch descriptions
       (the `describe_batch` summaries stored on each batch). List changed
-      artifacts and their descriptions.
-- [ ] 3.5 `SyncToGithub` / `CommitFiles`: verify that files under the base path
+      artifacts and their descriptions. Done: changes are grouped by batch, each
+      batch shown with its description and artifact keys (capped at 30 batches and
+      20 keys, with a count of the rest), batches without a description listed as
+      such. The AIM auto-push PR uses the same section.
+- [x] 3.5 `SyncToGithub` / `CommitFiles`: verify that files under the base path
       which the server has no artifact for (e.g. `_meta.yaml`) are not deleted.
-      Add a test with a mock repo containing an extra file.
+      Add a test with a mock repo containing an extra file. Verified: `CommitFiles`
+      sends `base_tree` (the branch's current tree) and only the files it is given,
+      so GitHub keeps every other file. `TestCommitFiles_KeepsFilesItIsNotGiven`
+      pins the request (base tree set, exactly the given entries, no null sha) and
+      fails when `base_tree` is dropped. The server also never deletes files for
+      archived artifacts; the tool description now says so.
 - [ ] 3.6 `AlignPortfolio` write-back: document or add a way to disable
       automatic dormant marking per instance, so a re-import followed by
       heartbeat does not silently flip value model flags. At minimum, record in

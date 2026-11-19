@@ -929,7 +929,7 @@ Full bidirectional lifecycle. Three flows: **Genesis** (scaffold → push),
 **MCP tool flow (App installation required):**
 - `update_instance(instance_id, github_repo="org/repo")` to link
 - `import_from_github(instance_id, branch?)` — smart four-state import
-- `sync_to_github(instance_id, version_id?)` — YAML export, branch + commit + PR
+- `sync_to_github(instance_id, version_id?, full?)` — branch + commit + PR with only the artifacts changed since the last import or merged sync (`full` writes all); never deletes files
 - `get_sync_state(instance_id)`, `get_sync_status(instance_id)` — status checks
 
 **AIM auto-push (App installation required):**

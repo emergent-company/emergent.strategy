@@ -699,7 +699,7 @@ func (s *Service) pushSafetyPR(ctx context.Context, inst *domain.StrategyInstanc
 		return "", fmt.Errorf("export instance for safety PR: %w", err)
 	}
 
-	files := exportEntriesToFiles(exportResult, inst.GithubBasePath)
+	files := exportEntriesToFiles(exportResult.Files, inst.GithubBasePath)
 	if len(files) == 0 {
 		return "", fmt.Errorf("no artifacts to push to safety branch")
 	}

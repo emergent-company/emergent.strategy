@@ -3278,10 +3278,14 @@
     },
     {
       "name": "sync_to_github",
-      "description": "USE WHEN you need to push strategy artifacts to a GitHub repository as a pull request. Exports all artifacts as YAML files and creates a PR for review. Requires a GitHub App installation on the target org.",
+      "description": "USE WHEN you need to push strategy artifacts to a GitHub repository as a pull request. Writes only the artifacts changed since the instance was last imported or its last merged sync, so unchanged files and their comments stay as they are in the repository, and lists the changes with their batch descriptions in the PR body. Writes nothing and opens no PR when nothing changed (status no_changes). Never deletes files. Requires a GitHub App installation on the target org.",
       "category": "admin",
       "input_schema": {
         "properties": {
+          "full": {
+            "description": "Write every artifact instead of only the changed ones. Use when the repository is out of step with the server.",
+            "type": "boolean"
+          },
           "instance_id": {
             "description": "Strategy instance UUID",
             "type": "string"

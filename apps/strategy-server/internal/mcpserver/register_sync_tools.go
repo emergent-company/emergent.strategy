@@ -210,9 +210,10 @@ func registerGetSyncStateTool(s *server.MCPServer, svc Services) {
 func registerSyncToGithubTool(s *server.MCPServer, svc Services) {
 	// sync_to_github — export current or versioned state and create a PR.
 	s.AddTool(mcp.NewTool("sync_to_github",
-		mcp.WithDescription("USE WHEN you need to push strategy artifacts to a GitHub repository as a pull request. Exports all artifacts as YAML files and creates a PR for review. Requires a GitHub App installation on the target org."),
+		mcp.WithDescription("USE WHEN you need to push strategy artifacts to a GitHub repository as a pull request. Writes only the artifacts changed since the instance was last imported or its last merged sync, so unchanged files and their comments stay as they are in the repository, and lists the changes with their batch descriptions in the PR body. Writes nothing and opens no PR when nothing changed (status no_changes). Never deletes files. Requires a GitHub App installation on the target org."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("version_id", mcp.Description("Optional version UUID. If omitted, syncs the current working state (draft sync).")),
+		mcp.WithBoolean("full", mcp.Description("Write every artifact instead of only the changed ones. Use when the repository is out of step with the server.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -224,6 +225,7 @@ func registerSyncToGithubTool(s *server.MCPServer, svc Services) {
 
 		params := syncdom.SyncParams{
 			InstanceID: instID,
+			Full:       argBool(req, "full"),
 		}
 		if verStr := argString(req, "version_id"); verStr != "" {
 			verID, err := parseUUID(verStr)
