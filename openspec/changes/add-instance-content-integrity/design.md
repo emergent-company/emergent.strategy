@@ -168,8 +168,9 @@ content". The stated rule is `PLACEHOLDER: <hint>`. The canonical work is tracke
 - **Hiding something adopted on purpose.** Mitigate with `adopted_canonical`.
 - **Stale manifest** after a canonical release. Mitigate with the visible
   fallback and the reclassify step.
-- **AIM templates reach AIM calculations.** Classification marks them, but the
-  `aim` domain still reads them. See open question 2.
+- **AIM templates reach AIM calculations.** Resolved: the `aim` domain, the
+  skill context builder and the AIM summary leave framework-class rows out (task
+  4.5). The web pipeline page still shows them as present (task 4.5b).
 - **`epf-cli` scope creep.** Mitigate by keeping every change additive with the
   current behaviour as the default.
 

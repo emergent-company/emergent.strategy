@@ -1156,7 +1156,8 @@ func (s *Service) StageAIMReport(ctx context.Context, instanceID uuid.UUID, arti
 	})
 }
 
-// GetAIMSummary returns an overview of all AIM-phase artifacts for an instance.
+// GetAIMSummary returns an overview of the AIM-phase artifacts an instance has
+// written. Unmodified templates are not counted or listed.
 func (s *Service) GetAIMSummary(ctx context.Context, instanceID uuid.UUID) (*AIMSummary, error) {
 	allArtifacts, err := s.ListCurrentArtifacts(ctx, instanceID, "")
 	if err != nil {
@@ -1165,6 +1166,9 @@ func (s *Service) GetAIMSummary(ctx context.Context, instanceID uuid.UUID) (*AIM
 
 	summary := &AIMSummary{InstanceID: instanceID.String()}
 	for _, a := range allArtifacts {
+		if a.IntegrityClass != nil && IsFrameworkClass(*a.IntegrityClass) {
+			continue
+		}
 		switch a.ArtifactType {
 		case domain.ArtifactTypeLRA:
 			summary.LRAs = append(summary.LRAs, a)

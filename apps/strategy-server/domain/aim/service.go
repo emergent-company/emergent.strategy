@@ -17,6 +17,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
@@ -166,10 +167,10 @@ func (s *Service) EvaluateTriggers(ctx context.Context, instanceID uuid.UUID) Tr
 
 	// -- Load last assessment timestamp first — shared by signal and time checks. --
 	var lastAssessmentAt time.Time
-	err := s.db.NewSelect().
+	err := authoredOnly(s.db.NewSelect().
 		TableExpr("strategy_artifacts").
 		Where("instance_id = ?", instanceID).
-		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport).
+		Where("artifact_type = ?", domain.ArtifactTypeAssessmentReport)).
 		ColumnExpr("updated_at").
 		OrderExpr("updated_at DESC").
 		Limit(1).
@@ -267,11 +268,11 @@ func (s *Service) loadTriggerConfig(ctx context.Context, instanceID uuid.UUID) T
 	cfg := defaultTriggerConfig()
 
 	var payload string
-	err := s.db.NewSelect().
+	err := authoredOnly(s.db.NewSelect().
 		TableExpr("strategy_artifacts").
 		ColumnExpr("payload").
 		Where("instance_id = ?", instanceID).
-		Where("artifact_type = ?", domain.ArtifactTypeAIMTriggerConfig).
+		Where("artifact_type = ?", domain.ArtifactTypeAIMTriggerConfig)).
 		Limit(1).
 		Scan(ctx, &payload)
 	if err != nil || payload == "" {
@@ -1232,15 +1233,24 @@ func aimCycleDecisionFromLabel(label string) string {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// authoredOnly limits a strategy_artifacts query to content the company wrote.
+// A row classified as framework content (an unmodified template, canonical
+// definition or packaged default) counts as absent: a missing assessment is the
+// documented first-cycle state, and sample values in a template are not results.
+func authoredOnly(q *bun.SelectQuery) *bun.SelectQuery {
+	return q.Where("integrity_class IS NULL OR integrity_class NOT IN (?)", bun.List(integrity.FrameworkClasses()))
+}
+
 // loadArtifactPayload loads and parses the payload JSON for the given artifact type.
+// Only authored content is considered (see authoredOnly).
 func (s *Service) loadArtifactPayload(ctx context.Context, instanceID uuid.UUID, artifactType string) (map[string]any, error) {
 	var payloadStr string
-	err := s.db.NewSelect().
+	err := authoredOnly(s.db.NewSelect().
 		TableExpr("strategy_artifacts").
 		ColumnExpr("payload").
 		Where("instance_id = ?", instanceID).
 		Where("artifact_type = ?", artifactType).
-		Where("status != ?", domain.ArtifactStatusArchived).
+		Where("status != ?", domain.ArtifactStatusArchived)).
 		OrderExpr("updated_at DESC").
 		Limit(1).
 		Scan(ctx, &payloadStr)
