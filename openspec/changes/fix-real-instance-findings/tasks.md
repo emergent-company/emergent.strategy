@@ -22,18 +22,18 @@ and WP-005 (operational visibility) are independent of everything else.
 - [x] 1.3 `validate_relationships`: remove `track` from `checkableTypes` (tracks
       are never stored as artifacts; this produces 51 false positives on the
       real instance).
-- [ ] 1.4 `add_relationship`: add a `"relationship"` case to
+- [x] 1.4 `add_relationship`: add a `"relationship"` case to
       `ExtractRelationships` in `internal/index/extract.go` so that committing a
       relationship mutation inserts a row into `strategy_relationships`. Test
       end-to-end: stage via `add_relationship`, commit, verify the relationship
-      appears in `ListRelationships`.
-      OPEN: extraction is in place, but the row is stored with the synthetic
-      `rel:<source>:<type>:<target>` artifact key as its `source_key`, so
-      `ListRelationships(<real source>)` still returns nothing. Storing it on the
-      real source needs a decision on how explicit edges survive a re-commit of
-      that source (derived rows are deleted and re-inserted per source key).
-- [ ] 1.5 `add_relationship`: verify that `validate_relationships` sees the new
-      relationship after commit. OPEN with 1.4.
+      appears in `ListRelationships`. The edge is stored on its real source,
+      marked `origin: explicit` with the relationship artifact's key, so
+      re-committing the source keeps it and re-committing or archiving the
+      relationship artifact removes exactly it. Version snapshots carry the
+      metadata so a restore keeps it. `add_relationship` resolves a short source
+      id and rejects an unknown or ambiguous one.
+- [x] 1.5 `add_relationship`: verify that `validate_relationships` sees the new
+      relationship after commit.
 
 ## 2. OKR and Key Result visibility (WP-002)
 

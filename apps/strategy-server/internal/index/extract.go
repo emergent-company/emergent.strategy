@@ -21,8 +21,23 @@ type ArtifactFields struct {
 	Track  string // product | strategy | org_ops | commercial (empty for non-track artifacts)
 }
 
+const (
+	// ArtifactTypeRelationship is the artifact type of a mutation staged by
+	// add_relationship. Its payload carries edges that belong to other artifacts.
+	ArtifactTypeRelationship = "relationship"
+
+	// MetaOrigin and MetaArtifactKey mark the metadata of an explicit edge: one
+	// authored on its own rather than derived from its source artifact's payload.
+	// Re-indexing a source leaves explicit edges alone; the relationship
+	// artifact named by MetaArtifactKey owns them.
+	MetaOrigin      = "origin"
+	MetaArtifactKey = "artifact_key"
+	OriginExplicit  = "explicit"
+)
+
 // Relationship is a single cross-artifact reference extracted from a payload.
 type Relationship struct {
+	SourceKey    string         // set when the edge belongs to an artifact other than the one carrying the payload
 	TargetKey    string         // artifact key or path of the target
 	TargetType   string         // artifact type of the target
 	Relationship string         // relationship kind (domain.Rel* constants)
@@ -177,8 +192,8 @@ func ExtractRelationships(artifactType, artifactKey string, payload []byte) []Re
 		return extractEvidenceRelationships(artifactKey, raw)
 	case "work_package":
 		return extractWorkPackageRelationships(artifactKey, raw)
-	case "relationship":
-		return extractExplicitRelationships(raw)
+	case ArtifactTypeRelationship:
+		return extractExplicitRelationships(artifactKey, raw)
 	}
 	return nil
 }
@@ -697,25 +712,33 @@ func extractWorkPackageRelationships(key string, raw map[string]any) []Relations
 // produced by add_relationship. The payload shape is:
 //
 //	{"relationships": [{"source_key":"…","target_key":"…","relationship":"…","target_type":"…"}]}
-func extractExplicitRelationships(raw map[string]any) []Relationship {
+//
+// Each edge belongs to its source_key, not to the relationship artifact, and is
+// marked explicit so that re-indexing the source does not delete it.
+func extractExplicitRelationships(artifactKey string, raw map[string]any) []Relationship {
 	arr, ok := raw["relationships"].([]any)
 	if !ok {
 		return nil
 	}
 	var rels []Relationship
+	seen := make(map[[3]string]bool)
 	for _, item := range arr {
 		m, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
-		targetKey := strField(m, "target_key")
-		if targetKey == "" {
+		sourceKey, targetKey, kind := strField(m, "source_key"), strField(m, "target_key"), strField(m, "relationship")
+		id := [3]string{sourceKey, targetKey, kind}
+		if sourceKey == "" || targetKey == "" || seen[id] {
 			continue
 		}
+		seen[id] = true
 		rels = append(rels, Relationship{
+			SourceKey:    sourceKey,
 			TargetKey:    targetKey,
 			TargetType:   strField(m, "target_type"),
-			Relationship: strField(m, "relationship"),
+			Relationship: kind,
+			Metadata:     map[string]any{MetaOrigin: OriginExplicit, MetaArtifactKey: artifactKey},
 		})
 	}
 	return rels

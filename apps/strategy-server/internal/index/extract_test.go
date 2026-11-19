@@ -692,6 +692,13 @@ func TestExtractRelationships_ExplicitRelationship(t *testing.T) {
 		t.Fatalf("expected 1 relationship, got %d", len(rels))
 	}
 	r := rels[0]
+	if r.SourceKey != "fd-001" {
+		t.Errorf("SourceKey = %q, want the real source %q, not the relationship artifact", r.SourceKey, "fd-001")
+	}
+	if r.Metadata[index.MetaOrigin] != index.OriginExplicit ||
+		r.Metadata[index.MetaArtifactKey] != "rel:fd-001:contributes_to:Product.Core Platform.csv-import" {
+		t.Errorf("Metadata = %v, want an explicit marker naming the relationship artifact", r.Metadata)
+	}
 	if r.TargetKey != "Product.Core Platform.csv-import" {
 		t.Errorf("TargetKey = %q, want %q", r.TargetKey, "Product.Core Platform.csv-import")
 	}
@@ -770,5 +777,24 @@ func TestExtractRelationships_Roadmap_LinkedToKR_FromTrackLevelAssumptionsAndFut
 		if got[asm] != kr {
 			t.Errorf("assumption %s links to %q, want %q", asm, got[asm], kr)
 		}
+	}
+}
+
+func TestExtractRelationships_ExplicitRelationship_MissingSourceKey(t *testing.T) {
+	payload := mustMarshal(map[string]any{
+		"relationships": []map[string]any{
+			{"target_key": "fd-002", "relationship": "depends_on"},
+		},
+	})
+	if rels := index.ExtractRelationships("relationship", "rel:x:y:z", payload); len(rels) != 0 {
+		t.Errorf("an edge without a source belongs to nobody; got %d relationships", len(rels))
+	}
+}
+
+func TestExtractRelationships_ExplicitRelationship_DuplicateEdgesCollapse(t *testing.T) {
+	edge := map[string]any{"source_key": "fd-001", "target_key": "fd-002", "relationship": "depends_on", "target_type": "feature"}
+	payload := mustMarshal(map[string]any{"relationships": []map[string]any{edge, edge}})
+	if rels := index.ExtractRelationships("relationship", "rel:fd-001:depends_on:fd-002", payload); len(rels) != 1 {
+		t.Errorf("the same edge twice must yield one relationship, got %d", len(rels))
 	}
 }

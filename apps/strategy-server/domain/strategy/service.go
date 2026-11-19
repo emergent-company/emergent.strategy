@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,6 +94,40 @@ func (s *Service) GetCurrentArtifactFull(ctx context.Context, instanceID uuid.UU
 		return nil, fmt.Errorf("get artifact %q: %w", artifactKey, err)
 	}
 	return &a, nil
+}
+
+// ResolveArtifactKey returns the key of the current artifact that key names:
+// the key itself, or, when no artifact has it, the one artifact whose key is
+// that id followed by a slug (fd-014 names fd-014_business_directory). It
+// returns apperror.ErrBadRequest when nothing matches or several do, so a
+// caller never guesses.
+func (s *Service) ResolveArtifactKey(ctx context.Context, instanceID uuid.UUID, key string) (string, error) {
+	var keys []string
+	err := s.db.NewSelect().
+		Model((*domain.StrategyArtifact)(nil)).
+		Column("artifact_key").
+		Where("instance_id = ? AND status != ?", instanceID, domain.ArtifactStatusArchived).
+		Where("artifact_key = ? OR starts_with(artifact_key, ?)", key, key+"_").
+		OrderExpr("artifact_key").
+		Limit(6).
+		Scan(ctx, &keys)
+	if err != nil {
+		return "", fmt.Errorf("resolve artifact %q: %w", key, err)
+	}
+	for _, k := range keys {
+		if k == key {
+			return k, nil
+		}
+	}
+	switch len(keys) {
+	case 0:
+		return "", apperror.ErrBadRequest.WithDetail(
+			fmt.Sprintf("no artifact %q in this instance; commit it before relating it", key))
+	case 1:
+		return keys[0], nil
+	}
+	return "", apperror.ErrBadRequest.WithDetail(
+		fmt.Sprintf("%q names several artifacts (%s); use the full key", key, strings.Join(keys, ", ")))
 }
 
 // ListCurrentArtifacts returns all non-archived artifacts for an instance,
@@ -556,11 +591,7 @@ func (s *Service) deriveIndexIn(ctx context.Context, q bun.IDB, m *domain.Strate
 		if err != nil {
 			return fmt.Errorf("archive artifact %q: %w", m.ArtifactKey, err)
 		}
-		_, err = q.NewDelete().
-			Model((*domain.StrategyRelationship)(nil)).
-			Where("instance_id = ? AND source_key = ?", m.InstanceID, m.ArtifactKey).
-			Exec(ctx)
-		if err != nil {
+		if err := deleteRelationshipsFor(ctx, q, m, false); err != nil {
 			return fmt.Errorf("delete relationships for archived %q: %w", m.ArtifactKey, err)
 		}
 		return nil
@@ -612,54 +643,117 @@ func (s *Service) deriveIndexIn(ctx context.Context, q bun.IDB, m *domain.Strate
 		return fmt.Errorf("upsert artifact %q: %w", m.ArtifactKey, err)
 	}
 
-	// Replace relationships for this source artifact.
+	// Replace the relationships this mutation derives.
 	rels := index.ExtractRelationships(m.ArtifactType, m.ArtifactKey, m.Payload)
-
-	_, err = q.NewDelete().
-		Model((*domain.StrategyRelationship)(nil)).
-		Where("instance_id = ? AND source_key = ?", m.InstanceID, m.ArtifactKey).
-		Exec(ctx)
-	if err != nil {
+	if err := deleteRelationshipsFor(ctx, q, m, true); err != nil {
 		return fmt.Errorf("delete old relationships for %q: %w", m.ArtifactKey, err)
 	}
-
-	if len(rels) > 0 {
-		rows := make([]*domain.StrategyRelationship, 0, len(rels))
-		for _, r := range rels {
-			var meta json.RawMessage
-			if r.Metadata != nil {
-				var marshalErr error
-				meta, marshalErr = json.Marshal(r.Metadata)
-				if marshalErr != nil {
-					slog.WarnContext(ctx, "skip relationship metadata marshal",
-						"artifact_key", m.ArtifactKey,
-						"target_key", r.TargetKey,
-						"err", marshalErr)
-					meta = nil
-				}
-			}
-			rows = append(rows, &domain.StrategyRelationship{
-				ID:           uuid.New(),
-				InstanceID:   m.InstanceID,
-				SourceKey:    m.ArtifactKey,
-				SourceType:   m.ArtifactType,
-				TargetKey:    r.TargetKey,
-				TargetType:   r.TargetType,
-				Relationship: r.Relationship,
-				Metadata:     meta,
-				CreatedAt:    time.Now().UTC(),
-			})
-		}
-		_, err = q.NewInsert().
-			Model(&rows).
-			On("CONFLICT (instance_id, source_key, target_key, relationship) DO NOTHING").
-			Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("insert relationships for %q: %w", m.ArtifactKey, err)
-		}
+	if len(rels) == 0 {
+		return nil
 	}
 
+	rows, err := s.relationshipRows(ctx, q, m, rels)
+	if err != nil {
+		return err
+	}
+	// An explicit edge claims the row when a derived one already exists, so it
+	// survives the derived one disappearing from its source's payload.
+	conflict := "CONFLICT (instance_id, source_key, target_key, relationship) DO NOTHING"
+	if m.ArtifactType == index.ArtifactTypeRelationship {
+		conflict = "CONFLICT (instance_id, source_key, target_key, relationship) DO UPDATE SET " +
+			"metadata = EXCLUDED.metadata, target_type = EXCLUDED.target_type"
+	}
+	if _, err = q.NewInsert().Model(&rows).On(conflict).Exec(ctx); err != nil {
+		return fmt.Errorf("insert relationships for %q: %w", m.ArtifactKey, err)
+	}
 	return nil
+}
+
+// deleteRelationshipsFor removes the rows a mutation's artifact previously
+// produced. Explicit edges (add_relationship) live on their source artifact but
+// belong to the relationship artifact that authored them, so re-indexing a
+// source keeps them (keepExplicit), and re-indexing or archiving the
+// relationship artifact removes exactly its own. Rows an older version stored
+// under the relationship artifact's own key are removed too.
+func deleteRelationshipsFor(ctx context.Context, q bun.IDB, m *domain.StrategyMutation, keepExplicit bool) error {
+	del := q.NewDelete().
+		Model((*domain.StrategyRelationship)(nil)).
+		Where("instance_id = ?", m.InstanceID)
+	switch {
+	case m.ArtifactType == index.ArtifactTypeRelationship:
+		del = del.Where("(source_key = ? OR metadata->>? = ?)", m.ArtifactKey, index.MetaArtifactKey, m.ArtifactKey)
+	case keepExplicit:
+		del = del.Where("source_key = ? AND COALESCE(metadata->>?, '') <> ?", m.ArtifactKey, index.MetaOrigin, index.OriginExplicit)
+	default:
+		del = del.Where("source_key = ?", m.ArtifactKey)
+	}
+	_, err := del.Exec(ctx)
+	return err
+}
+
+// relationshipRows builds the rows for the edges extracted from a mutation. An
+// edge names its own source when it belongs to another artifact; its source
+// type is that artifact's.
+func (s *Service) relationshipRows(ctx context.Context, q bun.IDB, m *domain.StrategyMutation, rels []index.Relationship) ([]*domain.StrategyRelationship, error) {
+	sourceTypes := make(map[string]string)
+	rows := make([]*domain.StrategyRelationship, 0, len(rels))
+	for _, r := range rels {
+		sourceKey, sourceType := m.ArtifactKey, m.ArtifactType
+		if r.SourceKey != "" {
+			sourceKey = r.SourceKey
+			if _, ok := sourceTypes[sourceKey]; !ok {
+				t, err := artifactTypeOf(ctx, q, m.InstanceID, sourceKey)
+				if err != nil {
+					return nil, err
+				}
+				sourceTypes[sourceKey] = t
+			}
+			sourceType = sourceTypes[sourceKey]
+		}
+
+		var meta json.RawMessage
+		if r.Metadata != nil {
+			var marshalErr error
+			meta, marshalErr = json.Marshal(r.Metadata)
+			if marshalErr != nil {
+				slog.WarnContext(ctx, "skip relationship metadata marshal",
+					"artifact_key", m.ArtifactKey,
+					"target_key", r.TargetKey,
+					"err", marshalErr)
+				meta = nil
+			}
+		}
+		rows = append(rows, &domain.StrategyRelationship{
+			ID:           uuid.New(),
+			InstanceID:   m.InstanceID,
+			SourceKey:    sourceKey,
+			SourceType:   sourceType,
+			TargetKey:    r.TargetKey,
+			TargetType:   r.TargetType,
+			Relationship: r.Relationship,
+			Metadata:     meta,
+			CreatedAt:    time.Now().UTC(),
+		})
+	}
+	return rows, nil
+}
+
+// artifactTypeOf is the type of an artifact, or "unknown" when it does not
+// exist (an explicit edge outliving its source, for example).
+func artifactTypeOf(ctx context.Context, q bun.IDB, instanceID uuid.UUID, key string) (string, error) {
+	var t string
+	err := q.NewSelect().
+		Model((*domain.StrategyArtifact)(nil)).
+		Column("artifact_type").
+		Where("instance_id = ? AND artifact_key = ?", instanceID, key).
+		Scan(ctx, &t)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "unknown", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("look up type of artifact %q: %w", key, err)
+	}
+	return t, nil
 }
 
 // BackfillIndex re-derives strategy_artifacts and strategy_relationships from

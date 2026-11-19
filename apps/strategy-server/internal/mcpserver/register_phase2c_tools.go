@@ -535,6 +535,13 @@ func registerRelationshipWriteTools(s *server.MCPServer, svc Services) {
 			return mcp.NewToolResultError(fmt.Sprintf(langs.T(ctx, "error.mcp_invalid_relationship_type"), relType)), nil
 		}
 
+		// The edge is stored on its source, so the source must exist. A short
+		// id such as fd-014 resolves to the artifact key fd-014_business_directory.
+		sourceKey, err = svc.Strategy.ResolveArtifactKey(ctx, instID, sourceKey)
+		if err != nil {
+			return toolErr(ctx, err), nil
+		}
+
 		// Auto-infer target type from relationship if not provided.
 		if targetType == "" {
 			switch relType {
