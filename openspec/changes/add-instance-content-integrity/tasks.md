@@ -143,20 +143,30 @@ part. Section 5 follows 2 and 3.
       test 9.30). Original: search exclusion: through the scoped read helper once the fence change
       lands. Interim: over-fetch and filter on the property in `SearchStrategy`.
       Test with a mock Memory that returns a flagged hit.
-- [ ] 4.5 Decide open question 2 (AIM domain and unmodified AIM templates) after
+- [x] 4.5 Decide open question 2 (AIM domain and unmodified AIM templates) after
       reading `domain/aim`, and either implement or record the follow-up.
-      **Decided: implement.** Every AIM reader uses authored content only: a row whose
-      `integrity_class` is a framework class (`unmodified_template`,
-      `canonical_reference`, `packaged_default`) counts as absent. This covers
-      `assessment_report`, `calibration_memo`, the roadmap and the reality assessment.
-      Basis: a missing assessment is the documented first-cycle state, and the trigger
-      then fires with "No assessment report exists yet" (`add-aim-agent-loop`); the
-      `draft-assessment` prompt says not to fabricate. Without the filter an unfilled
-      template suppresses that trigger, seeds sample outcomes into the next draft, and
-      makes calibration report a 0% hit rate and recommend a pivot. Call sites:
-      `EvaluateTriggers`, `AssembleAssessmentParams`, `AssembleCalibrationParams`,
-      `loadArtifactPayload`, the `skillexec` context builder, and the `has*` flags in
-      the AIM summary and phase page.
+      **Decided and implemented:** every AIM reader uses authored content only. A row
+      whose `integrity_class` is a framework class (`unmodified_template`,
+      `canonical_reference`, `packaged_default`) counts as absent. Basis: a missing
+      assessment is the documented first-cycle state, and the trigger then fires with
+      "No assessment report exists yet" (`add-aim-agent-loop`); the `draft-assessment`
+      prompt says not to fabricate. Without the filter an unfilled template suppressed
+      that trigger, seeded sample outcomes into the next draft, and made calibration
+      report a 0% hit rate and recommend a pivot. Done in `domain/aim`
+      (`EvaluateTriggers`, `loadTriggerConfig`, and `loadArtifactPayload`, which
+      serves `AssembleAssessmentParams`, `AssembleCalibrationParams`, the roadmap, the
+      reality assessment, the calibration memo, the north star and the formula), in the
+      `skillexec` context builder (`loadAllArtifacts`), and in `GetAIMSummary`. A
+      `template_values` or `near_canonical` row still counts: it is authored.
+      Tests: `domain/aim/authored_content_test.go`,
+      `domain/skillexec/authored_artifacts_test.go`, `domain/strategy/aim_summary_test.go`.
+- [ ] 4.5b The AIM pipeline page in the web layer sets `HasLRA`, `HasAssessmentReport`,
+      `HasTriggerConfig`, `HasCalibration` and `HasRealityCheck` from the mere existence
+      of a row (`hasArtifactType` in `internal/handler/queries.go`), and reads the
+      reality-assessment stage and the calibration decision with `extractPayloadField`,
+      neither of which looks at the class. An unmodified template shows as present.
+      Left for the web-handler pass (`fix-ui-schema-rendering-gaps`), which also owns
+      the other handlers that read artifacts directly.
 
 ## 5. Instructions, descriptions and evidence
 

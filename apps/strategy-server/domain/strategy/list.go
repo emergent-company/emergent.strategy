@@ -23,11 +23,7 @@ const (
 )
 
 // frameworkClasses are the integrity classes answer-facing lists exclude.
-var frameworkClasses = []string{
-	string(integrity.ClassCanonicalReference),
-	string(integrity.ClassUnmodifiedTemplate),
-	string(integrity.ClassPackagedDefault),
-}
+var frameworkClasses = integrity.FrameworkClasses()
 
 // ListOptions selects a page of artifacts.
 type ListOptions struct {

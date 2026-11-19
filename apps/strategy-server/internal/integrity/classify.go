@@ -27,6 +27,17 @@ const (
 	ClassNearCanonical Class = "near_canonical"
 )
 
+// FrameworkClasses returns the classes that mark content shipped with the
+// framework rather than written by the company. Readers that need the
+// company's own content leave these out.
+func FrameworkClasses() []string {
+	return []string{
+		string(ClassCanonicalReference),
+		string(ClassUnmodifiedTemplate),
+		string(ClassPackagedDefault),
+	}
+}
+
 // RuleID returns the finding rule id for a class.
 func (c Class) RuleID() string { return "integrity." + string(c) }
 

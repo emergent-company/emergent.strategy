@@ -11,6 +11,7 @@ import (
 	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/integrity"
 )
 
 // ContextBundle is the data passed to the prompt template via text/template.
@@ -116,7 +117,9 @@ func loadEvidenceForBundle(ctx context.Context, db *bun.DB, instanceID uuid.UUID
 	return items
 }
 
-// loadAllArtifacts returns all non-archived committed artifacts for the instance.
+// loadAllArtifacts returns all non-archived committed artifacts for the instance
+// that the company wrote. Unmodified templates, canonical definitions and packaged
+// defaults are left out: they would reach the prompt as the company's own content.
 // Singleton artifacts are stored as map[string]any under their artifact_type key.
 // Feature artifacts are collected into a []any slice under the "feature" key.
 func loadAllArtifacts(ctx context.Context, db *bun.DB, instanceID uuid.UUID) (map[string]any, error) {
@@ -131,6 +134,7 @@ func loadAllArtifacts(ctx context.Context, db *bun.DB, instanceID uuid.UUID) (ma
 		ColumnExpr("artifact_type, payload").
 		Where("instance_id = ?", instanceID).
 		Where("status != ?", domain.ArtifactStatusArchived).
+		Where("integrity_class IS NULL OR integrity_class NOT IN (?)", bun.List(integrity.FrameworkClasses())).
 		OrderExpr("updated_at DESC").
 		Scan(ctx, &rows)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
