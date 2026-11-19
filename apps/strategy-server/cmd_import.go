@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -29,14 +32,22 @@ import (
 // converts all YAML artifacts to JSON payloads, and seeds them into the database
 // as an initial batch of committed mutations under a (created-if-needed) workspace.
 func runImport(cfg *config.Config) error {
-	imp := cfg.Import
-
 	// --- Open database ---
 	db, err := database.Open(cfg)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
 	defer func() { _ = db.Close() }()
+
+	return importInstance(context.Background(), db, cfg, os.Stdout)
+}
+
+// importInstance runs the import against db. With --dry-run it only reports what
+// the import would do. A re-import replaces every artifact and deletes every
+// mutation of the existing instance, so it refuses, unless --force is set, when
+// that would discard edits made on the server or staged changes.
+func importInstance(ctx context.Context, db *bun.DB, cfg *config.Config, out io.Writer) error {
+	imp := cfg.Import
 
 	// --- Parse the EPF instance YAML files from disk ---
 	slog.Info("scanning EPF instance", "path", imp.InstancePath)
@@ -46,11 +57,23 @@ func runImport(cfg *config.Config) error {
 	}
 	slog.Info("scan complete", "artifact_count", len(payloads), "product_name", productName)
 
+	// --- Determine instance name ---
+	instanceName := imp.InstanceName
+	if instanceName == "" {
+		instanceName = productName
+	}
+	if instanceName == "" {
+		instanceName = filepath.Base(filepath.Clean(imp.InstancePath))
+	}
+
 	// --- Prepare context (audit + auth) ---
-	ctx := context.Background()
 	ctx = audit.ContextWithSource(ctx, audit.SourceImport)
 	ctx = audit.ContextWithAudit(ctx, audit.NewSlogWriter())
 	// CLI import: no user actor; leave actor as nil (system operation)
+
+	if imp.DryRun {
+		return previewImport(ctx, db, *imp, instanceName, payloads, out)
+	}
 
 	// --- Resolve org ownership ---
 	orgSvc := org.NewService(db)
@@ -68,15 +91,6 @@ func runImport(cfg *config.Config) error {
 	}
 	slog.Info("workspace resolved", "github_owner", ws.GithubOwner, "workspace_id", ws.ID)
 
-	// --- Determine instance name ---
-	instanceName := imp.InstanceName
-	if instanceName == "" {
-		instanceName = productName
-	}
-	if instanceName == "" {
-		instanceName = filepath.Base(filepath.Clean(imp.InstancePath))
-	}
-
 	// --- Import the instance (upsert: reuse existing if name+workspace match) ---
 	// No notifier: the CLI only marks the instance dirty. A running server's
 	// heartbeat picks it up, and --reingest ingests it directly below.
@@ -84,25 +98,27 @@ func runImport(cfg *config.Config) error {
 	instSvc := instance.NewService(db).WithChangeMarker(changeMarker)
 
 	// Check for an existing active instance with the same name in this workspace.
-	var existingInst domain.StrategyInstance
-	existingErr := db.NewSelect().
-		Model(&existingInst).
-		Where("workspace_id = ?", ws.ID).
-		Where("name = ?", instanceName).
-		Where("deleted_at IS NULL").
-		OrderExpr("created_at DESC").
-		Limit(1).
-		Scan(ctx)
+	existingInst, err := instSvc.FindActiveByName(ctx, ws.ID, instanceName)
+	if err != nil {
+		return err
+	}
 
 	var inst *domain.StrategyInstance
-	if existingErr == nil {
+	if existingInst != nil {
 		// Re-import into the existing instance: replace its artifacts.
 		slog.Info("instance already exists — re-importing artifacts",
 			"name", existingInst.Name, "instance_id", existingInst.ID)
+		diff, err := instSvc.PreviewReimport(ctx, existingInst.ID, payloads)
+		if err != nil {
+			return fmt.Errorf("compare with the instance: %w", err)
+		}
+		if diff.WouldLoseWork() && !imp.Force {
+			return reimportRefusal(existingInst.Name, diff)
+		}
 		if err := instSvc.ReimportArtifacts(ctx, existingInst.ID, payloads); err != nil {
 			return fmt.Errorf("replace artifacts: %w", err)
 		}
-		inst = &existingInst
+		inst = existingInst
 		slog.Info("artifacts replaced", "instance_id", inst.ID)
 	} else {
 		var err error
@@ -151,6 +167,89 @@ func runImport(cfg *config.Config) error {
 
 	slog.Info("import complete", "instance_id", inst.ID)
 	return nil
+}
+
+// previewImport reports what the import would do and writes nothing: it does
+// not create the org, the workspace or the instance either.
+func previewImport(ctx context.Context, db *bun.DB, imp config.ImportCmd, instanceName string, payloads map[string]any, out io.Writer) error {
+	ws, err := workspace.NewService(db).GetWorkspaceByOwner(ctx, imp.GithubOwner)
+	if err != nil && !errors.Is(err, apperror.ErrWorkspaceNotFound) {
+		return fmt.Errorf("look up workspace: %w", err)
+	}
+
+	var existing *domain.StrategyInstance
+	if err == nil {
+		existing, err = instance.NewService(db).FindActiveByName(ctx, ws.ID, instanceName)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, _ = fmt.Fprintln(out, "Dry run: nothing was written.")
+	if existing == nil {
+		_, _ = fmt.Fprintf(out, "%q is a new instance in workspace %q with %d artifacts.\n", instanceName, imp.GithubOwner, len(payloads))
+		return nil
+	}
+
+	diff, err := instance.NewService(db).PreviewReimport(ctx, existing.ID, payloads)
+	if err != nil {
+		return fmt.Errorf("compare with the instance: %w", err)
+	}
+	writeImportDiff(out, existing, diff)
+	return nil
+}
+
+const maxListed = 50
+
+func writeImportDiff(out io.Writer, inst *domain.StrategyInstance, d *instance.ImportDiff) {
+	_, _ = fmt.Fprintf(out, "Instance %q (%s) exists. A re-import replaces all of its artifacts:\n", inst.Name, inst.ID)
+	_, _ = fmt.Fprintf(out, "  %d added, %d changed, %d removed, %d unchanged\n", len(d.Added), len(d.Changed), len(d.Removed), d.Unchanged)
+	for _, section := range []struct {
+		title string
+		keys  []string
+	}{{"Added", d.Added}, {"Changed", d.Changed}, {"Removed", d.Removed}} {
+		if len(section.keys) == 0 {
+			continue
+		}
+		_, _ = fmt.Fprintf(out, "%s:\n", section.title)
+		for i, k := range section.keys {
+			if i == maxListed {
+				_, _ = fmt.Fprintf(out, "  and %d more\n", len(section.keys)-maxListed)
+				break
+			}
+			_, _ = fmt.Fprintf(out, "  %s\n", k)
+		}
+	}
+	if d.WouldLoseWork() {
+		_, _ = fmt.Fprintln(out, "A re-import would discard work that did not come from an import (it needs --force):")
+		if len(d.Lost) > 0 {
+			_, _ = fmt.Fprintf(out, "  %d artifacts edited or created on the server: %s\n", len(d.Lost), strings.Join(firstN(d.Lost, 10), ", "))
+		}
+		if d.StagedMutations > 0 {
+			_, _ = fmt.Fprintf(out, "  %d staged mutations\n", d.StagedMutations)
+		}
+	}
+}
+
+// reimportRefusal is the error returned when a re-import would discard work
+// that did not come from an import.
+func reimportRefusal(name string, d *instance.ImportDiff) error {
+	var what []string
+	if len(d.Lost) > 0 {
+		what = append(what, fmt.Sprintf("%d artifacts edited or created on the server (%s)", len(d.Lost), strings.Join(firstN(d.Lost, 5), ", ")))
+	}
+	if d.StagedMutations > 0 {
+		what = append(what, fmt.Sprintf("%d staged mutations", d.StagedMutations))
+	}
+	return fmt.Errorf("refusing to re-import %q: it would discard %s. Run with --dry-run to see the full difference, or with --force to discard them",
+		name, strings.Join(what, " and "))
+}
+
+func firstN(items []string, n int) []string {
+	if len(items) <= n {
+		return items
+	}
+	return append(append([]string{}, items[:n]...), fmt.Sprintf("and %d more", len(items)-n))
 }
 
 // ensureWorkspace returns the workspace for githubOwner, creating it if it does not exist.

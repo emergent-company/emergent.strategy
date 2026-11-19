@@ -451,7 +451,7 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 | `main.go` | go-arg subcommand dispatch |
 | `cmd_serve.go` | Echo server wiring (services, middleware, MCP mount) |
 | `cmd_db.go` | Migration runner |
-| `cmd_import.go` | Local EPF instance import |
+| `cmd_import.go` | Local EPF instance import. `--dry-run` prints what a re-import would add, change and remove, and writes nothing. A re-import refuses, unless `--force`, to discard edits made on the server or staged changes |
 | `config/config.go` | Config struct (env vars, defaults) |
 | `scripts/dev-setup.sh` | One-command local dev environment |
 | `docker-compose.yml` | Postgres + Memory containers |

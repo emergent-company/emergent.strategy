@@ -85,10 +85,20 @@ and WP-005 (operational visibility) are independent of everything else.
       sources `mcp`, `web` and `mcp_token` still read as local work. Note that
       `CommitAuto` always stamps `ripple_auto`, so it cannot stand in for an import
       in a test.
-- [ ] 3.2 `cmd_import.go`: add `--dry-run` flag. When set, parse and diff
+- [x] 3.2 `cmd_import.go`: add `--dry-run` flag. When set, parse and diff
       against existing artifacts, print added/removed/changed keys, and exit
       without writing. Refuse re-import without `--force` when the server holds
-      non-import mutations the source does not.
+      non-import mutations the source does not. Done: `--dry-run` creates nothing,
+      not even the org or the workspace, and says so when the instance is new.
+      The diff is `instance.Service.PreviewReimport`. The guard follows what a
+      re-import really does (it wipes every artifact and every mutation, staged ones
+      included): it refuses when a changed or removed artifact's latest mutation did
+      not come from an import, or when staged mutations exist. Content that an
+      earlier import wrote is the source's own, so a source that moved on never
+      needs `--force`. Tests drive the real flow against a test database
+      (`cmd_import_test.go`) and fail when the guard or the dry-run return is
+      removed. `runImport` is now `importInstance(ctx, db, cfg, out)` so it can be
+      tested.
 - [x] 3.3 `domain/sync/service.go` / `SyncToGithub`: change to write only
       artifacts that changed since the last import or sync. Use the mutations
       table to identify changed artifact keys; export only those; pass unchanged
