@@ -908,6 +908,7 @@ CRITICAL AUTH RULES — read docs/GITHUB_AUTH_MODEL.md for the full reference:
   - get_sync_state(instance_id, branch?) — check state without action
   - sync_to_github(instance_id, version_id?) — export as YAML, branch + PR
   - get_sync_status(instance_id) — sync history
+  - get_sync_info() — why sync tools are missing or failing (enabled / disabled / degraded, with the reason)
 
 **Web UI connect flow (no App installation needed for users):**
   User visits /github/connect → connects GitHub (OAuth) → sees ALL repos they

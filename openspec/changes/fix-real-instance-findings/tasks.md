@@ -148,6 +148,13 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 4. Schema and read gaps (WP-004)
 
+> Decisions 4.1 to 4.4 are canonical schema questions and are filed as
+> https://github.com/emergent-company/epf-canonical/issues/32 (with the finding
+> that canonical already has `execution_plan.key_milestones`, `start_date` and
+> `target_completion_date`, so 4.3 is mostly documentation; and that five schemas
+> disagree on the Key Result id pattern, so 4.2 is bigger than the roadmap). They
+> stay open until canonical decides and releases; this repo then syncs the schemas.
+
 - [ ] 4.1 Decide: is `future_okrs_*` part of the roadmap schema? If yes, add
       `additionalProperties` or `patternProperties` for `future_okrs_*` using the
       same item schema as `okrs`. If no, document as free-form.
@@ -172,18 +179,36 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 5. Operational visibility (WP-005)
 
-- [ ] 5.1 `health_check`: add a `github_sync` block reporting the state
+- [x] 5.1 `health_check`: add a `github_sync` block reporting the state
       (`enabled`, `disabled`, `degraded`) and the reason
       (e.g. `GITHUB_APP_ID not configured`,
       `private key not found: open private-key.pem: no such file`).
-- [ ] 5.2 `get_instance`: add `github_sync_available: bool` and, when false, a
-      `github_sync_reason` field.
-- [ ] 5.3 `import_instance` tool description: say which import routes are
+      Done. The server records the state once at startup (`Services.GithubSync`,
+      `syncdom.Availability`), from what it observed and not from config alone:
+      `disabled` = the sync tools are not registered (a setting is missing, named
+      exactly, or the key file or PEM is unusable); `degraded` = they are registered
+      but the startup probe could not verify the App or found it lacking
+      `contents:write` or `pull_requests:write`; `enabled` = verified. The block also
+      says whether the sync tools are registered and lists the import routes. A
+      server wired without a recorded state reads from its Sync service, so it never
+      reads as healthy by default. A key file error is reduced to the file name and
+      cause, because any MCP client can read this and the directory is the operator's.
+- [x] 5.2 `get_instance`: add `github_sync_available: bool` and, when false, a
+      `github_sync_reason` field. Done, with `github_sync_state` too: `degraded`
+      is available (the tools exist) and carries its reason, so a bool alone could
+      not tell a working sync from a broken one.
+- [x] 5.3 `import_instance` tool description: say which import routes are
       available (MCP `import_from_github` when GitHub App is configured, CLI
-      `import` always).
-- [ ] 5.4 When sync tools are not registered, register a stub `get_sync_info`
+      `import` always). Done. The description is static text naming both routes and
+      pointing at `get_sync_info`; the live answer is in `health_check` and
+      `get_sync_info`, because descriptions are generated into `self-model.json`
+      without a configured server.
+- [x] 5.4 When sync tools are not registered, register a stub `get_sync_info`
       (or similar) read tool that explains the state instead of returning
-      `Unknown tool`.
+      `Unknown tool`. Done as `get_sync_info`, registered on every server so a
+      client does not have to know which kind it is talking to. Without sync it
+      lists the unavailable tools and alternatives (CLI import, `export_instance_yaml`,
+      the settings an operator needs). Category admin, access read.
 
 ## 6. Verification
 

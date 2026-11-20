@@ -58,7 +58,7 @@
     {
       "name": "admin",
       "description": "Workspace, org, instance, version, and GitHub sync management",
-      "tool_count": 32
+      "tool_count": 33
     },
     {
       "name": "knowledge",
@@ -1310,7 +1310,7 @@
     },
     {
       "name": "get_instance",
-      "description": "USE WHEN you need details and health status for a specific instance.",
+      "description": "USE WHEN you need details and health status for a specific instance. Includes github_sync_available, github_sync_state and, when sync is not enabled, github_sync_reason.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -1709,6 +1709,16 @@
       }
     },
     {
+      "name": "get_sync_info",
+      "description": "USE WHEN a GitHub sync tool is missing or fails, or before you plan to sync or import through GitHub. Says whether GitHub sync works on this server (enabled, disabled or degraded), why when it does not, which tools are affected, and what to use instead.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
       "name": "get_sync_state",
       "description": "USE WHEN you need to check the current sync state between the server and GitHub without performing any import or export. Returns in_sync/server_ahead/github_ahead/diverged/unlinked state with commit SHAs and pending change counts.",
       "category": "admin",
@@ -1920,7 +1930,7 @@
     },
     {
       "name": "health_check",
-      "description": "USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed.",
+      "description": "USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed. github_sync says whether GitHub sync is enabled, disabled or degraded on this server, and why.",
       "category": "core",
       "input_schema": {
         "properties": {
@@ -1958,7 +1968,7 @@
     },
     {
       "name": "import_instance",
-      "description": "USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts — use CLI import for that.",
+      "description": "USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts. To bring artifacts in: the CLI `strategy-server import` always works; the MCP tool import_from_github exists only when the GitHub App is configured (get_sync_info says whether).",
       "category": "admin",
       "input_schema": {
         "properties": {

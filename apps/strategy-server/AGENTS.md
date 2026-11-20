@@ -942,6 +942,7 @@ Full bidirectional lifecycle. Three flows: **Genesis** (scaffold → push),
 - `import_from_github(instance_id, branch?)` — smart four-state import
 - `sync_to_github(instance_id, version_id?, full?)` — branch + commit + PR with only the artifacts changed since the last import or merged sync (`full` writes all); never deletes files
 - `get_sync_state(instance_id)`, `get_sync_status(instance_id)` — status checks
+- `get_sync_info()` — registered on every server: says whether GitHub sync is `enabled`, `disabled` or `degraded` and why (recorded once at startup in `Services.GithubSync`), which tools are missing, and what to use instead. `health_check` (`github_sync`) and `get_instance` (`github_sync_available`, `github_sync_state`, `github_sync_reason`) report the same
 
 **AIM auto-push (App installation required):**
 Every AIM cycle snapshot triggers a GitHub PR automatically in the background.

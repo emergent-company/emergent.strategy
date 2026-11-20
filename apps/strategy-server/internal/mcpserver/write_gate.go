@@ -219,6 +219,7 @@ var ToolAccess = map[string]string{
 	"restore_version":           AccessWrite,
 	"sync_to_github":            AccessWrite,
 	"get_sync_status":           AccessRead,
+	"get_sync_info":             AccessRead,
 	"import_from_github":        AccessWrite, // may open a PR on the remote
 	"get_sync_state":            AccessRead,
 	"update_instance":           AccessWrite,
