@@ -168,14 +168,33 @@ and WP-005 (operational visibility) are independent of everything else.
       the Key Result item schema? If yes, have `get_view` and the Roadmap page
       list parked Key Results separately with their reason. If no, document the
       alternative.
-- [ ] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
+- [x] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
       and there are no children to offer, return a structured marker
       (`truncated: true`, `size_chars: N`, `budget_chars: M`) instead of
       `Content: nil`. The caller must know the content was dropped, not guess.
-- [ ] 4.6 `commit_batch`: when committing a roadmap payload, check
+      Done, differently from how the task was written. The `Content: nil` with no
+      children case does not reproduce: the bounded-read work already returns
+      `truncated`, `size_chars` and `max_chars` (the budget; the field keeps its
+      name) with every over-budget read, and a hint. Probing every over-budget
+      shape found the real defect next to it: an array whose first item is itself
+      an array was returned whole, over the budget, while flagged `truncated`
+      (3,004 characters against a budget of 1,000), with no children to descend
+      into. It now descends into the item's children like an object does. A test
+      walks every child path of eight shapes and asserts that a truncated read
+      stays within budget or offers children, and that every path it offers reads.
+- [x] 4.6 `commit_batch`: when committing a roadmap payload, check
       `schema.required` on the `tracks` object. If a required track is missing,
       refuse the commit or require explicit confirmation. Add test with a payload
       missing `tracks.product`.
+      Done as both: the commit is refused before anything is promoted, and
+      `confirm_missing_tracks` commits it anyway. The required tracks are read from
+      the embedded roadmap schema, not copied. It guards `Service.CommitBatch`, so
+      the web commit path is covered too; `CommitBatchAllowingMissingTracks` is the
+      confirmed variant. Only a roadmap create or update is checked, and other
+      schema problems stay warnings after the commit, because they do not lose
+      content. Left for #163: the web commit shows its generic "commit failed" for
+      a refusal; the reason is in the log. The alignment test fixtures commit
+      single-track roadmaps on purpose and now confirm that through their helper.
 
 ## 5. Operational visibility (WP-005)
 

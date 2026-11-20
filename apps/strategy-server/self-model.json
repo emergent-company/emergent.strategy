@@ -463,13 +463,17 @@
     },
     {
       "name": "commit_batch",
-      "description": "USE WHEN the user has confirmed a staged change and you need to commit the batch.",
+      "description": "USE WHEN the user has confirmed a staged change and you need to commit the batch. Refuses a roadmap that lacks a track the schema requires (it would drop that track from every view); fix the roadmap, or set confirm_missing_tracks to commit it anyway.",
       "category": "core",
       "input_schema": {
         "properties": {
           "batch_id": {
             "description": "Batch UUID returned by a write tool",
             "type": "string"
+          },
+          "confirm_missing_tracks": {
+            "description": "Commit a roadmap even though it lacks required tracks. Only when the user has said the tracks are meant to go.",
+            "type": "boolean"
           }
         },
         "required": [

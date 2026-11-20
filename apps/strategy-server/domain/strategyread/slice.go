@@ -327,7 +327,7 @@ func fillArray(out *Slice, items []any, res resolution) {
 	}
 	if n == 0 {
 		switch first := items[0].(type) {
-		case map[string]any:
+		case map[string]any, []any:
 			out.Children = childrenOf(first, fmt.Sprintf("%s[%d]", res.basePath, res.fromIndex), 0)
 		case string:
 			out.Content = firstRunes(first, out.MaxChars)

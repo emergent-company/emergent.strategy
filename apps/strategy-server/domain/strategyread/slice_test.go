@@ -400,3 +400,57 @@ func TestRead_SuggestionsAreCapped(t *testing.T) {
 		t.Errorf("suggestions = %d, want the cap of %d", len(got.Suggestions), strategyread.MaxSuggestions)
 	}
 }
+
+// Whatever the shape, an over-budget read must hand the caller a way forward
+// that stays inside the budget: content that fits, or children to descend into.
+// Saying "truncated" while returning the whole thing over budget, or returning
+// nothing, are both failures.
+func TestRead_OverBudgetNeverReturnsMoreThanBudgetOrNothing(t *testing.T) {
+	big := strings.Repeat("x", 3000)
+	const budget = 1000
+	shapes := map[string]string{
+		"array of nested arrays":    `{"strategy":{"p":[["` + big + `"],["a"]]}}`,
+		"array of arrays of objs":   `{"strategy":{"p":[[{"a":"` + big + `"}]]}}`,
+		"array of big strings":      `{"strategy":{"p":["` + big + `","a"]}}`,
+		"array of objs, big leaf":   `{"strategy":{"p":[{"a":"` + big + `"}]}}`,
+		"object, one big string":    `{"strategy":{"p":{"a":"` + big + `"}}}`,
+		"object, nested array":      `{"strategy":{"p":{"a":[["` + big + `"]]}}}`,
+		"object, array of arrays x": `{"strategy":{"p":{"a":[[["` + big + `"]]]}}}`,
+		"big string":                `{"strategy":{"p":"` + big + `"}}`,
+	}
+	for name, js := range shapes {
+		t.Run(name, func(t *testing.T) {
+			payload := decode(t, js)
+			queue := []string{"p"}
+			for depth := 0; len(queue) > 0 && depth < 40; depth++ {
+				path := queue[0]
+				queue = queue[1:]
+				got, err := strategyread.Read("strategy_formula", payload, path, budget)
+				if err != nil {
+					t.Fatalf("%s: %v", path, err)
+				}
+				if !got.Defined {
+					t.Fatalf("%s: a path offered as a child is not defined: %s", path, got.Reason)
+				}
+				if !got.Truncated {
+					continue
+				}
+				if got.Content == nil && len(got.Children) == 0 {
+					t.Fatalf("%s: truncated with no content and no children", path)
+				}
+				if got.Content != nil {
+					b, _ := json.Marshal(got.Content)
+					if len(b) > budget+2 {
+						t.Fatalf("%s: truncated read returned %d chars against a budget of %d", path, len(b), budget)
+					}
+				}
+				for _, c := range got.Children {
+					queue = append(queue, c.Path)
+				}
+			}
+			if len(queue) > 0 {
+				t.Fatalf("descending children did not terminate: %v", queue)
+			}
+		})
+	}
+}

@@ -58,7 +58,9 @@ func commitArtifact(t *testing.T, db *bun.DB, instID uuid.UUID, artType, artKey 
 	if err != nil {
 		t.Fatalf("Stage %q: %v", artKey, err)
 	}
-	if _, err := svc.CommitBatch(ctx, batchID); err != nil {
+	// Fixtures are minimal on purpose, often a single track. These tests are
+	// about alignment, not track completeness, so they confirm the partial roadmap.
+	if _, err := svc.CommitBatchAllowingMissingTracks(ctx, batchID); err != nil {
 		t.Fatalf("CommitBatch %q: %v", artKey, err)
 	}
 }
