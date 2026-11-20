@@ -395,7 +395,23 @@ func (s *Service) Stage(ctx context.Context, p StageParams) (uuid.UUID, error) {
 // CommitBatch atomically promotes all staged mutations in a batch to committed,
 // then derives the Strategic Index (strategy_artifacts + strategy_relationships).
 func (s *Service) CommitBatch(ctx context.Context, batchID uuid.UUID) (int, error) {
+	return s.commitBatch(ctx, batchID, false)
+}
+
+// CommitBatchAllowingMissingTracks is CommitBatch for a caller that has been
+// told a roadmap in the batch lacks required tracks and has confirmed it anyway.
+func (s *Service) CommitBatchAllowingMissingTracks(ctx context.Context, batchID uuid.UUID) (int, error) {
+	return s.commitBatch(ctx, batchID, true)
+}
+
+func (s *Service) commitBatch(ctx context.Context, batchID uuid.UUID, allowMissingTracks bool) (int, error) {
 	actorID := audit.ActorFromContext(ctx)
+
+	if !allowMissingTracks {
+		if err := s.checkRoadmapTracks(ctx, batchID); err != nil {
+			return 0, err
+		}
+	}
 
 	// 1. Promote mutations to committed.
 	res, err := s.db.NewUpdate().

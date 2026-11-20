@@ -1289,8 +1289,9 @@ func registerMutationWriteTools(s *server.MCPServer, svc Services) {
 
 func registerBatchWriteTools(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("commit_batch",
-		mcp.WithDescription("USE WHEN the user has confirmed a staged change and you need to commit the batch."),
+		mcp.WithDescription("USE WHEN the user has confirmed a staged change and you need to commit the batch. Refuses a roadmap that lacks a track the schema requires (it would drop that track from every view); fix the roadmap, or set confirm_missing_tracks to commit it anyway."),
 		mcp.WithString("batch_id", mcp.Required(), mcp.Description("Batch UUID returned by a write tool")),
+		mcp.WithBoolean("confirm_missing_tracks", mcp.Description("Commit a roadmap even though it lacks required tracks. Only when the user has said the tracks are meant to go.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return commitBatchHandler(ctx, svc, req)
 	})
@@ -1347,7 +1348,11 @@ func commitBatchHandler(ctx context.Context, svc Services, req mcp.CallToolReque
 		}
 	}
 
-	n, err := svc.Strategy.CommitBatch(ctx, batchID)
+	commit := svc.Strategy.CommitBatch
+	if argBool(req, "confirm_missing_tracks") {
+		commit = svc.Strategy.CommitBatchAllowingMissingTracks
+	}
+	n, err := commit(ctx, batchID)
 	if err != nil {
 		return toolErr(ctx, err), nil
 	}

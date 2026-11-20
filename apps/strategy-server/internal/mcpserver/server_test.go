@@ -2279,8 +2279,11 @@ func TestMCP_ExpandedWriteTools(t *testing.T) {
 	})
 
 	// update_roadmap
+	rmTrack := map[string]any{"track_objective": "x", "okrs": []any{}}
 	rmPayload, _ := json.Marshal(map[string]any{
-		"version": "1.0", "phases": []any{map[string]any{"name": "Phase 1", "features": []any{"fd-001"}}},
+		"roadmap": map[string]any{"id": "roadmap-1", "tracks": map[string]any{
+			"product": rmTrack, "strategy": rmTrack, "org_ops": rmTrack, "commercial": rmTrack,
+		}},
 	})
 	stageAndCommit("update_roadmap", map[string]any{
 		"instance_id": instIDStr,
