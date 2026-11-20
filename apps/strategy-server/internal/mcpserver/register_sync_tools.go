@@ -12,6 +12,7 @@ import (
 )
 
 func registerSyncTools(s *server.MCPServer, svc Services) {
+	registerGetSyncInfoTool(s, svc)
 	if svc.Sync == nil && svc.Instance == nil {
 		return
 	}

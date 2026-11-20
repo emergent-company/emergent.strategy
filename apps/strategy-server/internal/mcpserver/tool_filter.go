@@ -203,6 +203,7 @@ var ToolCategories = map[string]string{
 	"restore_version":           CategoryAdmin,
 	"sync_to_github":            CategoryAdmin,
 	"get_sync_status":           CategoryAdmin,
+	"get_sync_info":             CategoryAdmin,
 	"import_from_github":        CategoryAdmin,
 	"get_sync_state":            CategoryAdmin,
 	"update_instance":           CategoryAdmin,

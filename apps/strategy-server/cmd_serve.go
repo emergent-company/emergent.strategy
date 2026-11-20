@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -148,7 +151,7 @@ func runServer(cfg *config.Config) error {
 	llmClient := setupLLM(cfg, log)
 
 	// GitHub sync — only available when GitHub App is configured.
-	syncSvc := setupGitHubSync(cfg, log, db, strategySvc, versionSvc, instSvc)
+	syncSvc, githubSync := setupGitHubSync(cfg, log, db, strategySvc, versionSvc, instSvc)
 
 	wsSvc := workspace.NewService(db).WithChangeMarker(changeMarker)
 
@@ -289,6 +292,7 @@ func runServer(cfg *config.Config) error {
 		Schema:              schemaSvc,
 		Version:             versionSvc,
 		Sync:                syncSvc,
+		GithubSync:          githubSync,
 		Ripple:              rippleSvc,
 		AIM:                 aimSvc,
 		SkillExecutor:       skillExecutor,
@@ -663,7 +667,9 @@ func setupLLM(cfg *config.Config, log *slog.Logger) llm.Provider {
 }
 
 // setupGitHubSync constructs the GitHub sync service when the GitHub App is
-// configured. Returns nil when sync is disabled or the client fails to init.
+// configured. It returns a nil service when sync is disabled or the client fails
+// to initialise, and always says which state the server is in and why, so the
+// answer is available to MCP clients and not only in the startup log.
 func setupGitHubSync(
 	cfg *config.Config,
 	log *slog.Logger,
@@ -671,10 +677,10 @@ func setupGitHubSync(
 	strategySvc *strategy.Service,
 	versionSvc *versiondom.Service,
 	instSvc *instance.Service,
-) *syncdom.Service {
-	if !cfg.GithubAppConfigured() {
-		log.Info("github sync disabled (GITHUB_APP_ID not configured)")
-		return nil
+) (*syncdom.Service, syncdom.Availability) {
+	if reason := githubAppMissing(cfg); reason != "" {
+		log.Info("github sync disabled", "reason", reason)
+		return nil, syncdom.Availability{State: syncdom.AvailabilityDisabled, Reason: reason, CheckedAt: time.Now().UTC()}
 	}
 	ghClient, ghErr := ghclient.NewClient(ghclient.Config{
 		AppID:          cfg.GithubAppID,
@@ -683,18 +689,45 @@ func setupGitHubSync(
 	})
 	if ghErr != nil {
 		log.Warn("github app client failed to initialize (sync disabled)", "err", ghErr)
-		return nil
+		return nil, syncdom.Availability{
+			State:     syncdom.AvailabilityDisabled,
+			Reason:    "the GitHub App client could not start: " + keyErrorForClients(ghErr),
+			CheckedAt: time.Now().UTC(),
+		}
 	}
 	syncSvc := syncdom.NewService(db, strategySvc, versionSvc, ghclient.NewRepoWriterAdapter(ghClient))
 	syncSvc.WithReader(ghclient.NewRepoReaderAdapter(ghClient))
 	syncSvc.WithInstanceReimporter(instSvc)
 
-	reportGitHubCapability(cfg, log, ghClient)
-	return syncSvc
+	return syncSvc, reportGitHubCapability(cfg, log, ghClient)
 }
 
-// reportGitHubCapability probes what the App can actually do and logs that,
-// instead of asserting a capability from the mere presence of config.
+// githubAppMissing names the setting that keeps the GitHub App from being
+// configured, or returns "" when both the App ID and a private key are set.
+func githubAppMissing(cfg *config.Config) string {
+	switch {
+	case cfg.GithubAppID == 0:
+		return "GITHUB_APP_ID not configured"
+	case cfg.GithubAppPrivateKeyPath == "" && cfg.GithubAppPrivateKey == "":
+		return "GITHUB_APP_PRIVATE_KEY_PATH or GITHUB_APP_PRIVATE_KEY not configured"
+	}
+	return ""
+}
+
+// keyErrorForClients describes a private key failure for the MCP clients that
+// read the sync state. A file error is reduced to the file name and the cause:
+// the directory the key was looked for in is the operator's business.
+func keyErrorForClients(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return fmt.Sprintf("cannot read the private key file %s: %v", filepath.Base(pe.Path), pe.Err)
+	}
+	return err.Error()
+}
+
+// reportGitHubCapability probes what the App can actually do, logs that, and
+// returns it as the server's sync state, instead of asserting a capability from
+// the mere presence of config.
 //
 // The previous line here read `log.Info("github sync enabled (read + write)")`
 // whenever the App ID and private key parsed. "read + write" was a literal, not
@@ -706,31 +739,54 @@ func setupGitHubSync(
 //
 // Never fatal: GitHub being unreachable at boot must not stop the server, and
 // sync degrades gracefully everywhere else.
-func reportGitHubCapability(cfg *config.Config, log *slog.Logger, ghClient *ghclient.Client) {
+func reportGitHubCapability(cfg *config.Config, log *slog.Logger, ghClient *ghclient.Client) syncdom.Availability {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	cap, err := ghClient.GetApp(ctx)
-	if err != nil {
+	got := availabilityFromProbe(cap, err)
+
+	switch {
+	case err != nil:
 		log.Warn("github sync: could not verify app capability at startup; "+
 			"sync may fail at first use",
 			"app_id", cfg.GithubAppID, "err", err)
-		return
-	}
-
-	if missing := cap.MissingForSync(); len(missing) > 0 {
+	case got.State == syncdom.AvailabilityDegraded:
 		log.Warn("github sync: app lacks the permissions required to push — "+
 			"import may work, but sync_to_github and AIM auto-push will fail on every repo",
 			"app_id", cfg.GithubAppID,
 			"app_slug", cap.Slug,
 			"granted", cap.Permissions,
-			"missing", missing,
+			"missing", cap.MissingForSync(),
 			"fix", "grant the missing permissions in the GitHub App settings, then approve the updated request on each installation")
-		return
+	default:
+		log.Info("github sync enabled",
+			"app_id", cfg.GithubAppID, "app_slug", cap.Slug, "permissions", cap.Permissions)
 	}
+	return got
+}
 
-	log.Info("github sync enabled",
-		"app_id", cfg.GithubAppID, "app_slug", cap.Slug, "permissions", cap.Permissions)
+// availabilityFromProbe turns the result of the startup probe into the sync
+// state: enabled when the App is verified and may push, degraded when it could
+// not be verified or lacks permissions.
+func availabilityFromProbe(cap *ghclient.AppCapability, err error) syncdom.Availability {
+	now := time.Now().UTC()
+	if err != nil {
+		return syncdom.Availability{
+			State:     syncdom.AvailabilityDegraded,
+			Reason:    "the GitHub App could not be verified at startup, so sync may fail on first use: " + err.Error(),
+			CheckedAt: now,
+		}
+	}
+	if missing := cap.MissingForSync(); len(missing) > 0 {
+		return syncdom.Availability{
+			State: syncdom.AvailabilityDegraded,
+			Reason: "the GitHub App lacks the permissions required to push (" + strings.Join(missing, ", ") +
+				"): import may work, but sync_to_github and the AIM auto-push will fail; grant them in the App settings and approve the update on each installation",
+			CheckedAt: now,
+		}
+	}
+	return syncdom.Availability{State: syncdom.AvailabilityEnabled, CheckedAt: now}
 }
 
 // seedDevIdentity ensures the dev user, dev org, orphan-workspace adoption, and

@@ -88,6 +88,11 @@ type Services struct {
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
 	AccessToken   *accesstokendom.Service  // optional — nil disables access-token management tools
 
+	// GithubSync is what the server found out about GitHub sync at startup. The
+	// zero value means nothing was recorded: Sync != nil then reads as enabled
+	// and Sync == nil as disabled.
+	GithubSync syncdom.Availability
+
 	// GithubAppInstallURL is the GitHub App installation URL, e.g.
 	// "https://github.com/apps/emergent-strategy/installations/new".
 	// Empty string when GITHUB_APP_SLUG is not configured.
@@ -390,7 +395,7 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("get_instance",
-		mcp.WithDescription("USE WHEN you need details and health status for a specific instance."),
+		mcp.WithDescription("USE WHEN you need details and health status for a specific instance. Includes github_sync_available, github_sync_state and, when sync is not enabled, github_sync_reason."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -404,7 +409,7 @@ func registerInstanceReadTools(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		return mustJSON(inst)
+		return mustJSON(withGithubSync(inst, svc))
 	})
 
 	registerFindInstanceByRepoTool(s, svc)
@@ -442,7 +447,7 @@ func alignmentHealth(ctx context.Context, svc Services, id uuid.UUID) map[string
 // watchdog status, each behind its own nil-service guard.
 func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("health_check",
-		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed."),
+		mcp.WithDescription("USE WHEN you need a health report and artifact completeness summary for an instance. content_integrity says how many of the artifacts are unmodified framework content (canonical definitions, templates, packaged value models) rather than the company's own. value_model_alignment says whether value model active flags are re-aligned to Key Result targets automatically, and when and what that last changed. github_sync says whether GitHub sync is enabled, disabled or degraded on this server, and why."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		id, err := parseUUID(argString(req, "instance_id"))
@@ -521,6 +526,9 @@ func registerHealthCheckTool(s *server.MCPServer, svc Services) {
 		// is on, and when and what it last changed. It runs on the heartbeat and in
 		// the AIM cycle, and writes without review.
 		result["value_model_alignment"] = alignmentHealth(ctx, svc, id)
+
+		// Whether GitHub sync works on this server, and why not when it does not.
+		result["github_sync"] = githubSyncHealth(svc)
 
 		// Add ripple signal summary when available.
 		if svc.Ripple != nil {
@@ -1058,7 +1066,7 @@ func registerWorkspaceWriteTools(s *server.MCPServer, svc Services) {
 	})
 
 	s.AddTool(mcp.NewTool("import_instance",
-		mcp.WithDescription("USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts — use CLI import for that."),
+		mcp.WithDescription("USE WHEN you need to create an empty strategy instance in a workspace. Optionally link to a GitHub repo for future sync. Does not fetch artifacts. To bring artifacts in: the CLI `strategy-server import` always works; the MCP tool import_from_github exists only when the GitHub App is configured (get_sync_info says whether)."),
 		mcp.WithString("workspace_id", mcp.Required(), mcp.Description("Workspace UUID")),
 		mcp.WithString("name", mcp.Required(), mcp.Description("Instance display name")),
 		mcp.WithString("github_repo", mcp.Description("GitHub repo slug, e.g. org/repo")),
