@@ -63,15 +63,20 @@ and WP-005 (operational visibility) are independent of everything else.
 - [x] 2.7 Add a KR-target fitness check as the tool `validate_kr_target_fitness`
       (verdict envelope; analysis in `domain/strategy/fitness.go`):
       `kr.no_component_path` (warning), `kr.path_not_in_value_model` (error),
-      `kr.reached_only_by_parent` (warning), `feature.reaches_no_kr` (severity by
+      `kr.reached_only_by_parent` (warning), `kr.reached_by_nothing` (warning),
+      `feature.reaches_no_kr` (severity by
       the feature's status: `in-progress` error, `draft`/`ready` warning,
       `delivered` info). A Key Result target and a `contributes_to` path each
       resolve to a value model node (layer, component, sub-component); two
       nodes are related when one is the other or its ancestor. A Key Result is
       "reached only by parent" when contributors exist only at ancestors of its
       target. Key Results in `future_okrs_*` groups are included. A Key Result
-      that nothing serves at all is deliberately not a finding (not one of the
-      four rules).
+      that nothing serves at all, neither at its target nor above or below it, is
+      `kr.reached_by_nothing`, a fifth rule added with the maintainer's agreement
+      after the first four shipped (#169). It is reported only for a Key Result
+      whose target resolved: the others already have `kr.no_component_path` or
+      `kr.path_not_in_value_model`, and a Key Result gets one of
+      `reached_by_nothing` and `reached_only_by_parent`, never both.
 
 ## 3. Sync and import integrity (WP-003)
 

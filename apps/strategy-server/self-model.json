@@ -3975,7 +3975,7 @@
     },
     {
       "name": "validate_kr_target_fitness",
-      "description": "USE WHEN you need to check that the roadmap's Key Results and the features aim at the same parts of the value model. Reports kr.no_component_path (a Key Result names no value_model_target.component_path), kr.path_not_in_value_model (its path resolves in no value model), kr.reached_only_by_parent (only definitions serving a broader component contribute to it) and feature.reaches_no_kr (a feature serves nothing any Key Result targets; error when in-progress, warning when draft or ready, info when delivered). Key Results in future_okrs_* groups are included. ok is advisory: it is false whenever any error finding exists, and a tolerated backlog keeps it false.",
+      "description": "USE WHEN you need to check that the roadmap's Key Results and the features aim at the same parts of the value model. Reports kr.no_component_path (a Key Result names no value_model_target.component_path), kr.path_not_in_value_model (its path resolves in no value model), kr.reached_only_by_parent (only definitions serving a broader component contribute to it), kr.reached_by_nothing (no definition contributes to it, below it or above it) and feature.reaches_no_kr (a feature serves nothing any Key Result targets; error when in-progress, warning when draft or ready, info when delivered). Key Results in future_okrs_* groups are included. ok is advisory: it is false whenever any error finding exists, and a tolerated backlog keeps it false.",
       "category": "validation",
       "input_schema": {
         "properties": {

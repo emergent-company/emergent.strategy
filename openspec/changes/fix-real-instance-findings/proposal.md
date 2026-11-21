@@ -62,7 +62,7 @@ missed because they require cross-artifact resolution at scale:
   the targeted set, so components are not incorrectly marked dormant.
 - **ADD** a KR-target fitness check: `kr.no_component_path`,
   `kr.path_not_in_value_model`, `kr.reached_only_by_parent`,
-  `feature.reaches_no_kr` (severity by feature status).
+  `kr.reached_by_nothing`, `feature.reaches_no_kr` (severity by feature status).
 
 ### 3. Sync and import integrity (`strategy-core`, `strategy-mcp`)
 

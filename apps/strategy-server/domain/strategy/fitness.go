@@ -13,11 +13,12 @@ package strategy
 //   - kr.reached_only_by_parent: it is served only at an ancestor of its
 //     target. Something contributes to the component, nothing to the
 //     sub-component the Key Result is about.
+//   - kr.reached_by_nothing: nothing contributes to its target, below it or
+//     above it. It is the case before reached_only_by_parent: a Key Result gets
+//     one of the two, never both. It is only reported for a Key Result whose
+//     target resolved, because the first two rules already name the others.
 //   - feature.reaches_no_kr: none of a feature's resolved paths is related to
 //     any Key Result target, so the feature serves no measured outcome.
-//
-// A Key Result that nothing serves at all is deliberately not a finding here:
-// the specification names four rules, and a fifth would be a new public rule id.
 
 import (
 	"context"
@@ -39,6 +40,7 @@ const (
 	RuleKRNoComponentPath     = "kr.no_component_path"
 	RuleKRPathNotInModel      = "kr.path_not_in_value_model"
 	RuleKRReachedOnlyByParent = "kr.reached_only_by_parent"
+	RuleKRReachedByNothing    = "kr.reached_by_nothing"
 	RuleFeatureReachesNoKR    = "feature.reaches_no_kr"
 )
 
@@ -187,6 +189,11 @@ func AnalyzeKRFitness(roadmap any, models []FitnessModel, contributors []Fitness
 		switch {
 		case served:
 			rep.KRsServed++
+		case !parentOnly:
+			rep.Findings = append(rep.Findings, FitnessFinding{
+				Severity: "warning", Rule: RuleKRReachedByNothing, Key: "roadmap_recipe", Path: krPath(kr.t),
+				Message: fmt.Sprintf("key result %s targets %q, and no definition contributes to it, to anything below it, or to anything above it", krLabel(kr.t), kr.t.ComponentPath),
+			})
 		case parentOnly:
 			rep.Findings = append(rep.Findings, FitnessFinding{
 				Severity: "warning", Rule: RuleKRReachedOnlyByParent, Key: "roadmap_recipe", Path: krPath(kr.t),

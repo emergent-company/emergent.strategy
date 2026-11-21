@@ -57,6 +57,12 @@ func feature(key, status string, paths ...string) strategy.FitnessContributor {
 	}
 }
 
+// definitionServing is a contributor that is not a feature, so it serves a Key
+// Result target without counting toward the features a test is about.
+func definitionServing(path string) strategy.FitnessContributor {
+	return strategy.FitnessContributor{Key: "strategy-def-serving", Type: "strategy_def", Payload: map[string]any{"contributes_to": []any{path}}}
+}
+
 // ruleCounts tallies findings as "rule/severity".
 func ruleCounts(rep strategy.FitnessReport) map[string]int {
 	out := map[string]int{}
@@ -138,8 +144,39 @@ func TestFitness_ASiblingDoesNotServeTheTarget(t *testing.T) {
 	rep := strategy.AnalyzeKRFitness(
 		roadmapWith(kr("kr-1", "Product.Core.Search.Fuzzy")), []strategy.FitnessModel{productModel("vm")},
 		[]strategy.FitnessContributor{feature("fd-001", "draft", "Product.Core.Search.Exact")})
-	// Nothing serves the KR (not a finding: see the package comment), and the feature reaches none.
-	wantRules(t, rep, map[string]int{"feature.reaches_no_kr/warning": 1})
+	// A sibling is not related to the target: nothing serves the KR, and the feature reaches none.
+	wantRules(t, rep, map[string]int{"kr.reached_by_nothing/warning": 1, "feature.reaches_no_kr/warning": 1})
+}
+
+func TestFitness_AKeyResultNothingServesAtAllIsAWarning(t *testing.T) {
+	models := []strategy.FitnessModel{productModel("vm")}
+	rep := strategy.AnalyzeKRFitness(roadmapWith(kr("kr-1", "Product.Core.Search.Fuzzy")), models, nil)
+
+	wantRules(t, rep, map[string]int{"kr.reached_by_nothing/warning": 1})
+	f := rep.Findings[0]
+	if f.Key != "roadmap_recipe" || !strings.Contains(f.Path, "kr-1") || !strings.Contains(f.Message, "Product.Core.Search.Fuzzy") {
+		t.Errorf("finding = %+v, want it to point at kr-1 and name its target", f)
+	}
+	if rep.KRsServed != 0 || rep.KRsResolved != 1 {
+		t.Errorf("counts = %+v, want the KR resolved and not served", rep)
+	}
+}
+
+// reached_only_by_parent is the finer finding: something does serve the
+// component. A Key Result gets one of the two, never both.
+func TestFitness_AKeyResultServedByAParentIsNotAlsoReachedByNothing(t *testing.T) {
+	rep := strategy.AnalyzeKRFitness(
+		roadmapWith(kr("kr-1", "Product.Core.Search.Fuzzy")), []strategy.FitnessModel{productModel("vm")},
+		[]strategy.FitnessContributor{feature("fd-001", "ready", "Product.Core.Search")})
+	wantRules(t, rep, map[string]int{"kr.reached_only_by_parent/warning": 1})
+}
+
+// A Key Result that has no usable target already has its own finding; saying it
+// is also served by nothing would count one problem twice.
+func TestFitness_AKeyResultWithoutAResolvedTargetIsNotAlsoReachedByNothing(t *testing.T) {
+	rep := strategy.AnalyzeKRFitness(
+		roadmapWith(kr("kr-1", ""), kr("kr-2", "Product.Core.Nowhere")), []strategy.FitnessModel{productModel("vm")}, nil)
+	wantRules(t, rep, map[string]int{"kr.no_component_path/warning": 1, "kr.path_not_in_value_model/error": 1})
 }
 
 func TestFitness_FeatureSeverityFollowsItsStatus(t *testing.T) {
@@ -153,7 +190,7 @@ func TestFitness_FeatureSeverityFollowsItsStatus(t *testing.T) {
 		"delivered":   "info",
 	} {
 		rep := strategy.AnalyzeKRFitness(road, models,
-			[]strategy.FitnessContributor{feature("fd-001", status, "Product.Core.Index")})
+			[]strategy.FitnessContributor{feature("fd-001", status, "Product.Core.Index"), definitionServing("Product.Edge.Api")})
 		wantRules(t, rep, map[string]int{"feature.reaches_no_kr/" + want: 1})
 	}
 }
@@ -162,11 +199,11 @@ func TestFitness_FeatureWithNoUsablePathSaysWhy(t *testing.T) {
 	models := []strategy.FitnessModel{productModel("vm")}
 	road := roadmapWith(kr("kr-1", "Product.Edge.Api"))
 
-	none := strategy.AnalyzeKRFitness(road, models, []strategy.FitnessContributor{feature("fd-001", "in-progress")})
+	none := strategy.AnalyzeKRFitness(road, models, []strategy.FitnessContributor{feature("fd-001", "in-progress"), definitionServing("Product.Edge.Api")})
 	if len(none.Findings) != 1 || !strings.Contains(none.Findings[0].Message, "declares no contributes_to") {
 		t.Errorf("a feature with no paths: %+v", none.Findings)
 	}
-	broken := strategy.AnalyzeKRFitness(road, models, []strategy.FitnessContributor{feature("fd-001", "in-progress", "Product.Core.Nowhere")})
+	broken := strategy.AnalyzeKRFitness(road, models, []strategy.FitnessContributor{feature("fd-001", "in-progress", "Product.Core.Nowhere"), definitionServing("Product.Edge.Api")})
 	if len(broken.Findings) != 1 || !strings.Contains(broken.Findings[0].Message, "none of its 1 contributes_to paths resolves") {
 		t.Errorf("a feature whose path resolves nowhere: %+v", broken.Findings)
 	}
@@ -184,8 +221,8 @@ func TestFitness_WhenNoKeyResultHasATargetTheFeatureFindingNamesThatRootCause(t 
 }
 
 func TestFitness_OnlyFeaturesAreCheckedForReachingAKR(t *testing.T) {
-	def := strategy.FitnessContributor{Key: "strategy-def-1", Type: "strategy_def", Payload: map[string]any{"contributes_to": []any{"Product.Core.Index"}}}
-	rep := strategy.AnalyzeKRFitness(roadmapWith(kr("kr-1", "Product.Edge.Api")), []strategy.FitnessModel{productModel("vm")}, []strategy.FitnessContributor{def})
+	rep := strategy.AnalyzeKRFitness(roadmapWith(kr("kr-1", "Product.Edge.Api")), []strategy.FitnessModel{productModel("vm")},
+		[]strategy.FitnessContributor{definitionServing("Product.Edge.Api")})
 	wantRules(t, rep, map[string]int{})
 	if rep.FeaturesTotal != 0 {
 		t.Errorf("FeaturesTotal = %d, want 0: a strategy definition is a contributor, not a feature", rep.FeaturesTotal)
