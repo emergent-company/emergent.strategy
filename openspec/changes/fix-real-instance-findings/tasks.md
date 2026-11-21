@@ -236,13 +236,23 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 6. Verification
 
-- [ ] 6.1 `cd apps/strategy-server && go test ./...` green, no regressions from
-      baseline.
-- [ ] 6.2 `cd apps/strategy-server && task lint` clean.
-- [ ] 6.3 `openspec validate fix-real-instance-findings --strict` passes.
+- [x] 6.1 `cd apps/strategy-server && go test ./...` green, no regressions from
+      baseline. Run on `main` at #182: 54 packages ok, 0 failures (4m34s).
+- [x] 6.2 `cd apps/strategy-server && task lint` clean. Whole tree: 0 issues.
+- [x] 6.3 `openspec validate fix-real-instance-findings --strict` passes.
 - [ ] 6.4 Verify on the real instance (~190 artifacts): `validate_relationships`
       reports ≤14 findings (the real undefined assumptions), not 171.
 - [ ] 6.5 Verify: `get_view` with `view=objectives` returns all 46–52 Key
       Results, not just the 9 under `okrs`.
 - [ ] 6.6 Verify: `get_sync_state` after a fresh CLI import returns `in_sync`
       or `github_ahead`, not `server_ahead`.
+
+> 6.4 to 6.6 need the reported instance, which is not in this repository, and 6.6
+> needs a real GitHub repository behind the App. They are open until the reporter
+> confirms them. What stands in for them meanwhile is fixtures shaped like that
+> instance, not the instance: `future_okrs_*` groups and the shared Key Result walk
+> (2.x), import then sync state (3.x), and relationship validation with
+> assumptions on the track. Our own Emergent instance cannot stand in: it uses
+> none of those shapes. To confirm, run `validate_relationships`,
+> `get_view view=objectives` and `get_sync_state` after a fresh CLI import on
+> a build that includes #165 to #182, and compare with the numbers above.
