@@ -112,12 +112,21 @@ read tool SHALL explain the state instead of letting agents discover it via
 
 A tool or finding family SHALL check Key Result target fitness:
 `kr.no_component_path`, `kr.path_not_in_value_model`,
-`kr.reached_only_by_parent`, `feature.reaches_no_kr`. Severity SHALL vary by
-feature status (`draft` → warning, `in-progress` → error).
+`kr.reached_only_by_parent`, `kr.reached_by_nothing`, `feature.reaches_no_kr`.
+Severity SHALL vary by feature status (`draft` → warning, `in-progress` → error).
+A Key Result whose target resolves SHALL get `kr.reached_only_by_parent` when
+only a broader part of the value model is served, and `kr.reached_by_nothing`
+(warning) when nothing contributes to the target, below it or above it, never both.
 
 #### Scenario: Feature with no KR reached
 - **WHEN** a feature definition with `status: in-progress` reaches no Key Result
 - **THEN** the fitness check reports `feature.reaches_no_kr` with severity `error`
+
+#### Scenario: KR that nothing serves
+- **WHEN** a Key Result targets a component that resolves in a value model
+- **AND** no definition contributes to that component, to anything below it, or to anything above it
+- **THEN** the fitness check reports `kr.reached_by_nothing` with severity `warning`
+- **AND** it does not also report `kr.reached_only_by_parent` for that Key Result
 
 #### Scenario: KR with no component path
 - **WHEN** a Key Result has no `value_model_target` or `component_path`
