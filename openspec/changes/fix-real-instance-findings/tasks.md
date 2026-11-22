@@ -205,8 +205,9 @@ and WP-005 (operational visibility) are independent of everything else.
       `get_view` through the service (`TestReadView_ObjectivesListParkedKeyResultsApartWithTheirReason`)
       and the page (`handler_roadmap_test.go`), each mutation-checked.
       **Not decided here:** whether a parked Key Result should count in
-      `kr.reached_by_nothing` and in `align_portfolio`'s dormant marking. Today it
-      does, as any Key Result does.
+      `kr.reached_by_nothing`. Today it does, as any Key Result does. It no longer
+      matters for `align_portfolio`: since 3.7 alignment only activates, so a parked
+      Key Result that targets a component still switches it on.
 - [x] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
       and there are no children to offer, return a structured marker
       (`truncated: true`, `size_chars: N`, `budget_chars: M`) instead of
