@@ -1,5 +1,5 @@
 {
-  "version": "1.13.0",
+  "version": "1.14.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Assessment Report Schema",
   "description": "Defines the structure for cycle assessment reports based on roadmap execution. Assessments focus on OKR/KR-level outcomes, assumption validation, and strategic learning. Work package outcomes are tracked in spec-driven development tools (separate from strategic assessment).",
@@ -78,8 +78,8 @@
                 },
                 "status": {
                   "type": "string",
-                  "enum": ["exceeded", "met", "partially_met", "missed"],
-                  "description": "Achievement status comparing actual to target. 'exceeded' = surpassed target, 'met' = achieved target, 'partially_met' = significant progress but fell short, 'missed' = little or no progress toward target.",
+                  "enum": ["exceeded", "met", "partially_met", "missed", "pending"],
+                  "description": "Achievement status comparing actual to target. 'exceeded' = surpassed target, 'met' = achieved target, 'partially_met' = significant progress but fell short, 'missed' = little or no progress toward target, 'pending' = no outcome yet (cycle not complete or evidence not available); 'pending' is not an outcome and is excluded from achievement rates.",
                   "$comment": "Status provides at-a-glance strategic health assessment. Use consistently: (1) 'exceeded' - actual > target by meaningful margin (e.g., target 60%, actual 68%+), shows strategy working better than expected, (2) 'met' - actual ≈ target within acceptable variance (e.g., target 60%, actual 58-62%), strategy validated, (3) 'partially_met' - made progress but fell short (e.g., target 60%, actual 45-57%), strategy directionally correct but needs refinement, (4) 'missed' - little progress (e.g., target 60%, actual <45%), strategy may be wrong or execution blocked. Status distribution across cycles reveals strategic maturity: Early cycles expect mostly 'missed' and 'partially_met' (exploration), mid cycles should show more 'met' (validation), late cycles should consistently 'meet' or 'exceed' (execution) or signal need for pivot. Example: Cycle 1 might be 1 met, 3 partially_met, 2 missed (learning). Cycle 5 should be 4 met, 2 exceeded (validated strategy)."
                 },
                 "learnings": {

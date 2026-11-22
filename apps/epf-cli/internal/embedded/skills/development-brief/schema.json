@@ -585,7 +585,7 @@
         "properties": {
           "kr_id": {
             "type": "string",
-            "pattern": "^kr-[psoc]-\\d{3}$",
+            "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
             "description": "Key Result ID from roadmap"
           },
           "kr_title": { "type": "string" },

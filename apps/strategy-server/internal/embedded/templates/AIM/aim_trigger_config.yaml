@@ -4,9 +4,9 @@
 
 metadata:
   version: "2.0.0"                    # EPF version
-  product_name: "YourProduct"         # Replace with your product name
-  last_updated: "2025-12-29"          # YYYY-MM-DD format
-  owner: "product-team@example.com"   # Product leader responsible for triggers
+  product_name: "PLACEHOLDER: product name"  # Replace with your product name
+  last_updated: "2026-01-01"          # SAMPLE date (YYYY-MM-DD); set to the date you edit this file
+  owner: "PLACEHOLDER: owner of AIM triggers"  # Product leader responsible for triggers
 
 # Adoption level determines trigger sophistication
 # 0: Solo founder (manual only)
@@ -19,7 +19,7 @@ adoption_level: 1  # Start here, escalate as team grows
 calendar_trigger:
   enabled: true
   cadence_days: 90                    # Quarterly (standard)
-  next_scheduled: "2025-03-31"        # Next scheduled AIM date
+  next_scheduled: "2026-04-01"        # SAMPLE: last_updated + cadence_days; recompute when you set last_updated
 
 # Dynamic triggers based on data, not calendar
 value_driven_triggers:
@@ -106,7 +106,7 @@ notification_settings:
   enabled: true
   notification_channels:
     - channel_type: "email"
-      target: "pm-team@example.com"
+      target: "PLACEHOLDER: notification target"
       trigger_types:
         - "roi_threshold"
         - "assumption_invalidation"

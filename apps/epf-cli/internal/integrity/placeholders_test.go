@@ -20,6 +20,8 @@ func TestAdditionalPlaceholderPatterns(t *testing.T) {
 		"  name: Product Name Here",
 		"  objective: Example Product Objective",
 		"  description: Example Key Result",
+		"  product: YourProduct",
+		"  owner: product-owner@example.com",
 	}
 	for _, l := range flagged {
 		if !matchesAny(l) {
@@ -33,6 +35,8 @@ func TestAdditionalPlaceholderPatterns(t *testing.T) {
 		"  organization: Acme AS",
 		"  date: 2026-03-01",
 		"  title: An example of how the loop runs",
+		"  docs: https://example.com/guides/getting-started",
+		"  product: Your product is the one you ship",
 	}
 	for _, l := range clean {
 		if matchesAny(l) {
