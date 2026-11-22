@@ -408,7 +408,7 @@ func alignmentHealth(ctx context.Context, svc Services, id uuid.UUID) map[string
 	automatic := svc.Strategy.AlignmentAutomatic(ctx, id)
 	block := map[string]any{"automatic": automatic}
 	if automatic {
-		block["note"] = "The heartbeat and the AIM cycle re-align value model active flags with Key Result targets, without review. Set skip_align_portfolio: true in the instance's aim_trigger_config to stop that; the align-portfolio skill still runs when called."
+		block["note"] = "The heartbeat and the AIM cycle switch on the value model components that Key Results target, and the layers above them, without review. They never switch anything off. Set skip_align_portfolio: true in the instance's aim_trigger_config to stop that; the align-portfolio skill still runs when called."
 	} else {
 		block["note"] = "Automatic alignment is off for this instance (skip_align_portfolio in its aim_trigger_config). The align-portfolio skill still runs when called."
 	}

@@ -714,7 +714,7 @@ func TestAlignPortfolio_Idempotent(t *testing.T) {
 	})
 	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model.strategy", vmWithName(vm, "Strategy"))
 
-	// First run — should activate l3-messaging and deactivate l3-other.
+	// First run — should activate l3-messaging and leave l3-other as it is.
 	r1, err := svc.AlignPortfolio(ctx, instID)
 	if err != nil {
 		t.Fatalf("AlignPortfolio (1): %v", err)
@@ -723,7 +723,7 @@ func TestAlignPortfolio_Idempotent(t *testing.T) {
 		t.Errorf("first run: expected 1 changed, got %d", r1.TracksChanged)
 	}
 
-	// Second run — state already matches KR targets, so no-op.
+	// Second run — every target is already active, so no-op.
 	r2, err := svc.AlignPortfolio(ctx, instID)
 	if err != nil {
 		t.Fatalf("AlignPortfolio (2): %v", err)
@@ -887,7 +887,7 @@ func TestAlignPortfolio_FutureOKRTargetStaysActiveAndGroupsAreCounted(t *testing
 	commitArtifact(t, db, instID, domain.ArtifactTypeRoadmap, "roadmap_recipe", roadmap)
 
 	// l3-positioning is targeted only by the future key result and starts active;
-	// l3-other is targeted by nothing and starts active.
+	// l3-other is targeted by nothing and starts active, which is its authored state.
 	vm := buildValueModel("strategy", []l3Component{
 		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-messaging", active: false},
 		{l1ID: "l1-vision", l2ID: "l2-brand", l3ID: "l3-positioning", active: true},
@@ -929,7 +929,7 @@ func TestAlignPortfolio_FutureOKRTargetStaysActiveAndGroupsAreCounted(t *testing
 	if !active("l3-positioning") {
 		t.Error("l3-positioning is targeted by a future_okrs_* key result and must stay active, not be marked dormant")
 	}
-	if active("l3-other") {
-		t.Error("l3-other is targeted by nothing and must be inactive")
+	if !active("l3-other") {
+		t.Error("l3-other is targeted by nothing, which is no reason to switch it off: alignment only activates")
 	}
 }
