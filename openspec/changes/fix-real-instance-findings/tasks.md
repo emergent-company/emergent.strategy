@@ -172,13 +172,22 @@ and WP-005 (operational visibility) are independent of everything else.
       `docs/guides/TRACK_BASED_ARCHITECTURE.md` document the mapping (`start_date`,
       `target_completion_date`, `execution_plan.key_milestones`). `next_cycle` is not
       added: a `future_okrs_*` group is how the next cycle is expressed.
-- [ ] 4.4 Decide: add `status` (enum including `parked`) and `parked_reason` to
-      the Key Result item schema? **Yes, in the schema** (done): an optional `status`
+- [x] 4.4 Decide: add `status` (enum including `parked`) and `parked_reason` to
+      the Key Result item schema? **Yes, in the schema**: an optional `status`
       (`active | parked`, plus `not_started`, `in_progress`, `completed` and the
       deprecated `not-started`, which instances already use) and `parked_reason`
-      (at least 10 characters), required when parked. **Open here:** have `get_view`
-      and the Roadmap page list parked Key Results separately with their reason.
-      That is server and web work, not done yet.
+      (at least 10 characters), required when parked. **Server and web, done:**
+      `get_view view=objectives` lists a Key Result with `status: parked` apart, under
+      `parked_key_results` on its objective with its `parked_reason`, and every Key
+      Result carries its `status` when it states one; the objective stays listed when
+      all of its Key Results are parked. The Roadmap page shows the same split, a
+      "Parked key results" block under each objective with the reason. Tests:
+      `strategyread` (`TestObjectives_ListsParkedKeyResultsApartWithTheirReason`),
+      `get_view` through the service (`TestReadView_ObjectivesListParkedKeyResultsApartWithTheirReason`)
+      and the page (`handler_roadmap_test.go`), each mutation-checked.
+      **Not decided here:** whether a parked Key Result should count in
+      `kr.reached_by_nothing` and in `align_portfolio`'s dormant marking. Today it
+      does, as any Key Result does.
 - [x] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
       and there are no children to offer, return a structured marker
       (`truncated: true`, `size_chars: N`, `budget_chars: M`) instead of

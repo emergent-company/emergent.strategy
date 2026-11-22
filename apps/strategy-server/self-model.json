@@ -1818,7 +1818,7 @@
     },
     {
       "name": "get_view",
-      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - every objective and key result id and text of the roadmap, all tracks in one read unless a track is given; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
+      "description": "USE WHEN a question needs more than one artifact. Views: competitor (name) - our positioning against one named competitor, from the strategy formula and the insights landscape; objectives (track optional) - every objective and key result id and text of the roadmap, all tracks in one read unless a track is given; a key result with status parked is listed apart under parked_key_results with its parked_reason, not among the active ones; key_result (id) - one key result with its objective, assumptions and dependencies; personas - the target users. Each part reports whether it is defined and its source; a part that is missing is reported, not skipped. Same budget and fields as get_section.",
       "category": "core",
       "input_schema": {
         "properties": {

@@ -2,6 +2,7 @@ package strategy_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -238,5 +239,41 @@ func TestReadView_ObjectivesAndKeyResultIncludeFutureOKRGroups(t *testing.T) {
 	}
 	if !kr.Parts[0].Defined || !strings.Contains(mustMarshal(t, kr.Parts[0].Content), "Expand to ten accounts") {
 		t.Errorf("a key result under future_okrs_q3_2026 must be readable: %+v", kr.Parts[0])
+	}
+}
+
+func TestReadView_ObjectivesListParkedKeyResultsApartWithTheirReason(t *testing.T) {
+	svc, _, inst := seedRead(t)
+	roadmap := map[string]any{"roadmap": map[string]any{"id": "rm-1", "tracks": map[string]any{"commercial": map[string]any{
+		"okrs": []any{map[string]any{"id": "okr-c-001", "objective": "Land three pilots", "key_results": []any{
+			map[string]any{"id": "kr-c-001", "description": "Three signed pilots", "status": "active"},
+			map[string]any{"id": "kr-c-002", "description": "Pilot NPS above 40", "status": "parked", "parked_reason": "deferred to Q4"}}}},
+	}}}}
+	commitAuto(t, svc, inst, "roadmap_recipe", "roadmap_recipe", domain.MutationActionUpdate, roadmap)
+
+	obj, err := svc.ReadView(context.Background(), inst, "objectives", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tracks []struct {
+		Objectives []struct {
+			KeyResults []struct {
+				ID string `json:"id"`
+			} `json:"key_results"`
+			ParkedKeyResults []struct {
+				ID           string `json:"id"`
+				ParkedReason string `json:"parked_reason"`
+			} `json:"parked_key_results"`
+		} `json:"objectives"`
+	}
+	if err := json.Unmarshal([]byte(mustMarshal(t, obj.Parts[0].Content)), &tracks); err != nil {
+		t.Fatal(err)
+	}
+	o := tracks[0].Objectives[0]
+	if len(o.KeyResults) != 1 || o.KeyResults[0].ID != "kr-c-001" {
+		t.Errorf("active key results = %+v, want only kr-c-001", o.KeyResults)
+	}
+	if len(o.ParkedKeyResults) != 1 || o.ParkedKeyResults[0].ID != "kr-c-002" || o.ParkedKeyResults[0].ParkedReason != "deferred to Q4" {
+		t.Errorf("parked key results = %+v, want kr-c-002 with its reason", o.ParkedKeyResults)
 	}
 }
