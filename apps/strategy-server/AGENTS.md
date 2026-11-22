@@ -338,7 +338,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
   service wiring, async ingestion pipeline, dual-layer graph (artifact + decomposed)
 - **2b (Auth + multi-tenant):** Complete — Zitadel introspection, user/org model,
   auth middleware, org MCP tools
-- **2c (Tool parity):** Complete — 157 MCP tools, agent routing, knowledge base
+- **2c (Tool parity):** Complete — MCP tool parity (`self-model.json` lists the tools), agent routing, knowledge base
 - **2d (Integration tests):** In progress — E2E tests for semantic tools (mocked Memory),
   org lifecycle, ingest pipeline, full agent workflow. Remaining: multi-tenant isolation,
   documentation
@@ -382,7 +382,7 @@ Four-phase build order — do not start the next phase until the exit gate is me
 | Database | PostgreSQL 16 via `uptrace/bun` + `jackc/pgx/v5` |
 | HTTP | Echo v4 + `danielgtaylor/huma/v2` |
 | CLI/Config | `alexflint/go-arg` |
-| Migrations | `pressly/goose/v3` embedded SQL (42 migrations) |
+| Migrations | `pressly/goose/v3` embedded SQL (numbered, in `internal/database/migrations/`) |
 | Logging | `log/slog` JSON |
 | UUIDs | `google/uuid` |
 | MCP | `mark3labs/mcp-go` |
@@ -485,8 +485,8 @@ In production, Bearer tokens are introspected via Zitadel OIDC.
 
 | Package | Purpose |
 |---------|---------|
-| `internal/database/` | DB connection, migrations (42), `TestDB(t)`, `TestDBWithDSN(t)` |
-| `internal/mcpserver/` | 157 MCP tools across ~14 registration files, tool category filter (14 categories) |
+| `internal/database/` | DB connection, migrations, `TestDB(t)`, `TestDBWithDSN(t)` |
+| `internal/mcpserver/` | MCP tools (one `register_*.go` per area, plus `server.go`), tool category filter (14 categories); `self-model.json` lists every tool |
 | `internal/verdict/` | Shared validation verdict envelope (`ok`/`summary`/`counts`/`findings`) returned as `structuredContent` by the five validation tools. Wire names are a cross-repo contract — see "Validation Verdict Envelope" |
 | `internal/selfmodel/` | Generates the published self-model (tool catalogue, EPF phases/artifacts, navigation) from live sources — never hand-copied. `cmd/genselfmodel` regenerates the committed `self-model.json` |
 | `internal/navigation/` | Navigation graph — screens, tabs, routes, breadcrumbs (single source of truth for web UI) |
@@ -600,7 +600,7 @@ invariants: `openspec/changes/fence-memory-graph-per-instance/`.
 
 ### Database migrations
 
-42 migrations in `internal/database/migrations/`:
+Migrations in `internal/database/migrations/` (numbered; add a row here with each new one):
 
 | Migration | Purpose |
 |-----------|---------|
@@ -646,6 +646,8 @@ invariants: `openspec/changes/fence-memory-graph-per-instance/`.
 | `040_aim_cycle_runs_replan.sql` | `replan_requested` flag backing `DBOSEngine.Replan`'s mid-cycle re-plan signal |
 | `041_aim_cycle_runs_dbos_workflow_id.sql` | `dbos_workflow_id` on `aim_cycle_runs` |
 | `042_instance_consumer_repos.sql` | `instance_consumer_repos` — repos that *consume* an instance (submodule mounts), distinct from `strategy_instances.github_repo`, which is its single *home* (sync source and AIM push target) |
+| `043_access_tokens.sql` | `access_tokens` — long-lived credentials for non-interactive MCP clients. Only an Argon2id hash is kept, plus a clear 8-character prefix that selects candidates before any hashing |
+| `044_mutation_source_mcp_token.sql` | Allows `mcp_token` as a `strategy_mutations.source`, so writes by token-authenticated callers are audited apart from internal `mcp` traffic |
 | `045_memory_projection.sql` | `memory_generation`, `memory_dirty_since`, `memory_change_seq`, `memory_purged_at` on `strategy_instances`; `memory_projection` (the per-instance manifest of Memory keys); unique index on `left(id::text, 8)` (Memory key prefix); resets `memory_content_hash` so every instance re-ingests once |
 | `046_artifact_integrity.sql` | `integrity_class`, `integrity_ref`, `integrity_checked_with` on `strategy_artifacts`: marks unmodified canonical content (definitions, templates, packaged value models). NULL class = authored; `integrity_checked_with` tells authored from never-classified and names the manifest used. 045 belongs to the fence change |
 
@@ -667,8 +669,8 @@ happened to the "Emergent Strategy" instance before migration 042.
 
 ## MCP Server
 
-The server exposes 157 MCP tools at `/mcp`, organized into 14 categories with
-context-aware filtering. By default only 14 core tools are visible; clients
+The server exposes its MCP tools at `/mcp` (all listed in `self-model.json`), organized into
+14 categories with context-aware filtering. By default only the `core` category is visible; clients
 call `list_tool_categories` and `set_tool_filter` to activate additional categories.
 Counts below are verified against `internal/mcpserver.ToolCategories` directly
 (also published live at `GET /.well-known/strategy-server-selfmodel.json`),

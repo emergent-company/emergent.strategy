@@ -17,7 +17,7 @@ This repository (`emergent-strategy`) is focused on **strategy tooling**:
 ## Strategy Server Development
 
 The strategy-server is the primary application under active development. It serves
-96 MCP tools for strategy management, with Zitadel auth, multi-tenant orgs, and
+MCP tools for strategy management (listed in `self-model.json`), with Zitadel auth, multi-tenant orgs, and
 optional semantic graph features via emergent.memory.
 
 ### Quick Start

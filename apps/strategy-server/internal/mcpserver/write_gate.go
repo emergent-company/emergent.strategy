@@ -281,8 +281,9 @@ func AccessFor(toolName string) string {
 //
 // # Why a middleware and not a check in each handler
 //
-// There are 158 tools. Adding a check to each is 158 opportunities to forget,
-// with no mechanism to stop the 159th from being added without one. This runs
+// There are well over a hundred tools. Adding a check to each is that many
+// opportunities to forget, with no mechanism to stop the next one from being
+// added without one. This runs
 // on the tools/call path for every tool, so a new tool is covered the moment
 // it is registered — and because AccessFor defaults to write, it is covered
 // in the safe direction before anyone classifies it.
