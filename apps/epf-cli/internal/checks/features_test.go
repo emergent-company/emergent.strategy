@@ -153,3 +153,41 @@ definition:
 		t.Errorf("Expected 1 feature when checking product/ only, got %d", summary.TotalFeatures)
 	}
 }
+
+func TestFeatureQualityCanonicalTrackDefinitionSchema(t *testing.T) {
+	tmpDir := t.TempDir()
+	pdDir := filepath.Join(tmpDir, "FIRE", "definitions", "org_ops", "culture-communications")
+	os.MkdirAll(pdDir, 0755)
+	canonicalPD := `id: pd-037
+name: Investor Updates
+slug: investor-updates
+track: org_ops
+status: ready
+contributes_to:
+  - OrgOps.Collaboration Protocols.project-communication-tools
+definition:
+  purpose: "Regular investor updates build trust and keep investors engaged."
+  outcome: "Investors are informed about company progress and can help when asked."
+  owner: CEO
+operational_context:
+  prerequisites:
+    - Investor list
+practitioner_scenarios:
+  - id: ps-001
+    scenario: Monthly investor update
+    trigger: End of month
+    actions: Gather metrics and send update
+    outcomes: Investors informed
+`
+	os.WriteFile(filepath.Join(pdDir, "pd-037-investor-updates.yaml"), []byte(canonicalPD), 0644)
+
+	checker := NewFeatureQualityChecker(tmpDir)
+	summary, err := checker.Check()
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+	if summary.TotalFeatures != 1 || summary.PassedCount != 1 {
+		t.Fatalf("Expected 1 passing canonical track definition, got total=%d passed=%d issues=%v",
+			summary.TotalFeatures, summary.PassedCount, summary.Results[0].Issues)
+	}
+}
