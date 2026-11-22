@@ -200,11 +200,31 @@ func (s *Server) bespokeContent(ctx context.Context, instanceID, track string, n
 // additional payload fields to produce a bespoke NorthStarContent component.
 // Returns nil if decomposition fails (caller falls back to generic view).
 func (s *Server) northStarContent(navCtx ui.NavContext, artifactKey, name, status string, payload map[string]any) templ.Component {
-	result, err := decompose.DecomposePayload("north_star", payload)
+	data, err := buildNorthStarData(navCtx, artifactKey, name, status, payload)
 	if err != nil {
 		s.log.Warn("north_star decomposition failed, using generic view", "err", err)
 		return nil
 	}
+	return ui.NorthStarContent(data)
+}
+
+// buildNorthStarData reads a north_star payload into what the page shows. The
+// schema and the template wrap the content in a north_star root key; a payload
+// already unwrapped is accepted too. The root is removed once, here, so the
+// decomposer and the direct field reads below see the same content.
+func buildNorthStarData(navCtx ui.NavContext, artifactKey, name, status string, payload map[string]any) (ui.NorthStarData, error) {
+	inner := payload
+	if root, ok := payload["north_star"].(map[string]any); ok {
+		inner = root
+	} else {
+		payload = map[string]any{"north_star": inner}
+	}
+
+	result, err := decompose.DecomposePayload("north_star", payload)
+	if err != nil {
+		return ui.NorthStarData{}, err
+	}
+	payload = inner
 
 	data := ui.NorthStarData{
 		NavContext:   navCtx,
@@ -295,6 +315,10 @@ func (s *Server) northStarContent(navCtx ui.NavContext, artifactKey, name, statu
 		}
 	}
 
+	data.AlignmentChecks = northStarAlignmentChecks(payload)
+	data.ReviewScheduled, data.ReviewEvents = northStarReviewTriggers(payload)
+	data.Maturity = northStarMaturity(payload)
+
 	// ── Belief challenges ──
 	if beliefs, ok := payload["core_beliefs"].(map[string]any); ok {
 		if challenges, ok := beliefs["belief_challenges"].([]any); ok {
@@ -345,7 +369,78 @@ func (s *Server) northStarContent(navCtx ui.NavContext, artifactKey, name, statu
 	}
 
 	data.Gaps = checkNorthStarGaps(payload)
-	return ui.NorthStarContent(data)
+	return data, nil
+}
+
+// northStarAlignmentChecks reads alignment_checks: statements that purpose,
+// vision, mission, values and beliefs tell one story.
+func northStarAlignmentChecks(payload map[string]any) []ui.NorthStarStatement {
+	checks, ok := payload["alignment_checks"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	var out []ui.NorthStarStatement
+	for _, c := range []struct{ key, label string }{
+		{"purpose_vision_alignment", "Purpose and vision"},
+		{"mission_purpose_alignment", "Mission and purpose"},
+		{"values_mission_alignment", "Values and mission"},
+		{"beliefs_inform_strategy", "Beliefs and strategy"},
+	} {
+		if text := strings.TrimSpace(payloadStr(checks, c.key)); text != "" {
+			out = append(out, ui.NorthStarStatement{Label: c.label, Text: text})
+		}
+	}
+	return out
+}
+
+// northStarReviewTriggers reads next_review_triggers: the schedule and the
+// events that call for an earlier review.
+func northStarReviewTriggers(payload map[string]any) (scheduled string, events []string) {
+	triggers, ok := payload["next_review_triggers"].(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	return payloadStr(triggers, "scheduled"), payloadStrSlice(triggers, "event_based")
+}
+
+// northStarMaturity reads strategic_maturity_context: where each product line
+// stands, and the patterns seen across them.
+func northStarMaturity(payload map[string]any) ui.NorthStarMaturity {
+	var m ui.NorthStarMaturity
+	sm, ok := payload["strategic_maturity_context"].(map[string]any)
+	if !ok {
+		return m
+	}
+	m.LastReview = payloadStr(sm, "last_maturity_review")
+	lines, _ := sm["portfolio_summary"].([]any)
+	for _, l := range lines {
+		lm, ok := l.(map[string]any)
+		if !ok {
+			continue
+		}
+		pl := ui.MaturityProductLine{
+			ProductLine: payloadStr(lm, "product_line"),
+			Position:    payloadStr(lm, "overall_position"),
+			Milestone:   payloadStr(lm, "current_milestone"),
+			Notes:       payloadStr(lm, "milestone_notes"),
+			FocusAdvice: payloadStr(lm, "focus_recommendation"),
+		}
+		if tm, ok := lm["track_maturity"].(map[string]any); ok {
+			for _, track := range []string{"product", "strategy", "org_ops", "commercial"} {
+				if stage := payloadStr(tm, track); stage != "" {
+					pl.TrackMaturity = append(pl.TrackMaturity, ui.NorthStarStatement{Label: track, Text: stage})
+				}
+			}
+		}
+		m.ProductLines = append(m.ProductLines, pl)
+	}
+	themes, _ := sm["maturity_themes"].([]any)
+	for _, th := range themes {
+		if tm, ok := th.(map[string]any); ok {
+			m.Themes = append(m.Themes, ui.MaturityTheme{Theme: payloadStr(tm, "theme"), Implication: payloadStr(tm, "implication")})
+		}
+	}
+	return m
 }
 
 // propStr safely extracts a string property from a map.
