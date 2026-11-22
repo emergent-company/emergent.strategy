@@ -58,7 +58,7 @@
     {
       "name": "admin",
       "description": "Workspace, org, instance, version, and GitHub sync management",
-      "tool_count": 33
+      "tool_count": 34
     },
     {
       "name": "knowledge",
@@ -3767,8 +3767,29 @@
       }
     },
     {
+      "name": "upgrade_instance_schema",
+      "description": "USE WHEN validate_instance rejects values the current framework accepts, or health_check says the schema or the standard pack is not up to date. An instance is validated against the schema version it was created on (its pin); this tool moves the pin to the version the server embeds, and refreshes the emergent-standard pack. By default it changes nothing and reports what would change: the artifacts that become valid, the artifacts that become invalid, and the skills of the standard pack that would be replaced. Pass apply=true to do it. Replacing the pack overwrites edits made to its skills in this instance.",
+      "category": "admin",
+      "input_schema": {
+        "properties": {
+          "apply": {
+            "description": "Move the instance to the server's schema version and refresh the standard pack. Omit or false to only report.",
+            "type": "boolean"
+          },
+          "instance_id": {
+            "description": "Strategy instance UUID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
       "name": "validate_artifact",
-      "description": "USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error.",
+      "description": "USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error. It checks against the newest schema version the server has, not an instance's pinned version, so for an instance still pinned to an older version it can accept a value that validate_instance rejects; validate_instance names the version it used, and upgrade_instance_schema moves the pin.",
       "category": "validation",
       "input_schema": {
         "properties": {

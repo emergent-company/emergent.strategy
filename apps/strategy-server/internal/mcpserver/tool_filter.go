@@ -207,6 +207,7 @@ var ToolCategories = map[string]string{
 	"import_from_github":        CategoryAdmin,
 	"get_sync_state":            CategoryAdmin,
 	"update_instance":           CategoryAdmin,
+	"upgrade_instance_schema":   CategoryAdmin,
 	"list_consumer_repos":       CategoryAdmin,
 	"register_consumer_repo":    CategoryAdmin,
 	"unregister_consumer_repo":  CategoryAdmin,

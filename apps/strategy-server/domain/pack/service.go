@@ -440,44 +440,9 @@ func (s *Service) EnsureStandardPack(ctx context.Context, instanceID uuid.UUID) 
 		return fmt.Errorf("ensure standard pack: check existing: %w", err)
 	}
 
-	// Build bundle from embedded skills.
-	skillNames, err := embedded.ListSkills()
+	bundle, err := standardPackBundle(version)
 	if err != nil {
-		return fmt.Errorf("ensure standard pack: list skills: %w", err)
-	}
-
-	var bundles []SkillBundle
-	for _, name := range skillNames {
-		yamlData, err := embedded.GetSkillYAML(name)
-		if err != nil {
-			continue // skip unreadable skills
-		}
-
-		// Skip inline-execution skills — they are canonical-only and cannot
-		// be stored as installed_skills rows.
-		var meta skillYAMLMeta
-		if err := yaml.Unmarshal(yamlData, &meta); err == nil &&
-			strings.EqualFold(meta.Execution, "inline") {
-			continue
-		}
-
-		sb := SkillBundle{
-			Name:      name,
-			SkillYAML: string(yamlData),
-		}
-		if promptData, err := embedded.GetSkillPrompt(name); err == nil && len(promptData) > 0 {
-			s := string(promptData)
-			sb.PromptMD = &s
-		}
-		bundles = append(bundles, sb)
-	}
-
-	packYAML := fmt.Sprintf("name: %s\nversion: %q\ndescription: \"Standard Emergent skill library\"\nauthor: \"Emergent\"\ntrusted: true\n",
-		StandardPackName, version)
-
-	bundle, err := ParsePackBundle(packYAML, bundles)
-	if err != nil {
-		return fmt.Errorf("ensure standard pack: parse bundle: %w", err)
+		return fmt.Errorf("ensure standard pack: %w", err)
 	}
 
 	if err := s.InstallPack(ctx, instanceID, bundle, false); err != nil {
@@ -593,4 +558,69 @@ func sortByName(skills []*ResolvedSkill) []*ResolvedSkill {
 		}
 	}
 	return skills
+}
+
+// standardPackBundle builds the emergent-standard pack from the embedded skills.
+func standardPackBundle(version string) (*PackBundle, error) {
+	skillNames, err := embedded.ListSkills()
+	if err != nil {
+		return nil, fmt.Errorf("list skills: %w", err)
+	}
+
+	var bundles []SkillBundle
+	for _, name := range skillNames {
+		yamlData, err := embedded.GetSkillYAML(name)
+		if err != nil {
+			continue // skip unreadable skills
+		}
+
+		// Skip inline-execution skills — they are canonical-only and cannot
+		// be stored as installed_skills rows.
+		var meta skillYAMLMeta
+		if err := yaml.Unmarshal(yamlData, &meta); err == nil &&
+			strings.EqualFold(meta.Execution, "inline") {
+			continue
+		}
+
+		sb := SkillBundle{
+			Name:      name,
+			SkillYAML: string(yamlData),
+		}
+		if promptData, err := embedded.GetSkillPrompt(name); err == nil && len(promptData) > 0 {
+			s := string(promptData)
+			sb.PromptMD = &s
+		}
+		bundles = append(bundles, sb)
+	}
+
+	packYAML := fmt.Sprintf("name: %s\nversion: %q\ndescription: \"Standard Emergent skill library\"\nauthor: \"Emergent\"\ntrusted: true\n",
+		StandardPackName, version)
+
+	bundle, err := ParsePackBundle(packYAML, bundles)
+	if err != nil {
+		return nil, fmt.Errorf("parse bundle: %w", err)
+	}
+	return bundle, nil
+}
+
+// RefreshStandardPack replaces the instance's emergent-standard skills with the
+// ones this server embeds, installing the pack if it is absent. Skills of the pack
+// that were edited in the instance are replaced too, so callers say so first.
+func (s *Service) RefreshStandardPack(ctx context.Context, instanceID uuid.UUID) error {
+	version := strings.TrimSpace(embedded.Version)
+	bundle, err := standardPackBundle(version)
+	if err != nil {
+		return fmt.Errorf("refresh standard pack: %w", err)
+	}
+	if err := s.InstallPack(ctx, instanceID, bundle, true); err != nil {
+		return fmt.Errorf("refresh standard pack: install: %w", err)
+	}
+	if _, err := s.db.NewUpdate().
+		TableExpr("strategy_instances").
+		Set("standard_pack_version = ?", version).
+		Where("id = ?", instanceID).
+		Exec(ctx); err != nil {
+		return fmt.Errorf("refresh standard pack: update version column: %w", err)
+	}
+	return nil
 }

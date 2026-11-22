@@ -223,6 +223,7 @@ var ToolAccess = map[string]string{
 	"import_from_github":        AccessWrite, // may open a PR on the remote
 	"get_sync_state":            AccessRead,
 	"update_instance":           AccessWrite,
+	"upgrade_instance_schema":   AccessWrite,
 	"list_consumer_repos":       AccessRead,
 	"register_consumer_repo":    AccessWrite,
 	"unregister_consumer_repo":  AccessWrite,
