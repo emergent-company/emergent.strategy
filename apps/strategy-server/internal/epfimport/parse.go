@@ -159,6 +159,8 @@ func ArtifactKey(relPath, name string) string {
 		return "strategy_formula"
 	case "05_roadmap_recipe", "roadmap_recipe":
 		return "roadmap_recipe"
+	case "07_product_portfolio", "product_portfolio":
+		return "product_portfolio"
 	case "assessment_report":
 		return "assessment_report"
 	case "calibration_memo":

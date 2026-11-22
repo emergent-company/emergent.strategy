@@ -248,7 +248,7 @@ func (s *Service) importInstanceOnce(ctx context.Context, p ImportParams, schema
 			m := &domain.StrategyMutation{
 				ID:           uuid.New(),
 				InstanceID:   inst.ID,
-				ArtifactType: inferArtifactType(key),
+				ArtifactType: importArtifactType(key, raw),
 				ArtifactKey:  key,
 				Action:       domain.MutationActionCreate,
 				Payload:      raw,
@@ -314,7 +314,7 @@ func (s *Service) reimport(ctx context.Context, id uuid.UUID, payloads map[strin
 			m := &domain.StrategyMutation{
 				ID:           uuid.New(),
 				InstanceID:   id,
-				ArtifactType: inferArtifactType(key),
+				ArtifactType: importArtifactType(key, raw),
 				ArtifactKey:  key,
 				Action:       domain.MutationActionCreate,
 				Payload:      raw,
@@ -566,6 +566,23 @@ func (s *Service) MoveInstance(ctx context.Context, instanceID, targetWorkspaceI
 		Details:    map[string]any{"target_workspace_id": targetWorkspaceID},
 	})
 	return nil
+}
+
+// importArtifactType is the type a file is stored under at import. It comes from
+// the key alone: a file's root key is a guess, and reclassifying every YAML file
+// that happens to carry a known root key would turn stray files into live
+// artifacts. A file the key leaves generic but whose root keys match a known type
+// is reported, so a misnamed file is not stored silently as an orphan.
+func importArtifactType(key string, payload []byte) string {
+	artifactType := inferArtifactType(key)
+	if artifactType != "artifact" {
+		return artifactType
+	}
+	if detected, ok := embedded.DetectArtifactType(payload); ok {
+		slog.Warn("import: file looks like a known artifact type but its name does not say so; stored as a generic artifact",
+			"artifact_key", key, "detected_type", detected)
+	}
+	return artifactType
 }
 
 // inferArtifactType maps well-known artifact keys to their type strings.

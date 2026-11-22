@@ -136,3 +136,24 @@ func TestArtifactKey_WorkPackageFilesTakeTheirID(t *testing.T) {
 		}
 	}
 }
+
+// The Product Portfolio page reads the artifact keyed product_portfolio. A
+// portfolio file kept under its numbered READY name, or the unnumbered name the
+// canonical template has, must get that key; under its path it is stored as a
+// generic artifact and the page says it has not been created.
+func TestArtifactKey_ProductPortfolioFilenamesBecomeTheKeyThePageReads(t *testing.T) {
+	for _, rel := range []string{
+		"READY/07_product_portfolio.yaml",
+		"READY/product_portfolio.yaml",
+		"product_portfolio.yaml",
+		"_instances/acme/READY/07_product_portfolio.yaml", // instance below the repo root
+		"READY/07_product_portfolio.yml",
+	} {
+		if got := epfimport.ArtifactKey(rel, rel[strings.LastIndex(rel, "/")+1:]); got != "product_portfolio" {
+			t.Errorf("ArtifactKey(%q) = %q, want product_portfolio", rel, got)
+		}
+	}
+	if got := epfimport.ArtifactKey("READY/07_other_portfolio.yaml", "07_other_portfolio.yaml"); got != "READY/07_other_portfolio" {
+		t.Errorf("a differently named file keeps its path key, got %q", got)
+	}
+}
