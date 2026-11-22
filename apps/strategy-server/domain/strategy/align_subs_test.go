@@ -75,3 +75,47 @@ func TestAlignPortfolio_ReadsSubComponentsWrittenAsSubs(t *testing.T) {
 		t.Errorf("sub_components = %v, want the one sub-component kept", licensing["sub_components"])
 	}
 }
+
+// An earlier version wrote "sub_components": null into every component of a model
+// that spells its children "subs". The null fails the schema (an array is
+// expected), and nothing else removes it, so alignment does.
+func TestAlignPortfolio_RemovesTheNullSubComponentsAnEarlierRunWrote(t *testing.T) {
+	db := database.TestDB(t)
+	instID, svc := seedInstance(t, db)
+	ctx := audit.ContextWithSource(context.Background(), audit.SourceSystem)
+
+	commitArtifact(t, db, instID, domain.ArtifactTypeRoadmap, "roadmap_recipe",
+		buildRoadmapWithKRTarget("commercial", "l1-revenue.l2-recurring.l3-metering", ""))
+	vm := map[string]any{"track_name": "commercial", "layers": []any{map[string]any{
+		"id": "l1-revenue", "name": "l1-revenue", "active": true,
+		"components": []any{
+			map[string]any{"id": "l2-recurring", "name": "l2-recurring", "active": true, "sub_components": nil, "subs": []any{
+				map[string]any{"id": "l3-metering", "name": "l3-metering", "active": true},
+			}},
+			map[string]any{"id": "l2-licensing", "name": "l2-licensing", "active": false, "sub_components": nil},
+		},
+	}}}
+	commitArtifact(t, db, instID, domain.ArtifactTypeValueModel, "value_model.commercial", vm)
+
+	if _, err := svc.AlignPortfolio(ctx, instID); err != nil {
+		t.Fatalf("AlignPortfolio: %v", err)
+	}
+	raw, err := svc.GetCurrentArtifact(ctx, instID, "value_model.commercial")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, cv := range got["layers"].([]any)[0].(map[string]any)["components"].([]any) {
+		c := cv.(map[string]any)
+		if v, present := c["sub_components"]; present {
+			t.Errorf("%v still has sub_components=%v", c["id"], v)
+		}
+	}
+	recurring := got["layers"].([]any)[0].(map[string]any)["components"].([]any)[0].(map[string]any)
+	if subs, _ := recurring["subs"].([]any); len(subs) != 1 {
+		t.Errorf("subs = %v, want the one sub-component kept", recurring["subs"])
+	}
+}

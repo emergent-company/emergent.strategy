@@ -174,6 +174,13 @@ type ImportParams struct {
 	// Branch is the branch to import from. If empty, uses the instance's
 	// tracked github_branch, or the repo's default branch if that is also unset.
 	Branch string
+	// Force re-imports the repository's copy even when the instance reads as in
+	// sync. Server-side writes that do not count as local work (portfolio
+	// alignment) can leave the stored artifacts different from the repository
+	// at the same commit, and a plain import then does nothing. Force does not
+	// override the other states: unpushed server work is still refused, and a
+	// diverged instance still gets its safety PR first.
+	Force bool
 }
 
 // ImportResult is the outcome of an import operation.
@@ -377,6 +384,18 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 		return nil, apperror.ErrBadRequest.WithDetail("instance has no github_repo configured")
 
 	case SyncStateInSync:
+		if p.Force {
+			count, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
+			if importErr != nil {
+				return nil, importErr
+			}
+			return &ImportResult{
+				Status:        "imported",
+				TargetBranch:  targetBranch,
+				ArtifactCount: count,
+				SyncState:     syncState.State,
+			}, nil
+		}
 		return &ImportResult{
 			Status:        "already_in_sync",
 			TargetBranch:  targetBranch,

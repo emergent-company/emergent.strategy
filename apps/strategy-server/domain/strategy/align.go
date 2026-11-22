@@ -580,6 +580,14 @@ func alignComponent(
 	_, compTargeted := targeted[compID]
 	compTargeted = compTargeted || layerTargeted
 
+	// An earlier version wrote "sub_components": null into components that spell
+	// their children "subs". The schema wants an array there, so the null is
+	// removed rather than left to fail validation.
+	if v, present := comp["sub_components"]; present && v == nil {
+		delete(comp, "sub_components")
+		changed = true
+	}
+
 	// L3 sub-components are written under either key, and one model can use
 	// both (the canonical strategy, commercial and org_ops models use "subs").
 	// Each list is aligned in place and written back under the key it came from;

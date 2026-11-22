@@ -863,3 +863,66 @@ func TestGetSyncHistory_Empty(t *testing.T) {
 		t.Errorf("expected 0 logs, got %d", len(logs))
 	}
 }
+
+// An instance whose stored artifacts were changed by the server alone (portfolio
+// alignment writes as "system", which does not count as local work) reads as in
+// sync, so a plain import does nothing. force re-imports the repository's copy.
+func TestImportFromGithub_ForceReimportsAnInSyncInstance(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+
+	svc, _, reader, reimporter := newTestSyncService(t, db)
+	reader.headCommitSHA = "synced123"
+
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "force-in-sync-org", nil, orgID)
+	repo := "test-org/strategy"
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{WorkspaceID: ws.ID, Name: "Force In Sync", GithubRepo: &repo})
+	_, _ = db.ExecContext(ctx, "UPDATE strategy_instances SET github_commit_sha = ? WHERE id = ?", "synced123", inst.ID)
+
+	plain, err := svc.ImportFromGithub(ctx, syncdom.ImportParams{InstanceID: inst.ID})
+	if err != nil || plain.Status != "already_in_sync" || reimporter.reimportedPayloads != nil {
+		t.Fatalf("without force: status=%q err=%v reimported=%v, want a no-op", plain.Status, err, reimporter.reimportedPayloads != nil)
+	}
+
+	forced, err := svc.ImportFromGithub(ctx, syncdom.ImportParams{InstanceID: inst.ID, Force: true})
+	if err != nil {
+		t.Fatalf("ImportFromGithub with force: %v", err)
+	}
+	if forced.Status != "imported" || reimporter.reimportedPayloads == nil {
+		t.Fatalf("with force: status=%q reimported=%v, want imported", forced.Status, reimporter.reimportedPayloads != nil)
+	}
+	if _, ok := reimporter.reimportedPayloads["north_star"]; !ok {
+		t.Errorf("expected the repository's artifacts to be re-imported, got keys: %v", keyNames(reimporter.reimportedPayloads))
+	}
+}
+
+// force does not override the refusal to discard unpushed work.
+func TestImportFromGithub_ForceDoesNotOverrideServerAhead(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+
+	svc, _, reader, reimporter := newTestSyncService(t, db)
+	reader.headCommitSHA = "same123"
+
+	wsSvc := workspace.NewService(db)
+	instSvc := instance.NewService(db)
+	orgID := seedTestOrg(t, db)
+	ws, _ := wsSvc.CreateWorkspace(ctx, "force-ahead-org", nil, orgID)
+	repo := "test-org/strategy"
+	inst, _ := instSvc.ImportInstance(ctx, instance.ImportParams{WorkspaceID: ws.ID, Name: "Force Ahead", GithubRepo: &repo})
+	_, _ = db.ExecContext(ctx, "UPDATE strategy_instances SET github_commit_sha = ? WHERE id = ?", "same123", inst.ID)
+	_, _ = db.ExecContext(ctx,
+		`INSERT INTO strategy_mutations (id, instance_id, artifact_type, artifact_key, action, payload, status, source, created_at)
+		 VALUES (gen_random_uuid(), ?, 'feature', 'fd-staged', 'create', '{}', 'staged', 'mcp', NOW())`, inst.ID)
+
+	result, err := svc.ImportFromGithub(ctx, syncdom.ImportParams{InstanceID: inst.ID, Force: true})
+	if err != nil {
+		t.Fatalf("ImportFromGithub: %v", err)
+	}
+	if result.Status != "server_ahead" || reimporter.reimportedPayloads != nil {
+		t.Errorf("status=%q reimported=%v, want server_ahead and nothing discarded", result.Status, reimporter.reimportedPayloads != nil)
+	}
+}

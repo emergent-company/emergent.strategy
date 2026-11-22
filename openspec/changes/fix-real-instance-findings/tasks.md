@@ -167,8 +167,18 @@ and WP-005 (operational visibility) are independent of everything else.
       now switched on even with no sub-components. `TotalDeactivated` stays in the
       records, always 0, because records written earlier carry a value. Tests:
       `align_subs_test.go`, `align_no_deactivate_test.go`, each mutation-checked.
-      A damaged instance is not repaired by this: re-import it (after setting
-      `skip_align_portfolio` if the server is still on an older build).
+      The first version of this fix did not repair stored damage. The reporter found
+      that `validate_instance` still failed on `"sub_components": null` (89 errors
+      in 3 value models) and that a re-import could not repair it, because the
+      sync state read "in sync" (alignment writes as `system`, which does not count
+      as local work) and the import returned `already_in_sync`. Fixed in two parts.
+      Alignment removes a `sub_components: null` key it finds, so an instance that
+      runs alignment repairs itself on the next tick. And `import_from_github` takes
+      `force: true`, which re-imports the repository's copy even when in sync; it
+      does not override unpushed server work (still refused) or a diverged instance
+      (still gets its safety PR). Tests: `TestAlignPortfolio_RemovesTheNullSubComponentsAnEarlierRunWrote`,
+      `TestImportFromGithub_ForceReimportsAnInSyncInstance`,
+      `TestImportFromGithub_ForceDoesNotOverrideServerAhead`, each mutation-checked.
 
 ## 4. Schema and read gaps (WP-004)
 
