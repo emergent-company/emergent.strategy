@@ -5,6 +5,7 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 )
 
@@ -61,7 +62,7 @@ func (s *Server) roadmapRecipeContent(navCtx ui.NavContext, artifactKey, name, s
 	krByID := make(map[string]ui.RoadmapKR)
 	for _, track := range data.Tracks {
 		for _, okr := range track.OKRs {
-			for _, kr := range okr.KeyResults {
+			for _, kr := range append(append([]ui.RoadmapKR{}, okr.KeyResults...), okr.ParkedKeyResults...) {
 				if kr.ID != "" {
 					krByID[kr.ID] = kr
 				}
@@ -130,9 +131,9 @@ func extractRoadmapTrack(trackName string, tm map[string]any) ui.RoadmapTrack {
 		Objective: payloadStr(tm, "objective"),
 	}
 
-	// OKRs
-	if okrs, ok := tm["okrs"].([]any); ok {
-		for _, item := range okrs {
+	// OKRs: the current "okrs" list, then every "future_okrs_*" list.
+	for _, group := range strategyread.OKRGroups(tm) {
+		for _, item := range group.Items {
 			om, ok := item.(map[string]any)
 			if !ok {
 				continue
@@ -141,6 +142,9 @@ func extractRoadmapTrack(trackName string, tm map[string]any) ui.RoadmapTrack {
 				ID:        payloadStr(om, "id"),
 				Objective: payloadStr(om, "objective"),
 			}
+			if group.Name != "okrs" {
+				okr.Group = group.Name
+			}
 
 			if krs, ok := om["key_results"].([]any); ok {
 				for _, krItem := range krs {
@@ -148,14 +152,20 @@ func extractRoadmapTrack(trackName string, tm map[string]any) ui.RoadmapTrack {
 					if !ok {
 						continue
 					}
-					okr.KeyResults = append(okr.KeyResults, ui.RoadmapKR{
-						ID:          payloadStr(km, "id"),
-						Description: payloadStr(km, "description"),
-						Baseline:    payloadStr(km, "baseline"),
-						Target:      payloadStr(km, "target"),
-						TRLStart:    payloadIntAsStr(km, "trl_start"),
-						TRLTarget:   payloadIntAsStr(km, "trl_target"),
-					})
+					kr := ui.RoadmapKR{
+						ID:           payloadStr(km, "id"),
+						Description:  payloadStr(km, "description"),
+						Baseline:     payloadStr(km, "baseline"),
+						Target:       payloadStr(km, "target"),
+						TRLStart:     payloadIntAsStr(km, "trl_start"),
+						TRLTarget:    payloadIntAsStr(km, "trl_target"),
+						ParkedReason: payloadStr(km, "parked_reason"),
+					}
+					if strategyread.IsParked(km) {
+						okr.ParkedKeyResults = append(okr.ParkedKeyResults, kr)
+					} else {
+						okr.KeyResults = append(okr.KeyResults, kr)
+					}
 				}
 			}
 

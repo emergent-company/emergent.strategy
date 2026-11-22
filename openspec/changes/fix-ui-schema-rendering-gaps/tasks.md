@@ -62,6 +62,11 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 3.2 `handler_formula.go` / `strategyFormulaContent`: fix gaps found.
 - [ ] 3.3 `handler_foundations.go` / `strategyFoundationsContent`: fix gaps found.
 - [ ] 3.4 `handler_roadmap.go` / `roadmapRecipeContent`: fix gaps found.
+      Already done in `fix-real-instance-findings` 4.4: `extractRoadmapTrack` reads
+      every `future_okrs_*` group (through `strategyread.OKRGroups`, with a "Planned"
+      label) and shows parked Key Results apart with their reason. Still open: the
+      track badge counts objectives but is labelled "KRs", and there is no total of
+      Key Results found per group (`fix-real-instance-findings` 2.5).
 - [ ] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found.
 - [ ] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found.
 - [ ] 3.7 `handler_valuemodel.go` / `valueModelContent`: fix gaps found.

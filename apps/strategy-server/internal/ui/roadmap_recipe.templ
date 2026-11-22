@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 )
@@ -41,11 +43,15 @@ type RoadmapTrack struct {
 	Assumptions []RoadmapAssumption
 }
 
-// RoadmapOKR is a single Objective with Key Results.
+// RoadmapOKR is a single Objective with Key Results. Group is empty for the
+// current "okrs" list and names the "future_okrs_*" list otherwise. Key Results
+// with status "parked" are in ParkedKeyResults, not KeyResults.
 type RoadmapOKR struct {
-	ID        string
-	Objective string
-	KeyResults []RoadmapKR
+	ID               string
+	Group            string
+	Objective        string
+	KeyResults       []RoadmapKR
+	ParkedKeyResults []RoadmapKR
 }
 
 // RoadmapKR is a single Key Result within an OKR.
@@ -56,6 +62,13 @@ type RoadmapKR struct {
 	Target      string
 	TRLStart    string
 	TRLTarget   string
+	// ParkedReason is why a parked Key Result is not being worked on.
+	ParkedReason string
+}
+
+// futureGroupLabel turns "future_okrs_q3_2026" into "q3 2026".
+func futureGroupLabel(group string) string {
+	return strings.ReplaceAll(strings.TrimPrefix(group, "future_okrs_"), "_", " ")
 }
 
 // RoadmapCriticalPathStep is one resolved step in the critical path.
@@ -215,10 +228,21 @@ templ roadmapOKRCard(okr RoadmapOKR, trackName string) {
 					</span>
 				}
 				<h5 class="text-sm font-bold text-base-content">{ okr.Objective }</h5>
+				if okr.Group != "" {
+					<span class="badge badge-xs badge-outline shrink-0">{ fmt.Sprintf(langs.T(ctx, "ui.roadmap.future_group"), futureGroupLabel(okr.Group)) }</span>
+				}
 			</div>
 			if len(okr.KeyResults) > 0 {
 				<div class="space-y-2">
 					for _, kr := range okr.KeyResults {
+						@roadmapKRRow(kr, trackName)
+					}
+				</div>
+			}
+			if len(okr.ParkedKeyResults) > 0 {
+				<div class="mt-3 space-y-2">
+					<h6 class="text-xs font-semibold uppercase tracking-wide text-base-content/65">{ langs.T(ctx, "ui.roadmap.parked_krs") }</h6>
+					for _, kr := range okr.ParkedKeyResults {
 						@roadmapKRRow(kr, trackName)
 					}
 				</div>
@@ -237,6 +261,11 @@ templ roadmapKRRow(kr RoadmapKR, trackName string) {
 			}
 			<div class="min-w-0 grow">
 				<p class="text-sm text-base-content">{ kr.Description }</p>
+				if kr.ParkedReason != "" {
+					<p class="mt-1 text-xs text-base-content/80">
+						<span class="font-medium">{ langs.T(ctx, "ui.roadmap.parked_reason") }:</span> { kr.ParkedReason }
+					</p>
+				}
 				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
 					if kr.Baseline != "" || kr.Target != "" {
 						<div class="flex items-center gap-1.5 text-xs text-base-content/80">

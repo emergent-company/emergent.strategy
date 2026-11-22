@@ -6,19 +6,34 @@ import (
 	"strings"
 )
 
-// KeyResultSummary is a key result reduced to what identifies it.
+// StatusParked is the Key Result status that marks one as deliberately not
+// being worked on; the schema requires a parked_reason with it.
+const StatusParked = "parked"
+
+// KeyResultSummary is a key result reduced to what identifies it. Status and
+// ParkedReason are as the roadmap states them and are omitted when it states none.
 type KeyResultSummary struct {
-	ID          string `json:"id"`
-	Description string `json:"description,omitempty"`
+	ID           string `json:"id"`
+	Description  string `json:"description,omitempty"`
+	Status       string `json:"status,omitempty"`
+	ParkedReason string `json:"parked_reason,omitempty"`
 }
 
 // ObjectiveSummary is an objective with its key results. Group names the list
-// it was found in: "okrs" or a "future_okrs_*" group.
+// it was found in: "okrs" or a "future_okrs_*" group. Key results with status
+// "parked" are listed apart in ParkedKeyResults, so a reader of KeyResults sees
+// only what is being worked on.
 type ObjectiveSummary struct {
-	ID         string             `json:"id"`
-	Group      string             `json:"group"`
-	Objective  string             `json:"objective"`
-	KeyResults []KeyResultSummary `json:"key_results"`
+	ID               string             `json:"id"`
+	Group            string             `json:"group"`
+	Objective        string             `json:"objective"`
+	KeyResults       []KeyResultSummary `json:"key_results"`
+	ParkedKeyResults []KeyResultSummary `json:"parked_key_results,omitempty"`
+}
+
+// IsParked reports whether a key result's status is "parked".
+func IsParked(keyResult map[string]any) bool {
+	return str(keyResult, "status") == StatusParked
 }
 
 const (
@@ -96,7 +111,15 @@ func Objectives(roadmap any, track string) []TrackObjectives {
 				krs, _ := om["key_results"].([]any)
 				for _, k := range krs {
 					km, _ := k.(map[string]any)
-					os.KeyResults = append(os.KeyResults, KeyResultSummary{ID: str(km, "id"), Description: str(km, "description")})
+					summary := KeyResultSummary{
+						ID: str(km, "id"), Description: str(km, "description"),
+						Status: str(km, "status"), ParkedReason: str(km, "parked_reason"),
+					}
+					if IsParked(km) {
+						os.ParkedKeyResults = append(os.ParkedKeyResults, summary)
+					} else {
+						os.KeyResults = append(os.KeyResults, summary)
+					}
 				}
 				to.Objectives = append(to.Objectives, os)
 			}

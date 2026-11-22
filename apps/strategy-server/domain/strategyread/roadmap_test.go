@@ -196,3 +196,64 @@ func TestKeyResultTargets_ListsEveryKeyResultWithItsTarget(t *testing.T) {
 		t.Errorf("kr-4 = %+v: a target naming no track falls back to the roadmap track", k)
 	}
 }
+
+const roadmapWithParkedKeyResults = `{"roadmap":{"id":"rm-1","tracks":{"commercial":{
+ "okrs":[{"id":"okr-c-001","objective":"Land three pilots","key_results":[
+   {"id":"kr-c-001","description":"Three signed pilots","status":"active"},
+   {"id":"kr-c-002","description":"Pilot NPS above 40","status":"parked","parked_reason":"Waiting for the first pilot to go live"},
+   {"id":"kr-c-003","description":"Reference call with each pilot","status":"in_progress"},
+   {"id":"kr-c-004","description":"Case study published"}]}],
+ "future_okrs_q3_2026":[{"id":"okr-c-010","objective":"Expand to ten accounts","key_results":[
+   {"id":"kr-c-010","description":"Ten paying accounts","status":"parked","parked_reason":"Deferred until the pilots report"}]}]}}}}`
+
+func TestObjectives_ListsParkedKeyResultsApartWithTheirReason(t *testing.T) {
+	got := strategyread.Objectives(decode(t, roadmapWithParkedKeyResults), "")
+	if len(got) != 1 || len(got[0].Objectives) != 2 {
+		t.Fatalf("objectives = %+v, want the okrs objective and the future_okrs_q3_2026 one", got)
+	}
+
+	current := got[0].Objectives[0]
+	var active []string
+	for _, kr := range current.KeyResults {
+		active = append(active, kr.ID)
+	}
+	if strings.Join(active, ",") != "kr-c-001,kr-c-003,kr-c-004" {
+		t.Errorf("active key results = %v, want every key result that is not parked, in order", active)
+	}
+	if len(current.ParkedKeyResults) != 1 {
+		t.Fatalf("parked key results = %+v, want exactly kr-c-002", current.ParkedKeyResults)
+	}
+	parked := current.ParkedKeyResults[0]
+	if parked.ID != "kr-c-002" || parked.Description != "Pilot NPS above 40" ||
+		parked.Status != "parked" || parked.ParkedReason != "Waiting for the first pilot to go live" {
+		t.Errorf("parked key result = %+v", parked)
+	}
+	if current.KeyResults[1].Status != "in_progress" {
+		t.Errorf("a key result's own status is reported: %+v", current.KeyResults[1])
+	}
+
+	future := got[0].Objectives[1]
+	if future.Group != "future_okrs_q3_2026" || len(future.KeyResults) != 0 ||
+		len(future.ParkedKeyResults) != 1 || future.ParkedKeyResults[0].ParkedReason != "Deferred until the pilots report" {
+		t.Errorf("an objective whose only key result is parked is still listed, with that key result apart: %+v", future)
+	}
+}
+
+func TestObjectives_OmitsTheParkedListWhenNothingIsParked(t *testing.T) {
+	got := strategyread.Objectives(decode(t, roadmapWithAssumptions), "")
+	raw := mustJSON(t, got)
+	if strings.Contains(raw, "parked") {
+		t.Errorf("a roadmap with no parked key results must not mention parking: %s", raw)
+	}
+}
+
+func TestIsParked(t *testing.T) {
+	for status, want := range map[string]bool{"parked": true, "active": false, "not_started": false, "": false} {
+		if got := strategyread.IsParked(map[string]any{"status": status}); got != want {
+			t.Errorf("IsParked(status=%q) = %v, want %v", status, got, want)
+		}
+	}
+	if strategyread.IsParked(nil) {
+		t.Error("IsParked(nil) must be false")
+	}
+}

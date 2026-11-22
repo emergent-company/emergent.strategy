@@ -413,6 +413,9 @@ var messages = map[Locale]map[string]string{
 		"ui.roadmap.kr_label":       "KRs",
 		"ui.roadmap.okrs_by_track":  "Roadmap OKRs by Track",
 		"ui.roadmap.objectives_krs": "%d objectives, %d key results",
+		"ui.roadmap.parked_krs":     "Parked key results",
+		"ui.roadmap.parked_reason":  "Reason",
+		"ui.roadmap.future_group":   "Planned · %s",
 
 		// UI — Table headers
 		"ui.table.key":    "Key",
@@ -887,6 +890,9 @@ var messages = map[Locale]map[string]string{
 		"ui.roadmap.kr_label":       "KR",
 		"ui.roadmap.okrs_by_track":  "Veikartnøkkelresultater per spor",
 		"ui.roadmap.objectives_krs": "%d mål, %d nøkkelresultater",
+		"ui.roadmap.parked_krs":     "Parkerte nøkkelresultater",
+		"ui.roadmap.parked_reason":  "Årsak",
+		"ui.roadmap.future_group":   "Planlagt · %s",
 
 		// UI — Table headers
 		"ui.table.key":    "Nøkkel",
