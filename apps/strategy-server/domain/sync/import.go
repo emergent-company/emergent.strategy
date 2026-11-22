@@ -192,6 +192,9 @@ type ImportResult struct {
 	SafetyPRURL       string    `json:"safety_pr_url,omitempty"`
 	SnapshotVersionID string    `json:"snapshot_version_id,omitempty"` // auto-published before overwrite
 	SyncState         SyncState `json:"sync_state"`
+	// Warnings lists what the import left out or could not place, such as a
+	// second file for an artifact the instance already holds.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -385,7 +388,7 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 
 	case SyncStateInSync:
 		if p.Force {
-			count, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
+			count, warnings, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
 			if importErr != nil {
 				return nil, importErr
 			}
@@ -394,6 +397,7 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 				TargetBranch:  targetBranch,
 				ArtifactCount: count,
 				SyncState:     syncState.State,
+				Warnings:      warnings,
 			}, nil
 		}
 		return &ImportResult{
@@ -422,7 +426,7 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 		// Fall through to import.
 		_ = safetyPRURL // referenced in result below after import
 
-		count, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
+		count, warnings, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
 		if importErr != nil {
 			return nil, importErr
 		}
@@ -432,10 +436,11 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 			ArtifactCount: count,
 			SafetyPRURL:   safetyPRURL,
 			SyncState:     syncState.State,
+			Warnings:      warnings,
 		}, nil
 
 	default: // SyncStateGithubAhead
-		count, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
+		count, warnings, importErr := s.doImport(ctx, inst, token, owner, repo, targetBranch, p.Branch, actorID)
 		if importErr != nil {
 			return nil, importErr
 		}
@@ -444,6 +449,7 @@ func (s *Service) ImportFromGithub(ctx context.Context, p ImportParams) (*Import
 			TargetBranch:  targetBranch,
 			ArtifactCount: count,
 			SyncState:     syncState.State,
+			Warnings:      warnings,
 		}, nil
 	}
 }
@@ -564,7 +570,7 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		}
 	}
 
-	count, importErr := s.doImport(ctx, inst, userToken, owner, repo, branch, branch, actorID)
+	count, warnings, importErr := s.doImport(ctx, inst, userToken, owner, repo, branch, branch, actorID)
 	if importErr != nil {
 		return nil, importErr
 	}
@@ -574,12 +580,13 @@ func (s *Service) ImportFromGithubWithUserToken(ctx context.Context, instanceID 
 		ArtifactCount:     count,
 		SyncState:         SyncStateGithubAhead,
 		SnapshotVersionID: snapshotID,
+		Warnings:          warnings,
 	}, nil
 }
 
 // doImport fetches YAML files from GitHub and reimports them into the instance.
 // Updates github_commit_sha and github_branch after successful import.
-func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, token, owner, repo, targetBranch, requestedBranch string, actorID *uuid.UUID) (int, error) {
+func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, token, owner, repo, targetBranch, requestedBranch string, actorID *uuid.UUID) (int, []string, error) {
 	defer s.remote.invalidateRepo(owner, repo)
 
 	basePath := ""
@@ -590,27 +597,28 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 	// Fetch all YAML file contents in a single tree walk + parallel blob downloads.
 	files, err := s.reader.GetAllFileContents(ctx, token, owner, repo, targetBranch, basePath)
 	if err != nil {
-		return 0, fmt.Errorf("fetch files from GitHub: %w", err)
+		return 0, nil, fmt.Errorf("fetch files from GitHub: %w", err)
 	}
 
 	if len(files) == 0 {
-		return 0, apperror.ErrBadRequest.WithDetail("no YAML files found in the repository at the configured base path")
+		return 0, nil, apperror.ErrBadRequest.WithDetail("no YAML files found in the repository at the configured base path")
 	}
 
 	// Parse into artifact payloads.
-	payloads, _, parseErr := epfimport.ParseFiles(files)
+	parsed, parseErr := epfimport.ParseFilesDetailed(files)
 	if parseErr != nil {
-		return 0, fmt.Errorf("parse YAML files: %w", parseErr)
+		return 0, nil, fmt.Errorf("parse YAML files: %w", parseErr)
 	}
+	payloads := parsed.Payloads
 
 	if len(payloads) == 0 {
-		return 0, apperror.ErrBadRequest.WithDetail("no recognizable EPF artifacts found in the repository")
+		return 0, nil, apperror.ErrBadRequest.WithDetail("no recognizable EPF artifacts found in the repository")
 	}
 
 	// Get HEAD SHA + commit date for recording after import.
 	remoteSHA, commitDate, shaErr := s.reader.GetHeadCommitInfo(ctx, token, owner, repo, targetBranch)
 	if shaErr != nil {
-		return 0, fmt.Errorf("get HEAD commit info post-fetch: %w", shaErr)
+		return 0, nil, fmt.Errorf("get HEAD commit info post-fetch: %w", shaErr)
 	}
 
 	// Replace the instance's artifacts and rebuild the strategic index in one
@@ -624,7 +632,7 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		return err
 	})
 	if err != nil {
-		return 0, fmt.Errorf("reimport artifacts: %w", err)
+		return 0, nil, fmt.Errorf("reimport artifacts: %w", err)
 	}
 	s.strategySvc.RecordBackfill(ctx, inst.ID, count)
 
@@ -702,7 +710,7 @@ func (s *Service) doImport(ctx context.Context, inst *domain.StrategyInstance, t
 		"artifact_count", count,
 		"commit_sha", remoteSHA)
 
-	return count, nil
+	return count, parsed.Warnings(), nil
 }
 
 // pushSafetyPR pushes the current server state to a safety branch + PR before

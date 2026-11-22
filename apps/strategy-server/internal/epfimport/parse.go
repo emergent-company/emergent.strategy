@@ -6,6 +6,7 @@
 package epfimport
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -17,38 +18,101 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Duplicate is a file the import did not store because another file already
+// holds its artifact key.
+type Duplicate struct {
+	Key     string
+	Kept    string
+	Skipped string
+	// Archived is true when the skipped file sits under a cycles/ folder, where
+	// the framework keeps snapshots of completed cycles beside the current files.
+	Archived bool
+}
+
+// Warning says what was left out and where a file of that kind belongs.
+func (d Duplicate) Warning() string {
+	return fmt.Sprintf("%s was not imported: it names the same artifact (%s) as %s, which was kept. "+
+		"An instance holds one of each; completed cycles are archived under cycles/cycle-N/, "+
+		"and Key Results for a later cycle go in a future_okrs_* group of the current roadmap.",
+		d.Skipped, d.Key, d.Kept)
+}
+
+// ParseOutcome is the result of parsing an instance's files.
+type ParseOutcome struct {
+	Payloads    map[string]any
+	ProductName string
+	Duplicates  []Duplicate
+}
+
+// Warnings lists the duplicates that deserve attention. A snapshot under cycles/
+// is expected beside the current file and is not one of them.
+func (o *ParseOutcome) Warnings() []string {
+	var out []string
+	for _, d := range o.Duplicates {
+		if !d.Archived {
+			out = append(out, d.Warning())
+		}
+	}
+	return out
+}
+
 // ParseFiles accepts a map of relative path → file contents (as bytes) and
 // returns the same artifact payload map that scanEPFInstance produces.
-// productName is extracted from _meta.yaml/_epf.yaml if present.
+// productName is extracted from _meta.yaml/_epf.yaml if present. See
+// ParseFilesDetailed for which file wins a collision.
+func ParseFiles(files map[string][]byte) (payloads map[string]any, productName string, err error) {
+	out, err := ParseFilesDetailed(files)
+	if err != nil {
+		return nil, "", err
+	}
+	return out.Payloads, out.ProductName, nil
+}
+
+// ParseFilesDetailed is ParseFiles that also reports the files it left out.
 //
 // Files are processed shallowest path first, then by path, so the result does not
 // depend on map order. When two files name the same artifact (READY/05_roadmap_recipe.yaml
 // and a per-cycle copy under AIM/cycles/, say) the first one is kept and the
-// other is logged: the READY copy is the current one, the cycle copies are
+// other is reported: the READY copy is the current one, the cycle copies are
 // snapshots. The same rule picks the file the product name comes from.
-func ParseFiles(files map[string][]byte) (payloads map[string]any, productName string, err error) {
-	payloads = make(map[string]any, len(files))
+func ParseFilesDetailed(files map[string][]byte) (*ParseOutcome, error) {
+	out := &ParseOutcome{Payloads: make(map[string]any, len(files))}
 	stored := make(map[string]string, len(files)) // artifact key -> path it came from
 
 	for _, relPath := range orderedPaths(files) {
 		filename := filepath.Base(relPath)
-		name, raw, skip, parseErr := processYAMLBytes(files[relPath], filename, relPath, &productName)
+		name, raw, skip, parseErr := processYAMLBytes(files[relPath], filename, relPath, &out.ProductName)
 		if parseErr != nil {
-			return nil, "", parseErr
+			return nil, parseErr
 		}
 		if skip {
 			continue
 		}
 		if kept, taken := stored[name]; taken {
-			slog.Warn("two files name the same artifact; keeping the first and skipping the other",
+			d := Duplicate{Key: name, Kept: kept, Skipped: relPath, Archived: underCyclesFolder(relPath)}
+			out.Duplicates = append(out.Duplicates, d)
+			level := slog.LevelWarn
+			if d.Archived {
+				level = slog.LevelInfo
+			}
+			slog.Log(context.Background(), level, "two files name the same artifact; keeping the first and skipping the other",
 				"artifact_key", name, "kept", kept, "skipped", relPath)
 			continue
 		}
 		stored[name] = relPath
-		payloads[name] = raw
+		out.Payloads[name] = raw
 	}
 
-	return payloads, productName, nil
+	return out, nil
+}
+
+func underCyclesFolder(relPath string) bool {
+	for _, seg := range strings.Split(path.Dir(relPath), "/") {
+		if seg == "cycles" {
+			return true
+		}
+	}
+	return false
 }
 
 // orderedPaths lists the paths shallowest first, then alphabetically.

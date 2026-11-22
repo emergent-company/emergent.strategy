@@ -157,3 +157,86 @@ func TestArtifactKey_ProductPortfolioFilenamesBecomeTheKeyThePageReads(t *testin
 		t.Errorf("a differently named file keeps its path key, got %q", got)
 	}
 }
+
+// A file that loses a collision is reported with the file that was kept, so an
+// import can say what it did not store: a second roadmap in a per-cycle folder
+// was dropped without a word, and the instance had no view of it.
+func TestParseFilesDetailed_ReportsTheFileThatLostAndTheOneKept(t *testing.T) {
+	files := map[string][]byte{
+		"READY/05_roadmap_recipe.yaml":         []byte(readyRoadmap),
+		"READY/cycle-3/05_roadmap_recipe.yaml": []byte("roadmap:\n  id: cycle-3\n"),
+		"READY/00_north_star.yaml":             []byte("north_star:\n  purpose: x\n"),
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+	out, err := epfimport.ParseFilesDetailed(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Duplicates) != 1 {
+		t.Fatalf("want 1 duplicate, got %+v", out.Duplicates)
+	}
+	d := out.Duplicates[0]
+	if d.Key != "roadmap_recipe" || d.Kept != "READY/05_roadmap_recipe.yaml" || d.Skipped != "READY/cycle-3/05_roadmap_recipe.yaml" {
+		t.Fatalf("unexpected duplicate: %+v", d)
+	}
+	if d.Archived {
+		t.Fatal("a READY subfolder is not the archive")
+	}
+	if got := roadmapID(t, out.Payloads); got != "ready" {
+		t.Fatalf("kept %q, want the READY copy", got)
+	}
+	w := d.Warning()
+	for _, want := range []string{"READY/cycle-3/05_roadmap_recipe.yaml", "READY/05_roadmap_recipe.yaml", "cycles/cycle-N", "future_okrs_"} {
+		if !strings.Contains(w, want) {
+			t.Errorf("warning %q should mention %q", w, want)
+		}
+	}
+}
+
+// The framework archives a completed cycle under cycles/cycle-N/ at the instance
+// root, so a snapshot of the assessment or the roadmap there is expected beside
+// the current one. It is not a mistake worth a warning on every import.
+func TestParseFilesDetailed_AnArchivedCycleCopyIsNotAWarning(t *testing.T) {
+	files := map[string][]byte{
+		"AIM/assessment_report.yaml":                []byte("roadmap_id: current\n"),
+		"cycles/cycle-1/assessment_report.yaml":     []byte("roadmap_id: old\n"),
+		"AIM/cycles/cycle-2/assessment_report.yaml": []byte("roadmap_id: older\n"),
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+	out, err := epfimport.ParseFilesDetailed(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Duplicates) != 2 {
+		t.Fatalf("both snapshots lost, got %+v", out.Duplicates)
+	}
+	for _, d := range out.Duplicates {
+		if !d.Archived {
+			t.Errorf("%s is under cycles/ and should be marked archived", d.Skipped)
+		}
+	}
+	if w := out.Warnings(); len(w) != 0 {
+		t.Fatalf("archived snapshots should not warn, got %v", w)
+	}
+}
+
+// Every fixed name has the same hazard, not only the roadmap: any of them can
+// repeat in a backup folder or a per-cycle folder.
+func TestParseFilesDetailed_EveryFixedNameIsChecked(t *testing.T) {
+	names := []string{"00_north_star", "01_insight_analyses", "02_strategy_foundations", "03_insight_opportunity",
+		"04_strategy_formula", "05_roadmap_recipe", "07_product_portfolio", "assessment_report", "calibration_memo", "mappings"}
+	slog.SetDefault(slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)))
+	for _, n := range names {
+		files := map[string][]byte{
+			"READY/" + n + ".yaml":        []byte("a: 1\n"),
+			"READY/backup/" + n + ".yaml": []byte("a: 2\n"),
+		}
+		out, err := epfimport.ParseFilesDetailed(files)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(out.Warnings()) != 1 {
+			t.Errorf("%s: want 1 warning, got %v", n, out.Warnings())
+		}
+	}
+}

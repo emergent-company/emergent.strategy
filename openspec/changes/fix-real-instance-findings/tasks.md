@@ -179,6 +179,21 @@ and WP-005 (operational visibility) are independent of everything else.
       (still gets its safety PR). Tests: `TestAlignPortfolio_RemovesTheNullSubComponentsAnEarlierRunWrote`,
       `TestImportFromGithub_ForceReimportsAnInSyncInstance`,
       `TestImportFromGithub_ForceDoesNotOverrideServerAhead`, each mutation-checked.
+- [x] 3.8 (#196, #119) One artifact per key, and the import says what it left
+      out. Two files can name the same artifact (`READY/05_roadmap_recipe.yaml` and
+      `READY/cycle-3/05_roadmap_recipe.yaml`); the shallowest path is kept, the
+      rest are dropped. That order was already deterministic and logged (#119), but
+      the import result did not report it, so a whole second roadmap vanished
+      without a word. `ParseFilesDetailed` returns the dropped files with the one
+      kept, `ImportResult.warnings` carries them (also in `import_from_github`),
+      and the message says where the file belongs: the framework archives a
+      completed cycle under `cycles/cycle-N/` and a later cycle's Key Results go in
+      a `future_okrs_*` group. A copy under a `cycles/` folder is an expected
+      snapshot and is logged at info, not reported. The rule covers every fixed
+      name, not only the roadmap. Not done: serving a second roadmap per cycle,
+      because the framework holds one current roadmap per instance. Tests:
+      `TestParseFilesDetailed_*` (3), `TestImportFromGithub_ReportsAFileLeftOutBecauseItsKeyIsTaken`,
+      mutation-checked.
 
 ## 4. Schema and read gaps (WP-004)
 
