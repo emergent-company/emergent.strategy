@@ -97,6 +97,22 @@ Each track uses a consistent prefix for all IDs:
 
 This makes it immediately clear which track an item belongs to and prevents ID collisions.
 
+**Topic suffixes.** A Key Result id may carry a topic between the track letter and the number: `kr-{p|s|o|c}-NNN` or `kr-{p|s|o|c}-topic-NNN` (for example `kr-p-ct-001`). OKR ids may use a number or a topic (`okr-p-001`, `okr-p-security`). One pattern is used in the roadmap, feature definition and work package schemas, and `scripts/validate-schemas.sh` fails if the copies diverge. Ids are unique within a roadmap across `okrs` and every `future_okrs_*` group.
+
+## Where "Not Now" and "When" Belong
+
+| You want to say | Put it in |
+|-----------------|-----------|
+| Committed to this cycle | `tracks.<track>.okrs` |
+| Belongs to a later period, not committed | `tracks.<track>.future_okrs_<label>` (for example `future_okrs_q3_2026`); same shape as `okrs` |
+| The next cycle | a `future_okrs_*` group; there is no `next_cycle` field |
+| Was in scope, now set aside | `status: parked` plus `parked_reason` on the Key Result |
+| A hard date or milestone | `execution_plan.key_milestones` |
+| Cycle start and end | `roadmap.start_date` and `roadmap.target_completion_date` |
+| Cycle label | `roadmap.cycle` and `roadmap.timeframe` |
+
+There is no top-level `timeline` object. "Later" (a future group) and "set aside" (parked) both mean not now; the first is a period, the second keeps the reason beside the Key Result. A Key Result's `status` is a planning state (`active`, `parked`, `not_started`, `in_progress`, `completed`); outcomes such as `met` or `missed` belong to the assessment report. Tools that read Key Results must read `okrs` and every `future_okrs_*` group, or say how many they skipped.
+
 ## Cross-Track Dependencies
 
 Dependencies between tracks are expressed at the **Key Result level** and are typed:

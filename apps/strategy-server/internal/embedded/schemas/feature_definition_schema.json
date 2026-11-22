@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "feature_definition_schema.json",
   "title": "EPF Feature Definition Schema",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Schema for validating feature definition files that bridge EPF strategy to implementation tools. Follows lean documentation principles - git handles versioning. Supports rich value narratives, design guidance, and architecture patterns. Version 2.1: Added feature_maturity for tracking capability-level delivery progress and overall feature maturity stage. Version 2.2: Added optional tools_ecosystem (matching the strategy/org_ops/commercial track schemas) so the product track can carry tool recommendations (EPF issue #25). Version 2.3: Capability ids accept the hierarchical form cap-NNN-NN (matching practitioner-scenario ids), aligning with canonical product example definitions (EPF issue #24 product-track follow-up).",
   "$comment": "This schema validates YAML feature definition files located in _instances/{product}/features/READY/. Feature definitions are the bridge between strategic EPF artifacts (North Star, Strategy Formula, Value Model, Roadmap Recipe) and implementation tools (OpenSpec, Linear, Cursor, etc.). They capture WHAT users need (job-to-be-done), WHY it matters (value propositions), HOW it works (capabilities, scenarios), and WHERE it fits (strategic context, dependencies). GRANULARITY GUIDANCE: A feature should represent a coherent job-to-be-done that users recognize as a complete capability. Use the one-sentence test (can you describe it without \"and\" connecting unrelated functions?), the 4-persona limit (if you need more, split the feature), and the 2-15 capability range. See FEATURE_DEFINITION_GRANULARITY_GUIDE.md for comprehensive guidance. Enhanced validation ensures high-quality, tool-consumable feature definitions.",
   "type": "object",
@@ -96,7 +96,7 @@
               },
               "delivered_by_kr": {
                 "type": "string",
-                "pattern": "^kr-[psoc]-[0-9]+$",
+                "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                 "description": "Optional reference to the KR that delivered or advanced this capability. Format: kr-{track}-{number}.",
                 "$comment": "Creates backward traceability from capability to the roadmap KR that delivered it. Format matches roadmap KR IDs: kr-p-001 (product), kr-s-002 (strategy), kr-o-003 (org_ops), kr-c-004 (commercial). Only set when a capability's stage changes due to KR completion. Multiple KRs may advance the same capability over time - this field tracks the LATEST advancement.",
                 "examples": ["kr-p-001", "kr-p-003", "kr-s-002"]
@@ -117,7 +117,7 @@
         },
         "last_advanced_by_kr": {
           "type": "string",
-          "pattern": "^kr-[psoc]-[0-9]+$",
+          "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
           "description": "Reference to the most recent KR that advanced this feature's maturity. Creates backward traceability from feature to roadmap execution.",
           "$comment": "Tracks which KR most recently moved this feature forward. Enables: (1) Roadmap→Feature traceability (which KRs delivered which features), (2) Impact analysis (if KR is delayed, which features are affected), (3) Progress reporting (KR-001 delivered, advancing fd-002 from emerging to proven). Format matches roadmap KR IDs. Updated whenever a capability advances due to KR completion. Unlike capability_maturity[].delivered_by_kr which tracks per-capability, this tracks feature-level advancement.",
           "examples": ["kr-p-001", "kr-p-003", "kr-s-002"]

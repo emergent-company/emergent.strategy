@@ -2,6 +2,7 @@ package validator
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -491,6 +492,35 @@ func embeddedValueModelPathPatterns(t *testing.T) []string {
 		patterns = append(patterns, schema.Definitions.ValueModelPath.Pattern)
 	}
 	return patterns
+}
+
+// TestRoadmapIDPatternsExplained fails when canonical changes a Key Result or
+// OKR id pattern in an embedded schema without an explanation being added here.
+func TestRoadmapIDPatternsExplained(t *testing.T) {
+	idPattern := regexp.MustCompile(`"pattern":\s*"((?:\\\\.|[^"\\])*)"`)
+	checked := 0
+	for _, name := range []string{"roadmap_recipe_schema.json", "feature_definition_schema.json", "work_package_schema.json"} {
+		data, err := embedded.GetSchema(name)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", name, err)
+		}
+		for _, m := range idPattern.FindAllStringSubmatch(string(data), -1) {
+			var pattern string
+			if err := json.Unmarshal([]byte(`"`+m[1]+`"`), &pattern); err != nil {
+				t.Fatalf("%s: unescape %q: %v", name, m[1], err)
+			}
+			if !strings.Contains(pattern, "kr-[psoc]") && !strings.HasPrefix(pattern, "^okr-") {
+				continue
+			}
+			checked++
+			if hint, ok := knownPatternExplanations[pattern]; !ok || hint == "" {
+				t.Errorf("%s: no ai-friendly explanation for id pattern %q", name, pattern)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("found no KR or OKR id patterns in the embedded schemas")
+	}
 }
 
 func TestValueModelPathPatternExplainedWhenJSONEscaped(t *testing.T) {
