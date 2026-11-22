@@ -157,9 +157,10 @@ func registerConsumerRepoTools(s *server.MCPServer, svc Services) {
 func registerImportFromGithubTool(s *server.MCPServer, svc Services) {
 	// import_from_github — fetch EPF artifacts from GitHub and reimport them.
 	s.AddTool(mcp.NewTool("import_from_github",
-		mcp.WithDescription("USE WHEN you need to import EPF strategy artifacts from the instance's linked GitHub repository. Automatically determines the sync state and takes the safe action: no-op if in sync, refuses if server has unpushed enrichments, creates a safety PR then imports if diverged. Requires github_repo to be set on the instance (use update_instance)."),
+		mcp.WithDescription("USE WHEN you need to import EPF strategy artifacts from the instance's linked GitHub repository. Automatically determines the sync state and takes the safe action: no-op if in sync (pass force=true to re-import anyway, for example to replace artifacts the server changed on its own), refuses if server has unpushed enrichments, creates a safety PR then imports if diverged. Requires github_repo to be set on the instance (use update_instance)."),
 		mcp.WithString("instance_id", mcp.Required(), mcp.Description("Strategy instance UUID")),
 		mcp.WithString("branch", mcp.Description("Optional branch to import from. Omit to use the instance's tracked branch or the repo's default branch. Specify to switch to a different branch (e.g. 'dev' for a mature product's long-lived dev branch).")),
+		mcp.WithBoolean("force", mcp.Description("Re-import the repository's copy even when the instance reads as in sync. Does not override unpushed server work, which is still refused.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		instID, err := parseUUID(argString(req, "instance_id"))
 		if err != nil {
@@ -172,6 +173,7 @@ func registerImportFromGithubTool(s *server.MCPServer, svc Services) {
 		params := syncdom.ImportParams{
 			InstanceID: instID,
 			Branch:     argString(req, "branch"),
+			Force:      argBool(req, "force"),
 		}
 
 		result, err := svc.Sync.ImportFromGithub(ctx, params)
