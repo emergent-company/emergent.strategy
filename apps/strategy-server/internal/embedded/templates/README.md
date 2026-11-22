@@ -141,6 +141,32 @@ When adding new templates:
 4. Update this README with template entry
 5. Update `docs/guides/INSTANTIATION_GUIDE.md` if part of workflow
 
+## Unknown values and unfilled templates
+
+**Unknown values.** When you or an agent lack a value, write
+`PLACEHOLDER: <what is missing and who can supply it>`, or omit the field, or use `[]`
+where the schema allows an empty list. `TBD`, `TODO` and `not_defined` are not stored
+markers: do not write them into artifacts. Where the schema has a status for "no outcome
+yet" (`pending` for assessment Key Results, SRC `overall_health`, assumption validations),
+use it instead of a guessed outcome. Never invent an outcome to satisfy a schema.
+
+**Unfilled copies.** A template copied into an instance and left unmodified carries no
+information. It is equivalent to the file being absent. A missing `assessment_report.yaml`
+is the normal state before the first cycle (see `scripts/validate-schemas.sh`), so an
+unfilled one must not suppress the "no assessment yet" state or seed prior actuals.
+Tools may recognise an unmodified copy by content hash.
+
+**Template samples.** Sample values in templates are shape only. Sample ids (for example
+`roadmap-001`, `okr-p-001`, `kr-p-001`) stay, because AIM template ids must trace to the
+READY roadmap template (see `MAINTENANCE.md`). Outcomes and verdicts must be honest:
+`pending` plus a `PLACEHOLDER:` hint, never `met` or `healthy` for something that has not
+happened.
+
+**One pattern list.** `scripts/check-content-readiness.sh` holds the authoritative list of
+placeholder patterns (`PLACEHOLDER:`, `TODO:`, `Example:`, `YYYY-MM-DD`, `[TBD]`, sample
+identities such as `YourProduct` and `@example.com`). Detecting a pattern is not an
+endorsement of it as a marker; the stored-marker rule above applies.
+
 ## Notes
 
 - Templates contain **placeholder content** and **instructional comments**

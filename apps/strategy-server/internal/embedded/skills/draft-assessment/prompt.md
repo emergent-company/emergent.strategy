@@ -57,7 +57,7 @@ For each OKR in the skeleton, write a 2-4 sentence assessment grounded in the ev
 - Use prior actuals and LRA narrative as your primary evidence. If both are present, synthesise them.
 - Do NOT fabricate numbers. If actual progress on a KR is unknown, say so and name what evidence is needed.
 - Reference specific KR IDs when assessing individual key results.
-- Set status per KR: `on_track | at_risk | missed | partially_met | pending`
+- Set status per KR: `exceeded | met | partially_met | missed | pending`. Use `pending` when there is no evidence yet; never guess an outcome.
 - Be direct and actionable. No filler phrases.
 
 ---

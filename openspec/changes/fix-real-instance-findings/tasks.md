@@ -153,26 +153,32 @@ and WP-005 (operational visibility) are independent of everything else.
 
 ## 4. Schema and read gaps (WP-004)
 
-> Decisions 4.1 to 4.4 are canonical schema questions and are filed as
-> https://github.com/emergent-company/epf-canonical/issues/32 (with the finding
-> that canonical already has `execution_plan.key_milestones`, `start_date` and
-> `target_completion_date`, so 4.3 is mostly documentation; and that five schemas
-> disagree on the Key Result id pattern, so 4.2 is bigger than the roadmap). They
-> stay open until canonical decides and releases; this repo then syncs the schemas.
+> Decisions 4.1 to 4.4 were canonical schema questions, filed as
+> https://github.com/emergent-company/epf-canonical/issues/32 and decided in
+> canonical v2.35.0. This repo is synced to it (`.epf-canonical-version`). Each
+> decision below is checked by `internal/embedded/roadmap_shapes_test.go`, which
+> fails against the v2.33.0 schema.
 
-- [ ] 4.1 Decide: is `future_okrs_*` part of the roadmap schema? If yes, add
-      `additionalProperties` or `patternProperties` for `future_okrs_*` using the
-      same item schema as `okrs`. If no, document as free-form.
-- [ ] 4.2 KR id pattern: relax `^kr-[psoc]-\d{3}$` to allow a suffix
-      (e.g. `kr-p-cyber-001`), since those ids are in production use and
-      referenced from feature definitions.
-- [ ] 4.3 Decide: add `timeline` (with `cycle_start`, `cycle_end`,
-      `key_milestones`, `next_cycle`) to the roadmap schema? Or document where
-      milestone dates belong.
+- [x] 4.1 Decide: is `future_okrs_*` part of the roadmap schema? **Yes.**
+      `patternProperties` `^future_okrs_[a-z0-9_]+$` on the track, sharing a
+      `future_okrs_group` definition: the same OKR and Key Result shape as `okrs`,
+      without its length and count limits. A Key Result in a future group is now
+      checked for id, description, target, status and `value_model_target`.
+- [x] 4.2 KR id pattern. **One pattern in every schema:**
+      `^kr-[psoc]-([a-z0-9]+-)*[0-9]+$` (roadmap, feature definition, work package,
+      development brief). OKR ids accept a topic too (`okr-p-security`). The
+      assessment report keeps its looser `^kr-[a-z0-9-]+$`, a superset, on purpose.
+- [x] 4.3 Decide: add `timeline`? **No.** The roadmap template and
+      `docs/guides/TRACK_BASED_ARCHITECTURE.md` document the mapping (`start_date`,
+      `target_completion_date`, `execution_plan.key_milestones`). `next_cycle` is not
+      added: a `future_okrs_*` group is how the next cycle is expressed.
 - [ ] 4.4 Decide: add `status` (enum including `parked`) and `parked_reason` to
-      the Key Result item schema? If yes, have `get_view` and the Roadmap page
-      list parked Key Results separately with their reason. If no, document the
-      alternative.
+      the Key Result item schema? **Yes, in the schema** (done): an optional `status`
+      (`active | parked`, plus `not_started`, `in_progress`, `completed` and the
+      deprecated `not-started`, which instances already use) and `parked_reason`
+      (at least 10 characters), required when parked. **Open here:** have `get_view`
+      and the Roadmap page list parked Key Results separately with their reason.
+      That is server and web work, not done yet.
 - [x] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
       and there are no children to offer, return a structured marker
       (`truncated: true`, `size_chars: N`, `budget_chars: M`) instead of

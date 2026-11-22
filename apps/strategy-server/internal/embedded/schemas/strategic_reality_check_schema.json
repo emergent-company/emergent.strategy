@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Strategic Reality Check Schema",
   "description": "Defines the structure for Strategic Reality Check (SRC) artifacts that evaluate all READY and FIRE artifacts against current reality. Unlike Assessment Reports (which track OKR/KR execution), the SRC asks: are the foundations still valid?",
@@ -324,8 +324,8 @@
       "properties": {
         "overall_health": {
           "type": "string",
-          "enum": ["healthy", "attention_needed", "at_risk", "critical"],
-          "description": "Overall health of the strategic foundations: healthy (0-2 non-info findings), attention_needed (3-5 findings or any high priority), at_risk (6+ findings or any critical), critical (multiple critical findings requiring immediate action)."
+          "enum": ["healthy", "attention_needed", "at_risk", "critical", "pending"],
+          "description": "Overall health of the strategic foundations. 'pending' = no check has been run yet (an unfilled template); it is not a verdict. healthy (0-2 non-info findings), attention_needed (3-5 findings or any high priority), at_risk (6+ findings or any critical), critical (multiple critical findings requiring immediate action)."
         },
         "finding_counts": {
           "type": "object",

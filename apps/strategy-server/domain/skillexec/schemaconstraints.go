@@ -35,7 +35,7 @@ type FieldConstraint struct {
 	// JSONPath is the dot-separated path from the schema root, e.g.
 	// "roadmap.tracks.*.okrs[].key_results[].id"
 	JSONPath string
-	// Constraint is the human-readable rule, e.g. "^kr-[psoc]-\\d{3}$" or "≥ 200 chars"
+	// Constraint is the human-readable rule, e.g. "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$" or "≥ 200 chars"
 	Constraint string
 	// Example is drawn from the schema's "examples" array (first entry) when present.
 	Example string

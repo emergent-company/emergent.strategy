@@ -1,5 +1,5 @@
 {
-  "version": "1.13.0",
+  "version": "1.14.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Roadmap Recipe Schema",
   "description": "Defines the structure for track-based strategic roadmaps in the ROADMAP phase (EPF Phase 5). Roadmaps translate strategy into execution plans across four parallel tracks (Product, Strategy, OrgOps, Commercial) using OKR methodology. Each track defines Objectives and Key Results (KRs) as the lowest EPF-managed level—detailed work breakdown happens downstream in spec-driven tools (Linear, Jira, Notion). This schema enables strategic alignment, cross-track dependency management, and milestone planning while maintaining clear boundaries with tactical execution systems.",
@@ -75,13 +75,13 @@
               "from_kr": {
                 "type": "string",
                 "description": "Source Key Result ID that is being depended upon. Format: 'kr-{track-prefix}-{number}' where prefix is p (product), s (strategy), o (org_ops), or c (commercial). Must reference an existing KR in one of the four tracks. Example: 'kr-p-003' (product track, KR #3).",
-                "pattern": "^kr-[psoc]-\\d{3}$",
+                "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                 "examples": ["kr-p-001", "kr-s-002", "kr-o-003", "kr-c-004"]
               },
               "to_kr": {
                 "type": "string",
                 "description": "Target Key Result ID that depends on from_kr. Format same as from_kr. Must reference an existing KR, typically in a different track (but same-track dependencies allowed). Example: 'kr-c-001' depends on 'kr-p-003' (commercial pricing depends on product feature).",
-                "pattern": "^kr-[psoc]-\\d{3}$",
+                "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                 "examples": ["kr-p-002", "kr-s-001", "kr-o-004", "kr-c-003"]
               },
               "dependency_type": {
@@ -124,7 +124,7 @@
               "description": "Ordered sequence of Key Result IDs that form the longest dependency chain. Delays on critical path delay entire roadmap. Format: 'track:kr-id' (e.g., 'product:kr-p-001'). Each KR in path should have clear predecessor (except first) and successor (except last). Used for: (1) Identifying highest-priority work, (2) Allocating best resources, (3) Monitoring for blocks. Typical length: 5-12 KRs for quarterly roadmap.",
               "items": {
                 "type": "string",
-                "pattern": "^(product|strategy|org_ops|commercial):kr-[psoc]-\\d{3}$",
+                "pattern": "^(product|strategy|org_ops|commercial):kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                 "examples": ["product:kr-p-001", "strategy:kr-s-002", "org_ops:kr-o-003", "commercial:kr-c-001"]
               },
               "minItems": 1,
@@ -149,7 +149,7 @@
                     "description": "List of Key Result IDs that can be pursued in parallel within this track. IDs can span multiple tracks (e.g., Product and Strategy work happening simultaneously). Each KR listed should be independent of others in THIS parallel track (though may depend on KRs in different parallel tracks via depends_on). Minimum 1 KR, maximum 10 per parallel track.",
                     "items": {
                       "type": "string",
-                      "pattern": "^kr-[psoc]-\\d{3}$",
+                      "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                       "examples": ["kr-p-001", "kr-p-002", "kr-s-001"]
                     },
                     "minItems": 1,
@@ -167,7 +167,7 @@
                     "description": "Optional list of Key Result IDs that must complete before this parallel track can start. Represents inter-track dependencies. If omitted, track can start immediately. Use format: 'kr-{prefix}-{number}'. References KRs from other parallel tracks or critical path. Empty array means no prerequisites.",
                     "items": {
                       "type": "string",
-                      "pattern": "^kr-[psoc]-\\d{3}$",
+                      "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                       "examples": ["kr-p-001", "kr-s-002", "kr-o-001"]
                     }
                   }
@@ -207,7 +207,7 @@
                     "description": "List of Key Result IDs that must be completed (or substantially complete) by this milestone. Defines the scope of work required for milestone success. Each KR should contribute to milestone achievement. Format: 'kr-{prefix}-{number}'. Minimum 1 KR (focused milestone), maximum 10 KRs (coordinated milestone). If milestone depends on partial KR completion, note in milestone description.",
                     "items": {
                       "type": "string",
-                      "pattern": "^kr-[psoc]-\\d{3}$",
+                      "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                       "examples": ["kr-p-001", "kr-p-002", "kr-s-001", "kr-c-001"]
                     },
                     "minItems": 1,
@@ -282,7 +282,7 @@
             "properties": {
               "id": {
                 "type": "string",
-                "pattern": "^okr-[psoc]-\\d{3}$",
+                "pattern": "^okr-[psoc]-[a-z0-9]+(-[a-z0-9]+)*$",
                 "description": "Unique OKR identifier with track prefix and zero-padded number. Format: 'okr-{track}-{number}' where track is p (product), s (strategy), o (org_ops), or c (commercial). Number is 001-999, zero-padded. Examples: 'okr-p-001' (first product OKR), 'okr-s-002' (second strategy OKR). IDs must be unique within track and immutable (don't reuse IDs).",
                 "examples": ["okr-p-001", "okr-s-001", "okr-o-001", "okr-c-001", "okr-p-002"]
               },
@@ -306,7 +306,7 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "pattern": "^kr-[psoc]-\\d{3}$",
+                      "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                       "description": "Unique Key Result identifier with track prefix. Format: 'kr-{track}-{number}' with zero-padded number 001-999. Must be globally unique within roadmap (used in cross-track dependencies, execution plan, milestones). Never reuse IDs even after roadmap completion (maintains referential integrity). Examples: 'kr-p-001', 'kr-s-002', 'kr-o-003', 'kr-c-004'.",
                       "examples": ["kr-p-001", "kr-s-001", "kr-o-001", "kr-c-001", "kr-p-010"]
                     },
@@ -410,6 +410,17 @@
                         "Whether distributed teams can maintain velocity and alignment using async processes (vs traditional synchronous planning). Risk: reduced cohesion and coordination overhead offset efficiency gains."
                       ]
                     },
+                    "status": {
+                      "type": "string",
+                      "enum": ["active", "parked", "not_started", "in_progress", "completed", "not-started"],
+                      "description": "OPTIONAL planning state of this Key Result. 'parked' = deliberately not being worked on now (requires parked_reason); 'active' = being worked on. 'not_started', 'in_progress' and 'completed' are accepted because instances use them; 'not-started' is a deprecated spelling of 'not_started'. This is a PLANNING state, not an outcome: outcomes (exceeded, met, partially_met, missed, pending) belong to the assessment report and must not be written here.",
+                      "$comment": "Parked and future are both 'not now'. Use a future_okrs_* group when a Key Result belongs to a later period and has not been committed; use status 'parked' when a Key Result was in scope for this cycle and has been set aside, so the reason is kept next to it. Omitting status means no planning state is recorded."
+                    },
+                    "parked_reason": {
+                      "type": "string",
+                      "minLength": 10,
+                      "description": "Why this Key Result is parked, and who decides whether it resumes. Required when status is 'parked'."
+                    },
                     "value_model_target": {
                       "type": "object",
                       "description": "OPTIONAL: Links this KR to specific Value Model component(s) for maturity tracking. When this KR is achieved, it provides evidence toward advancing the maturity of the targeted component. This enables bidirectional traceability: Roadmap KR achievements flow into Value Model maturity assessments.",
@@ -449,7 +460,9 @@
                       }
                     }
                   },
-                  "required": ["id", "description", "target"]
+                  "required": ["id", "description", "target"],
+                  "if": { "properties": { "status": { "const": "parked" } }, "required": ["status"] },
+                  "then": { "required": ["parked_reason"] }
                 },
                 "minItems": 2,
                 "maxItems": 5
@@ -517,7 +530,7 @@
                 "description": "Array of Key Result IDs that depend on this assumption being valid. Shows which outcomes are at risk if assumption is wrong. Format: 'kr-{track}-{number}'. Can link to KRs in same track or across tracks. If assumption invalidated, linked KRs may need to be revised or cancelled. Empty array means assumption is general (not tied to specific KRs).",
                 "items": {
                   "type": "string",
-                  "pattern": "^kr-[psoc]-\\d{3}$",
+                  "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$",
                   "examples": ["kr-p-001", "kr-p-002", "kr-s-001", "kr-c-001"]
                 }
               }
@@ -635,7 +648,41 @@
           "required": ["description", "key_components"]
         }
       },
+      "patternProperties": {
+        "^future_okrs_[a-z0-9_]+$": { "$ref": "#/definitions/future_okrs_group" }
+      },
       "required": ["track_objective", "okrs", "riskiest_assumptions", "solution_scaffold"]
+    },
+    "future_okrs_group": {
+      "type": "array",
+      "description": "A named group of OKRs for a later period, not yet committed to this cycle (for example future_okrs_q3_2026). Same shape as a track's okrs, with the same id patterns, status and value_model_target, but without the length and count limits that apply to the committed okrs.",
+      "$comment": "WHERE A KEY RESULT BELONGS: put it in 'okrs' when it is committed to this cycle. Put it in a 'future_okrs_<label>' group when it belongs to a later period and has not been committed. Use status 'parked' (with parked_reason) on a Key Result that was in scope and has been set aside. Parked and future both mean 'not now': a future group says 'later', parked says 'set aside, here is why'. Key Result ids stay globally unique within the roadmap across okrs and every future group. A future group is also how an instance expresses the next cycle; there is no separate next_cycle field. Tools that read Key Results must read okrs and every future_okrs_* group, or say how many they skipped.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^okr-[psoc]-[a-z0-9]+(-[a-z0-9]+)*$", "description": "OKR id: okr-{p|s|o|c}-{number or topic}, for example okr-p-001 or okr-p-security." },
+          "objective": { "type": "string", "minLength": 1, "description": "Qualitative goal for this OKR." },
+          "key_results": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "pattern": "^kr-[psoc]-([a-z0-9]+-)*[0-9]+$", "description": "Key Result id: kr-{p|s|o|c}-{number or topic-number}, for example kr-p-001 or kr-p-ct-001. Globally unique within the roadmap." },
+                "description": { "type": "string", "minLength": 1 },
+                "target": { "type": "string", "minLength": 1 },
+                "status": { "$ref": "#/definitions/track/properties/okrs/items/properties/key_results/items/properties/status" },
+                "parked_reason": { "$ref": "#/definitions/track/properties/okrs/items/properties/key_results/items/properties/parked_reason" },
+                "value_model_target": { "$ref": "#/definitions/track/properties/okrs/items/properties/key_results/items/properties/value_model_target" }
+              },
+              "required": ["id", "description", "target"],
+              "if": { "properties": { "status": { "const": "parked" } }, "required": ["status"] },
+              "then": { "required": ["parked_reason"] }
+            }
+          }
+        },
+        "required": ["id", "objective", "key_results"]
+      }
     }
   }
 }

@@ -1026,7 +1026,7 @@ template_warnings:
 
 - `TBD`, `TODO`, `FIXME`, `XXX`
 - `[INSERT...]`, `[PLACEHOLDER...]`, `[YOUR...]`, `[FILL...]`, and angle-bracket forms
-- `Your Organization (Name)`, `Product Name Here`, `Example Product`, `Example Key Result`, `Example Objective`
+- `Your Organization (Name)`, `Product Name Here`, `YourProduct`, `@example.com`, `Example Product`, `Example Key Result`, `Example Objective`
 - Date placeholders: `YYYY-MM-DD`, `20XX`
 - The word `placeholder`, `lorem ipsum`, and "your ... here"
 

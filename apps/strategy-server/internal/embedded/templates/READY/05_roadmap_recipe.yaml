@@ -1,4 +1,4 @@
-# EPF v1.13.0 - Roadmap Recipe Template
+# EPF v1.14.0 - Roadmap Recipe Template
 # ROADMAP Phase: Recipe for Solution
 # This is the third sub-phase of READY where we create the actionable plan.
 # 
@@ -28,6 +28,30 @@
 # The Pathfinder wizard can enrich existing roadmaps with TRL fields
 # using Mode B (Roadmap Enrichment). See examples in Product Track below.
 # ============================================================================
+#
+# ============================================================================
+# WHERE EACH KIND OF "NOT NOW" AND "WHEN" BELONGS  (schema v1.14.0)
+# ============================================================================
+# - Committed to this cycle      -> tracks.<track>.okrs
+# - Belongs to a later period    -> tracks.<track>.future_okrs_<label> (e.g.
+#                                   future_okrs_q3_2026). Same shape as okrs. This is
+#                                   also how you express the NEXT CYCLE: there is no
+#                                   next_cycle field.
+# - Was in scope, set aside      -> keep it in okrs and set status: parked plus
+#                                   parked_reason on the Key Result (reason required).
+#                                   Parked says "set aside, here is why"; a future
+#                                   group says "later".
+# - A hard date / milestone      -> execution_plan.key_milestones ({date, milestone,
+#                                   key_results})
+# - Cycle start / end dates      -> roadmap.start_date and roadmap.target_completion_date
+# - Cycle label                  -> roadmap.cycle and roadmap.timeframe
+# There is no top-level "timeline" object; do not add one.
+#
+# IDs: Key Result ids are kr-{p|s|o|c}-NNN or kr-{p|s|o|c}-topic-NNN (for example
+# kr-p-001, kr-p-ct-001). OKR ids are okr-{p|s|o|c}-NNN or okr-{p|s|o|c}-topic.
+# A Key Result id is unique across okrs and every future_okrs_* group.
+# status is a PLANNING state (active, parked, not_started, in_progress, completed).
+# Outcomes (met, missed, ...) belong to the assessment report, not here.
 #
 # Related Resources:
 # - Schema: ../../schemas/roadmap_recipe_schema.json
@@ -95,6 +119,22 @@ roadmap:
               success_criteria: "50% speed improvement with <5% accuracy loss on benchmark suite"
               uncertainty_addressed: "Whether theoretical algorithm performance translates to practical implementation gains"
       
+      # Example (shape only): a Key Result for a later period, not committed this cycle.
+      # Uncomment and rename the group to your period. Same fields as okrs.
+      # future_okrs_next_cycle:
+      #   - id: "okr-p-010"
+      #     objective: "PLACEHOLDER: objective for the next cycle"
+      #     key_results:
+      #       - id: "kr-p-010"
+      #         description: "PLACEHOLDER: what will be true when this Key Result is achieved"
+      #         target: "PLACEHOLDER: measurable target"
+      #       # A Key Result that was in scope and has been set aside:
+      #       - id: "kr-p-011"
+      #         description: "PLACEHOLDER: what will be true when this Key Result is achieved"
+      #         target: "PLACEHOLDER: measurable target"
+      #         status: "parked"
+      #         parked_reason: "PLACEHOLDER: why it is parked and who decides whether it resumes"
+
       riskiest_assumptions:
         - id: "asm-p-001"
           description: "Example product assumption to be tested."
@@ -296,14 +336,13 @@ roadmap:
       dependency_type: "informs"
       description: "Market positioning informs product feature prioritization"
   
-  # Timeline & Milestones
-  timeline:
-    cycle_start: "TBD"
-    cycle_end: "TBD"
-    key_milestones:
-      - date: "TBD"
-        milestone: "Example milestone"
-        key_results: ["kr-p-001", "kr-s-001"]
+  # Milestones live in execution_plan.key_milestones (there is no top-level timeline
+  # object). Cycle start and end are start_date and target_completion_date below.
+  # execution_plan:
+  #   key_milestones:
+  #     - date: "PLACEHOLDER: YYYY-MM-DD or period"
+  #       milestone: "PLACEHOLDER: what happens, at least 20 characters"
+  #       key_results: ["kr-p-001", "kr-s-001"]
   
   # Review & Approval
   status: "draft" # draft, approved, active, completed, cancelled

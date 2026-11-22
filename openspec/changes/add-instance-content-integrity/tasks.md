@@ -20,23 +20,29 @@ part. Section 5 follows 2 and 3.
 - [x] 1.2 Anchor schema: `canonical_definitions: installed | omitted` and
       `adopted_canonical: [ids]`. Committed on canonical `main` in `92bbf86`
       ("Release: Bump version to 2.32.0"), in `schemas/_epf_anchor_schema.json`.
-- [ ] 1.3 Shipped templates: stop shipping sample values that read as strategy.
+- [x] 1.3 Shipped templates: stop shipping sample values that read as strategy.
       **Moved to canonical and changed:** the framework does not define `not_defined`
       as a stored marker. The only stated rule is `PLACEHOLDER: <hint>`, so the sample
       values (`Example Product Objective`, `Example ... Key Result`, `TBD`,
-      `Your Organization Name`, `YYYY-MM-DD`) are aligned to that rule, after the rule
-      is written into canonical. Tracked in `emergent-company/epf-canonical#31`
-      (items 1, 2 and 4). Done here when canonical releases it and both apps are
-      re-synced with a regenerated manifest. Original: replace the sample values with
+      `Your Organization Name`, `YYYY-MM-DD`) are aligned to that rule. Written into
+      canonical (`templates/README.md`) and released in v2.34.0
+      (`emergent-company/epf-canonical#31`, items 1, 2 and 4); both apps are synced to
+      it with a regenerated manifest. strategy-server has no placeholder list of its
+      own; epf-cli's shared list gained `YourProduct` and `@example.com` from
+      canonical's `TEMPLATE_PATTERN_SAMPLES`. Original: replace the sample values with
       `not_defined` where the schema allows, and keep `PLACEHOLDER:` where it does not.
-- [ ] 1.3b Product value model and AIM templates. **Changed:** the AIM sample ids stay,
+- [x] 1.3b Product value model and AIM templates. **Changed:** the AIM sample ids stay,
       because canonical `MAINTENANCE.md` requires them to trace to the READY roadmap
       template (`roadmap-001`, `okr-p-001`, `kr-p-001`). The invented outcomes go
-      (`met` / `partially_met` on KRs, `valid` / `healthy` verdicts), which needs a
-      `pending` Key Result status in the schema (approved by the maintainer).
-      Tracked in `emergent-company/epf-canonical#31` (items 2 and 3). Done here when
-      canonical releases it and both apps are re-synced. Original: do not reuse
-      real-looking IDs and outcomes in the AIM templates.
+      (`met` / `partially_met` on KRs, `valid` / `healthy` verdicts), which needed a
+      `pending` Key Result status in the schema (approved by the maintainer). Released
+      in canonical v2.34.0 (`#31`, items 2 and 3) and synced here. The AIM templates now
+      carry `pending` and `PLACEHOLDER:` text. A copy of the previous release's
+      `assessment_report` or `strategic_reality_check` that was never edited is still
+      classified `unmodified_template` against the regenerated manifest, and reported
+      as not the current release (`embeddedclassifier_test.go`, which fails against
+      the old manifest). Original: do not reuse real-looking IDs and outcomes in the
+      AIM templates.
 - [x] 1.4 Authoring rules are in the distributed `AGENTS.md`, which is
       `apps/epf-cli/AGENTS.md` (copied into `apps/epf-cli/internal/embedded/` and
       written into instances by `epf init`, not emitted by strategy-server): section
