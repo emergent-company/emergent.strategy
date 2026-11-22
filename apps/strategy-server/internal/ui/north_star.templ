@@ -53,6 +53,17 @@ type NorthStarData struct {
 	// Evolution
 	Evolution []EvolutionEntry
 
+	// Alignment checks: statements that purpose, vision, mission, values and
+	// beliefs tell one story.
+	AlignmentChecks []NorthStarStatement
+
+	// Review triggers: when the North Star is next reviewed.
+	ReviewScheduled string
+	ReviewEvents    []string
+
+	// Strategic maturity context: where each product line stands.
+	Maturity NorthStarMaturity
+
 	// Section completeness gaps
 	Gaps []ReadyGap
 }
@@ -86,6 +97,40 @@ type BeliefChallenge struct {
 type ValueConflict struct {
 	Tension            string
 	ResolutionPrinciple string
+}
+
+// NorthStarStatement is a labelled paragraph.
+type NorthStarStatement struct {
+	Label string
+	Text  string
+}
+
+// NorthStarMaturity is the strategic_maturity_context of the North Star.
+type NorthStarMaturity struct {
+	LastReview   string
+	ProductLines []MaturityProductLine
+	Themes       []MaturityTheme
+}
+
+// Empty reports whether there is nothing to show.
+func (m NorthStarMaturity) Empty() bool {
+	return m.LastReview == "" && len(m.ProductLines) == 0 && len(m.Themes) == 0
+}
+
+// MaturityProductLine is the maturity of one product line.
+type MaturityProductLine struct {
+	ProductLine    string
+	Position       string
+	Milestone      string
+	TrackMaturity  []NorthStarStatement // track → stage
+	Notes          string
+	FocusAdvice    string
+}
+
+// MaturityTheme is a pattern seen across product lines.
+type MaturityTheme struct {
+	Theme       string
+	Implication string
 }
 
 // EvolutionEntry tracks a change in the North Star over time.
@@ -126,6 +171,21 @@ templ NorthStarContent(data NorthStarData) {
 		// ── Value Conflicts ──
 		if len(data.ValueConflicts) > 0 {
 			@valueConflictsSection(data.ValueConflicts)
+		}
+
+		// ── Alignment checks ──
+		if len(data.AlignmentChecks) > 0 {
+			@alignmentChecksSection(data.AlignmentChecks)
+		}
+
+		// ── Strategic maturity ──
+		if !data.Maturity.Empty() {
+			@maturitySection(data.Maturity)
+		}
+
+		// ── Review triggers ──
+		if data.ReviewScheduled != "" || len(data.ReviewEvents) > 0 {
+			@reviewTriggersSection(data.ReviewScheduled, data.ReviewEvents)
 		}
 
 		// ── Evolution Timeline ──
@@ -256,6 +316,9 @@ templ missionSection(data NorthStarData) {
 					@bulletListCard("What We Don't Do", data.WeDontDo, "lucide--x", "warning")
 				}
 			</div>
+			if data.BoundariesWhy != "" {
+				<p class="text-xs text-base-content/80"><span class="font-medium">Why these boundaries:</span> { data.BoundariesWhy }</p>
+			}
 			if data.HowWeDeliver != "" || len(data.KeyCapabilities) > 0 {
 				<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 					<div class="card-body p-5">
@@ -440,6 +503,91 @@ templ valueConflictsSection(conflicts []ValueConflict) {
 						</div>
 					</div>
 				</div>
+			}
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Alignment checks, strategic maturity, review triggers
+// ──────────────────────────────────────────────────────────────────────
+
+templ alignmentChecksSection(checks []NorthStarStatement) {
+	<section>
+		@sectionHeading("Alignment Checks", "lucide--check-check", "success", "Do purpose, vision, mission, values and beliefs tell one story?")
+		<div class="mt-4 space-y-3">
+			for _, c := range checks {
+				<div class="card bg-base-100 border border-base-content/15 shadow-sm">
+					<div class="card-body p-4">
+						<h5 class="text-xs font-semibold uppercase tracking-wide text-base-content/65">{ c.Label }</h5>
+						<p class="text-sm text-base-content whitespace-pre-line">{ c.Text }</p>
+					</div>
+				</div>
+			}
+		</div>
+	</section>
+}
+
+templ maturitySection(m NorthStarMaturity) {
+	<section>
+		@sectionHeading("Strategic Maturity", "lucide--gauge", "secondary", "Where each product line stands, as it emerges from the value models")
+		<div class="mt-4 space-y-3">
+			if m.LastReview != "" {
+				<p class="text-xs text-base-content/75">Last reviewed { m.LastReview }</p>
+			}
+			for _, pl := range m.ProductLines {
+				<div class="card bg-base-100 border border-base-content/15 shadow-sm">
+					<div class="card-body p-4 space-y-2">
+						<div class="flex flex-wrap items-center gap-2">
+							<h5 class="text-sm font-bold text-base-content">{ pl.ProductLine }</h5>
+							if pl.Position != "" {
+								<span class="badge badge-sm badge-ghost">{ pl.Position }</span>
+							}
+							if pl.Milestone != "" {
+								<span class="badge badge-sm badge-outline">{ pl.Milestone }</span>
+							}
+						</div>
+						if len(pl.TrackMaturity) > 0 {
+							<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/80">
+								for _, tm := range pl.TrackMaturity {
+									<span><span class="font-medium">{ tm.Label }:</span> { tm.Text }</span>
+								}
+							</div>
+						}
+						if pl.Notes != "" {
+							<p class="text-sm text-base-content">{ pl.Notes }</p>
+						}
+						if pl.FocusAdvice != "" {
+							<p class="text-xs text-base-content/80"><span class="font-medium">Focus:</span> { pl.FocusAdvice }</p>
+						}
+					</div>
+				</div>
+			}
+			for _, th := range m.Themes {
+				<div class="rounded-lg bg-base-100 px-4 py-3">
+					<p class="text-sm font-medium text-base-content">{ th.Theme }</p>
+					if th.Implication != "" {
+						<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">Implication:</span> { th.Implication }</p>
+					}
+				</div>
+			}
+		</div>
+	</section>
+}
+
+templ reviewTriggersSection(scheduled string, events []string) {
+	<section>
+		@sectionHeading("Review Triggers", "lucide--calendar-clock", "info", "When the North Star is reviewed next")
+		<div class="mt-4 space-y-2">
+			if scheduled != "" {
+				<p class="text-sm text-base-content"><span class="font-medium">Scheduled:</span> { scheduled }</p>
+			}
+			if len(events) > 0 {
+				<ul class="list-disc pl-5 space-y-1 text-sm text-base-content">
+					for _, e := range events {
+						<li>{ e }</li>
+					}
+				</ul>
 			}
 		</div>
 	</section>

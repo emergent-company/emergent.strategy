@@ -73,7 +73,18 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 3.8 `handler_lra.go` / `lraContent`: fix gaps found.
 - [ ] 3.9 `handler_assessment.go` / `assessmentContent`: fix gaps found.
 - [ ] 3.10 `handler_calibration.go` / `calibrationContent`: fix gaps found.
-- [ ] 3.11 `handler_artifact.go` / `northStarContent`: fix gaps found.
+- [x] 3.11 `handler_artifact.go` / `northStarContent`: fix gaps found. Done for
+      emergent.strategy#179. The page read its rich fields as flat keys while the
+      schema and template wrap them in `north_star`, so the values, value conflicts,
+      boundaries, success criteria, evolution history and the rest were all empty
+      whenever the root key was present. `buildNorthStarData` removes the root once
+      (a payload already unwrapped is accepted) before the decomposer and the direct
+      reads. Added to the page: alignment checks, review triggers, strategic maturity
+      context, and the boundaries' rationale (`why_not`), which the handler read and the
+      template never showed. `TestNorthStarPageShowsEveryFieldOfTheCanonicalTemplate`
+      renders the pinned canonical template, wrapped and unwrapped, and asserts the
+      strings it collects from the template itself; it is mutation-checked. Not done
+      here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped.
 
