@@ -554,6 +554,9 @@ func alignLayer(
 	return changed
 }
 
+// subComponentKeys are the two spellings of a component's L3 list.
+var subComponentKeys = []string{"subs", "sub_components"}
+
 // alignComponent applies activation to one L2 component and all sub-components
 // beneath it. It returns whether the component ends up active (any child L3
 // active) and whether any activation state changed.
@@ -578,41 +581,50 @@ func alignComponent(
 	_, compTargeted := targeted[compID]
 	compTargeted = compTargeted || layerTargeted
 
-	subs, _ := comp["sub_components"].([]any)
-	for k, subVal := range subs {
-		sub, _ := subVal.(map[string]any)
-		if sub == nil {
+	// L3 sub-components are written under either key, and one model can use
+	// both (the canonical strategy, commercial and org_ops models use "subs").
+	// Each list is aligned in place and written back under the key it came from;
+	// a key the component did not have is not created.
+	for _, key := range subComponentKeys {
+		subs, ok := comp[key].([]any)
+		if !ok {
 			continue
 		}
-		subID, _ := sub["id"].(string)
-		if subID != "" {
-			foundIDs[subID] = true
-		}
+		for k, subVal := range subs {
+			sub, _ := subVal.(map[string]any)
+			if sub == nil {
+				continue
+			}
+			subID, _ := sub["id"].(string)
+			if subID != "" {
+				foundIDs[subID] = true
+			}
 
-		_, subTargeted := targeted[subID]
-		// A sub-component is active when it is targeted directly (L3 hit)
-		// or because an ancestor (L2 or L1) was targeted.
-		wantActive := subTargeted || compTargeted
-		// The activation note belongs to whichever level the KR targeted:
-		// the sub-component (L3), its parent component (L2), or layer (L1).
-		note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
+			_, subTargeted := targeted[subID]
+			// A sub-component is active when it is targeted directly (L3 hit)
+			// or because an ancestor (L2 or L1) was targeted.
+			wantActive := subTargeted || compTargeted
+			// The activation note belongs to whichever level the KR targeted:
+			// the sub-component (L3), its parent component (L2), or layer (L1).
+			note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
 
-		act := applySubActivation(sub, wantActive, note)
-		if act.changed {
-			changed = true
-			subs[k] = sub
+			act := applySubActivation(sub, wantActive, note)
+			if act.changed {
+				changed = true
+				subs[k] = sub
+			}
+			if act.activated {
+				result.Activated++
+			}
+			if act.deactivated {
+				result.Deactivated++
+			}
+			if wantActive {
+				l3Active = true
+			}
 		}
-		if act.activated {
-			result.Activated++
-		}
-		if act.deactivated {
-			result.Deactivated++
-		}
-		if wantActive {
-			l3Active = true
-		}
+		comp[key] = subs
 	}
-	comp["sub_components"] = subs
 
 	// Propagate L3 → L2: L2 is active if any child L3 is active.
 	currentCompActive, _ := comp["active"].(bool)
