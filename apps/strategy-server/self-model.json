@@ -1951,7 +1951,7 @@
     },
     {
       "name": "import_from_github",
-      "description": "USE WHEN you need to import EPF strategy artifacts from the instance's linked GitHub repository. Automatically determines the sync state and takes the safe action: no-op if in sync (pass force=true to re-import anyway, for example to replace artifacts the server changed on its own), refuses if server has unpushed enrichments, creates a safety PR then imports if diverged. Requires github_repo to be set on the instance (use update_instance).",
+      "description": "USE WHEN you need to import EPF strategy artifacts from the instance's linked GitHub repository. Automatically determines the sync state and takes the safe action: no-op if in sync (pass force=true to re-import anyway, for example to replace artifacts the server changed on its own), refuses if server has unpushed enrichments, creates a safety PR then imports if diverged. The result carries warnings for files it did not store, such as a second file for an artifact the instance already holds (an instance has one roadmap; completed cycles are archived under cycles/cycle-N/). Requires github_repo to be set on the instance (use update_instance).",
       "category": "admin",
       "input_schema": {
         "properties": {

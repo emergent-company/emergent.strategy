@@ -2,6 +2,7 @@ package sync_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -139,4 +140,52 @@ func mustJSON(t *testing.T, v any) string {
 		t.Fatal(err)
 	}
 	return string(b)
+}
+
+// A second roadmap in a subfolder cannot be stored beside the first: both name
+// the roadmap_recipe artifact. The import says which file it left out and which it
+// kept, so the missing roadmap is not discovered later by an empty Key Result lookup.
+func TestImportFromGithub_ReportsAFileLeftOutBecauseItsKeyIsTaken(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+
+	instSvc := instance.NewService(db)
+	stratSvc := strategy.NewService(db)
+	reader := &mockRepoReader{
+		installationToken: "ghs_read_token",
+		defaultBranch:     "main",
+		headCommitSHA:     "sha-1",
+		files: map[string][]byte{
+			"READY/north_star.yaml":                []byte(northStarYAML),
+			"READY/05_roadmap_recipe.yaml":         []byte("roadmap:\n  id: roadmap-002\n  cycle: 2\n"),
+			"READY/cycle-3/05_roadmap_recipe.yaml": []byte("roadmap:\n  id: roadmap-003\n  cycle: 3\n"),
+		},
+	}
+	svc := syncdom.NewService(db, stratSvc, versiondom.NewService(db), &mockRepoWriter{installationToken: "ghs_write_token", defaultBranch: "main"})
+	svc.WithReader(reader)
+	svc.WithInstanceReimporter(instSvc)
+
+	orgID := seedTestOrg(t, db)
+	ws, err := workspace.NewService(db).CreateWorkspace(ctx, "dup-import-"+uuid.NewString()[:8], nil, orgID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := "acme/strategy"
+	inst, err := instSvc.ImportInstance(ctx, instance.ImportParams{WorkspaceID: ws.ID, Name: "Acme", GithubRepo: &repo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := svc.ImportFromGithub(ctx, syncdom.ImportParams{InstanceID: inst.ID})
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if len(res.Warnings) != 1 {
+		t.Fatalf("want 1 warning, got %v", res.Warnings)
+	}
+	if w := res.Warnings[0]; !strings.Contains(w, "READY/cycle-3/05_roadmap_recipe.yaml") || !strings.Contains(w, "READY/05_roadmap_recipe.yaml") {
+		t.Fatalf("the warning must name both files: %q", w)
+	}
+	if b, _ := json.Marshal(res); !strings.Contains(string(b), `"warnings"`) {
+		t.Fatalf("the tool returns the result as JSON; warnings must be in it: %s", b)
+	}
 }
