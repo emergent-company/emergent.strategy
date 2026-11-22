@@ -21,8 +21,8 @@ everything else, not a lower one.
 
 ### Strategy Server Summary
 
-141 MCP tools (organized into 13 categories with context-aware filtering),
-28 migrations, multi-tenant org model, schema registry, strategy versioning,
+MCP tools (organized into categories with context-aware filtering; `apps/strategy-server/self-model.json`
+lists every one), numbered SQL migrations, multi-tenant org model, schema registry, strategy versioning,
 GitHub sync write-back, ripple coherence engine, AIM orchestration with
 heartbeat-driven proposals, evidence ingestion pipeline, autonomous skill
 execution, Memory semantic graph integration.
@@ -140,7 +140,7 @@ apps/strategy-server/
 ├── cmd_db.go                    # Migration runner
 ├── cmd_import.go                # Local EPF instance import
 ├── config/                      # Config struct (env vars, defaults)
-├── domain/                      # Pure domain logic (20 packages)
+├── domain/                      # Pure domain logic (one package per area)
 │   ├── workspace/               # Workspace CRUD
 │   ├── instance/                # Strategy instance lifecycle
 │   ├── strategy/                # Artifact CRUD, mutations, batches, export
@@ -162,12 +162,12 @@ apps/strategy-server/
 │   ├── activity/                # Activity stream (event sourcing)
 │   └── watchdog/                # Instance health monitoring
 ├── internal/
-│   ├── mcpserver/               # 141 MCP tools (13 registration files)
+│   ├── mcpserver/               # MCP tools (one register_*.go file per area)
 │   ├── navigation/              # Navigation graph (screens, tabs, routes)
 │   ├── handler/                 # Web UI handlers (HTMX, templ rendering)
 │   ├── ui/                      # Templ components for web pages
 │   ├── pipeline/                # Post-commit pipeline (ripple, sync, validation)
-│   ├── database/                # DB connection, migrations (28), TestDB(t)
+│   ├── database/                # DB connection, migrations, TestDB(t)
 │   ├── embedded/                # go:embed schemas, templates, agents, skills
 │   ├── github/                  # GitHub App client (JWT, Git tree API)
 │   ├── memory/                  # emergent.memory REST client

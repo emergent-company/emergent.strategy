@@ -91,7 +91,7 @@ wall-clock-dependent test failure shows up elsewhere, this is the pattern to
 look for and fix the same way, regardless of which app is in maintenance
 mode — epf-cli is still actively maintained, not untouched.)
 
-_strategy-server: no pre-existing failures. All 36 packages pass._
+_strategy-server: no pre-existing failures. `go test ./...` passes in every package._
 
 ---
 
@@ -151,7 +151,8 @@ cd apps/strategy-server && task dev-reset
 ```
 
 The server listens on port 8090 (default). MCP endpoint: `http://localhost:8090/mcp`.
-96 MCP tools are registered. See `apps/strategy-server/AGENTS.md` for full details.
+Every registered MCP tool is listed in `apps/strategy-server/self-model.json` (regenerate with
+`task selfmodel:generate`). See `apps/strategy-server/AGENTS.md` for full details.
 
 ### Code Style
 

@@ -1,22 +1,8 @@
 // Package mcpserver wires all strategy-server domain services to MCP tools.
 //
-// Tool inventory (96 tools + 1 prompt):
-//
-//	Workspace/Instance:  5 read + 4 write
-//	Strategy context:    5 read
-//	Artifact/Mutation:   6 read
-//	Semantic:            7 (search, neighbors, contradictions, scenario lifecycle)
-//	Embedded knowledge:  12 (schemas, templates, agents, skills, wizards, routing)
-//	Agent runtime:       2 (pending batches, describe)
-//	Mutation write:      4 core + 7 expanded + 2 batch
-//	Derived reads:       6 (value paths, coverage, assumptions, dependencies)
-//	Validation:          5 (artifact, instance, relationships, readiness, fix plan)
-//	Export:              3
-//	AIM lifecycle:       5 read/write + 2 phase 2c (validate_assumptions, stage_calibration)
-//	Organisation:        5
-//	Skill pack/app:      11
-//	Phase 2c additions:  10 (phase artifacts, definitions, persona details,
-//	                        relationships, scenario discard)
+// Tool inventory: every registered tool, with its category and access level, is
+// listed in self-model.json (`task selfmodel:generate` writes it and
+// `task selfmodel:check` fails when it is stale).
 //
 // All write tools create staged mutations; commit_batch promotes them.
 package mcpserver
