@@ -474,6 +474,36 @@ type UpdateSettingsParams struct {
 	GithubBasePath *string // nil = no change; empty string = clear
 }
 
+// SetSchemaVersion moves an instance to another schema version. Validation of
+// the instance reads this version from then on.
+func (s *Service) SetSchemaVersion(ctx context.Context, id uuid.UUID, version string) error {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return apperror.ErrBadRequest.WithDetail("schema version must not be empty")
+	}
+	res, err := s.db.NewUpdate().
+		Model((*domain.StrategyInstance)(nil)).
+		Set("schema_version = ?", version).
+		Set("updated_at = NOW()").
+		Where("id = ? AND deleted_at IS NULL", id).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("set schema version: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return apperror.ErrNotFound.WithDetail("instance not found")
+	}
+	audit.FromContext(ctx).Write(ctx, audit.Entry{
+		EntityType: "strategy_instance",
+		EntityID:   id,
+		Action:     "set_schema_version",
+		Source:     audit.SourceFromContext(ctx),
+		ActorID:    audit.ActorFromContext(ctx),
+		Details:    map[string]any{"schema_version": version},
+	})
+	return nil
+}
+
 // UpdateInstanceSettings updates the GitHub configuration of an existing instance.
 // Validates the repo slug format when provided.
 func (s *Service) UpdateInstanceSettings(ctx context.Context, id uuid.UUID, p UpdateSettingsParams) error {

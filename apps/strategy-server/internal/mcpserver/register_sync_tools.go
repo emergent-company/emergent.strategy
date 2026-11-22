@@ -17,6 +17,7 @@ func registerSyncTools(s *server.MCPServer, svc Services) {
 		return
 	}
 	registerUpdateInstanceTool(s, svc)
+	registerUpgradeInstanceSchemaTool(s, svc)
 	registerConsumerRepoTools(s, svc)
 	if svc.Sync != nil {
 		registerImportFromGithubTool(s, svc)

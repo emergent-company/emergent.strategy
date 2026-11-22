@@ -1985,7 +1985,7 @@ func registerValidationTools(s *server.MCPServer, svc Services) {
 func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 	// validate_artifact — validate a single JSON payload against its EPF schema.
 	s.AddTool(mcp.NewTool("validate_artifact",
-		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error."),
+		mcp.WithDescription("USE WHEN you want to validate a JSON artifact payload against its EPF schema. Auto-detects the artifact type when not provided. Returns a verdict in structuredContent: `ok` is true when there are no errors, and `findings` enumerates every problem so you can apply your own threshold. Finding problems is a successful call, not an error. It checks against the newest schema version the server has, not an instance's pinned version, so for an instance still pinned to an older version it can accept a value that validate_instance rejects; validate_instance names the version it used, and upgrade_instance_schema moves the pin."),
 		mcp.WithString("payload", mcp.Required(), mcp.Description("JSON payload of the artifact to validate")),
 		mcp.WithString("artifact_type", mcp.Description("EPF artifact type (e.g. feature, north_star). Auto-detected when omitted.")),
 		withVerdictOutput(),
@@ -2040,17 +2040,14 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 			return toolErr(ctx, err), nil
 		}
 
-		// Build a schema source from the instance's schema version when the registry is available.
+		// Validate against the instance's schema version when the registry is available.
 		var source embedded.SchemaSource
-		if svc.Schema != nil {
-			inst, instErr := svc.Instance.GetInstance(ctx, instID)
-			if instErr == nil {
-				version := ""
-				if inst.SchemaVersion != nil {
-					version = *inst.SchemaVersion
-				}
-				source = schemadom.NewRegistrySchemaSource(ctx, svc.Schema, version, inst.Dialect)
-			}
+		var selected instanceSchema
+		if inst, instErr := svc.Instance.GetInstance(ctx, instID); instErr == nil {
+			selected = resolveInstanceSchema(ctx, svc, inst)
+			source = selected.source
+		} else {
+			selected = instanceSchema{used: embeddedSchemaVersion()}
 		}
 
 		type artifactValidation struct {
@@ -2078,12 +2075,17 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 
 		v := verdict.New(len(artifacts), findings).
 			WithSummary("%d of %d artifacts invalid", totalInvalid, len(artifacts))
+		if note := selected.versionNote(); note != "" {
+			v = v.WithSummary("%d of %d artifacts invalid, %s", totalInvalid, len(artifacts), note)
+		}
 		detail := map[string]any{
-			"instance_id":    instID,
-			"artifact_count": len(artifacts),
-			"valid_count":    totalValid,
-			"invalid_count":  totalInvalid,
-			"results":        results,
+			"instance_id":             instID,
+			"artifact_count":          len(artifacts),
+			"valid_count":             totalValid,
+			"invalid_count":           totalInvalid,
+			"schema_version_used":     selected.used,
+			"embedded_schema_version": embeddedSchemaVersion(),
+			"results":                 results,
 		}
 		budget, capped := strategyread.NormaliseBudget(requestBudget(req))
 		if fitsBudget(detail, budget) {
@@ -2113,16 +2115,18 @@ func registerArtifactValidationTools(s *server.MCPServer, svc Services) {
 		hints := append(validationHints(len(invalid)-shown, "invalid artifacts", capped),
 			"valid artifacts are counted in valid_count and not listed")
 		return verdictResult(v, map[string]any{
-			"instance_id":     instID,
-			"artifact_count":  len(artifacts),
-			"valid_count":     totalValid,
-			"invalid_count":   totalInvalid,
-			"results":         invalid[:shown],
-			"results_shown":   shown,
-			"results_omitted": len(invalid) - shown,
-			"truncated":       true,
-			"max_chars":       budget,
-			"hints":           hints,
+			"instance_id":             instID,
+			"artifact_count":          len(artifacts),
+			"valid_count":             totalValid,
+			"invalid_count":           totalInvalid,
+			"schema_version_used":     selected.used,
+			"embedded_schema_version": embeddedSchemaVersion(),
+			"results":                 invalid[:shown],
+			"results_shown":           shown,
+			"results_omitted":         len(invalid) - shown,
+			"truncated":               true,
+			"max_chars":               budget,
+			"hints":                   hints,
 		})
 	})
 

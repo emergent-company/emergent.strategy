@@ -194,6 +194,21 @@ and WP-005 (operational visibility) are independent of everything else.
       because the framework holds one current roadmap per instance. Tests:
       `TestParseFilesDetailed_*` (3), `TestImportFromGithub_ReportsAFileLeftOutBecauseItsKeyIsTaken`,
       mutation-checked.
+- [x] 3.9 (#195) The instance's schema pin is visible and can be moved.
+      `validate_instance` judged an instance by the schema version stored on it
+      (2.33.0, from the server that created it), while `validate_artifact` and the
+      commit path use the newest version: a value valid since 2.34.0 (`pending` as a
+      Key Result outcome status) read as invalid, with no hint why, and no tool changed
+      the pin. Now `validate_instance` returns `schema_version_used` and
+      `embedded_schema_version`, and its summary says so when they differ.
+      `upgrade_instance_schema` reports what moving to the embedded version would
+      change (artifacts that become valid, artifacts that become invalid, standard
+      pack skills replaced) and changes nothing unless `apply=true`; apply imports the
+      version into the registry, refreshes the emergent-standard pack, and moves the pin
+      last. `validate_artifact` stays on the newest version and says so in its
+      description. Not done: moving the pin on import when the repository declares a
+      newer version. Tests: `TestValidateInstance_*` (2), `TestUpgradeInstanceSchema_*` (2),
+      each mutation-checked.
 
 ## 4. Schema and read gaps (WP-004)
 
