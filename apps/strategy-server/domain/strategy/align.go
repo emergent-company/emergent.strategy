@@ -2,9 +2,16 @@ package strategy
 
 // AlignPortfolio implements deterministic portfolio alignment: it reads the
 // committed roadmap_recipe, extracts KR value_model_target references, and
-// updates the active flags on value model components to match. Only the
-// `active` and `activation_notes` fields are modified — structure, IDs,
-// names, descriptions, UVPs, and maturity data are preserved byte-for-byte.
+// switches on the value model components they target, and the layers above
+// them. Only the `active` and `activation_notes` fields are modified —
+// structure, IDs, names, descriptions, UVPs, and maturity data are preserved
+// byte-for-byte.
+//
+// Alignment only activates. A component the roadmap does not target is left as
+// it is: epf-canonical's align-portfolio skill says to "leave everything the
+// roadmap does not target untouched", and the active flags of a track model are
+// authored (an organisation activates what it needs), so the absence of a Key
+// Result is not evidence that a component is off.
 //
 // The operation auto-commits its mutations. It is idempotent — running it
 // twice with the same roadmap produces no mutations (no-op detection skips
@@ -34,7 +41,8 @@ type AlignPortfolioResult struct {
 	TracksChanged int
 	// TotalActivated is the total number of L3 components set to active across all tracks.
 	TotalActivated int
-	// TotalDeactivated is the total number of L3 components set to inactive across all tracks.
+	// TotalDeactivated is always 0: alignment no longer deactivates anything. The
+	// field stays because alignment records written earlier carry a value.
 	TotalDeactivated int
 	// UnresolvablePaths are KR component_path values that could not be matched to any L3.
 	UnresolvablePaths []string
@@ -56,7 +64,7 @@ type TrackAlignResult struct {
 	Track             string // "strategy", "org_ops", "commercial", "product"
 	ArtifactKey       string // artifact key that was updated
 	Activated         int    // L3 components set to active
-	Deactivated       int    // L3 components set to inactive
+	Deactivated       int    // always 0, see AlignPortfolioResult.TotalDeactivated
 	NoValueModel      bool   // no value_model artifact found for this track
 	NoOp              bool   // activation state was already correct
 	UnresolvablePaths []string
@@ -369,40 +377,30 @@ func vmTrackKey(name string) string {
 
 // subActivation reports what changed when applying activation to one sub-component.
 type subActivation struct {
-	changed     bool
-	activated   bool
-	deactivated bool
+	changed   bool
+	activated bool
 }
 
-// applySubActivation sets the active flag and activation_notes on a single
-// sub-component (L3) in place. When activating, it writes the supplied note;
-// when deactivating, it clears any existing note.
-func applySubActivation(sub map[string]any, wantActive bool, note string) subActivation {
+// applySubActivation switches a targeted sub-component (L3) on in place and
+// writes the note citing the Key Result. A sub-component that is not targeted
+// is left exactly as it is, active or not, note included.
+func applySubActivation(sub map[string]any, targeted bool, note string) subActivation {
 	var act subActivation
-
-	currentActive, _ := sub["active"].(bool)
-	if currentActive != wantActive {
-		act.changed = true
-		act.activated = wantActive
-		act.deactivated = !wantActive
-		sub["active"] = wantActive
-	} else if wantActive {
-		// Already active and still targeted — count it in the activated total.
-		act.activated = true
-	}
-
-	if wantActive {
-		if existing, _ := sub["activation_notes"].(string); existing != note {
-			act.changed = true
-			sub["activation_notes"] = note
-		}
+	if !targeted {
 		return act
 	}
 
-	// Deactivating: clear any existing non-empty note.
-	if v, hasNote := sub["activation_notes"]; hasNote && v != "" && v != nil {
+	currentActive, _ := sub["active"].(bool)
+	if !currentActive {
 		act.changed = true
-		sub["activation_notes"] = ""
+		sub["active"] = true
+	}
+	// Already active and still targeted counts in the activated total.
+	act.activated = true
+
+	if existing, _ := sub["activation_notes"].(string); existing != note {
+		act.changed = true
+		sub["activation_notes"] = note
 	}
 	return act
 }
@@ -545,14 +543,18 @@ func alignLayer(
 	}
 	layer["components"] = components
 
-	// Propagate L2 → L1: L1 is active if any child L2 is active.
+	// Propagate L2 → L1: L1 is switched on when a child L2 is active or the layer
+	// itself is targeted. It is never switched off.
 	currentLayerActive, _ := layer["active"].(bool)
-	if currentLayerActive != l2Active {
+	if !currentLayerActive && (l2Active || layerTargeted) {
 		changed = true
-		layer["active"] = l2Active
+		layer["active"] = true
 	}
 	return changed
 }
+
+// subComponentKeys are the two spellings of a component's L3 list.
+var subComponentKeys = []string{"subs", "sub_components"}
 
 // alignComponent applies activation to one L2 component and all sub-components
 // beneath it. It returns whether the component ends up active (any child L3
@@ -578,49 +580,56 @@ func alignComponent(
 	_, compTargeted := targeted[compID]
 	compTargeted = compTargeted || layerTargeted
 
-	subs, _ := comp["sub_components"].([]any)
-	for k, subVal := range subs {
-		sub, _ := subVal.(map[string]any)
-		if sub == nil {
+	// L3 sub-components are written under either key, and one model can use
+	// both (the canonical strategy, commercial and org_ops models use "subs").
+	// Each list is aligned in place and written back under the key it came from;
+	// a key the component did not have is not created.
+	for _, key := range subComponentKeys {
+		subs, ok := comp[key].([]any)
+		if !ok {
 			continue
 		}
-		subID, _ := sub["id"].(string)
-		if subID != "" {
-			foundIDs[subID] = true
-		}
+		for k, subVal := range subs {
+			sub, _ := subVal.(map[string]any)
+			if sub == nil {
+				continue
+			}
+			subID, _ := sub["id"].(string)
+			if subID != "" {
+				foundIDs[subID] = true
+			}
 
-		_, subTargeted := targeted[subID]
-		// A sub-component is active when it is targeted directly (L3 hit)
-		// or because an ancestor (L2 or L1) was targeted.
-		wantActive := subTargeted || compTargeted
-		// The activation note belongs to whichever level the KR targeted:
-		// the sub-component (L3), its parent component (L2), or layer (L1).
-		note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
+			_, subTargeted := targeted[subID]
+			// A sub-component is active when it is targeted directly (L3 hit)
+			// or because an ancestor (L2 or L1) was targeted.
+			wantActive := subTargeted || compTargeted
+			// The activation note belongs to whichever level the KR targeted:
+			// the sub-component (L3), its parent component (L2), or layer (L1).
+			note := firstNonEmpty(activationNotes[subID], activationNotes[compID], activationNotes[layerID])
 
-		act := applySubActivation(sub, wantActive, note)
-		if act.changed {
-			changed = true
-			subs[k] = sub
+			act := applySubActivation(sub, wantActive, note)
+			if act.changed {
+				changed = true
+				subs[k] = sub
+			}
+			if act.activated {
+				result.Activated++
+			}
+			if active, _ := sub["active"].(bool); active {
+				l3Active = true
+			}
 		}
-		if act.activated {
-			result.Activated++
-		}
-		if act.deactivated {
-			result.Deactivated++
-		}
-		if wantActive {
-			l3Active = true
-		}
+		comp[key] = subs
 	}
-	comp["sub_components"] = subs
 
-	// Propagate L3 → L2: L2 is active if any child L3 is active.
+	// Propagate L3 → L2: L2 is switched on when a child L3 is active or the
+	// component itself is targeted. It is never switched off.
 	currentCompActive, _ := comp["active"].(bool)
-	if currentCompActive != l3Active {
+	if !currentCompActive && (l3Active || compTargeted) {
 		changed = true
-		comp["active"] = l3Active
+		comp["active"] = true
 	}
-	return l3Active, changed
+	return currentCompActive || l3Active || compTargeted, changed
 }
 
 // ── helpers for checking roadmap exists ──────────────────────────────────────

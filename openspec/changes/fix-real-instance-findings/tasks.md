@@ -149,7 +149,26 @@ and WP-005 (operational visibility) are independent of everything else.
       metadata now carries `krs_found` and `krs_by_group`. The record lives on the
       mutations, so a re-import, which replaces the history, clears it. Root cause of
       the flipping (Key Results under `future_okrs_*` invisible to alignment) was fixed
-      in WP-002.
+      in WP-002. **Corrected by 3.7:** that was one cause, not the one behind #181.
+- [x] 3.7 (#181) Alignment switched off every component of a track model that wrote
+      its L3 list as `subs`, six seconds after an import. Cause, from the stored
+      mutations: one `system` batch rewrote all five value models. `alignComponent`
+      read and wrote only `sub_components`, but the canonical strategy, commercial
+      and org_ops models write `subs` (and one model can use both). A component with
+      `subs` looked childless, was switched off with its layer, and was written back
+      with `sub_components: null`; a target under `subs` was also reported
+      unresolvable. Fixed in two parts. (1) Both keys are read and each is written
+      back under the key it came from. (2) Alignment only activates: it never
+      switches off a layer, component or sub-component that is already active, and
+      it leaves an untargeted one's flag and activation note as authored. That follows
+      epf-canonical's `align-portfolio` skill ("leave everything the roadmap does not
+      target untouched"); no spec asked for the old behaviour, and the active flags
+      of a track model are authored. A component or layer a Key Result targets is
+      now switched on even with no sub-components. `TotalDeactivated` stays in the
+      records, always 0, because records written earlier carry a value. Tests:
+      `align_subs_test.go`, `align_no_deactivate_test.go`, each mutation-checked.
+      A damaged instance is not repaired by this: re-import it (after setting
+      `skip_align_portfolio` if the server is still on an older build).
 
 ## 4. Schema and read gaps (WP-004)
 
@@ -186,8 +205,9 @@ and WP-005 (operational visibility) are independent of everything else.
       `get_view` through the service (`TestReadView_ObjectivesListParkedKeyResultsApartWithTheirReason`)
       and the page (`handler_roadmap_test.go`), each mutation-checked.
       **Not decided here:** whether a parked Key Result should count in
-      `kr.reached_by_nothing` and in `align_portfolio`'s dormant marking. Today it
-      does, as any Key Result does.
+      `kr.reached_by_nothing`. Today it does, as any Key Result does. It no longer
+      matters for `align_portfolio`: since 3.7 alignment only activates, so a parked
+      Key Result that targets a component still switches it on.
 - [x] 4.5 `domain/strategyread/slice.go`: when `get_section` truncates content
       and there are no children to offer, return a structured marker
       (`truncated: true`, `size_chars: N`, `budget_chars: M`) instead of
