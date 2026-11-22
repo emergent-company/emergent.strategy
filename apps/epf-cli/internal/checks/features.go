@@ -287,6 +287,12 @@ func (c *FeatureQualityChecker) checkPersonas(feature map[string]interface{}, re
 
 	personas, ok := definition["personas"].([]interface{})
 	if !ok {
+		// Canonical non-product track definitions (sd-*, pd-*, cd-*) use
+		// definition.purpose + definition.outcome instead of definition.personas.
+		if isCanonicalTrackDefinition(feature) {
+			c.checkTrackDefinitionPurpose(definition, result)
+			return
+		}
 		result.Issues = append(result.Issues, QualityIssue{
 			Field:    "definition.personas",
 			Severity: SeverityCritical,
@@ -387,6 +393,15 @@ func (c *FeatureQualityChecker) checkScenarios(feature map[string]interface{}, r
 			scenarios, ok = impl["scenarios"].([]interface{})
 		}
 	}
+	isPractitioner := false
+	if !ok {
+		// Canonical non-product track definitions use top-level practitioner_scenarios.
+		if ps, psOk := feature["practitioner_scenarios"].([]interface{}); psOk {
+			scenarios = ps
+			ok = true
+			isPractitioner = true
+		}
+	}
 
 	// Scenarios are recommended but not required - some EPF versions don't use them
 	if !ok || len(scenarios) == 0 {
@@ -395,6 +410,10 @@ func (c *FeatureQualityChecker) checkScenarios(feature map[string]interface{}, r
 			Severity: SeverityWarning, // Changed from Error - scenarios not used in all EPF versions
 			Message:  "No scenarios defined (recommended for comprehensive feature documentation)",
 		})
+		return
+	}
+
+	if isPractitioner {
 		return
 	}
 
@@ -486,6 +505,16 @@ func (c *FeatureQualityChecker) checkContext(feature map[string]interface{}, res
 		if ctxs, ok := feature["contexts"].([]interface{}); ok && len(ctxs) > 0 {
 			contexts = ctxs
 			found = true
+		}
+	}
+
+	// 4. Canonical non-product track definitions use operational_context and/or domain_context.
+	if !found {
+		if oc, ok := feature["operational_context"].(map[string]interface{}); ok && len(oc) > 0 {
+			return
+		}
+		if dc, ok := feature["domain_context"].(map[string]interface{}); ok && len(dc) > 0 {
+			return
 		}
 	}
 
@@ -675,6 +704,49 @@ var definitionPrefixes = []string{"fd-", "sd-", "pd-", "cd-"}
 
 // definitionTrackDirs are the directory names for all EPF definition tracks.
 var definitionTrackDirs = []string{"product", "strategy", "org_ops", "commercial"}
+
+// checkTrackDefinitionPurpose checks the substance of the purpose and outcome a
+// strategy, org_ops or commercial definition has instead of personas.
+func (c *FeatureQualityChecker) checkTrackDefinitionPurpose(definition map[string]interface{}, result *FeatureQualityResult) {
+	purpose, _ := definition["purpose"].(string)
+	outcome, _ := definition["outcome"].(string)
+	if len(strings.TrimSpace(purpose)) < MinDescriptionLength {
+		result.Issues = append(result.Issues, QualityIssue{
+			Field:    "definition.purpose",
+			Severity: SeverityError,
+			Message:  "Track definition lacks substantive 'purpose'",
+		})
+	}
+	if len(strings.TrimSpace(outcome)) < MinDescriptionLength {
+		result.Issues = append(result.Issues, QualityIssue{
+			Field:    "definition.outcome",
+			Severity: SeverityError,
+			Message:  "Track definition lacks substantive 'outcome'",
+		})
+	}
+}
+
+// isCanonicalTrackDefinition returns true for a strategy, org_ops or commercial
+// definition: its id starts with sd-, pd- or cd-, or its track field names one of
+// those tracks. Such a definition has the track schema (definition.purpose,
+// definition.outcome, practitioner_scenarios) instead of definition.personas. The
+// shape of the fields is not used to decide: a product feature that lacks personas
+// is a failed feature whatever else its definition carries.
+func isCanonicalTrackDefinition(feature map[string]interface{}) bool {
+	if id, ok := feature["id"].(string); ok {
+		for _, prefix := range []string{"sd-", "pd-", "cd-"} {
+			if strings.HasPrefix(id, prefix) {
+				return true
+			}
+		}
+	}
+	track, _ := feature["track"].(string)
+	switch track {
+	case "strategy", "org_ops", "commercial":
+		return true
+	}
+	return false
+}
 
 // isDefinitionFile returns true if a file is a definition from any track.
 // Matches files with known prefixes (fd-*, sd-*, pd-*, cd-*) or files
