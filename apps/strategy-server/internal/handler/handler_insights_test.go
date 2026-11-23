@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"html"
 	"sort"
 	"strings"
@@ -28,63 +27,9 @@ func renderInsightAnalyses(t *testing.T, payload map[string]any) string {
 	return buf.String()
 }
 
-// schemaSample builds a payload from a JSON schema: every string gets a marker
-// that names its path, objects get every property, lists get two items. Strings
-// with an enum take the first value and are not markers. The markers it returns
-// are what the page must show.
-func schemaSample(node map[string]any, path string, markers *[]string) any {
-	switch node["type"] {
-	case "object":
-		out := map[string]any{}
-		props, _ := node["properties"].(map[string]any)
-		for k, v := range props {
-			child, _ := v.(map[string]any)
-			next := k
-			if path != "" {
-				next = path + "." + k
-			}
-			out[k] = schemaSample(child, next, markers)
-		}
-		return out
-	case "array":
-		items, _ := node["items"].(map[string]any)
-		var out []any
-		for i := 0; i < 2; i++ {
-			out = append(out, schemaSample(items, path+"["+string(rune('0'+i))+"]", markers))
-		}
-		return out
-	case "string":
-		if enum, ok := node["enum"].([]any); ok && len(enum) > 0 {
-			return enum[0]
-		}
-		marker := "mk:" + path
-		*markers = append(*markers, marker)
-		return marker
-	case "integer", "number":
-		return float64(7)
-	case "boolean":
-		return true
-	}
-	return nil
-}
-
 func insightSchemaSample(t *testing.T) (map[string]any, []string) {
 	t.Helper()
-	raw, err := embedded.GetSchema("insight_analyses_schema.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var schema map[string]any
-	if err := json.Unmarshal(raw, &schema); err != nil {
-		t.Fatal(err)
-	}
-	var markers []string
-	payload, _ := schemaSample(schema, "", &markers).(map[string]any)
-	sort.Strings(markers)
-	if len(markers) < 80 {
-		t.Fatalf("only %d markers from the schema; the sampler or the schema changed shape", len(markers))
-	}
-	return payload, markers
+	return sampleOfSchema(t, "insight_analyses_schema.json", 0, 80)
 }
 
 // leafStrings returns the first line of every non-empty string in v, at any depth.
