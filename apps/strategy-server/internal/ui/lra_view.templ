@@ -17,6 +17,9 @@ type LRAViewData struct {
 	CyclesCompleted int
 	CreatedAt      string
 	LastUpdated    string
+	LastUpdatedBy  string
+	BootstrapType  string
+	BootstrapTime  string
 
 	// Adoption context
 	TeamSize           string
@@ -24,6 +27,7 @@ type LRAViewData struct {
 	OrgType            string
 	PrimaryBottleneck  string
 	AICapability       string
+	RunwayMonths       string
 
 	// Current focus
 	PrimaryTrack        string
@@ -41,6 +45,37 @@ type LRAViewData struct {
 
 	// Evolution
 	Evolution []LRAEvolution
+
+	// Records are the card sections: existing assets, operating assumptions and
+	// capability gaps. See lraRecordStyles.
+	Records []RecordSection
+
+	// Unshown is the stored content with no dedicated view above.
+	Unshown map[string]any
+}
+
+// Slots and kinds of the record sections of the Living Reality Assessment.
+const (
+	LRASlotAssets      = "assets"
+	LRASlotAssumptions = "assumptions"
+
+	LRAKindCodeAssets     = "code_assets"
+	LRAKindDocAssets      = "documentation_assets"
+	LRAKindCustomerAssets = "customer_assets"
+	LRAKindStrategyAssets = "strategic_assets"
+	LRAKindProcessAssets  = "process_assets"
+	LRAKindAssumptions    = "operating_assumptions"
+	LRAKindCapabilityGaps = "capability_gaps"
+)
+
+var lraRecordStyles = map[string]RecordStyle{
+	LRAKindCodeAssets:     {LRASlotAssets, "Code Assets", "lucide--code", "info"},
+	LRAKindDocAssets:      {LRASlotAssets, "Documentation Assets", "lucide--book-open", "info"},
+	LRAKindCustomerAssets: {LRASlotAssets, "Customer Assets", "lucide--users", "info"},
+	LRAKindStrategyAssets: {LRASlotAssets, "Strategic Assets", "lucide--compass", "info"},
+	LRAKindProcessAssets:  {LRASlotAssets, "Process Assets", "lucide--workflow", "info"},
+	LRAKindAssumptions:    {LRASlotAssumptions, "Operating Assumptions", "lucide--help-circle", "warning"},
+	LRAKindCapabilityGaps: {LRASlotAssumptions, "Capability Gaps", "lucide--triangle-alert", "error"},
 }
 
 // LRATrackBaseline holds baseline data for a single track.
@@ -49,6 +84,7 @@ type LRATrackBaseline struct {
 	Maturity    string
 	Status      string
 	Description string
+	Activities  []string
 	Strengths   []string
 	PainPoints  []string
 }
@@ -63,8 +99,22 @@ type LRAConstraint struct {
 // LRAEvolution holds a single evolution log entry.
 type LRAEvolution struct {
 	Timestamp string
+	CycleRef  string
+	UpdatedBy string
 	Trigger   string
 	Summary   string
+	Changes   []LRAChange
+	Signals   []LRASignal
+}
+
+// LRAChange is one recorded change of an evolution entry.
+type LRAChange struct {
+	Section, Field, Type, Previous, New, Reason string
+}
+
+// LRASignal is the velocity and quality signal of one track at an evolution entry.
+type LRASignal struct {
+	Track, Velocity, Quality string
 }
 
 // LRAContent renders the bespoke Living Reality Assessment view.
@@ -75,12 +125,15 @@ templ LRAContent(data LRAViewData) {
 		@lraHero(data)
 
 		// ── Org Context ──
-		if data.TeamSize != "" || data.FundingStage != "" || data.OrgType != "" {
+		if data.TeamSize != "" || data.FundingStage != "" || data.OrgType != "" || data.PrimaryBottleneck != "" || data.AICapability != "" || data.RunwayMonths != "" {
 			@lraOrgContextSection(data)
 		}
 
+		// ── Existing assets ──
+		@RecordSections(lraRecordStyles, data.Records, LRASlotAssets)
+
 		// ── Current Focus ──
-		if data.PrimaryTrack != "" || data.PrimaryObjective != "" {
+		if data.PrimaryTrack != "" || data.SecondaryTrack != "" || data.CycleRef != "" || data.PrimaryObjective != "" || len(data.SuccessSignals) > 0 || len(data.AttentionAllocation) > 0 {
 			@lraCurrentFocusSection(data)
 		}
 
@@ -94,10 +147,16 @@ templ LRAContent(data LRAViewData) {
 			@lraConstraintsSection(data.HardConstraints)
 		}
 
+		// ── Assumptions and gaps ──
+		@RecordSections(lraRecordStyles, data.Records, LRASlotAssumptions)
+
 		// ── Evolution ──
 		if len(data.Evolution) > 0 {
 			@lraEvolutionSection(data.Evolution)
 		}
+
+		// ── Stored, but with no dedicated view ──
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -121,6 +180,20 @@ templ lraHero(data LRAViewData) {
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+					<div class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-base-content/75">
+						if data.CreatedAt != "" {
+							<span>Created { data.CreatedAt }</span>
+						}
+						if data.LastUpdatedBy != "" {
+							<span>Updated by { data.LastUpdatedBy }</span>
+						}
+						if data.BootstrapType != "" {
+							<span>Bootstrap: { data.BootstrapType }</span>
+						}
+						if data.BootstrapTime != "" {
+							<span>Bootstrap time: { data.BootstrapTime }</span>
+						}
+					</div>
 				</div>
 				<div class="hidden sm:block text-right text-xs text-base-content/75 space-y-0.5">
 					if data.CyclesCompleted > 0 {
@@ -157,6 +230,9 @@ templ lraOrgContextSection(data LRAViewData) {
 			}
 			if data.AICapability != "" {
 				@lraStatCard("AI Capability", data.AICapability, "lucide--brain")
+			}
+			if data.RunwayMonths != "" {
+				@lraStatCard("Runway (months)", data.RunwayMonths, "lucide--hourglass")
 			}
 		</div>
 	</section>
@@ -269,6 +345,19 @@ templ lraTrackBaselineAccordion(b LRATrackBaseline) {
 				<p class="text-sm text-base-content/80 leading-relaxed">{ b.Description }</p>
 			}
 			<div class="grid gap-4 md:grid-cols-2">
+				if len(b.Activities) > 0 {
+					<div>
+						<p class="text-xs font-semibold uppercase tracking-wide text-info/70 mb-1.5">Key Activities</p>
+						<ul class="space-y-1">
+							for _, a := range b.Activities {
+								<li class="flex items-start gap-1.5 text-xs text-base-content/80">
+									<span class="iconify lucide--circle size-3 text-info mt-0.5 shrink-0"></span>
+									{ a }
+								</li>
+							}
+						</ul>
+					</div>
+				}
 				if len(b.Strengths) > 0 {
 					<div>
 						<p class="text-xs font-semibold uppercase tracking-wide text-success/70 mb-1.5">Strengths</p>
@@ -361,7 +450,53 @@ templ lraEvolutionEntry(e LRAEvolution, latest bool) {
 					<span class="badge badge-xs badge-ghost">{ e.Trigger }</span>
 				}
 			</div>
+			if e.CycleRef != "" || e.UpdatedBy != "" {
+				<p class="text-xs text-base-content/75 mb-1">
+					if e.CycleRef != "" {
+						<span>Cycle { e.CycleRef }</span>
+					}
+					if e.UpdatedBy != "" {
+						<span>Updated by { e.UpdatedBy }</span>
+					}
+				</p>
+			}
 			<p class="text-sm text-base-content">{ e.Summary }</p>
+			if len(e.Changes) > 0 {
+				<ul class="mt-2 space-y-1.5">
+					for _, c := range e.Changes {
+						<li class="text-xs text-base-content/80">
+							<span class="font-medium">{ c.Section }{ lraDot(c.Section, c.Field) }{ c.Field }</span>
+							if c.Type != "" {
+								<span class="badge badge-xs badge-ghost ml-1">{ c.Type }</span>
+							}
+							if c.Previous != "" {
+								<span class="block">Before: { c.Previous }</span>
+							}
+							if c.New != "" {
+								<span class="block">After: { c.New }</span>
+							}
+							if c.Reason != "" {
+								<span class="block">Reason: { c.Reason }</span>
+							}
+						</li>
+					}
+				</ul>
+			}
+			if len(e.Signals) > 0 {
+				<div class="mt-2 flex flex-wrap gap-1">
+					for _, sg := range e.Signals {
+						<span class="badge badge-xs badge-ghost">{ sg.Track }: { sg.Velocity } / { sg.Quality }</span>
+					}
+				</div>
+			}
 		</div>
 	</div>
+}
+
+// lraDot joins a change's section and field.
+func lraDot(section, field string) string {
+	if section != "" && field != "" {
+		return "."
+	}
+	return ""
 }
