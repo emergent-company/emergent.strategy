@@ -91,3 +91,41 @@ func segsMatch(pattern []string, leaf []pathSeg) bool {
 	}
 	return true
 }
+
+// rootOf returns the block of a payload that sits under rootKey. Some payloads
+// wrap their content in that key, others do not.
+func rootOf(payload map[string]any, rootKey string) (root map[string]any, wrapped bool) {
+	if inner, ok := payload[rootKey].(map[string]any); ok {
+		return inner, true
+	}
+	return payload, false
+}
+
+// unshownInRoot is unshownContent for an artifact whose schema has a root block
+// (inner paths, relative to it) and sections beside it (outer paths, relative to
+// the payload: a change log, say). An unwrapped payload holds both in one map and
+// is checked against both lists. A wrapped one is checked block by block, so the
+// notice names real sections and not the wrapper.
+func unshownInRoot(payload map[string]any, rootKey string, inner, outer []string) map[string]any {
+	root, wrapped := rootOf(payload, rootKey)
+	if !wrapped {
+		return unshownContent(root, append(append([]string{}, inner...), outer...))
+	}
+	out := unshownContent(root, inner)
+	rest := make(map[string]any, len(payload))
+	for k, v := range payload {
+		if k != rootKey {
+			rest[k] = v
+		}
+	}
+	for k, v := range unshownContent(rest, outer) {
+		if out == nil {
+			out = make(map[string]any)
+		}
+		if _, taken := out[k]; taken {
+			k = "outside_" + rootKey + "_" + k
+		}
+		out[k] = v
+	}
+	return out
+}

@@ -109,7 +109,27 @@ the handler. Section 5 (CI gate) comes last.
       `TestStrategyFormulaViewShowsEveryFieldOfTheSchema` (both shapes of every
       string-or-object field) and the template, unwrapped, unknown-key, free-form,
       legacy-name and gate tests.
-- [ ] 3.3 `handler_foundations.go` / `strategyFoundationsContent`: fix gaps found.
+- [x] 3.3 `handler_foundations.go` / `strategyFoundationsContent`: fix gaps found.
+      Before this, a payload built from the schema lost 77 of its 112 strings and the
+      canonical template 77 of 105. Causes: the jobs to be done, key benefits, pains
+      and feelings were read from directly under `value_proposition`, where neither the
+      schema nor the template puts them (both nest them under `functional_value` and
+      `emotional_value`), so they never showed; the vision alignment, the sequencing
+      constraints, the whole information architecture except its design principles,
+      the consistency validation and the change log had no reader; a phase's number
+      was read as text from a number and came back empty; the sequencing phases lost
+      their target problem and success criteria. The schema and the template also
+      disagree in several places (plain strings against objects in success indicators,
+      proof points, design principles, success criteria and dependencies; objects
+      against strings in jobs, feelings and pains; `information_discovery` a string or
+      an object; the validation and change log fields), so every reader takes both and
+      the template-only fields are read as well. The older flat paths are still read
+      (specs of one kind are merged into one section). `consistency_validation` and
+      `change_log` sit beside the root block in a wrapped payload and inside it in an
+      unwrapped one; `unshownInRoot` checks each block, so the notice names real
+      sections. Pinned by `TestStrategyFoundationsViewShowsEveryFieldOfTheSchema`, the
+      template, unwrapped, unknown-key (inside a known section, inside the root and
+      beside it), older-names and gate tests; mutation-checked (15).
 - [ ] 3.4 `handler_roadmap.go` / `roadmapRecipeContent`: fix gaps found.
       Already done in `fix-real-instance-findings` 4.4: `extractRoadmapTrack` reads
       every `future_okrs_*` group (through `strategyread.OKRGroups`, with a "Planned"
@@ -136,7 +156,7 @@ the handler. Section 5 (CI gate) comes last.
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula. `unshownContent`, `readRecords` and the tolerant readers are
+      strategy formula, strategy foundations. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
@@ -144,20 +164,21 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses` and `strategy_formula` (1.6, 3.2);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations` (1.6, 3.2, 3.3);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses` and `strategy_formula`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses` and `strategy_formula`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
-      `timeline`). One so far: the legacy insight analyses layout.
+      `timeline`). Two so far: the legacy insight analyses layout, and the
+      older flat value proposition and design principles paths of the foundations.
 
 ## 5. Canonical bump CI gate
 
