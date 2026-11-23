@@ -15,27 +15,38 @@ type StrategyFoundationsData struct {
 	LastUpdated string
 	Confidence  string
 
+	// References to the artifacts this one was derived from.
+	References []RecordFact
+
 	// Product Vision
-	VisionStatement  string
-	TargetTimeframe  string
+	VisionStatement   string
+	TargetTimeframe   string
 	SuccessIndicators []FoundationIndicator
 
 	// Value Proposition
 	VPHeadline      string
 	VPTargetSegment string
 	ProofPoints     []FoundationProofPoint
-	JobsToBeDone    []string
 	KeyBenefits     []string
-	PainsWeEliminate []string
-	FeelingsWeCreate []string
 	EconomicValue   FoundationEconomicValue
 
 	// Strategic Sequencing
 	SequencingPrinciple string
 	Phases              []FoundationPhase
 
-	// Design Principles
-	DesignPrinciples []FoundationPrinciple
+	// Information architecture and design principles
+	ArchitecturePhilosophy string
+	DesignPrinciples       []FoundationPrinciple
+
+	// Sections whose entries share one card: the vision's alignment, the value
+	// proposition's jobs, pains and feelings, the sequencing constraints, the
+	// architecture's structure and patterns, the consistency validation and the
+	// change log.
+	Records []RecordSection
+
+	// Stored content that no section above shows. It is rendered as stored,
+	// under a notice, so that nothing in the artifact is dropped silently.
+	Unshown map[string]any
 
 	// Section completeness gaps
 	Gaps []ReadyGap
@@ -58,18 +69,107 @@ type FoundationEconomicValue struct {
 }
 
 type FoundationPhase struct {
-	Phase             string
-	Name              string
-	Focus             string
-	Timeframe         string
-	TargetSegment     string
-	ValueDelivered    []string
+	Phase              string
+	Name               string
+	Focus              string
+	Timeframe          string
+	TargetSegment      string
+	TargetProblem      string
+	EnabledBy          string
+	ValueDelivered     []string
+	SuccessCriteria    []FoundationCriterion
 	StrategicRationale string
+}
+
+type FoundationCriterion struct {
+	Metric string
+	Target string
 }
 
 type FoundationPrinciple struct {
 	Principle     string
 	Manifestation string
+}
+
+// Slots of the record sections on the page.
+const (
+	FoundationSlotVision     = "vision"
+	FoundationSlotValueProp  = "valueprop"
+	FoundationSlotSequencing = "sequencing"
+	FoundationSlotArch       = "architecture"
+	FoundationSlotValidation = "validation"
+)
+
+// Kinds of record section. Each has a title, icon and slot in foundationRecordStyles.
+const (
+	FoundationKindVisionTrends         = "vision_trends"
+	FoundationKindVisionOpportunity    = "vision_opportunity"
+	FoundationKindVisionDifferentiator = "vision_differentiator"
+	FoundationKindJobs                 = "jobs_to_be_done"
+	FoundationKindPains                = "pains_we_eliminate"
+	FoundationKindFeelings             = "feelings_we_create"
+	FoundationKindVPConsistency        = "value_proposition_consistency"
+	FoundationKindDependencies         = "dependencies"
+	FoundationKindSequenceRisks        = "risks_of_sequence"
+	FoundationKindAlternative          = "alternative_considered"
+	FoundationKindSequenceConsistency  = "sequencing_consistency"
+	FoundationKindMentalModel          = "mental_model"
+	FoundationKindNavigation           = "top_level_navigation"
+	FoundationKindObjectTypes          = "key_object_types"
+	FoundationKindPrimaryActions       = "primary_actions"
+	FoundationKindDiscovery            = "information_discovery"
+	FoundationKindCompetitiveIA        = "competitive_ia_comparison"
+	FoundationKindIAConsistency        = "architecture_consistency"
+	FoundationKindValidation           = "consistency_validation"
+	FoundationKindValidatedAgainst     = "validated_against"
+	FoundationKindKnownTensions        = "known_tensions"
+	FoundationKindChangeLog            = "change_log"
+)
+
+var foundationRecordStyles = map[string]RecordStyle{
+	FoundationKindVisionTrends:         {FoundationSlotVision, "Informed by Trends", "lucide--trending-up", "accent"},
+	FoundationKindVisionOpportunity:    {FoundationSlotVision, "Opportunity Addressed", "lucide--crosshair", "accent"},
+	FoundationKindVisionDifferentiator: {FoundationSlotVision, "Vision Differentiator", "lucide--sparkle", "accent"},
+	FoundationKindJobs:                 {FoundationSlotValueProp, "Jobs To Be Done", "lucide--target", "primary"},
+	FoundationKindPains:                {FoundationSlotValueProp, "Pains We Eliminate", "lucide--x-circle", "error"},
+	FoundationKindFeelings:             {FoundationSlotValueProp, "Feelings We Create", "lucide--heart", "success"},
+	FoundationKindVPConsistency:        {FoundationSlotValueProp, "Consistency Check", "lucide--check-check", "primary"},
+	FoundationKindDependencies:         {FoundationSlotSequencing, "Dependencies", "lucide--git-branch", "secondary"},
+	FoundationKindSequenceRisks:        {FoundationSlotSequencing, "Risks of the Sequence", "lucide--alert-triangle", "error"},
+	FoundationKindAlternative:          {FoundationSlotSequencing, "Alternative Considered", "lucide--split", "secondary"},
+	FoundationKindSequenceConsistency:  {FoundationSlotSequencing, "Consistency Check", "lucide--check-check", "secondary"},
+	FoundationKindMentalModel:          {FoundationSlotArch, "Mental Model", "lucide--brain", "info"},
+	FoundationKindNavigation:           {FoundationSlotArch, "Top-level Navigation", "lucide--navigation", "info"},
+	FoundationKindObjectTypes:          {FoundationSlotArch, "Key Object Types", "lucide--boxes", "info"},
+	FoundationKindPrimaryActions:       {FoundationSlotArch, "Primary Actions", "lucide--mouse-pointer-click", "info"},
+	FoundationKindDiscovery:            {FoundationSlotArch, "Information Discovery", "lucide--search", "info"},
+	FoundationKindCompetitiveIA:        {FoundationSlotArch, "Competitive Comparison", "lucide--swords", "info"},
+	FoundationKindIAConsistency:        {FoundationSlotArch, "Consistency Check", "lucide--check-check", "info"},
+	FoundationKindValidation:           {FoundationSlotValidation, "Consistency Validation", "lucide--shield-check", "success"},
+	FoundationKindValidatedAgainst:     {FoundationSlotValidation, "Validated Against", "lucide--file-check", "success"},
+	FoundationKindKnownTensions:        {FoundationSlotValidation, "Known Tensions", "lucide--scale", "warning"},
+	FoundationKindChangeLog:            {FoundationSlotValidation, "Change Log", "lucide--history", "neutral"},
+}
+
+func (d StrategyFoundationsData) hasRecords(slot string) bool {
+	return recordsInSlot(foundationRecordStyles, d.Records, slot)
+}
+
+func (d StrategyFoundationsData) hasVision() bool {
+	return d.VisionStatement != "" || d.TargetTimeframe != "" || len(d.SuccessIndicators) > 0 || d.hasRecords(FoundationSlotVision)
+}
+
+func (d StrategyFoundationsData) hasValueProposition() bool {
+	return d.VPHeadline != "" || d.VPTargetSegment != "" || len(d.ProofPoints) > 0 || len(d.KeyBenefits) > 0 ||
+		d.EconomicValue != (FoundationEconomicValue{}) || d.hasRecords(FoundationSlotValueProp)
+}
+
+func (d StrategyFoundationsData) hasSequencing() bool {
+	return d.SequencingPrinciple != "" || len(d.Phases) > 0 || d.hasRecords(FoundationSlotSequencing)
+}
+
+func (d StrategyFoundationsData) hasArchitecture() bool {
+	return d.ArchitecturePhilosophy != "" || d.hasRecords(FoundationSlotArch)
 }
 
 // StrategyFoundationsContent renders the bespoke Strategy Foundations view.
@@ -81,24 +181,32 @@ templ StrategyFoundationsContent(data StrategyFoundationsData) {
 		@foundationsHero(data)
 
 		// ── Product Vision ──
-		if data.VisionStatement != "" || len(data.SuccessIndicators) > 0 {
+		if data.hasVision() {
 			@foundationsVisionSection(data)
 		}
 
 		// ── Value Proposition ──
-		if data.VPHeadline != "" || len(data.ProofPoints) > 0 || len(data.JobsToBeDone) > 0 {
+		if data.hasValueProposition() {
 			@foundationsValuePropSection(data)
 		}
 
 		// ── Strategic Sequencing ──
-		if data.SequencingPrinciple != "" || len(data.Phases) > 0 {
+		if data.hasSequencing() {
 			@foundationsSequencingSection(data)
+		}
+
+		// ── Information Architecture ──
+		if data.hasArchitecture() {
+			@foundationsArchitectureSection(data)
 		}
 
 		// ── Design Principles ──
 		if len(data.DesignPrinciples) > 0 {
 			@foundationsDesignPrinciplesSection(data.DesignPrinciples)
 		}
+
+		@RecordSections(foundationRecordStyles, data.Records, FoundationSlotValidation)
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -122,6 +230,13 @@ templ foundationsHero(data StrategyFoundationsData) {
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+					if len(data.References) > 0 {
+						<p class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/75">
+							for _, ref := range data.References {
+								<span><span class="font-medium">{ ref.Label }:</span> <span class="font-mono">{ ref.Value }</span></span>
+							}
+						</p>
+					}
 				</div>
 				if data.LastUpdated != "" {
 			<div class="hidden sm:block text-right text-xs text-base-content/75">
@@ -146,11 +261,11 @@ templ foundationsVisionSection(data StrategyFoundationsData) {
 					<blockquote class="text-base text-base-content leading-relaxed italic">
 						{ data.VisionStatement }
 					</blockquote>
-					if data.TargetTimeframe != "" {
-						<div class="mt-3">
-							<span class="badge badge-sm badge-outline badge-accent">{ data.TargetTimeframe }</span>
-						</div>
-					}
+				</div>
+			}
+			if data.TargetTimeframe != "" {
+				<div>
+					<span class="badge badge-sm badge-outline badge-accent">{ data.TargetTimeframe }</span>
 				</div>
 			}
 			if len(data.SuccessIndicators) > 0 {
@@ -167,6 +282,7 @@ templ foundationsVisionSection(data StrategyFoundationsData) {
 					}
 				</div>
 			}
+			@RecordSections(foundationRecordStyles, data.Records, FoundationSlotVision)
 		</div>
 	</section>
 }
@@ -203,27 +319,8 @@ templ foundationsValuePropSection(data StrategyFoundationsData) {
 					}
 				</div>
 			}
-			// Jobs To Be Done + Key Benefits (two-column)
-			if len(data.JobsToBeDone) > 0 || len(data.KeyBenefits) > 0 {
-				<div class="grid gap-4 md:grid-cols-2">
-					if len(data.JobsToBeDone) > 0 {
-						@bulletListCard("Jobs To Be Done", data.JobsToBeDone, "lucide--target", "primary")
-					}
-					if len(data.KeyBenefits) > 0 {
-						@bulletListCard("Key Benefits", data.KeyBenefits, "lucide--check-circle-2", "success")
-					}
-				</div>
-			}
-			// Emotional Value (Pains / Feelings two-tone)
-			if len(data.PainsWeEliminate) > 0 || len(data.FeelingsWeCreate) > 0 {
-				<div class="grid gap-4 md:grid-cols-2">
-					if len(data.PainsWeEliminate) > 0 {
-						@bulletListCard("Pains We Eliminate", data.PainsWeEliminate, "lucide--x-circle", "error")
-					}
-					if len(data.FeelingsWeCreate) > 0 {
-						@bulletListCard("Feelings We Create", data.FeelingsWeCreate, "lucide--heart", "success")
-					}
-				</div>
+			if len(data.KeyBenefits) > 0 {
+				@bulletListCard("Key Benefits", data.KeyBenefits, "lucide--check-circle-2", "success")
 			}
 			// Economic Value
 			if data.EconomicValue.CostSavings != "" || data.EconomicValue.RevenueGains != "" || data.EconomicValue.RiskReduction != "" {
@@ -256,6 +353,7 @@ templ foundationsValuePropSection(data StrategyFoundationsData) {
 					</div>
 				</div>
 			}
+			@RecordSections(foundationRecordStyles, data.Records, FoundationSlotValueProp)
 		</div>
 	</section>
 }
@@ -282,6 +380,27 @@ templ foundationsSequencingSection(data StrategyFoundationsData) {
 					}
 				</div>
 			}
+			@RecordSections(foundationRecordStyles, data.Records, FoundationSlotSequencing)
+		</div>
+	</section>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Information Architecture
+// ──────────────────────────────────────────────────────────────────────
+
+templ foundationsArchitectureSection(data StrategyFoundationsData) {
+	<section>
+		@sectionHeading("Information Architecture", "lucide--layout-panel-left", "info", "How users understand the product")
+		<div class="mt-4 space-y-4">
+			if data.ArchitecturePhilosophy != "" {
+				<div class="rounded-xl bg-gradient-to-r from-info/5 to-transparent border border-info/10 p-5">
+					<blockquote class="text-base text-base-content leading-relaxed italic">
+						{ data.ArchitecturePhilosophy }
+					</blockquote>
+				</div>
+			}
+			@RecordSections(foundationRecordStyles, data.Records, FoundationSlotArch)
 		</div>
 	</section>
 }
@@ -299,6 +418,9 @@ templ foundationsPhaseStep(phase FoundationPhase, idx, total int) {
 		</div>
 		<div class="pb-4 min-w-0 grow">
 			<div class="flex items-center gap-2">
+				if phase.Phase != "" {
+					<span class="badge badge-xs badge-secondary">Phase { phase.Phase }</span>
+				}
 				<p class="text-sm font-semibold text-base-content">{ phase.Name }</p>
 				if phase.Timeframe != "" {
 					<span class="badge badge-xs badge-outline badge-secondary">{ phase.Timeframe }</span>
@@ -312,10 +434,33 @@ templ foundationsPhaseStep(phase FoundationPhase, idx, total int) {
 				<span class="font-medium text-base-content/75">Segment:</span> { phase.TargetSegment }
 				</p>
 			}
+			if phase.TargetProblem != "" {
+				<p class="text-xs text-base-content/80 mt-0.5">
+					<span class="font-medium text-base-content/75">Problem:</span> { phase.TargetProblem }
+				</p>
+			}
+			if phase.EnabledBy != "" {
+				<p class="text-xs text-base-content/80 mt-0.5">
+					<span class="font-medium text-base-content/75">Enabled by:</span> { phase.EnabledBy }
+				</p>
+			}
 			if len(phase.ValueDelivered) > 0 {
 				<div class="flex flex-wrap gap-1 mt-2">
 					for _, v := range phase.ValueDelivered {
 						<span class="badge badge-xs badge-ghost">{ v }</span>
+					}
+				</div>
+			}
+			if len(phase.SuccessCriteria) > 0 {
+				<div class="mt-2 space-y-0.5">
+					<p class="text-xs font-medium text-base-content/75">Success criteria</p>
+					for _, c := range phase.SuccessCriteria {
+						<p class="text-xs text-base-content/80">
+							{ c.Metric }
+							if c.Target != "" {
+								<span class="font-mono text-accent"> { c.Target }</span>
+							}
+						</p>
 					}
 				</div>
 			}

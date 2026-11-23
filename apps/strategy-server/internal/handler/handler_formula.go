@@ -58,40 +58,14 @@ func (s *Server) strategyFormulaContent(navCtx ui.NavContext, artifactKey, name,
 	return ui.StrategyFormulaContent(data)
 }
 
-// formulaRoot returns the strategy block of a payload. Some payloads wrap it in
-// a "strategy" key, others do not.
+// formulaRoot returns the strategy block of a payload.
 func formulaRoot(payload map[string]any) (strategy map[string]any, wrapped bool) {
-	if inner, ok := payload["strategy"].(map[string]any); ok {
-		return inner, true
-	}
-	return payload, false
+	return rootOf(payload, "strategy")
 }
 
 // formulaUnshown returns the stored content the page has no dedicated view for.
-// A wrapped payload is checked block by block, so the notice names real sections
-// (a field of the strategy, the change log) and not the wrapper.
 func formulaUnshown(payload map[string]any) map[string]any {
-	strategy, wrapped := formulaRoot(payload)
-	if !wrapped {
-		return unshownContent(strategy, append(append([]string{}, formulaShownPaths...), formulaLogPaths...))
-	}
-	out := unshownContent(strategy, formulaShownPaths)
-	rest := make(map[string]any, len(payload))
-	for k, v := range payload {
-		if k != "strategy" {
-			rest[k] = v
-		}
-	}
-	for k, v := range unshownContent(rest, formulaLogPaths) {
-		if out == nil {
-			out = make(map[string]any)
-		}
-		if _, taken := out[k]; taken {
-			k = "outside_strategy_" + k
-		}
-		out[k] = v
-	}
-	return out
+	return unshownInRoot(payload, "strategy", formulaShownPaths, formulaLogPaths)
 }
 
 // applyFormulaPositioning populates positioning fields from the strategy payload.

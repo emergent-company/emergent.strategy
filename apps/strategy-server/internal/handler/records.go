@@ -22,7 +22,8 @@ type recordSpec struct {
 }
 
 // readRecords reads every spec from the payload. An entry with nothing readable
-// is skipped, and a section with no entries is left out.
+// is skipped, and a section with no entries is left out. Specs of one kind are
+// merged into one section, so a field can be read from two paths.
 func readRecords(payload map[string]any, specs []recordSpec) []ui.RecordSection {
 	var out []ui.RecordSection
 	for _, spec := range specs {
@@ -51,7 +52,19 @@ func readRecords(payload map[string]any, specs []recordSpec) []ui.RecordSection 
 				records = append(records, rec)
 			}
 		}
-		if len(records) > 0 {
+		if len(records) == 0 {
+			continue
+		}
+		// Specs of one kind (a schema path and an older one) make one section.
+		merged := false
+		for i := range out {
+			if out[i].Kind == spec.kind {
+				out[i].Records = append(out[i].Records, records...)
+				merged = true
+				break
+			}
+		}
+		if !merged {
 			out = append(out, ui.RecordSection{Kind: spec.kind, Records: records})
 		}
 	}
