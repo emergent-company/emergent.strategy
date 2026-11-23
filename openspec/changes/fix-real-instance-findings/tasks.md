@@ -276,6 +276,20 @@ and WP-005 (operational visibility) are independent of everything else.
       a refusal; the reason is in the log. The alignment test fixtures commit
       single-track roadmaps on purpose and now confirm that through their helper.
 
+- [x] 4.7 (epf-canonical#29) Carry canonical 2.36.0 and count only active elements in
+      the maturity roll-up. The pin moves to 2.36.0 (strategy-server and epf-cli
+      embedded content, integrity manifest regenerated): the strategy, commercial and
+      org_ops value model templates gain 5 layers, 34 components and 103 inactive
+      sub-components, and their content hashes change. The roll-up
+      (`CalculateL2/L1/TrackMaturity` and the `Analyze*` functions, identical in
+      `epfvaluemodel` and `valuemodel`) now counts active elements only, at every level,
+      as the 2.36.0 maturity guide says; an element with no active child returns the new
+      `MaturityNone` instead of "hypothetical". Nothing outside tests calls these
+      functions, so no tool output changes. Tests: `TestCalculate*_Inactive*` and
+      `TestAnalyzeMaturity_CountsActiveElementsOnly` (each filter mutation-checked), and
+      `TestEmbeddedManifest_KnowsTheValueModelTemplatesOfThePreviousRelease`, which
+      reads the 2.35.0 templates and fails against the old manifest.
+
 ## 5. Operational visibility (WP-005)
 
 - [x] 5.1 `health_check`: add a `github_sync` block reporting the state

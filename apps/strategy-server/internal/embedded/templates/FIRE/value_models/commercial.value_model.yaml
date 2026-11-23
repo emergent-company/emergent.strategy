@@ -3,7 +3,7 @@
 # The sections here form the basis of the living Commercial Requirement Document (CRD).
 
 track_name: "Commercial"
-version: "1.1.0"
+version: "1.2.0"
 status: "active"
 description: "Drives market positioning, revenue generation, and partnerships."
 packaged_default: true
@@ -77,6 +77,32 @@ layers:
   # Ongoing investor relations, governance, and financial tracking belong in OrgOps.
   # See: OrgOps → COMPANY GOVERNANCE & COMPLIANCE → Board / Shareholders & Investors
   
+    - id: commercial-c-distribution-channel-partners
+      name: Distribution & Channel Partners
+      active: false
+      subs:
+      - id: commercial-s-channel-partner-program
+        name: Channel partner program
+        active: false
+      - id: commercial-s-reseller-and-integrator-relationships
+        name: Reseller and integrator relationships
+        active: false
+      - id: commercial-s-marketplace-and-platform-listings
+        name: Marketplace and platform listings
+        active: false
+    - id: commercial-c-technology-research-partnerships
+      name: Technology & Research Partnerships
+      active: false
+      subs:
+      - id: commercial-s-technology-alliances-and-integrations
+        name: Technology alliances and integrations
+        active: false
+      - id: commercial-s-research-and-university-collaborations
+        name: Research and university collaborations
+        active: false
+      - id: commercial-s-joint-development-and-test-facility-agreements
+        name: Joint development and test facility agreements
+        active: false
   - id: commercial-l1-financing
     name: FINANCING
     active: false
@@ -110,6 +136,22 @@ layers:
         active: false
         description: "Capex plans for investor discussions"
 
+    - id: commercial-c-alternative-strategic-capital
+      name: Alternative & Strategic Capital
+      active: false
+      subs:
+      - id: commercial-s-convertible-and-bridge-financing
+        name: Convertible and bridge financing
+        active: false
+      - id: commercial-s-venture-and-asset-backed-debt
+        name: Venture and asset-backed debt
+        active: false
+      - id: commercial-s-project-and-revenue-based-financing
+        name: Project and revenue-based financing
+        active: false
+      - id: commercial-s-corporate-and-strategic-investors
+        name: Corporate and strategic investors
+        active: false
   - id: commercial-l1-sales-and-marketing
     name: SALES AND MARKETING
     active: false
@@ -170,6 +212,45 @@ layers:
         name: Content performance tracking
         active: false
 
+    - id: commercial-c-sales-operations
+      name: Sales Operations
+      active: false
+      subs:
+      - id: commercial-s-pipeline-management
+        name: Pipeline management
+        active: false
+      - id: commercial-s-proposal-and-tender-management
+        name: Proposal and tender management
+        active: false
+      - id: commercial-s-sales-enablement-and-deal-desk
+        name: Sales enablement and deal desk
+        active: false
+    - id: commercial-c-pilot-demonstration-programs
+      name: Pilot & Demonstration Programs
+      active: false
+      subs:
+      - id: commercial-s-pilot-design-and-customer-selection
+        name: Pilot design and customer selection
+        active: false
+      - id: commercial-s-proof-of-concept-contracting
+        name: Proof-of-concept contracting
+        active: false
+      - id: commercial-s-pilot-to-contract-conversion
+        name: Pilot-to-contract conversion
+        active: false
+    - id: commercial-c-public-relations-events
+      name: Public Relations & Events
+      active: false
+      subs:
+      - id: commercial-s-media-relations
+        name: Media relations
+        active: false
+      - id: commercial-s-conferences-and-trade-shows
+        name: Conferences and trade shows
+        active: false
+      - id: commercial-s-thought-leadership-and-analyst-relations
+        name: Thought leadership and analyst relations
+        active: false
   - id: commercial-l1-brand-positioning
     name: BRAND & POSITIONING
     active: false
@@ -212,4 +293,85 @@ layers:
         active: false
       - id: commercial-s-pricing-strategies
         name: Pricing strategies
+        active: false
+    - id: commercial-c-brand-offering-architecture
+      name: Brand & Offering Architecture
+      active: false
+      subs:
+      - id: commercial-s-brand-architecture-and-naming
+        name: Brand architecture and naming
+        active: false
+      - id: commercial-s-offering-and-packaging-definition
+        name: Offering and packaging definition
+        active: false
+      - id: commercial-s-portfolio-governance
+        name: Portfolio governance
+        active: false
+  - id: commercial-l1-revenue-models-pricing
+    name: REVENUE MODELS & PRICING
+    active: false
+    components:
+    - id: commercial-c-recurring-service-based-revenue
+      name: Recurring & Service-Based Revenue
+      active: false
+      subs:
+      - id: commercial-s-subscription-and-usage-based-pricing
+        name: Subscription and usage-based pricing
+        active: false
+      - id: commercial-s-outcome-based-service-contracts
+        name: Outcome-based service contracts
+        active: false
+      - id: commercial-s-service-levels-and-guarantees
+        name: Service levels and guarantees
+        active: false
+      - id: commercial-s-metering-and-billing
+        name: Metering and billing
+        active: false
+      - id: commercial-s-renewal-and-expansion-management
+        name: Renewal and expansion management
+        active: false
+      - id: commercial-s-maintenance-support-and-professional-services
+        name: Maintenance, support and professional services
+        active: false
+    - id: commercial-c-product-commodity-sales
+      name: Product & Commodity Sales
+      active: false
+      subs:
+      - id: commercial-s-offtake-and-supply-agreements
+        name: Offtake and supply agreements
+        active: false
+      - id: commercial-s-customer-qualification-and-approval
+        name: Customer qualification and approval
+        active: false
+      - id: commercial-s-price-risk-management
+        name: Price risk management
+        active: false
+      - id: commercial-s-customer-funded-development
+        name: Customer-funded development
+        active: false
+    - id: commercial-c-licensing-royalties
+      name: Licensing & Royalties
+      active: false
+      subs:
+      - id: commercial-s-licensing-framework-and-royalty-structures
+        name: Licensing framework and royalty structures
+        active: false
+      - id: commercial-s-licensee-quality-and-certification-standards
+        name: Licensee quality and certification standards
+        active: false
+      - id: commercial-s-technology-transfer-packages
+        name: Technology transfer packages
+        active: false
+    - id: commercial-c-environmental-regulatory-credits
+      name: Environmental & Regulatory Credits
+      active: false
+      subs:
+      - id: commercial-s-credit-generation-and-issuance
+        name: Credit generation and issuance
+        active: false
+      - id: commercial-s-verification-and-registry-listing
+        name: Verification and registry listing
+        active: false
+      - id: commercial-s-credit-sales-and-compliance-market-access
+        name: Credit sales and compliance market access
         active: false

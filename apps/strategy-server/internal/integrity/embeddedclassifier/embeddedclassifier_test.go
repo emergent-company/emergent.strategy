@@ -59,3 +59,38 @@ func TestEmbeddedManifest_KnowsTheTemplatesOfThePreviousRelease(t *testing.T) {
 		})
 	}
 }
+
+// 2.36.0 added layers, components and sub-components to the strategy, commercial
+// and org_ops value model templates, so their hashes changed. An instance seeded
+// from 2.35.0 and never edited must still read as a packaged default of an
+// earlier release, and the 2.36.0 copies as the current one.
+func TestEmbeddedManifest_KnowsTheValueModelTemplatesOfThePreviousRelease(t *testing.T) {
+	cl := embeddedclassifier.Default()
+	if cl == nil {
+		t.Fatal("no classifier is built from the embedded manifest")
+	}
+	for _, track := range []string{"strategy", "commercial", "org_ops"} {
+		t.Run(track, func(t *testing.T) {
+			old, err := os.ReadFile("testdata/value_model_" + track + "_2.35.0.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, ok := cl.Classify(asPayload(t, old))
+			if !ok || got.Class != integrity.ClassPackagedDefault {
+				t.Fatalf("2.35.0 %s value model: %+v ok=%v, want packaged_default", track, got, ok)
+			}
+			if got.Current {
+				t.Errorf("2.35.0 %s value model is reported as the current release (%s)", track, got.Release)
+			}
+
+			current, err := embedded.GetTemplate("FIRE/value_models/" + track + ".value_model.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+			now, ok := cl.Classify(asPayload(t, current))
+			if !ok || now.Class != integrity.ClassPackagedDefault || !now.Current {
+				t.Errorf("current %s value model: %+v ok=%v, want packaged_default of the current release", track, now, ok)
+			}
+		})
+	}
+}

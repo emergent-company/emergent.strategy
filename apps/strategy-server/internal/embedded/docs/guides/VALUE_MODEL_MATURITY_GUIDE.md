@@ -85,6 +85,8 @@ L3 Sub-components  ←── ASSESSED HERE (with evidence)
 
 **The 80% Rule**: A parent element achieves a maturity stage when 80%+ of its children are at that stage. This prevents claiming "proven" when most components are still hypothetical.
 
+**Only active elements count.** The rule is applied to a parent's *active* children. An inactive sub-component, component or layer is a capability the organization could take up, not one it has chosen, so it is not part of the denominator. An element with no active child has no rolled-up maturity: it is not reported as "hypothetical". Without this, a template that ships many inactive sub-components would pull every roll-up toward "hypothetical" for items nobody activated.
+
 ### Top-Down: Strategy Informs Focus
 
 While maturity EMERGES from bottom-up evidence, strategy INFORMS where to focus:
@@ -328,9 +330,11 @@ When this KR is achieved:
 ### How It Works
 
 1. **Start at L3**: Each sub-component has an assessed maturity stage
-2. **Calculate L2**: Count sub-components at each stage. If 80%+ are at stage X, component is at stage X
-3. **Calculate L1**: Count components at each stage. Apply 80% rule
-4. **Calculate Track**: Count layers at each stage. Apply 80% rule
+2. **Calculate L2**: Count the active sub-components at each stage. If 80%+ are at stage X, component is at stage X
+3. **Calculate L1**: Count the active components at each stage. Apply 80% rule
+4. **Calculate Track**: Count the active layers at each stage. Apply 80% rule
+
+Inactive elements are left out at every level (see "Only active elements count" above).
 
 ### Example Calculation
 

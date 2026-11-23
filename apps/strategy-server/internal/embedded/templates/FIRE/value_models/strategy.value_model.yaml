@@ -3,7 +3,7 @@
 # The sections here form the basis of the living Strategy Requirement Document (SRD).
 
 track_name: "Strategy"
-version: "1.0.0"
+version: "1.1.0"
 status: "active"
 description: "Defines, communicates, and executes the company's overarching strategy."
 packaged_default: true
@@ -72,6 +72,29 @@ layers:
       - id: strategy-s-behavioral-patterns
         name: Behavioral patterns
         active: false
+    - id: strategy-c-regulatory-policy-landscape
+      name: Regulatory & Policy Landscape
+      active: false
+      subs:
+      - id: strategy-s-regulations-mandates-and-standards
+        name: Regulations, mandates and standards
+        active: false
+      - id: strategy-s-subsidies-and-incentive-schemes
+        name: Subsidies and incentive schemes
+        active: false
+    - id: strategy-c-technology-value-chain-landscape
+      name: Technology & Value Chain Landscape
+      active: false
+      subs:
+      - id: strategy-s-technology-scouting-and-substitutes
+        name: Technology scouting and substitutes
+        active: false
+      - id: strategy-s-technology-readiness-benchmarks
+        name: Technology readiness benchmarks
+        active: false
+      - id: strategy-s-value-chain-and-ecosystem-mapping
+        name: Value chain and ecosystem mapping
+        active: false
   - id: strategy-l1-strategic-roadmap
     name: STRATEGIC ROADMAP
     active: false
@@ -114,6 +137,19 @@ layers:
         active: false
       - id: strategy-s-milestone-tracking
         name: Milestone tracking
+        active: false
+    - id: strategy-c-scenarios-strategic-risk
+      name: Scenarios & Strategic Risk
+      active: false
+      subs:
+      - id: strategy-s-scenario-definition-and-trigger-monitoring
+        name: Scenario definition and trigger monitoring
+        active: false
+      - id: strategy-s-risk-register-and-assumption-tracking
+        name: Risk register and assumption tracking
+        active: false
+      - id: strategy-s-pivot-criteria-and-contingency
+        name: Pivot criteria and contingency
         active: false
   - id: strategy-l1-tactical-roadmap
     name: TACTICAL ROADMAP
@@ -213,4 +249,96 @@ layers:
         active: false
       - id: strategy-s-partner-alignment
         name: Partner alignment
+        active: false
+  - id: strategy-l1-business-model-portfolio-ecosystem
+    name: BUSINESS MODEL, PORTFOLIO & ECOSYSTEM
+    active: false
+    components:
+    - id: strategy-c-business-model-design
+      name: Business Model Design
+      active: false
+      subs:
+      - id: strategy-s-value-capture-and-revenue-model-options
+        name: Value capture and revenue model options
+        active: false
+      - id: strategy-s-unit-economics-hypotheses
+        name: Unit economics hypotheses
+        active: false
+      - id: strategy-s-defensibility-and-moat
+        name: Defensibility and moat
+        active: false
+      - id: strategy-s-operating-model-and-footprint
+        name: Operating model and footprint
+        active: false
+    - id: strategy-c-portfolio-investment-governance
+      name: Portfolio & Investment Governance
+      active: false
+      subs:
+      - id: strategy-s-domain-prioritization-and-sequencing
+        name: Domain prioritization and sequencing
+        active: false
+      - id: strategy-s-shared-platform-and-component-strategy
+        name: Shared platform and component strategy
+        active: false
+      - id: strategy-s-parking-and-sunset-criteria
+        name: Parking and sunset criteria
+        active: false
+      - id: strategy-s-capital-allocation-and-stage-gates
+        name: Capital allocation and stage gates
+        active: false
+      - id: strategy-s-funding-strategy-and-round-planning
+        name: Funding strategy and round planning
+        active: false
+    - id: strategy-c-market-entry-go-to-market
+      name: Market Entry & Go-to-Market
+      active: false
+      subs:
+      - id: strategy-s-segment-and-geography-prioritization
+        name: Segment and geography prioritization
+        active: false
+      - id: strategy-s-beachhead-and-entry-sequencing
+        name: Beachhead and entry sequencing
+        active: false
+    - id: strategy-c-partner-ecosystem-strategy
+      name: Partner & Ecosystem Strategy
+      active: false
+      subs:
+      - id: strategy-s-partner-archetypes-selection-and-governance
+        name: Partner archetypes, selection and governance
+        active: false
+      - id: strategy-s-standards-industry-bodies-and-clusters
+        name: Standards, industry bodies and clusters
+        active: false
+      - id: strategy-s-policy-and-regulator-engagement
+        name: Policy and regulator engagement
+        active: false
+  - id: strategy-l1-technology-innovation
+    name: TECHNOLOGY & INNOVATION
+    active: false
+    components:
+    - id: strategy-c-technology-roadmap
+      name: Technology Roadmap
+      active: false
+      subs:
+      - id: strategy-s-technology-bets-and-readiness-milestones
+        name: Technology bets and readiness milestones
+        active: false
+      - id: strategy-s-build-buy-or-license-decisions
+        name: Build, buy or license decisions
+        active: false
+      - id: strategy-s-validation-and-demonstration-sequencing
+        name: Validation and demonstration sequencing
+        active: false
+    - id: strategy-c-ip-strategy
+      name: IP Strategy
+      active: false
+      subs:
+      - id: strategy-s-patent-strategy-and-freedom-to-operate
+        name: Patent strategy and freedom to operate
+        active: false
+      - id: strategy-s-patent-pool-and-licensing-posture
+        name: Patent pool and licensing posture
+        active: false
+      - id: strategy-s-trade-secret-versus-publication
+        name: Trade secret versus publication
         active: false

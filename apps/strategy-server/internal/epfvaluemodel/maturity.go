@@ -7,6 +7,10 @@ package valuemodel
 // - L2 = 80%+ of L3s at stage X → L2 is at stage X
 // - L1 = 80%+ of L2s at stage X → L1 is at stage X
 // - Track = 80%+ of L1s at stage X → Track is at stage X
+//
+// Only active elements count, at every level (epf-canonical 2.36.0,
+// VALUE_MODEL_MATURITY_GUIDE.md). An element with no active child has no
+// maturity (MaturityNone).
 
 // MaturityThreshold is the percentage threshold for maturity rollup (80%).
 const MaturityThreshold = 0.8
@@ -43,55 +47,83 @@ func NextStage(stage MaturityStage) MaturityStage {
 	}
 }
 
-// CalculateL2Maturity calculates the maturity of an L2 component from its L3 sub-components.
-// Uses the 80% rule: if 80%+ of L3s are at stage X or above, L2 is at stage X.
-func CalculateL2Maturity(subComponents []SubComponent) MaturityStage {
-	if len(subComponents) == 0 {
-		return MaturityHypothetical
-	}
-
-	// Count sub-components at each stage
-	counts := make(map[MaturityStage]int)
+// subStages lists the stages of the active sub-components. An inactive
+// sub-component is a capability the organization could take up, not one it chose,
+// so it is not part of the denominator.
+func subStages(subComponents []SubComponent) []MaturityStage {
+	stages := make([]MaturityStage, 0, len(subComponents))
 	for _, sub := range subComponents {
+		if !sub.Active {
+			continue
+		}
 		stage := sub.Maturity.Stage
 		if stage == "" {
 			stage = MaturityHypothetical
 		}
-		counts[stage]++
+		stages = append(stages, stage)
 	}
-
-	return calculateMaturityFromCounts(counts, len(subComponents))
+	return stages
 }
 
-// CalculateL1Maturity calculates the maturity of an L1 layer from its L2 components.
-func CalculateL1Maturity(components []Component) MaturityStage {
-	if len(components) == 0 {
-		return MaturityHypothetical
-	}
-
-	// Calculate each component's maturity first
-	counts := make(map[MaturityStage]int)
+// componentStages lists the rolled-up stages of the active components that have
+// one. A component with no active sub-component has no maturity and adds nothing.
+func componentStages(components []Component) []MaturityStage {
+	stages := make([]MaturityStage, 0, len(components))
 	for _, comp := range components {
-		stage := CalculateL2Maturity(comp.GetSubComponents())
-		counts[stage]++
+		if !comp.Active {
+			continue
+		}
+		if stage := CalculateL2Maturity(comp.GetSubComponents()); stage != MaturityNone {
+			stages = append(stages, stage)
+		}
 	}
-
-	return calculateMaturityFromCounts(counts, len(components))
+	return stages
 }
 
-// CalculateTrackMaturity calculates the maturity of a track from its L1 layers.
-func CalculateTrackMaturity(layers []Layer) MaturityStage {
-	if len(layers) == 0 {
-		return MaturityHypothetical
-	}
-
-	counts := make(map[MaturityStage]int)
+// layerStages lists the rolled-up stages of the active layers that have one.
+func layerStages(layers []Layer) []MaturityStage {
+	stages := make([]MaturityStage, 0, len(layers))
 	for _, layer := range layers {
-		stage := CalculateL1Maturity(layer.Components)
+		if !layer.Active {
+			continue
+		}
+		if stage := CalculateL1Maturity(layer.Components); stage != MaturityNone {
+			stages = append(stages, stage)
+		}
+	}
+	return stages
+}
+
+// rollUp applies the 80% rule to the stages of the active children. No children
+// means no maturity (MaturityNone), not "hypothetical".
+func rollUp(stages []MaturityStage) MaturityStage {
+	if len(stages) == 0 {
+		return MaturityNone
+	}
+	counts := make(map[MaturityStage]int)
+	for _, stage := range stages {
 		counts[stage]++
 	}
+	return calculateMaturityFromCounts(counts, len(stages))
+}
 
-	return calculateMaturityFromCounts(counts, len(layers))
+// CalculateL2Maturity calculates the maturity of an L2 component from its active
+// L3 sub-components. Uses the 80% rule: if 80%+ are at stage X or above, L2 is at
+// stage X. With no active sub-component it returns MaturityNone.
+func CalculateL2Maturity(subComponents []SubComponent) MaturityStage {
+	return rollUp(subStages(subComponents))
+}
+
+// CalculateL1Maturity calculates the maturity of an L1 layer from its active L2
+// components.
+func CalculateL1Maturity(components []Component) MaturityStage {
+	return rollUp(componentStages(components))
+}
+
+// CalculateTrackMaturity calculates the maturity of a track from its active L1
+// layers.
+func CalculateTrackMaturity(layers []Layer) MaturityStage {
+	return rollUp(layerStages(layers))
 }
 
 // calculateMaturityFromCounts applies the 80% rule to determine maturity.
@@ -153,63 +185,22 @@ type MaturityAnalysis struct {
 	NextStageNeeded int // How many more items needed at next stage
 }
 
-// AnalyzeL2Maturity provides detailed analysis for an L2 component.
+// AnalyzeL2Maturity provides detailed analysis for an L2 component, over its
+// active sub-components.
 func AnalyzeL2Maturity(subComponents []SubComponent) *MaturityAnalysis {
-	if len(subComponents) == 0 {
-		return &MaturityAnalysis{
-			CalculatedStage: MaturityHypothetical,
-			AtOrAbove:       make(map[MaturityStage]int),
-			Percentage:      make(map[MaturityStage]float64),
-		}
-	}
-
-	// Collect stages
-	stages := make([]MaturityStage, 0, len(subComponents))
-	for _, sub := range subComponents {
-		stage := sub.Maturity.Stage
-		if stage == "" {
-			stage = MaturityHypothetical
-		}
-		stages = append(stages, stage)
-	}
-
-	return analyzeMaturity(stages)
+	return analyzeMaturity(subStages(subComponents))
 }
 
-// AnalyzeL1Maturity provides detailed analysis for an L1 layer.
+// AnalyzeL1Maturity provides detailed analysis for an L1 layer, over its active
+// components.
 func AnalyzeL1Maturity(components []Component) *MaturityAnalysis {
-	if len(components) == 0 {
-		return &MaturityAnalysis{
-			CalculatedStage: MaturityHypothetical,
-			AtOrAbove:       make(map[MaturityStage]int),
-			Percentage:      make(map[MaturityStage]float64),
-		}
-	}
-
-	stages := make([]MaturityStage, 0, len(components))
-	for _, comp := range components {
-		stages = append(stages, CalculateL2Maturity(comp.GetSubComponents()))
-	}
-
-	return analyzeMaturity(stages)
+	return analyzeMaturity(componentStages(components))
 }
 
-// AnalyzeTrackMaturity provides detailed analysis for a track.
+// AnalyzeTrackMaturity provides detailed analysis for a track, over its active
+// layers.
 func AnalyzeTrackMaturity(layers []Layer) *MaturityAnalysis {
-	if len(layers) == 0 {
-		return &MaturityAnalysis{
-			CalculatedStage: MaturityHypothetical,
-			AtOrAbove:       make(map[MaturityStage]int),
-			Percentage:      make(map[MaturityStage]float64),
-		}
-	}
-
-	stages := make([]MaturityStage, 0, len(layers))
-	for _, layer := range layers {
-		stages = append(stages, CalculateL1Maturity(layer.Components))
-	}
-
-	return analyzeMaturity(stages)
+	return analyzeMaturity(layerStages(layers))
 }
 
 // analyzeMaturity provides detailed maturity analysis for a set of stages.
@@ -217,7 +208,7 @@ func analyzeMaturity(stages []MaturityStage) *MaturityAnalysis {
 	total := len(stages)
 	if total == 0 {
 		return &MaturityAnalysis{
-			CalculatedStage: MaturityHypothetical,
+			CalculatedStage: MaturityNone,
 			AtOrAbove:       make(map[MaturityStage]int),
 			Percentage:      make(map[MaturityStage]float64),
 		}
