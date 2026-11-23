@@ -57,7 +57,7 @@ type InsightAnalysesData struct {
 	// Sections whose entries share one card layout: market dynamics, value
 	// chain, substitutes, barriers, strategic implications and tensions,
 	// product-problem fit, validation, hypotheses, confidence gaps, next steps.
-	Records []InsightRecordSection
+	Records []RecordSection
 
 	// Stored content that no section above shows. It is rendered as stored,
 	// under a notice, so that nothing in the artifact is dropped silently.
@@ -89,9 +89,7 @@ const (
 	InsightKindNextSteps      = "next_analytical_steps"
 )
 
-type insightRecordStyle struct{ Slot, Title, Icon, Color string }
-
-var insightRecordStyles = map[string]insightRecordStyle{
+var insightRecordStyles = map[string]RecordStyle{
 	InsightKindMarketDynamics: {InsightSlotMarket, "Market Dynamics", "lucide--waves", "info"},
 	InsightKindValueChain:     {InsightSlotMarket, "Value Chain", "lucide--workflow", "info"},
 	InsightKindSubstitutes:    {InsightSlotCompetitive, "Substitutes", "lucide--replace", "error"},
@@ -103,26 +101,6 @@ var insightRecordStyles = map[string]insightRecordStyle{
 	InsightKindHypotheses:     {InsightSlotSynthesis, "Problem-Solution Hypotheses", "lucide--target", "accent"},
 	InsightKindConfidenceGaps: {InsightSlotSynthesis, "Confidence Gaps", "lucide--circle-help", "warning"},
 	InsightKindNextSteps:      {InsightSlotSynthesis, "Next Analytical Steps", "lucide--list-checks", "primary"},
-}
-
-// InsightRecordSection is a list of InsightRecord cards of one kind.
-type InsightRecordSection struct {
-	Kind    string
-	Records []InsightRecord
-}
-
-// InsightRecord is one card: a headline, labelled values and labelled lists.
-type InsightRecord struct {
-	Head  string
-	Facts []InsightFact
-	Lists []InsightList
-}
-
-type InsightFact struct{ Label, Value string }
-
-type InsightList struct {
-	Label string
-	Items []string
 }
 
 type InsightTrend struct {
@@ -192,15 +170,6 @@ func (m InsightMarket) HasContent() bool {
 		m.TAMMethod != "" || m.SAMDefinition != "" || m.SOMTimeframe != ""
 }
 
-func insightHasRecords(sections []InsightRecordSection, slot string) bool {
-	for _, sec := range sections {
-		if insightRecordStyles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
 func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -241,7 +210,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "artifact.label.insight_analyses"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 207, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 176, Col: 128}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -259,7 +228,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(confidenceHint(data.Confidence))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 209, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 178, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -294,7 +263,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Confidence)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 209, Col: 164}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 178, Col: 164}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -312,7 +281,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 212, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 181, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -335,7 +304,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.LastUpdated)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 217, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 186, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -354,7 +323,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.NextReview)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 220, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 189, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -374,7 +343,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if data.MarketDefinition.HasContent() || len(data.MarketSegments) > 0 || insightHasRecords(data.Records, InsightSlotMarket) {
+		if data.MarketDefinition.HasContent() || len(data.MarketSegments) > 0 || recordsInSlot(insightRecordStyles, data.Records, InsightSlotMarket) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -431,7 +400,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = insightRecordSections(data.Records, InsightSlotMarket).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RecordSections(insightRecordStyles, data.Records, InsightSlotMarket).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -514,7 +483,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(data.DirectCompetitors) > 0 || len(data.StrategyTools) > 0 || len(data.IndirectCompetitors) > 0 || insightHasRecords(data.Records, InsightSlotCompetitive) {
+		if len(data.DirectCompetitors) > 0 || len(data.StrategyTools) > 0 || len(data.IndirectCompetitors) > 0 || recordsInSlot(insightRecordStyles, data.Records, InsightSlotCompetitive) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -572,7 +541,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 					var templ_7745c5c3_Var10 string
 					templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 327, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 296, Col: 68}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 					if templ_7745c5c3_Err != nil {
@@ -590,7 +559,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var11 string
 						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(c.HowTheySolve)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 329, Col: 75}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 298, Col: 75}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 						if templ_7745c5c3_Err != nil {
@@ -635,7 +604,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var14 string
 						templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(c.ThreatLevel)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 335, Col: 91}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 304, Col: 91}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 						if templ_7745c5c3_Err != nil {
@@ -656,7 +625,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = insightRecordSections(data.Records, InsightSlotCompetitive).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RecordSections(insightRecordStyles, data.Records, InsightSlotCompetitive).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -699,7 +668,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var16 string
 						templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(s.Strength)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 357, Col: 70}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 326, Col: 70}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 						if templ_7745c5c3_Err != nil {
@@ -717,7 +686,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var17 string
 							templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(s.StrategicValue)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 359, Col: 75}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 328, Col: 75}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 							if templ_7745c5c3_Err != nil {
@@ -741,7 +710,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 								var templ_7745c5c3_Var18 string
 								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 364, Col: 56}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 333, Col: 56}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 								if templ_7745c5c3_Err != nil {
@@ -790,7 +759,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(w.Weakness)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 376, Col: 70}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 345, Col: 70}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 						if templ_7745c5c3_Err != nil {
@@ -808,7 +777,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var21 string
 							templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(w.Impact)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 378, Col: 75}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 347, Col: 75}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 							if templ_7745c5c3_Err != nil {
@@ -827,7 +796,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var22 string
 							templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(w.Mitigation)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 381, Col: 71}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 350, Col: 71}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 							if templ_7745c5c3_Err != nil {
@@ -871,7 +840,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var24 string
 						templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(o.Opportunity)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 392, Col: 74}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 361, Col: 74}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 						if templ_7745c5c3_Err != nil {
@@ -889,7 +858,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var25 string
 							templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(o.HowToExploit)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 394, Col: 74}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 363, Col: 74}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 							if templ_7745c5c3_Err != nil {
@@ -930,7 +899,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var28 string
 							templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(o.Priority)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 398, Col: 91}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 367, Col: 91}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 							if templ_7745c5c3_Err != nil {
@@ -974,7 +943,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var30 string
 						templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(t.Threat)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 409, Col: 69}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 378, Col: 69}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 						if templ_7745c5c3_Err != nil {
@@ -992,7 +961,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var31 string
 							templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(t.Mitigation)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 411, Col: 72}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 380, Col: 72}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 							if templ_7745c5c3_Err != nil {
@@ -1037,7 +1006,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 							var templ_7745c5c3_Var34 string
 							templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(t.Likelihood)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 417, Col: 88}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 386, Col: 88}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 							if templ_7745c5c3_Err != nil {
@@ -1086,7 +1055,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(ws.Gap)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 436, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 405, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -1122,7 +1091,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(ws.OpportunityPotential)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 438, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 407, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -1146,7 +1115,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var39 string
 						templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 443, Col: 55}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 412, Col: 55}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 						if templ_7745c5c3_Err != nil {
@@ -1193,7 +1162,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(oc.Opportunity)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 462, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 431, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -1211,7 +1180,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 					var templ_7745c5c3_Var41 string
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(oc.Strength)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 464, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 433, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 					if templ_7745c5c3_Err != nil {
@@ -1235,7 +1204,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 						var templ_7745c5c3_Var42 string
 						templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(sa)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 469, Col: 72}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 438, Col: 72}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 						if templ_7745c5c3_Err != nil {
@@ -1261,7 +1230,7 @@ func InsightAnalysesContent(data InsightAnalysesData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = insightRecordSections(data.Records, InsightSlotSynthesis).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = RecordSections(insightRecordStyles, data.Records, InsightSlotSynthesis).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1338,7 +1307,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(formatTrendCategory(category))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 491, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 460, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 		if templ_7745c5c3_Err != nil {
@@ -1351,7 +1320,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(trends)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 492, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 461, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 		if templ_7745c5c3_Err != nil {
@@ -1369,7 +1338,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(t.Trend)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 499, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 468, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -1387,7 +1356,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(t.Timeframe)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 501, Col: 70}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 470, Col: 70}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -1410,7 +1379,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(t.Impact)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 505, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 474, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -1429,7 +1398,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(t.ImplicationsForUs)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 508, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 477, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1453,7 +1422,7 @@ func trendCategoryAccordion(category string, trends []InsightTrend) templ.Compon
 					var templ_7745c5c3_Var52 string
 					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 513, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 482, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 					if templ_7745c5c3_Err != nil {
@@ -1510,7 +1479,7 @@ func personaCard(p InsightPersona) templ.Component {
 		var templ_7745c5c3_Var54 string
 		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(p.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 531, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 500, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 		if templ_7745c5c3_Err != nil {
@@ -1528,7 +1497,7 @@ func personaCard(p InsightPersona) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(p.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 533, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 502, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1556,7 +1525,7 @@ func personaCard(p InsightPersona) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(p.Context)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 540, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 509, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
@@ -1575,7 +1544,7 @@ func personaCard(p InsightPersona) templ.Component {
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(p.Frequency)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 543, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 512, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1604,7 +1573,7 @@ func personaCard(p InsightPersona) templ.Component {
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(g)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 552, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 521, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 				if templ_7745c5c3_Err != nil {
@@ -1649,7 +1618,7 @@ func personaCard(p InsightPersona) templ.Component {
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(j.Job)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 573, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 542, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1667,7 +1636,7 @@ func personaCard(p InsightPersona) templ.Component {
 					var templ_7745c5c3_Var60 string
 					templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(j.When)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 575, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 544, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 					if templ_7745c5c3_Err != nil {
@@ -1686,7 +1655,7 @@ func personaCard(p InsightPersona) templ.Component {
 					var templ_7745c5c3_Var61 string
 					templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.JoinStringErrs(j.DesiredOutcome)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 578, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 547, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var61))
 					if templ_7745c5c3_Err != nil {
@@ -1705,7 +1674,7 @@ func personaCard(p InsightPersona) templ.Component {
 					var templ_7745c5c3_Var62 string
 					templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(j.Satisfaction)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 581, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 550, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 					if templ_7745c5c3_Err != nil {
@@ -1762,7 +1731,7 @@ func keyInsightCard(ins InsightKey) templ.Component {
 		var templ_7745c5c3_Var64 string
 		templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(ins.Insight)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 598, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 567, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 		if templ_7745c5c3_Err != nil {
@@ -1780,7 +1749,7 @@ func keyInsightCard(ins InsightKey) templ.Component {
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(ins.StrategicImplication)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 600, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 569, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1804,7 +1773,7 @@ func keyInsightCard(ins InsightKey) templ.Component {
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(t)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 605, Col: 52}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 574, Col: 52}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
@@ -1856,7 +1825,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 		var templ_7745c5c3_Var68 string
 		templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 618, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 587, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 		if templ_7745c5c3_Err != nil {
@@ -1874,7 +1843,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(c.Positioning)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 620, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 589, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -1893,7 +1862,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			var templ_7745c5c3_Var70 string
 			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(c.MarketShare)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 623, Col: 111}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 592, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 			if templ_7745c5c3_Err != nil {
@@ -1912,7 +1881,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			var templ_7745c5c3_Var71 string
 			templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(c.TargetSegment)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 626, Col: 115}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 595, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 			if templ_7745c5c3_Err != nil {
@@ -1931,7 +1900,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 			var templ_7745c5c3_Var72 string
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(c.BusinessModel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 629, Col: 115}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 598, Col: 115}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -1960,7 +1929,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 					var templ_7745c5c3_Var73 string
 					templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 638, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 607, Col: 51}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 					if templ_7745c5c3_Err != nil {
@@ -1989,7 +1958,7 @@ func insightCompetitorCard(c InsightCompetitor) templ.Component {
 					var templ_7745c5c3_Var74 string
 					templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(w)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 648, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 617, Col: 51}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 					if templ_7745c5c3_Err != nil {
@@ -2086,7 +2055,7 @@ func swotQuadrant(title, icon, color string, count int) templ.Component {
 		var templ_7745c5c3_Var80 string
 		templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 664, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 633, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 		if templ_7745c5c3_Err != nil {
@@ -2099,7 +2068,7 @@ func swotQuadrant(title, icon, color string, count int) templ.Component {
 		var templ_7745c5c3_Var81 string
 		templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(count))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 665, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 634, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 		if templ_7745c5c3_Err != nil {
@@ -2154,7 +2123,7 @@ func marketStatCard(label, value, note string) templ.Component {
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 678, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 647, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
@@ -2172,7 +2141,7 @@ func marketStatCard(label, value, note string) templ.Component {
 		var templ_7745c5c3_Var84 string
 		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 680, Col: 50}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 649, Col: 50}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 		if templ_7745c5c3_Err != nil {
@@ -2190,7 +2159,7 @@ func marketStatCard(label, value, note string) templ.Component {
 			var templ_7745c5c3_Var85 string
 			templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(note)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 682, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 651, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 			if templ_7745c5c3_Err != nil {
@@ -2259,7 +2228,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 		var templ_7745c5c3_Var89 string
 		templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(prob.Problem)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 692, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 661, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 		if templ_7745c5c3_Err != nil {
@@ -2277,7 +2246,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var90 string
 			templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(prob.Severity)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 694, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 663, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 			if templ_7745c5c3_Err != nil {
@@ -2296,7 +2265,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var91 string
 			templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(prob.Frequency)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 697, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 666, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 			if templ_7745c5c3_Err != nil {
@@ -2315,7 +2284,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var92 string
 			templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(prob.CurrentSolution)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 700, Col: 65}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 669, Col: 65}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
 			if templ_7745c5c3_Err != nil {
@@ -2334,7 +2303,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var93 string
 			templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(prob.CostOfProblem)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 703, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 672, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 			if templ_7745c5c3_Err != nil {
@@ -2353,7 +2322,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var94 string
 			templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(prob.WillingnessToSolve)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 706, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 675, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 			if templ_7745c5c3_Err != nil {
@@ -2372,7 +2341,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 			var templ_7745c5c3_Var95 string
 			templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(w)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 709, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 678, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 			if templ_7745c5c3_Err != nil {
@@ -2396,7 +2365,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 				var templ_7745c5c3_Var96 string
 				templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 714, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 683, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 				if templ_7745c5c3_Err != nil {
@@ -2420,8 +2389,7 @@ func insightProblemRow(prob InsightProblem) templ.Component {
 	})
 }
 
-// insightRecordSections renders the record sections that belong in a slot.
-func insightRecordSections(sections []InsightRecordSection, slot string) templ.Component {
+func segmentRow(seg InsightSegment) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -2442,283 +2410,105 @@ func insightRecordSections(sections []InsightRecordSection, slot string) templ.C
 			templ_7745c5c3_Var97 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		for _, sec := range sections {
-			if insightRecordStyles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
-				style := insightRecordStyles[sec.Kind]
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "<section class=\"mt-6 first:mt-0\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = sectionHeading(style.Title, style.Icon, style.Color, strconv.Itoa(len(sec.Records))).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "<div class=\"mt-4 grid gap-3 md:grid-cols-2\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				for _, rec := range sec.Records {
-					templ_7745c5c3_Err = insightRecordCard(rec).Render(ctx, templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "</div></section>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-func insightRecordCard(rec InsightRecord) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var98 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var98 == nil {
-			templ_7745c5c3_Var98 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "<div class=\"rounded-lg bg-base-100 border border-base-content/15 px-4 py-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 233, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm font-medium text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if rec.Head != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "<p class=\"text-sm font-medium text-base-content\">")
+		var templ_7745c5c3_Var98 string
+		templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Segment)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 694, Col: 65}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "</p>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if seg.Size != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 235, "<span class=\"badge badge-xs badge-ghost shrink-0\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var99 string
-			templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(rec.Head)
+			templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Size)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 742, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 696, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 236, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		for _, f := range rec.Facts {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "<p class=\"text-xs text-base-content/80 mt-1\"><span class=\"font-medium\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var100 string
-			templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(f.Label)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 745, Col: 83}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, ":</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var101 string
-			templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(f.Value)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 745, Col: 103}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, "</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		for _, l := range rec.Lists {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "<div class=\"mt-1.5\"><p class=\"text-xs font-medium text-base-content/80\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var102 string
-			templ_7745c5c3_Var102, templ_7745c5c3_Err = templ.JoinStringErrs(l.Label)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 749, Col: 65}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var102))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "</p><div class=\"flex flex-wrap gap-1 mt-0.5\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			for _, item := range l.Items {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "<span class=\"badge badge-xs badge-ghost\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var103 string
-				templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(item)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 752, Col: 53}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "</span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "</div></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 247, "</div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func segmentRow(seg InsightSegment) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var104 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var104 == nil {
-			templ_7745c5c3_Var104 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 248, "<div class=\"rounded-lg bg-base-100 px-4 py-3\"><div class=\"flex items-start justify-between gap-2\"><p class=\"text-sm font-medium text-base-content\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var105 string
-		templ_7745c5c3_Var105, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Segment)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 763, Col: 65}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var105))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 249, "</p>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if seg.Size != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 250, "<span class=\"badge badge-xs badge-ghost shrink-0\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var106 string
-			templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinStringErrs(seg.Size)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 765, Col: 64}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 251, "</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 252, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 237, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(seg.Characteristics) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 253, "<div class=\"flex flex-wrap gap-1 mt-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 238, "<div class=\"flex flex-wrap gap-1 mt-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, c := range seg.Characteristics {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 254, "<span class=\"badge badge-xs badge-ghost\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 239, "<span class=\"badge badge-xs badge-ghost\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var107 string
-				templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinStringErrs(c)
+				var templ_7745c5c3_Var100 string
+				templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(c)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 771, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 702, Col: 49}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 255, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 240, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 256, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 241, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(seg.UnmetNeeds) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 257, "<div class=\"flex flex-wrap gap-1 mt-1.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 242, "<div class=\"flex flex-wrap gap-1 mt-1.5\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, n := range seg.UnmetNeeds {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 258, "<span class=\"badge badge-xs badge-outline badge-info\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "<span class=\"badge badge-xs badge-outline badge-info\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var108 string
-				templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.JoinStringErrs(n)
+				var templ_7745c5c3_Var101 string
+				templ_7745c5c3_Var101, templ_7745c5c3_Err = templ.JoinStringErrs(n)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 778, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/insight_analyses.templ`, Line: 709, Col: 62}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var108))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var101))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 259, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 244, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 260, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 245, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 261, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 246, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

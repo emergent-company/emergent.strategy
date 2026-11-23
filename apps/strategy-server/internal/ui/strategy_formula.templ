@@ -16,7 +16,13 @@ type StrategyFormulaData struct {
 	LastUpdated  string
 	Confidence   string
 
+	ConfidenceRationale string
+	NextValidation      []string
+	// References to the artifacts this one was derived from (ID, opportunity, foundations, North Star).
+	References []RecordFact
+
 	// Positioning
+	Category         string
 	CategoryPosition string
 	PositioningStmt  string
 	TargetCustomer   string
@@ -31,15 +37,16 @@ type StrategyFormulaData struct {
 
 	// Business model
 	RevenueModel      string
+	PricingStrategy   string
 	PricingPhilosophy string
 	PricingTiers      []FormulaTier
-	GrowthEngines     []FormulaEngine
 	UnitEconomics     map[string]string
+	UnitEconomicsText string
 
 	// Value creation
-	UserJourney     []FormulaJourneyStep
-	ValueDrivers    []FormulaValueDriver
-	KeyCapabilities []FormulaCapability
+	JourneyText  string
+	UserJourney  []FormulaJourneyStep
+	ValueDrivers []FormulaValueDriver
 
 	// Risks
 	Risks []FormulaRisk
@@ -47,17 +54,24 @@ type StrategyFormulaData struct {
 	// Trade-offs
 	TradeOffs []FormulaTradeOff
 
-	// Constraints
-	Constraints []FormulaConstraint
-
 	// Success metrics
-	NorthStarMetric    string
-	SupportingMetrics  []FormulaMetric
+	NorthStarMetric   string
+	SupportingMetrics []FormulaMetric
 
 	// Ecosystem
 	EcosystemSummary    string
+	VsPointSolutions    string
 	EcosystemComponents []FormulaEcoComponent
 	EcosystemSynergies  []FormulaSynergy
+
+	// Sections whose entries share one card: positioning summary and options,
+	// key capabilities, growth engines, constraints, leading and lagging
+	// indicators, expansion vectors and the change log.
+	Records []RecordSection
+
+	// Stored content that no section above shows. It is rendered as stored,
+	// under a notice, so that nothing in the artifact is dropped silently.
+	Unshown map[string]any
 
 	// Section completeness gaps
 	Gaps []ReadyGap
@@ -67,31 +81,23 @@ type FormulaAdvantage struct {
 	Name, Description, Evidence, Defensibility string
 }
 type FormulaCompetitor struct {
-	Competitor, TheirStrength, OurAngle, Wedge string
+	Competitor, TheirStrength, OurAngle, Wedge, Category string
 }
 type FormulaTier struct {
-	Tier, Price, Purpose, Limits string
-}
-type FormulaEngine struct {
-	Engine, Mechanism, Investment string
+	Tier, Price, Target, Purpose, Limits string
+	Features                             []string
 }
 type FormulaJourneyStep struct {
-	Step, Action, Value, Delight string
+	Step, Description, Action, Value, Delight string
 }
 type FormulaValueDriver struct {
 	Driver, Mechanism, Flywheel string
-}
-type FormulaCapability struct {
-	Capability, WhyCritical, CurrentState string
 }
 type FormulaRisk struct {
 	Risk, Impact, Likelihood, Mitigation, Monitoring string
 }
 type FormulaTradeOff struct {
-	Decision, Rationale, WhatWeGain, WhatWeGiveUp string
-}
-type FormulaConstraint struct {
-	Constraint, Strategy, Implication string
+	Decision, Over, Rationale, WhatWeGain, WhatWeGiveUp string
 }
 type FormulaMetric struct {
 	Metric, Target, Why string
@@ -101,6 +107,74 @@ type FormulaEcoComponent struct {
 }
 type FormulaSynergy struct {
 	Synergy, How, UniqueToUs string
+}
+
+// Slots of the record sections on the page.
+const (
+	FormulaSlotMoat      = "moat"
+	FormulaSlotValue     = "value"
+	FormulaSlotBusiness  = "business"
+	FormulaSlotTradeOffs = "tradeoffs"
+	FormulaSlotMetrics   = "metrics"
+	FormulaSlotEcosystem = "ecosystem"
+	FormulaSlotLog       = "log"
+)
+
+// Kinds of record section. Each has a title, icon and slot in formulaRecordStyles.
+const (
+	FormulaKindPositioningSummary = "positioning_summary"
+	FormulaKindPositioningOptions = "positioning_options"
+	FormulaKindCapabilities       = "key_capabilities"
+	FormulaKindGrowthEngines      = "growth_engines"
+	FormulaKindConstraints        = "constraints"
+	FormulaKindLeadingIndicators  = "leading_indicators"
+	FormulaKindLaggingIndicators  = "lagging_indicators"
+	FormulaKindExpansionVectors   = "expansion_vectors"
+	FormulaKindChangeLog          = "change_log"
+)
+
+var formulaRecordStyles = map[string]RecordStyle{
+	FormulaKindPositioningSummary: {FormulaSlotMoat, "Competitive Positioning", "lucide--map-pin", "primary"},
+	FormulaKindPositioningOptions: {FormulaSlotMoat, "Positioning Options", "lucide--signpost", "primary"},
+	FormulaKindCapabilities:       {FormulaSlotValue, "Key Capabilities", "lucide--wrench", "accent"},
+	FormulaKindGrowthEngines:      {FormulaSlotBusiness, "Growth Engines", "lucide--rocket", "warning"},
+	FormulaKindConstraints:        {FormulaSlotTradeOffs, "Constraints", "lucide--lock", "warning"},
+	FormulaKindLeadingIndicators:  {FormulaSlotMetrics, "Leading Indicators", "lucide--gauge", "info"},
+	FormulaKindLaggingIndicators:  {FormulaSlotMetrics, "Lagging Indicators", "lucide--chart-line", "info"},
+	FormulaKindExpansionVectors:   {FormulaSlotEcosystem, "Expansion Vectors", "lucide--expand", "secondary"},
+	FormulaKindChangeLog:          {FormulaSlotLog, "Change Log", "lucide--history", "neutral"},
+}
+
+func (d StrategyFormulaData) hasRecords(slot string) bool {
+	return recordsInSlot(formulaRecordStyles, d.Records, slot)
+}
+
+func (d StrategyFormulaData) hasPositioning() bool {
+	return d.PositioningStmt != "" || d.CategoryPosition != "" || d.Category != "" || d.TargetCustomer != "" ||
+		d.UniqueValue != "" || len(d.Taglines) > 0
+}
+
+func (d StrategyFormulaData) hasMoat() bool {
+	return d.Differentiation != "" || len(d.BarriersToEntry) > 0 || len(d.Advantages) > 0 ||
+		len(d.VsCompetitors) > 0 || d.hasRecords(FormulaSlotMoat)
+}
+
+func (d StrategyFormulaData) hasValueCreation() bool {
+	return d.JourneyText != "" || len(d.UserJourney) > 0 || len(d.ValueDrivers) > 0 || d.hasRecords(FormulaSlotValue)
+}
+
+func (d StrategyFormulaData) hasBusinessModel() bool {
+	return d.RevenueModel != "" || d.PricingStrategy != "" || d.PricingPhilosophy != "" || len(d.PricingTiers) > 0 ||
+		len(d.UnitEconomics) > 0 || d.UnitEconomicsText != "" || d.hasRecords(FormulaSlotBusiness)
+}
+
+func (d StrategyFormulaData) hasMetrics() bool {
+	return d.NorthStarMetric != "" || len(d.SupportingMetrics) > 0 || d.hasRecords(FormulaSlotMetrics)
+}
+
+func (d StrategyFormulaData) hasEcosystem() bool {
+	return d.EcosystemSummary != "" || d.VsPointSolutions != "" || len(d.EcosystemComponents) > 0 ||
+		len(d.EcosystemSynergies) > 0 || d.hasRecords(FormulaSlotEcosystem)
 }
 
 templ StrategyFormulaContent(data StrategyFormulaData) {
@@ -123,6 +197,26 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 							}
 						</div>
 						<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Title }</h1>
+						if len(data.References) > 0 {
+							<p class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-base-content/75">
+								for _, ref := range data.References {
+									<span><span class="font-medium">{ ref.Label }:</span> <span class="font-mono">{ ref.Value }</span></span>
+								}
+							</p>
+						}
+						if data.ConfidenceRationale != "" {
+							<p class="text-sm text-base-content/80 max-w-3xl">{ data.ConfidenceRationale }</p>
+						}
+						if len(data.NextValidation) > 0 {
+							<div class="pt-1">
+								<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Next validation needed</p>
+								<div class="flex flex-wrap gap-1">
+									for _, v := range data.NextValidation {
+										<span class="badge badge-sm badge-outline badge-secondary">{ v }</span>
+									}
+								</div>
+							</div>
+						}
 					</div>
 					if data.LastUpdated != "" {
 				<div class="hidden sm:block text-right text-xs text-base-content/75">
@@ -134,7 +228,7 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 		</div>
 
 		// ── Positioning ──
-		if data.PositioningStmt != "" || data.CategoryPosition != "" {
+		if data.hasPositioning() {
 			<section>
 				@sectionHeading("Positioning", "lucide--crosshair", "secondary", data.CategoryPosition)
 				<div class="mt-4 space-y-4">
@@ -144,6 +238,9 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 						</div>
 					}
 					<div class="grid gap-4 md:grid-cols-2">
+						if data.Category != "" {
+							@editorialCard("Category", data.Category, "lucide--tag")
+						}
 						if data.TargetCustomer != "" {
 							@editorialCard("Target Customer", data.TargetCustomer, "lucide--users")
 						}
@@ -163,7 +260,7 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 		}
 
 		// ── Competitive Moat ──
-		if len(data.Advantages) > 0 || len(data.VsCompetitors) > 0 {
+		if data.hasMoat() {
 			<section>
 				@sectionHeading("Competitive Moat", "lucide--shield", "primary", data.Differentiation)
 				<div class="mt-4 space-y-4">
@@ -174,7 +271,12 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 								<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 									<div class="card-body p-4">
 										<h5 class="text-sm font-bold text-base-content">{ a.Name }</h5>
-										<p class="text-xs text-base-content/80 mt-1">{ a.Description }</p>
+										if a.Description != "" {
+											<p class="text-xs text-base-content/80 mt-1">{ a.Description }</p>
+										}
+										if a.Evidence != "" {
+											<p class="text-xs text-base-content/75 mt-1"><span class="font-medium">Evidence:</span> { a.Evidence }</p>
+										}
 										if a.Defensibility != "" {
 											<div class="mt-2">
 												<span class="badge badge-xs badge-outline badge-primary">{ a.Defensibility }</span>
@@ -182,6 +284,14 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 										}
 									</div>
 								</div>
+							}
+						</div>
+					}
+					if len(data.BarriersToEntry) > 0 {
+						<h4 class="text-sm font-semibold text-base-content/80 mt-2">Barriers to entry</h4>
+						<div class="flex flex-wrap gap-2">
+							for _, b := range data.BarriersToEntry {
+								<span class="badge badge-outline badge-primary h-auto whitespace-normal py-1">{ b }</span>
 							}
 						</div>
 					}
@@ -193,28 +303,36 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 							}
 						</div>
 					}
+					@RecordSections(formulaRecordStyles, data.Records, FormulaSlotMoat)
 				</div>
 			</section>
 		}
 
 		// ── Value Creation Journey ──
-		if len(data.UserJourney) > 0 {
+		if data.hasValueCreation() {
 			<section>
 				@sectionHeading("Value Creation", "lucide--route", "accent", "How users experience value")
-				<div class="mt-4">
-					<div class="flex flex-col gap-0">
-						for i, step := range data.UserJourney {
-							@journeyStep(step, i, len(data.UserJourney))
-						}
+				if data.JourneyText != "" {
+					<p class="mt-4 text-sm text-base-content/80 leading-relaxed">{ data.JourneyText }</p>
+				}
+				if len(data.UserJourney) > 0 {
+					<div class="mt-4">
+						<div class="flex flex-col gap-0">
+							for i, step := range data.UserJourney {
+								@journeyStep(step, i, len(data.UserJourney))
+							}
+						</div>
 					</div>
-				</div>
+				}
 				if len(data.ValueDrivers) > 0 {
 					<div class="mt-6 grid gap-3 md:grid-cols-3">
 						for _, d := range data.ValueDrivers {
 							<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 								<div class="card-body p-4">
 									<h5 class="text-sm font-bold text-base-content">{ d.Driver }</h5>
-									<p class="text-xs text-base-content/80 mt-1">{ d.Mechanism }</p>
+									if d.Mechanism != "" {
+										<p class="text-xs text-base-content/80 mt-1">{ d.Mechanism }</p>
+									}
 									if d.Flywheel != "" {
 										<p class="text-xs text-accent/70 mt-2 italic">{ d.Flywheel }</p>
 									}
@@ -223,14 +341,18 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 						}
 					</div>
 				}
+				@RecordSections(formulaRecordStyles, data.Records, FormulaSlotValue)
 			</section>
 		}
 
 		// ── Business Model ──
-		if data.RevenueModel != "" || len(data.PricingTiers) > 0 {
+		if data.hasBusinessModel() {
 			<section>
 				@sectionHeading("Business Model", "lucide--wallet", "warning", data.RevenueModel)
 				<div class="mt-4 space-y-4">
+					if data.PricingStrategy != "" {
+						<p class="text-sm text-base-content/80 leading-relaxed">{ data.PricingStrategy }</p>
+					}
 					if data.PricingPhilosophy != "" {
 						<p class="text-sm text-base-content/80 leading-relaxed">{ data.PricingPhilosophy }</p>
 					}
@@ -239,6 +361,14 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 							for _, t := range data.PricingTiers {
 								@tierCard(t)
 							}
+						</div>
+					}
+					if data.UnitEconomicsText != "" {
+						<div class="card bg-base-100 border border-base-content/15 shadow-sm">
+							<div class="card-body p-4">
+								<h4 class="text-xs font-semibold uppercase tracking-wide text-base-content/80 mb-2">Unit Economics</h4>
+								<p class="text-sm text-base-content/80 leading-relaxed">{ data.UnitEconomicsText }</p>
+							</div>
 						</div>
 					}
 					if len(data.UnitEconomics) > 0 {
@@ -256,6 +386,7 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 							</div>
 						</div>
 					}
+					@RecordSections(formulaRecordStyles, data.Records, FormulaSlotBusiness)
 				</div>
 			</section>
 		}
@@ -283,9 +414,10 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 				</div>
 			</section>
 		}
+		@RecordSections(formulaRecordStyles, data.Records, FormulaSlotTradeOffs)
 
 		// ── Success Metrics ──
-		if data.NorthStarMetric != "" || len(data.SupportingMetrics) > 0 {
+		if data.hasMetrics() {
 			<section>
 				@sectionHeading("Success Metrics", "lucide--bar-chart-3", "info", "")
 				<div class="mt-4 space-y-4">
@@ -312,31 +444,46 @@ templ StrategyFormulaContent(data StrategyFormulaData) {
 							}
 						</div>
 					}
+					@RecordSections(formulaRecordStyles, data.Records, FormulaSlotMetrics)
 				</div>
 			</section>
 		}
 
 		// ── Ecosystem ──
-		if len(data.EcosystemComponents) > 0 {
+		if data.hasEcosystem() {
 			<section>
 				@sectionHeading("Ecosystem", "lucide--network", "secondary", data.EcosystemSummary)
-				<div class="mt-4 grid gap-4 lg:grid-cols-3">
-					for _, comp := range data.EcosystemComponents {
-						@ecoComponentCard(comp)
-					}
-				</div>
+				if data.VsPointSolutions != "" {
+					<p class="mt-4 text-sm text-base-content/80 leading-relaxed"><span class="font-medium">Versus point solutions:</span> { data.VsPointSolutions }</p>
+				}
+				if len(data.EcosystemComponents) > 0 {
+					<div class="mt-4 grid gap-4 lg:grid-cols-3">
+						for _, comp := range data.EcosystemComponents {
+							@ecoComponentCard(comp)
+						}
+					</div>
+				}
 				if len(data.EcosystemSynergies) > 0 {
 					<div class="mt-4 space-y-2">
 						for _, syn := range data.EcosystemSynergies {
 							<div class="rounded-lg bg-base-100 px-4 py-3">
 								<p class="text-sm font-medium text-base-content">{ syn.Synergy }</p>
-								<p class="text-xs text-base-content/80 mt-1">{ syn.How }</p>
+								if syn.How != "" {
+									<p class="text-xs text-base-content/80 mt-1">{ syn.How }</p>
+								}
+								if syn.UniqueToUs != "" {
+									<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">Unique to us:</span> { syn.UniqueToUs }</p>
+								}
 							</div>
 						}
 					</div>
 				}
+				@RecordSections(formulaRecordStyles, data.Records, FormulaSlotEcosystem)
 			</section>
 		}
+
+		@RecordSections(formulaRecordStyles, data.Records, FormulaSlotLog)
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -347,6 +494,9 @@ templ competitorRow(c FormulaCompetitor) {
 		<div class="flex items-start gap-4">
 			<div class="min-w-0 grow">
 				<p class="text-sm font-semibold text-base-content">vs { c.Competitor }</p>
+				if c.Category != "" {
+					<p class="text-xs text-base-content/65">{ c.Category }</p>
+				}
 					<div class="grid gap-x-6 gap-y-1 md:grid-cols-2 mt-1 text-xs text-base-content/80">
 				if c.TheirStrength != "" {
 					<span><span class="font-medium text-base-content/75">Their strength:</span> { c.TheirStrength }</span>
@@ -376,11 +526,17 @@ templ journeyStep(step FormulaJourneyStep, idx, total int) {
 		</div>
 		<div class="pb-4 min-w-0">
 			<p class="text-sm font-semibold text-base-content">{ step.Step }</p>
-		if step.Action != "" {
-			<p class="text-xs text-base-content/80 mt-0.5">{ step.Action }</p>
+			if step.Description != "" {
+				<p class="text-xs text-base-content/80 mt-0.5">{ step.Description }</p>
+			}
+			if step.Action != "" {
+				<p class="text-xs text-base-content/80 mt-0.5">{ step.Action }</p>
 			}
 			if step.Value != "" {
 				<p class="text-xs text-accent/70 mt-0.5">{ step.Value }</p>
+			}
+			if step.Delight != "" {
+				<p class="text-xs text-base-content/75 mt-0.5 italic">{ step.Delight }</p>
 			}
 		</div>
 	</div>
@@ -393,8 +549,21 @@ templ tierCard(t FormulaTier) {
 			if t.Price != "" {
 				<p class="text-lg font-bold text-accent mt-1">{ t.Price }</p>
 			}
-		if t.Purpose != "" {
-			<p class="text-xs text-base-content/80 mt-1">{ t.Purpose }</p>
+			if t.Target != "" {
+				<p class="text-xs text-base-content/80 mt-1">{ t.Target }</p>
+			}
+			if t.Purpose != "" {
+				<p class="text-xs text-base-content/80 mt-1">{ t.Purpose }</p>
+			}
+			if t.Limits != "" {
+				<p class="text-xs text-base-content/75 mt-1">{ t.Limits }</p>
+			}
+			if len(t.Features) > 0 {
+				<div class="flex flex-wrap justify-center gap-1 mt-2">
+					for _, f := range t.Features {
+						<span class="badge badge-xs badge-ghost">{ f }</span>
+					}
+				</div>
 			}
 		</div>
 	</div>
@@ -405,10 +574,18 @@ templ riskRow(r FormulaRisk) {
 		<summary class="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm select-none">
 			<span class={ "size-2 rounded-full shrink-0", likelihoodDot(r.Likelihood) }></span>
 			<span class="grow font-medium text-base-content">{ r.Risk }</span>
-			<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/65">
-				<span>Impact</span>
-				<span class={ "badge badge-xs", likelihoodBadge(r.Impact) }>{ r.Impact }</span>
-			</span>
+			if r.Likelihood != "" {
+				<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/65">
+					<span>Likelihood</span>
+					<span class={ "badge badge-xs", likelihoodBadge(r.Likelihood) }>{ r.Likelihood }</span>
+				</span>
+			}
+			if r.Impact != "" {
+				<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/65">
+					<span>Impact</span>
+					<span class={ "badge badge-xs", likelihoodBadge(r.Impact) }>{ r.Impact }</span>
+				</span>
+			}
 			<span class="iconify lucide--chevron-right size-3.5 text-base-content/30 transition-transform group-open:rotate-90"></span>
 		</summary>
 		<div class="border-t border-base-content/5 px-4 pb-3 pt-2 text-xs text-base-content/80 space-y-1">
@@ -426,6 +603,9 @@ templ tradeOffCard(t FormulaTradeOff) {
 	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-4">
 			<p class="text-sm font-semibold text-base-content">{ t.Decision }</p>
+			if t.Over != "" {
+				<p class="text-xs text-base-content/75 mt-0.5"><span class="font-medium">Over:</span> { t.Over }</p>
+			}
 		if t.Rationale != "" {
 			<p class="text-xs text-base-content/80 mt-1">{ t.Rationale }</p>
 			}
@@ -460,9 +640,14 @@ templ ecoComponentCard(comp FormulaEcoComponent) {
 		if comp.Role != "" {
 			<p class="text-xs text-base-content/80">{ comp.Role }</p>
 			}
-			if comp.EcosystemValue != "" {
-				<div class="mt-2 pt-2 border-t border-base-content/5">
-					<p class="text-xs text-base-content/80"><span class="font-medium">Ecosystem value:</span> { comp.EcosystemValue }</p>
+			if comp.StandaloneValue != "" || comp.EcosystemValue != "" {
+				<div class="mt-2 pt-2 border-t border-base-content/5 space-y-1">
+					if comp.StandaloneValue != "" {
+						<p class="text-xs text-base-content/80"><span class="font-medium">Standalone value:</span> { comp.StandaloneValue }</p>
+					}
+					if comp.EcosystemValue != "" {
+						<p class="text-xs text-base-content/80"><span class="font-medium">Ecosystem value:</span> { comp.EcosystemValue }</p>
+					}
 				</div>
 			}
 		</div>

@@ -90,7 +90,25 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 3.1 For each bespoke handler, compare the schema's property list against
       the handler's extracted fields. Record the delta in a table (handler,
       schema property, status: read / missing / sub-field missing).
-- [ ] 3.2 `handler_formula.go` / `strategyFormulaContent`: fix gaps found.
+- [x] 3.2 `handler_formula.go` / `strategyFormulaContent`: fix gaps found. Before
+      this, a payload built from the schema lost 80 of its 127 strings and the
+      canonical template 20 of 27. Causes: every list item that was a plain string
+      was skipped (the template writes advantages, capabilities, drivers, constraints
+      and growth engines that way, and the schema allows both); key capabilities,
+      constraints, growth engines and barriers to entry were read and never rendered;
+      sections were gated on one field (value creation on the journey, the ecosystem on
+      its components, the moat on advantages or competitors); and the schema's own
+      fields (`pricing_strategy`, leading and lagging indicators, `over`, the
+      positioning summary, expansion vectors, `vs_point_solutions`, `category`,
+      `confidence_rationale`, `next_validation_needed`, the change log, the
+      references) had no reader. Readers are tolerant (`tolerant.go`), the card
+      sections are table-driven (`records.go`, shared with the insights page), and
+      what is left goes to the fallback: `key_differences` and unit economics nested
+      deeper than one level are free-form in the schema. A wrapped payload is checked
+      block by block, so the notice names real sections and not the wrapper. Pinned by
+      `TestStrategyFormulaViewShowsEveryFieldOfTheSchema` (both shapes of every
+      string-or-object field) and the template, unwrapped, unknown-key, free-form,
+      legacy-name and gate tests.
 - [ ] 3.3 `handler_foundations.go` / `strategyFoundationsContent`: fix gaps found.
 - [ ] 3.4 `handler_roadmap.go` / `roadmapRecipeContent`: fix gaps found.
       Already done in `fix-real-instance-findings` 4.4: `extractRoadmapTrack` reads
@@ -117,23 +135,25 @@ the handler. Section 5 (CI gate) comes last.
       strings it collects from the template itself; it is mutation-checked. Not done
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
-      future schema additions are never silently dropped.
+      future schema additions are never silently dropped. Done: insight analyses,
+      strategy formula. `unshownContent`, `readRecords` and the tolerant readers are
+      shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
 
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses` only (1.6);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses` and `strategy_formula` (1.6, 3.2);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses` only, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses` and `strategy_formula`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses` only.
+      the generic fallback section and the notice. Done for `insight_analyses` and `strategy_formula`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
@@ -153,7 +173,13 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 6.1 `cd apps/strategy-server && go test ./...` green, no regressions.
 - [ ] 6.2 `cd apps/strategy-server && task lint` clean.
 - [ ] 6.3 `openspec validate fix-ui-schema-rendering-gaps --strict` passes.
-- [ ] 6.4 Verify on the Huma instance: insight analyses page renders all 7
-      stored sections, not just direct competitors.
-- [ ] 6.5 Verify: a payload with an unknown top-level key shows the generic
-      fallback, not a blank section.
+- [x] 6.4 Verify on the Huma instance: insight analyses page renders all 7
+      stored sections, not just direct competitors. Checked on the dev server
+      built from `378e297e` against the reporter's instance, by reading the rendered
+      HTML (not in a browser): the page went from the 13 direct competitors to all 8
+      stored sections, under the notice "8 sections are stored but have no dedicated
+      view".
+- [x] 6.5 Verify: a payload with an unknown top-level key shows the generic
+      fallback, not a blank section. The same check: every section the page has no
+      view for (the legacy layout's keys) is shown by the fallback. Pinned in tests
+      for both pages.

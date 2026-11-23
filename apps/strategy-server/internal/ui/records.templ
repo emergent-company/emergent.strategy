@@ -1,0 +1,76 @@
+package ui
+
+import "strconv"
+
+// RecordSection is a list of Record cards of one kind. A page keeps a table of
+// RecordStyle by kind: the titles, icons and colours stay in this package so the
+// Tailwind scan sees the icon classes.
+type RecordSection struct {
+	Kind    string
+	Records []Record
+}
+
+// Record is one card: a headline, labelled values and labelled lists.
+type Record struct {
+	Head  string
+	Facts []RecordFact
+	Lists []RecordList
+}
+
+type RecordFact struct{ Label, Value string }
+
+type RecordList struct {
+	Label string
+	Items []string
+}
+
+// RecordStyle says where a kind of record section sits on its page and how it
+// is headed.
+type RecordStyle struct{ Slot, Title, Icon, Color string }
+
+func recordsInSlot(styles map[string]RecordStyle, sections []RecordSection, slot string) bool {
+	for _, sec := range sections {
+		if styles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// RecordSections renders the record sections that belong in a slot.
+templ RecordSections(styles map[string]RecordStyle, sections []RecordSection, slot string) {
+	for _, sec := range sections {
+		if styles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
+			{{ style := styles[sec.Kind] }}
+			<section class="mt-6 first:mt-0">
+				@sectionHeading(style.Title, style.Icon, style.Color, strconv.Itoa(len(sec.Records)))
+				<div class="mt-4 grid gap-3 md:grid-cols-2">
+					for _, rec := range sec.Records {
+						@recordCard(rec)
+					}
+				</div>
+			</section>
+		}
+	}
+}
+
+templ recordCard(rec Record) {
+	<div class="rounded-lg bg-base-100 border border-base-content/15 px-4 py-3">
+		if rec.Head != "" {
+			<p class="text-sm font-medium text-base-content">{ rec.Head }</p>
+		}
+		for _, f := range rec.Facts {
+			<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+		}
+		for _, l := range rec.Lists {
+			<div class="mt-1.5">
+				<p class="text-xs font-medium text-base-content/80">{ l.Label }</p>
+				<div class="flex flex-wrap gap-1 mt-0.5">
+					for _, item := range l.Items {
+						<span class="badge badge-xs badge-ghost">{ item }</span>
+					}
+				</div>
+			</div>
+		}
+	</div>
+}
