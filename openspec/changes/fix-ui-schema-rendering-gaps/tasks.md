@@ -175,7 +175,22 @@ the handler. Section 5 (CI gate) comes last.
       templates, both sub-component keys, maturity as a string and an object,
       unknown keys at every level, the track maturity alone, the main goal alone, and
       the enum, number and boolean fields that carry no marker; mutation-checked (15).
-- [ ] 3.8 `handler_lra.go` / `lraContent`: fix gaps found.
+- [x] 3.8 `handler_lra.go` / `lraContent`: fix gaps found. A payload built from the
+      schema lost 30 of its 61 strings; seven top-level sections had no complete view.
+      Causes: the existing assets (code, documentation, customer, strategic and process),
+      the operating assumptions and the capability gaps had no view; the evolution log
+      showed only timestamp, trigger and summary, not the cycle, who updated, the recorded
+      changes or the per-track signals; the track baselines dropped their key activities;
+      the metadata dropped the creation date, who updated, and the bootstrap type and
+      time; the runway was missing; the team size was read as a string though the schema
+      makes it an integer; and the baselines were shown in map order, so the tracks moved
+      between loads. They now show in the order of the four tracks. Layouts the schema
+      does not define (`org_type`, `ai_capability`, `cycle_ref`, a top-level `constraints`)
+      are no longer read as aliases; they show as stored under the notice. A list of
+      baselines that name their track is still read. `data.Unshown` carries the rest.
+      Pinned by `TestLRAViewShowsEveryFieldOfTheSchema`, the canonical template, the
+      numbers, booleans and enums that carry no marker, an older layout, listed
+      baselines, the track order and the runway alone; mutation-checked (24).
 - [ ] 3.9 `handler_assessment.go` / `assessmentContent`: fix gaps found.
 - [ ] 3.10 `handler_calibration.go` / `calibrationContent`: fix gaps found.
 - [x] 3.11 `handler_artifact.go` / `northStarContent`: fix gaps found. Done for
