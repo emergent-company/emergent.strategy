@@ -18,14 +18,51 @@ type ValueModelViewData struct {
 	MainGoal       string
 	ProductGoals   []string
 	Layers         []ValueModelLayer
+
+	ModelStatus     string
+	PackagedDefault bool
+	ActivationNotes string
+
+	// The track's maturity: its stage, the next milestone and the spread of
+	// its layers over the stages.
+	Records []RecordSection
+
+	// Stored content that no section shows, notably the free-form high-level
+	// model. It is rendered as stored, under a notice, so that nothing in the
+	// artifact is dropped silently.
+	Unshown map[string]any
+}
+
+// Slots and kinds of the record sections on the page.
+const (
+	VMSlotMaturity = "maturity"
+
+	VMKindTrackMaturity = "track_maturity"
+	VMKindNextMilestone = "next_milestone_criteria"
+	VMKindDistribution  = "l1_distribution"
+)
+
+var vmRecordStyles = map[string]RecordStyle{
+	VMKindTrackMaturity: {VMSlotMaturity, "Track Maturity", "lucide--gauge", "info"},
+	VMKindNextMilestone: {VMSlotMaturity, "Next Milestone Criteria", "lucide--flag", "info"},
+	VMKindDistribution:  {VMSlotMaturity, "Layers by Stage", "lucide--bar-chart-3", "info"},
+}
+
+// VMSolutionStep is one step of how a layer delivers its value.
+type VMSolutionStep struct {
+	Step, Outcome string
 }
 
 // ValueModelLayer is a single layer (L1) in the value model.
 type ValueModelLayer struct {
-	ID          string
-	Name        string
-	Description string
-	Components  []ValueModelComponent
+	ID            string
+	PathSegment   string
+	Name          string
+	Description   string
+	ActiveLabel   string // "active", "inactive" or "" when the layer does not say
+	SolutionSteps []VMSolutionStep
+	Maturity      []RecordFact
+	Components    []ValueModelComponent
 }
 
 // VMComponentDefinition is a compact definition reference shown inside a component card.
@@ -40,20 +77,31 @@ type VMComponentDefinition struct {
 // ValueModelComponent is a single component (L2) within a layer.
 type ValueModelComponent struct {
 	ID            string
+	PathSegment   string
 	Name          string
 	Description   string
 	Active        bool
+	Maturity      []RecordFact
 	SubComponents []ValueModelSub
 	Definitions   []VMComponentDefinition
 }
 
 // ValueModelSub is a sub-component (L3) within a component.
 type ValueModelSub struct {
-	ID          string
-	Name        string
-	Description string
-	Active      bool
-	Maturity    string // hypothetical, emerging, proven, scaled
+	ID            string
+	PathSegment   string
+	Name          string
+	Description   string
+	UVP           string
+	Active        bool
+	Premium       bool
+	Maturity      string // hypothetical, emerging, proven, scaled
+	MaturityFacts []RecordFact
+	Evidence      []string
+}
+
+func (d ValueModelViewData) hasMission() bool {
+	return d.ProductMission != "" || d.MainGoal != "" || len(d.ProductGoals) > 0
 }
 
 // ValueModelContent renders the bespoke Value Model view.
@@ -64,14 +112,19 @@ templ ValueModelContent(data ValueModelViewData) {
 		@valueModelHero(data)
 
 		// ── Mission & Goals ──
-		if data.ProductMission != "" || len(data.ProductGoals) > 0 {
+		if data.hasMission() {
 			@valueModelMissionSection(data)
 		}
+
+		// ── Track maturity ──
+		@RecordSections(vmRecordStyles, data.Records, VMSlotMaturity)
 
 		// ── Layers ──
 		if len(data.Layers) > 0 {
 			@valueModelLayersSection(data.Layers)
 		}
+
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -94,6 +147,12 @@ templ valueModelHero(data ValueModelViewData) {
 						if data.Status != "" {
 							@artifactStatusBadge(data.Status)
 						}
+						if data.ModelStatus != "" {
+							<span class="badge badge-sm badge-ghost">model { data.ModelStatus }</span>
+						}
+						if data.PackagedDefault {
+							<span class="badge badge-sm badge-outline">packaged default</span>
+						}
 						if data.Version != "" {
 							<span class="badge badge-sm badge-ghost">v{ data.Version }</span>
 						}
@@ -101,6 +160,9 @@ templ valueModelHero(data ValueModelViewData) {
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
 					if data.Description != "" {
 						<p class="text-sm text-base-content/75 max-w-2xl">{ data.Description }</p>
+					}
+					if data.ActivationNotes != "" {
+						<p class="text-xs text-base-content/75 max-w-2xl"><span class="font-medium">Activation:</span> { data.ActivationNotes }</p>
 					}
 				</div>
 				if data.LastUpdated != "" {
@@ -161,7 +223,18 @@ templ valueModelLayerAccordion(layer ValueModelLayer) {
 	<details class="group rounded-xl border border-base-content/15 bg-base-100 shadow-sm">
 		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
 			<span class="iconify lucide--layers size-4 text-base-content/75"></span>
-			<span class="grow">{ layer.Name }</span>
+			<span class="grow">
+				{ layer.Name }
+				if layer.PathSegment != "" {
+					<span class="ml-2 font-mono text-xs font-normal text-base-content/65">{ layer.PathSegment }</span>
+				}
+				if layer.ID != "" {
+					<span class="ml-2 font-mono text-xs font-normal text-base-content/55">{ layer.ID }</span>
+				}
+			</span>
+			if layer.ActiveLabel != "" {
+				<span class="badge badge-sm badge-ghost">{ layer.ActiveLabel }</span>
+			}
 			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(layer.Components)) } components</span>
 			<span class="iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90"></span>
 		</summary>
@@ -169,6 +242,21 @@ templ valueModelLayerAccordion(layer ValueModelLayer) {
 		if layer.Description != "" {
 			<p class="text-sm text-base-content/80 leading-relaxed">{ layer.Description }</p>
 			}
+			if len(layer.SolutionSteps) > 0 {
+				<div class="space-y-1">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75">Solution steps</p>
+					for i, st := range layer.SolutionSteps {
+						<p class="text-xs text-base-content/80">
+							<span class="font-mono text-base-content/65">{ strconv.Itoa(i + 1) }.</span>
+							<span class="font-medium">{ st.Step }</span>
+							if st.Outcome != "" {
+								<span>: { st.Outcome }</span>
+							}
+						</p>
+					}
+				</div>
+			}
+			@vmMaturityFacts(layer.Maturity)
 			if len(layer.Components) > 0 {
 				<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 					for _, comp := range layer.Components {
@@ -192,9 +280,18 @@ templ valueModelComponentCard(comp ValueModelComponent) {
 					<span class="badge badge-xs badge-ghost">inactive</span>
 				}
 			</div>
+			if comp.PathSegment != "" || comp.ID != "" {
+				<p class="mb-1 font-mono text-xs text-base-content/65">
+					{ comp.PathSegment }
+					if comp.ID != "" {
+						<span class="ml-1 text-base-content/55">{ comp.ID }</span>
+					}
+				</p>
+			}
 		if comp.Description != "" {
 			<p class="text-xs text-base-content/80 leading-relaxed">{ comp.Description }</p>
 			}
+			@vmMaturityFacts(comp.Maturity)
 			if len(comp.SubComponents) > 0 {
 				<div class="mt-3 pt-3 border-t border-base-content/5 space-y-1.5">
 					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Sub-Components</p>
@@ -241,12 +338,52 @@ templ vmDefinitionChip(d VMComponentDefinition) {
 	</a>
 }
 
+// vmMaturityFacts shows a layer's or component's maturity summary as small badges.
+templ vmMaturityFacts(facts []RecordFact) {
+	if len(facts) > 0 {
+		<div class="flex flex-wrap gap-1">
+			for _, f := range facts {
+				<span class="badge badge-xs badge-ghost">{ f.Label }: { f.Value }</span>
+			}
+		</div>
+	}
+}
+
 templ valueModelSubRow(sub ValueModelSub) {
-	<div class="flex items-center gap-2">
-		<span class={ "size-2 rounded-full shrink-0", vmSubDot(sub.Active) }></span>
-		<span class={ "text-xs grow", templ.KV("text-base-content/80", sub.Active), templ.KV("text-base-content/65", !sub.Active) }>{ sub.Name }</span>
-		if sub.Maturity != "" {
-			<span class="tooltip" data-tip={ vmMaturityHint(sub.Maturity) }><span class={ "badge badge-xs", vmMaturityBadge(sub.Maturity) }>{ sub.Maturity }</span></span>
+	<div class="space-y-0.5">
+		<div class="flex items-center gap-2">
+			<span class={ "size-2 rounded-full shrink-0", vmSubDot(sub.Active) }></span>
+			<span class={ "text-xs grow", templ.KV("text-base-content/80", sub.Active), templ.KV("text-base-content/65", !sub.Active) }>{ sub.Name }</span>
+			if sub.Premium {
+				<span class="badge badge-xs badge-outline badge-secondary">premium</span>
+			}
+			if sub.Maturity != "" {
+				<span class="tooltip" data-tip={ vmMaturityHint(sub.Maturity) }><span class={ "badge badge-xs", vmMaturityBadge(sub.Maturity) }>{ sub.Maturity }</span></span>
+			}
+		</div>
+		if sub.PathSegment != "" || sub.ID != "" {
+			<p class="pl-4 font-mono text-xs text-base-content/55">
+				{ sub.PathSegment }
+				if sub.ID != "" {
+					<span class="ml-1">{ sub.ID }</span>
+				}
+			</p>
+		}
+		if sub.UVP != "" {
+			<p class="pl-4 text-xs text-base-content/75 italic">{ sub.UVP }</p>
+		}
+		if sub.Description != "" {
+			<p class="pl-4 text-xs text-base-content/75">{ sub.Description }</p>
+		}
+		if len(sub.MaturityFacts) > 0 || len(sub.Evidence) > 0 {
+			<div class="pl-4 space-y-0.5 text-xs text-base-content/70">
+				for _, f := range sub.MaturityFacts {
+					<p><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+				}
+				for _, e := range sub.Evidence {
+					<p>Evidence: { e }</p>
+				}
+			</div>
 		}
 	</div>
 }

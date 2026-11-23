@@ -138,7 +138,26 @@ the handler. Section 5 (CI gate) comes last.
       Key Results found per group (`fix-real-instance-findings` 2.5).
 - [ ] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found.
 - [ ] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found.
-- [ ] 3.7 `handler_valuemodel.go` / `valueModelContent`: fix gaps found.
+- [x] 3.7 `handler_valuemodel.go` / `valueModelContent`: fix gaps found. A payload
+      built from the schema lost 76 of its 98 strings other than ids and path
+      segments (the canonical templates only their ids, plus a handful of strings).
+      Causes: a sub-component's `maturity` was read as a string though the schema makes
+      it an object (stage, override, milestone, notes, evidence), so the badge was blank
+      for schema-shaped data; a component with sub-components under both `subs` and
+      `sub_components` showed one key (the shared parser reads both); the track
+      maturity (stage, domain, milestone, next milestone criteria, the layers by stage),
+      a layer's solution steps and maturity summary, a component's maturity summary, a
+      sub-component's `uvp`, `premium` and description (read, never rendered), the
+      activation notes and the packaged-default flag had no view; the ids and path
+      segments that features name in `contributes_to` were not shown; and a main goal
+      alone did not show the mission section. The free-form `high_level_model` is
+      shown through the fallback for anything beyond mission, main goal and goals.
+      `valueModelData` is now a pure builder (the definitions lookup stays in
+      `valueModelContent`), so the page is testable without a database. Pinned by
+      `TestValueModelViewShowsEveryFieldOfTheSchema`, the four canonical value model
+      templates, both sub-component keys, maturity as a string and an object,
+      unknown keys at every level, the track maturity alone, the main goal alone, and
+      the enum, number and boolean fields that carry no marker; mutation-checked (15).
 - [ ] 3.8 `handler_lra.go` / `lraContent`: fix gaps found.
 - [ ] 3.9 `handler_assessment.go` / `assessmentContent`: fix gaps found.
 - [ ] 3.10 `handler_calibration.go` / `calibrationContent`: fix gaps found.
@@ -156,7 +175,7 @@ the handler. Section 5 (CI gate) comes last.
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula, strategy foundations. `unshownContent`, `readRecords` and the tolerant readers are
+      strategy formula, strategy foundations, value models. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
@@ -164,16 +183,16 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations` (1.6, 3.2, 3.3);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model` (1.6, 3.2, 3.3, 3.7);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula` and `strategy_foundations`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
