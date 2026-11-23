@@ -11,6 +11,19 @@ type FeatureViewData struct {
 	Name        string
 	Status      string
 	Slug        string
+	ID          string
+	// PayloadName is the name stored in the payload when it differs from Name.
+	PayloadName string
+	// LifecycleStatus is the payload's own status (draft, ready, in-progress,
+	// delivered); Status is the artifact's.
+	LifecycleStatus string
+
+	// Records are the card sections: maturity, architecture, design guidance,
+	// implementation references and tools. See featureRecordStyles.
+	Records []RecordSection
+
+	// Unshown is the stored content with no dedicated view.
+	Unshown map[string]any
 
 	// Definition
 	JobToBeDone      string
@@ -55,6 +68,9 @@ type FeaturePersona struct {
 	PainPoints           []string
 	UsageContext         string
 	TechnicalProficiency string
+	// Profile and ProfileLists hold the demographics and psychographics.
+	Profile              []RecordFact
+	ProfileLists         []RecordList
 	CurrentSituation     []string
 	TransformationMoment []string
 	EmotionalResolution  []string
@@ -89,12 +105,41 @@ type FeatureCapability struct {
 type FeatureScenario struct {
 	ID                 string
 	Name               string
+	Category           string
 	Actor              string
 	Trigger            string
 	Context            string
 	Action             string
 	Outcome            string
 	AcceptanceCriteria []string
+}
+
+// Slots and kinds of the record sections of the feature page.
+const (
+	FeatureSlotMaturity  = "maturity"
+	FeatureSlotTechnical = "technical"
+
+	FeatureKindMaturity      = "feature_maturity"
+	FeatureKindCapabilityMat = "capability_maturity"
+	FeatureKindArchitecture  = "architecture_patterns"
+	FeatureKindDesign        = "design_guidance"
+	FeatureKindReferences    = "implementation_references"
+	FeatureKindSpecs         = "reference_specs"
+	FeatureKindCoverage      = "coverage_summary"
+	FeatureKindTools         = "tools_recommended"
+	FeatureKindIntegrations  = "tools_integrations"
+)
+
+var featureRecordStyles = map[string]RecordStyle{
+	FeatureKindMaturity:      {FeatureSlotMaturity, "Feature Maturity", "lucide--trending-up", "success"},
+	FeatureKindCapabilityMat: {FeatureSlotMaturity, "Capability Maturity", "lucide--gauge", "success"},
+	FeatureKindArchitecture:  {FeatureSlotTechnical, "Architecture Patterns", "lucide--blocks", "info"},
+	FeatureKindDesign:        {FeatureSlotTechnical, "Design Guidance", "lucide--pen-tool", "info"},
+	FeatureKindReferences:    {FeatureSlotTechnical, "Implementation References", "lucide--link", "neutral"},
+	FeatureKindSpecs:         {FeatureSlotTechnical, "Specs", "lucide--file-text", "neutral"},
+	FeatureKindCoverage:      {FeatureSlotTechnical, "Coverage", "lucide--shield-check", "neutral"},
+	FeatureKindTools:         {FeatureSlotTechnical, "Recommended Tools", "lucide--wrench", "neutral"},
+	FeatureKindIntegrations:  {FeatureSlotTechnical, "Tool Integrations", "lucide--plug", "neutral"},
 }
 
 // FeatureDep is a dependency link to another feature.
@@ -124,6 +169,9 @@ templ FeatureViewContent(data FeatureViewData) {
 			@featureCapabilitiesSection(data.Capabilities)
 		}
 
+		// ── Maturity ──
+		@RecordSections(featureRecordStyles, data.Records, FeatureSlotMaturity)
+
 		// ── Personas ──
 		if len(data.Personas) > 0 {
 			@featurePersonasSection(data.Personas)
@@ -148,6 +196,12 @@ templ FeatureViewContent(data FeatureViewData) {
 		if len(data.NonGoals) > 0 || len(data.Constraints) > 0 || len(data.InScope) > 0 || len(data.OutOfScope) > 0 {
 			@featureBoundariesSection(data)
 		}
+
+		// ── Architecture, design, references, tools ──
+		@RecordSections(featureRecordStyles, data.Records, FeatureSlotTechnical)
+
+		// ── Stored, but with no dedicated view ──
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -166,11 +220,20 @@ templ featureHero(data FeatureViewData) {
 						if data.Status != "" {
 							@artifactStatusBadge(data.Status)
 						}
+						if data.LifecycleStatus != "" && data.LifecycleStatus != data.Status {
+							<span class="badge badge-sm badge-ghost">{ data.LifecycleStatus }</span>
+						}
+						if data.ID != "" {
+							<span class="badge badge-sm badge-ghost font-mono">{ data.ID }</span>
+						}
 						if data.Slug != "" {
 							<span class="badge badge-sm badge-outline badge-primary font-mono">{ data.Slug }</span>
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+					if data.PayloadName != "" {
+						<p class="text-sm text-base-content/75">Stored name: { data.PayloadName }</p>
+					}
 					if len(data.Tracks) > 0 {
 						<div class="flex flex-wrap gap-1.5 pt-1">
 							for _, track := range data.Tracks {
@@ -306,6 +369,9 @@ templ featureScenarioAccordion(sc FeatureScenario) {
 		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
 			<span class="iconify lucide--play-circle size-4 text-info"></span>
 			<span class="grow">{ sc.Name }</span>
+			if sc.Category != "" {
+				<span class="badge badge-xs badge-info badge-outline">{ sc.Category }</span>
+			}
 			if sc.ID != "" {
 				<span class="badge badge-xs badge-ghost font-mono">{ sc.ID }</span>
 			}
@@ -468,6 +534,9 @@ templ featurePersonaAccordion(p FeaturePersona) {
 					<span class="block text-xs text-base-content/75">{ p.Role }</span>
 				}
 			</span>
+			if p.ID != "" {
+				<span class="badge badge-xs badge-ghost font-mono">{ p.ID }</span>
+			}
 			if p.TechnicalProficiency != "" {
 				<span class="badge badge-xs badge-ghost">{ p.TechnicalProficiency }</span>
 			}
@@ -487,6 +556,23 @@ templ featurePersonaAccordion(p FeaturePersona) {
 					}
 					if len(p.PainPoints) > 0 {
 						@bulletListCard("Pain Points", p.PainPoints, "lucide--alert-circle", "error")
+					}
+				</div>
+			}
+			if len(p.Profile) > 0 || len(p.ProfileLists) > 0 {
+				<div class="rounded-lg bg-base-200/40 px-4 py-3">
+					for _, f := range p.Profile {
+						<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+					}
+					for _, l := range p.ProfileLists {
+						<div class="mt-1.5">
+							<p class="text-xs font-medium text-base-content/80">{ l.Label }</p>
+							<div class="flex flex-wrap gap-1 mt-0.5">
+								for _, item := range l.Items {
+									<span class="badge badge-xs badge-ghost">{ item }</span>
+								}
+							</div>
+						</div>
 					}
 				</div>
 			}
@@ -564,6 +650,9 @@ templ featureContextCard(c FeatureContext) {
 					<span class="badge badge-xs badge-accent">{ c.Type }</span>
 				}
 				<h5 class="text-sm font-bold text-base-content">{ c.Name }</h5>
+				if c.ID != "" {
+					<span class="badge badge-xs badge-ghost font-mono">{ c.ID }</span>
+				}
 			</div>
 			if c.Description != "" {
 				<p class="text-sm text-base-content/80 leading-relaxed">{ c.Description }</p>
