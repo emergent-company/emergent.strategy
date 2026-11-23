@@ -154,7 +154,29 @@ the handler. Section 5 (CI gate) comes last.
       `$ref` and `patternProperties`. Still open: `handler_execution.go` and two
       counts in `queries_phases.go` read only `okrs`; they belong to their own pages.
 - [ ] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found.
-- [ ] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found.
+- [x] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found. A payload
+      built from the schema lost 92 of its 177 strings; seven top-level sections had
+      no complete view. Causes: the feature maturity (overall stage, capability
+      maturity), the architecture patterns, the design guidance, the implementation
+      references (specs, coverage summary) and the tools ecosystem had no view; a
+      persona's demographics and psychographics, a scenario's JTBD category, the
+      feature id and the stored lifecycle status were dropped; the persona and context
+      ids were declared shown and never rendered; and the stored name was hidden
+      whenever it differed from the artifact's. A bug that predates this work: scenarios
+      under both `implementation.scenarios` and the older `definition.scenarios` showed
+      only the first list (37 strings of one Emergent feature were lost); both are read
+      now. The readers are the tolerant ones, so a plain string item or a lone string
+      is shown. `data.Unshown` carries the rest. Checked on the 25 feature definitions
+      of the Emergent instance (6,987 strings): 0 missing, where one file lost 37; 24 of
+      them show the notice for fields the schema does not define, among others (capability `maturity`,
+      `acceptance_criteria` and `dependencies`, `feature_maturity.capabilities`,
+      `implementation.technical_approach`, `technology_stack`,
+      `architecture_considerations`, `risk_mitigation`, `codebase_reference`,
+      `definition.external_integrations`, `dependencies.integrates_with`). Pinned by
+      `TestFeatureViewShowsEveryFieldOfTheSchema`, the numbers and enums that carry no
+      marker, unknown keys at several levels, the persona profile alone and scenarios
+      in both locations; mutation-checked (26). There is no canonical feature template
+      in the embedded set, so no template test.
 - [x] 3.7 `handler_valuemodel.go` / `valueModelContent`: fix gaps found. A payload
       built from the schema lost 76 of its 98 strings other than ids and path
       segments (the canonical templates only their ids, plus a handful of strings).
@@ -207,7 +229,7 @@ the handler. Section 5 (CI gate) comes last.
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula, strategy foundations, value models, roadmap, LRA. `unshownContent`, `readRecords` and the tolerant readers are
+      strategy formula, strategy foundations, value models, roadmap, LRA, features. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
@@ -215,16 +237,16 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and (without a template) `feature_definition` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8, 3.6);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and `feature_definition`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and `feature_definition`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
