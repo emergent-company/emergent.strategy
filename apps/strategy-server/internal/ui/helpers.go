@@ -636,9 +636,23 @@ func severityDot(severity string) string {
 	}
 }
 
-// trendCategoryOrder returns the display order for trend categories.
-func trendCategoryOrder() []string {
-	return []string{"technology", "market", "user_behavior", "competitive", "regulatory"}
+// trendCategories returns the categories to show: the five the schema names, in
+// their display order, then any other category the artifact holds, by name. The
+// schema allows more, and a category the page skips would be dropped silently.
+func trendCategories(trends map[string][]InsightTrend) []string {
+	known := []string{"technology", "market", "user_behavior", "competitive", "regulatory"}
+	seen := make(map[string]bool, len(known))
+	for _, c := range known {
+		seen[c] = true
+	}
+	var extra []string
+	for c := range trends {
+		if !seen[c] {
+			extra = append(extra, c)
+		}
+	}
+	sort.Strings(extra)
+	return append(known, extra...)
 }
 
 // formatTrendCategory converts a trend category to a display label.

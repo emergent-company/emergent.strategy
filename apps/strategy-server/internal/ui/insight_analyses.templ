@@ -13,6 +13,7 @@ type InsightAnalysesData struct {
 	Name         string
 	Status       string
 	LastUpdated  string
+	NextReview   string
 	Confidence   string
 
 	// Trends by category
@@ -44,23 +45,94 @@ type InsightAnalysesData struct {
 
 	// Synthesis
 	OpportunityConvergence []InsightConvergence
-	StrategicTensions      []InsightTension
+
+	// Sections whose entries share one card layout: market dynamics, value
+	// chain, substitutes, barriers, strategic implications and tensions,
+	// product-problem fit, validation, hypotheses, confidence gaps, next steps.
+	Records []InsightRecordSection
+
+	// Stored content that no section above shows. It is rendered as stored,
+	// under a notice, so that nothing in the artifact is dropped silently.
+	Unshown map[string]any
 
 	// Section completeness gaps
 	Gaps []ReadyGap
 }
 
+// Slots of the record sections on the page.
+const (
+	InsightSlotMarket      = "market"
+	InsightSlotCompetitive = "competitive"
+	InsightSlotSynthesis   = "synthesis"
+)
+
+// Kinds of record section. Each has a title, icon and slot in insightRecordStyles.
+const (
+	InsightKindMarketDynamics   = "market_dynamics"
+	InsightKindValueChain       = "value_chain"
+	InsightKindSubstitutes      = "substitutes"
+	InsightKindBarriers         = "barriers_to_entry"
+	InsightKindImplications     = "strategic_implications"
+	InsightKindTensions         = "strategic_tensions"
+	InsightKindProblemFit       = "product_problem_fit"
+	InsightKindValidation       = "validation_status"
+	InsightKindHypotheses       = "problem_solution_hypotheses"
+	InsightKindConfidenceGaps   = "confidence_gaps"
+	InsightKindNextSteps        = "next_analytical_steps"
+)
+
+type insightRecordStyle struct{ Slot, Title, Icon, Color string }
+
+var insightRecordStyles = map[string]insightRecordStyle{
+	InsightKindMarketDynamics: {InsightSlotMarket, "Market Dynamics", "lucide--waves", "info"},
+	InsightKindValueChain:     {InsightSlotMarket, "Value Chain", "lucide--workflow", "info"},
+	InsightKindSubstitutes:    {InsightSlotCompetitive, "Substitutes", "lucide--replace", "error"},
+	InsightKindBarriers:       {InsightSlotCompetitive, "Barriers to Entry", "lucide--shield", "error"},
+	InsightKindImplications:   {InsightSlotSynthesis, "Strategic Implications", "lucide--compass", "primary"},
+	InsightKindTensions:       {InsightSlotSynthesis, "Strategic Tensions", "lucide--scale", "warning"},
+	InsightKindProblemFit:     {InsightSlotSynthesis, "Product-Problem Fit", "lucide--puzzle", "secondary"},
+	InsightKindValidation:     {InsightSlotSynthesis, "Validation Status", "lucide--flask-conical", "accent"},
+	InsightKindHypotheses:     {InsightSlotSynthesis, "Problem-Solution Hypotheses", "lucide--target", "accent"},
+	InsightKindConfidenceGaps: {InsightSlotSynthesis, "Confidence Gaps", "lucide--circle-help", "warning"},
+	InsightKindNextSteps:      {InsightSlotSynthesis, "Next Analytical Steps", "lucide--list-checks", "primary"},
+}
+
+// InsightRecordSection is a list of InsightRecord cards of one kind.
+type InsightRecordSection struct {
+	Kind    string
+	Records []InsightRecord
+}
+
+// InsightRecord is one card: a headline, labelled values and labelled lists.
+type InsightRecord struct {
+	Head  string
+	Facts []InsightFact
+	Lists []InsightList
+}
+
+type InsightFact struct{ Label, Value string }
+
+type InsightList struct {
+	Label string
+	Items []string
+}
+
 type InsightTrend struct {
-	Trend, Impact, Timeframe string
-	Evidence                 []string
+	Trend, Impact, Timeframe, ImplicationsForUs string
+	Evidence                                    []string
 }
 type InsightPersona struct {
 	Name, Description, Context, Frequency string
 	Goals                                 []string
 	Problems                              []InsightProblem
+	Jobs                                  []InsightJob
 }
 type InsightProblem struct {
-	Problem, Severity, Frequency string
+	Problem, Severity, Frequency, CurrentSolution, CostOfProblem, WillingnessToSolve string
+	Workarounds, Evidence                                                            []string
+}
+type InsightJob struct {
+	Job, When, DesiredOutcome, Satisfaction string
 }
 type InsightStrength struct {
 	Strength, StrategicValue string
@@ -76,9 +148,10 @@ type InsightThreat struct {
 	Threat, Likelihood, Mitigation string
 }
 type InsightCompetitor struct {
-	Name, Positioning string
-	Strengths         []string
-	Weaknesses        []string
+	Name, Positioning                       string
+	MarketShare, TargetSegment, BusinessModel string
+	Strengths                               []string
+	Weaknesses                              []string
 }
 type InsightIndirect struct {
 	Name, ThreatLevel, HowTheySolve string
@@ -93,6 +166,7 @@ type InsightWhiteSpace struct {
 }
 type InsightMarket struct {
 	TAM, SAM, SOM, GrowthRate, MarketStage string
+	TAMMethod, SAMDefinition, SOMTimeframe string
 }
 type InsightSegment struct {
 	Segment, Size    string
@@ -103,8 +177,20 @@ type InsightConvergence struct {
 	Opportunity, Strength string
 	SupportingAnalyses    []string
 }
-type InsightTension struct {
-	Tension, Tradeoff string
+
+// HasContent reports whether any market field is set.
+func (m InsightMarket) HasContent() bool {
+	return m.TAM != "" || m.SAM != "" || m.SOM != "" || m.GrowthRate != "" || m.MarketStage != "" ||
+		m.TAMMethod != "" || m.SAMDefinition != "" || m.SOMTimeframe != ""
+}
+
+func insightHasRecords(sections []InsightRecordSection, slot string) bool {
+	for _, sec := range sections {
+		if insightRecordStyles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 templ InsightAnalysesContent(data InsightAnalysesData) {
@@ -125,9 +211,14 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 						</div>
 						<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
 					</div>
-					if data.LastUpdated != "" {
+					if data.LastUpdated != "" || data.NextReview != "" {
 				<div class="hidden sm:block text-right text-xs text-base-content/75">
-					<p>Updated { data.LastUpdated }</p>
+					if data.LastUpdated != "" {
+						<p>Updated { data.LastUpdated }</p>
+					}
+					if data.NextReview != "" {
+						<p>Next review { data.NextReview }</p>
+					}
 				</div>
 					}
 				</div>
@@ -135,21 +226,21 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 		</div>
 
 		// ── Market Overview ──
-		if data.MarketDefinition.TAM != "" || data.MarketDefinition.MarketStage != "" {
+		if data.MarketDefinition.HasContent() || len(data.MarketSegments) > 0 || insightHasRecords(data.Records, InsightSlotMarket) {
 			<section>
 				@sectionHeading("Market", "lucide--globe", "info", marketSubtitle(data.MarketDefinition))
 				<div class="mt-4 grid gap-3 md:grid-cols-4">
-					if data.MarketDefinition.TAM != "" {
-						@marketStatCard("TAM", data.MarketDefinition.TAM)
+					if data.MarketDefinition.TAM != "" || data.MarketDefinition.TAMMethod != "" {
+						@marketStatCard("TAM", data.MarketDefinition.TAM, data.MarketDefinition.TAMMethod)
 					}
-					if data.MarketDefinition.SAM != "" {
-						@marketStatCard("SAM", data.MarketDefinition.SAM)
+					if data.MarketDefinition.SAM != "" || data.MarketDefinition.SAMDefinition != "" {
+						@marketStatCard("SAM", data.MarketDefinition.SAM, data.MarketDefinition.SAMDefinition)
 					}
-					if data.MarketDefinition.SOM != "" {
-						@marketStatCard("SOM", data.MarketDefinition.SOM)
+					if data.MarketDefinition.SOM != "" || data.MarketDefinition.SOMTimeframe != "" {
+						@marketStatCard("SOM", data.MarketDefinition.SOM, data.MarketDefinition.SOMTimeframe)
 					}
 					if data.MarketDefinition.GrowthRate != "" {
-						@marketStatCard("Growth", data.MarketDefinition.GrowthRate)
+						@marketStatCard("Growth", data.MarketDefinition.GrowthRate, "")
 					}
 				</div>
 				if len(data.MarketSegments) > 0 {
@@ -159,6 +250,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 						}
 					</div>
 				}
+				@insightRecordSections(data.Records, InsightSlotMarket)
 			</section>
 		}
 
@@ -167,7 +259,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 			<section>
 				@sectionHeading("Trends", "lucide--trending-up", "accent", trendSubtitle(data.Trends))
 				<div class="mt-4 space-y-3">
-					for _, cat := range trendCategoryOrder() {
+					for _, cat := range trendCategories(data.Trends) {
 						if trends, ok := data.Trends[cat]; ok && len(trends) > 0 {
 							@trendCategoryAccordion(cat, trends)
 						}
@@ -201,7 +293,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 		}
 
 		// ── Competitive Landscape ──
-		if len(data.DirectCompetitors) > 0 || len(data.StrategyTools) > 0 {
+		if len(data.DirectCompetitors) > 0 || len(data.StrategyTools) > 0 || len(data.IndirectCompetitors) > 0 || insightHasRecords(data.Records, InsightSlotCompetitive) {
 			<section>
 				@sectionHeading("Competitive Landscape", "lucide--swords", "error", "")
 				<div class="mt-4 space-y-4">
@@ -248,6 +340,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 							</div>
 						</div>
 					}
+					@insightRecordSections(data.Records, InsightSlotCompetitive)
 				</div>
 			</section>
 		}
@@ -265,6 +358,13 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 									if s.StrategicValue != "" {
 										<p class="text-xs text-base-content/75 mt-0.5">{ s.StrategicValue }</p>
 									}
+									if len(s.Evidence) > 0 {
+										<div class="flex flex-wrap gap-1 mt-1.5">
+											for _, e := range s.Evidence {
+												<span class="badge badge-xs badge-ghost">{ e }</span>
+											}
+										</div>
+									}
 								</div>
 							}
 						}
@@ -274,6 +374,9 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 							for _, w := range data.Weaknesses {
 								<div class="rounded-lg bg-warning/5 px-3 py-2">
 									<p class="text-sm font-medium text-base-content">{ w.Weakness }</p>
+									if w.Impact != "" {
+										<p class="text-xs text-base-content/75 mt-0.5">Impact: { w.Impact }</p>
+									}
 									if w.Mitigation != "" {
 										<p class="text-xs text-base-content/75 mt-0.5">{ w.Mitigation }</p>
 									}
@@ -373,6 +476,9 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 				</div>
 			</section>
 		}
+
+		@insightRecordSections(data.Records, InsightSlotSynthesis)
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -398,6 +504,16 @@ templ trendCategoryAccordion(category string, trends []InsightTrend) {
 				if t.Impact != "" {
 					<p class="text-xs text-base-content/80 mt-1">{ t.Impact }</p>
 					}
+					if t.ImplicationsForUs != "" {
+						<p class="text-xs text-base-content/80 mt-1">Implications for us: { t.ImplicationsForUs }</p>
+					}
+					if len(t.Evidence) > 0 {
+						<div class="flex flex-wrap gap-1 mt-1.5">
+							for _, e := range t.Evidence {
+								<span class="badge badge-xs badge-ghost">{ e }</span>
+							}
+						</div>
+					}
 				</div>
 			}
 		</div>
@@ -418,6 +534,16 @@ templ personaCard(p InsightPersona) {
 					}
 				</div>
 			</div>
+			if p.Context != "" || p.Frequency != "" {
+				<div class="mb-3 space-y-0.5 text-xs text-base-content/80">
+					if p.Context != "" {
+						<p><span class="font-medium">Context:</span> { p.Context }</p>
+					}
+					if p.Frequency != "" {
+						<p><span class="font-medium">Frequency:</span> { p.Frequency }</p>
+					}
+				</div>
+			}
 			if len(p.Goals) > 0 {
 				<div class="mb-3">
 					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Goals</p>
@@ -433,9 +559,27 @@ templ personaCard(p InsightPersona) {
 					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Pain Points</p>
 					<div class="space-y-1.5">
 						for _, prob := range p.Problems {
-							<div class="flex items-start gap-2">
-								<span class={ "size-2 rounded-full mt-1.5 shrink-0", severityDot(prob.Severity) }></span>
-								<span class="text-xs text-base-content/80">{ prob.Problem }</span>
+							@insightProblemRow(prob)
+						}
+					</div>
+				</div>
+			}
+			if len(p.Jobs) > 0 {
+				<div class="mt-3">
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Jobs to be done</p>
+					<div class="space-y-1.5">
+						for _, j := range p.Jobs {
+							<div class="text-xs text-base-content/80">
+								<p class="font-medium text-base-content">{ j.Job }</p>
+								if j.When != "" {
+									<p>When: { j.When }</p>
+								}
+								if j.DesiredOutcome != "" {
+									<p>Desired outcome: { j.DesiredOutcome }</p>
+								}
+								if j.Satisfaction != "" {
+									<p>Satisfaction with today's solution: { j.Satisfaction }</p>
+								}
 							</div>
 						}
 					</div>
@@ -474,6 +618,15 @@ templ insightCompetitorCard(c InsightCompetitor) {
 			<h5 class="text-sm font-bold text-base-content">{ c.Name }</h5>
 		if c.Positioning != "" {
 			<p class="text-xs text-base-content/80 mt-1">{ c.Positioning }</p>
+			}
+			if c.MarketShare != "" {
+				<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">Market share:</span> { c.MarketShare }</p>
+			}
+			if c.TargetSegment != "" {
+				<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">Target segment:</span> { c.TargetSegment }</p>
+			}
+			if c.BusinessModel != "" {
+				<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">Business model:</span> { c.BusinessModel }</p>
 			}
 			if len(c.Strengths) > 0 || len(c.Weaknesses) > 0 {
 				<div class="grid grid-cols-2 gap-2 mt-2">
@@ -518,12 +671,89 @@ templ swotQuadrant(title, icon, color string, count int) {
 	</div>
 }
 
-templ marketStatCard(label, value string) {
+templ marketStatCard(label, value, note string) {
 	<div class="card bg-base-100 border border-base-content/15 shadow-sm">
 		<div class="card-body p-3 text-center">
-			<p class="text-lg font-bold text-base-content">{ value }</p>
+			if value != "" {
+				<p class="text-lg font-bold text-base-content">{ value }</p>
+			}
 			<p class="text-xs text-base-content/65">{ label }</p>
+			if note != "" {
+				<p class="text-xs text-base-content/80 mt-1">{ note }</p>
+			}
 		</div>
+	</div>
+}
+
+templ insightProblemRow(prob InsightProblem) {
+	<div class="flex items-start gap-2">
+		<span class={ "size-2 rounded-full mt-1.5 shrink-0", severityDot(prob.Severity) }></span>
+		<div class="text-xs text-base-content/80 space-y-0.5">
+			<p>{ prob.Problem }</p>
+			if prob.Severity != "" {
+				<p class="text-base-content/65">Severity: { prob.Severity }</p>
+			}
+			if prob.Frequency != "" {
+				<p class="text-base-content/65">Frequency: { prob.Frequency }</p>
+			}
+			if prob.CurrentSolution != "" {
+				<p class="text-base-content/65">Today: { prob.CurrentSolution }</p>
+			}
+			if prob.CostOfProblem != "" {
+				<p class="text-base-content/65">Cost: { prob.CostOfProblem }</p>
+			}
+			if prob.WillingnessToSolve != "" {
+				<p class="text-base-content/65">Willingness to solve: { prob.WillingnessToSolve }</p>
+			}
+			for _, w := range prob.Workarounds {
+				<p class="text-base-content/65">Workaround: { w }</p>
+			}
+			if len(prob.Evidence) > 0 {
+				<div class="flex flex-wrap gap-1 pt-0.5">
+					for _, e := range prob.Evidence {
+						<span class="badge badge-xs badge-ghost">{ e }</span>
+					}
+				</div>
+			}
+		</div>
+	</div>
+}
+
+// insightRecordSections renders the record sections that belong in a slot.
+templ insightRecordSections(sections []InsightRecordSection, slot string) {
+	for _, sec := range sections {
+		if insightRecordStyles[sec.Kind].Slot == slot && len(sec.Records) > 0 {
+			{{ style := insightRecordStyles[sec.Kind] }}
+			<section class="mt-6 first:mt-0">
+				@sectionHeading(style.Title, style.Icon, style.Color, strconv.Itoa(len(sec.Records)))
+				<div class="mt-4 grid gap-3 md:grid-cols-2">
+					for _, rec := range sec.Records {
+						@insightRecordCard(rec)
+					}
+				</div>
+			</section>
+		}
+	}
+}
+
+templ insightRecordCard(rec InsightRecord) {
+	<div class="rounded-lg bg-base-100 border border-base-content/15 px-4 py-3">
+		if rec.Head != "" {
+			<p class="text-sm font-medium text-base-content">{ rec.Head }</p>
+		}
+		for _, f := range rec.Facts {
+			<p class="text-xs text-base-content/80 mt-1"><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+		}
+		for _, l := range rec.Lists {
+			<div class="mt-1.5">
+				<p class="text-xs font-medium text-base-content/80">{ l.Label }</p>
+				<div class="flex flex-wrap gap-1 mt-0.5">
+					for _, item := range l.Items {
+						<span class="badge badge-xs badge-ghost">{ item }</span>
+					}
+				</div>
+			</div>
+		}
 	</div>
 }
 
@@ -535,6 +765,13 @@ templ segmentRow(seg InsightSegment) {
 				<span class="badge badge-xs badge-ghost shrink-0">{ seg.Size }</span>
 			}
 		</div>
+		if len(seg.Characteristics) > 0 {
+			<div class="flex flex-wrap gap-1 mt-1.5">
+				for _, c := range seg.Characteristics {
+					<span class="badge badge-xs badge-ghost">{ c }</span>
+				}
+			</div>
+		}
 		if len(seg.UnmetNeeds) > 0 {
 			<div class="flex flex-wrap gap-1 mt-1.5">
 				for _, n := range seg.UnmetNeeds {

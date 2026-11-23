@@ -1,0 +1,284 @@
+package handler
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"html"
+	"sort"
+	"strings"
+	"testing"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/embedded"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
+)
+
+func renderInsightAnalyses(t *testing.T, payload map[string]any) string {
+	t.Helper()
+	c := (&Server{}).insightAnalysesContent(ui.NavContext{}, "insight_analyses", "Insight Analyses", "draft", payload)
+	if c == nil {
+		t.Fatal("no view was built")
+	}
+	var buf bytes.Buffer
+	if err := c.Render(context.Background(), &buf); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	return buf.String()
+}
+
+// schemaSample builds a payload from a JSON schema: every string gets a marker
+// that names its path, objects get every property, lists get two items. Strings
+// with an enum take the first value and are not markers. The markers it returns
+// are what the page must show.
+func schemaSample(node map[string]any, path string, markers *[]string) any {
+	switch node["type"] {
+	case "object":
+		out := map[string]any{}
+		props, _ := node["properties"].(map[string]any)
+		for k, v := range props {
+			child, _ := v.(map[string]any)
+			next := k
+			if path != "" {
+				next = path + "." + k
+			}
+			out[k] = schemaSample(child, next, markers)
+		}
+		return out
+	case "array":
+		items, _ := node["items"].(map[string]any)
+		var out []any
+		for i := 0; i < 2; i++ {
+			out = append(out, schemaSample(items, path+"["+string(rune('0'+i))+"]", markers))
+		}
+		return out
+	case "string":
+		if enum, ok := node["enum"].([]any); ok && len(enum) > 0 {
+			return enum[0]
+		}
+		marker := "mk:" + path
+		*markers = append(*markers, marker)
+		return marker
+	case "integer", "number":
+		return float64(7)
+	case "boolean":
+		return true
+	}
+	return nil
+}
+
+func insightSchemaSample(t *testing.T) (map[string]any, []string) {
+	t.Helper()
+	raw, err := embedded.GetSchema("insight_analyses_schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	var markers []string
+	payload, _ := schemaSample(schema, "", &markers).(map[string]any)
+	sort.Strings(markers)
+	if len(markers) < 80 {
+		t.Fatalf("only %d markers from the schema; the sampler or the schema changed shape", len(markers))
+	}
+	return payload, markers
+}
+
+// leafStrings returns the first line of every non-empty string in v, at any depth.
+func leafStrings(v any) []string {
+	var out []string
+	switch t := v.(type) {
+	case map[string]any:
+		for _, e := range t {
+			out = append(out, leafStrings(e)...)
+		}
+	case []any:
+		for _, e := range t {
+			out = append(out, leafStrings(e)...)
+		}
+	default:
+		out = strs(v)
+	}
+	return out
+}
+
+// Every property of the insight_analyses schema has a dedicated view. Two
+// failures are possible and both are reported: a property the view does not
+// declare as shown (it would only reach the page through the generic fallback),
+// and one it declares but does not render.
+func TestInsightAnalysesViewShowsEveryFieldOfTheSchema(t *testing.T) {
+	payload, markers := insightSchemaSample(t)
+
+	if left := unshownContent(payload, insightShownPaths); left != nil {
+		var keys []string
+		for k := range left {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		t.Errorf("schema properties with no dedicated view, under: %s", strings.Join(keys, ", "))
+	}
+
+	page := renderInsightAnalyses(t, payload)
+	var missing []string
+	for _, m := range markers {
+		if !strings.Contains(page, html.EscapeString(m)) {
+			missing = append(missing, m)
+		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("%d of %d schema fields are not on the page:\n  %s", len(missing), len(markers), strings.Join(missing, "\n  "))
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("a payload that follows the schema got the 'stored but not shown' notice")
+	}
+}
+
+// The canonical template does not follow the schema in every field (strengths
+// carry "description" where the schema has "strength"), and both validate. What
+// the dedicated view does not read must still reach the page, and the page must
+// say so.
+func TestInsightAnalysesViewShowsEveryStringOfTheCanonicalTemplate(t *testing.T) {
+	raw, err := embedded.GetTemplate("READY/01_insight_analyses.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := yaml.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	want := leafStrings(payload)
+	if len(want) < 100 {
+		t.Fatalf("collected only %d strings from the template; it changed shape", len(want))
+	}
+
+	// The page may capitalise a value (a market stage becomes "Growing market").
+	page := strings.ToLower(renderInsightAnalyses(t, payload))
+	var missing []string
+	for _, s := range want {
+		if !strings.Contains(page, strings.ToLower(html.EscapeString(s))) {
+			missing = append(missing, s)
+		}
+	}
+	if len(missing) > 0 {
+		t.Errorf("%d of %d template strings are not on the page:\n  %s", len(missing), len(want), strings.Join(missing, "\n  "))
+	}
+	if !strings.Contains(page, "no dedicated view") {
+		t.Error("the template has fields the view does not read, but the page carries no notice")
+	}
+}
+
+// A file written to an older layout validates, because the schema allows extra
+// properties. The page used to show only the competitors.
+func TestInsightAnalysesViewShowsALegacyLayout(t *testing.T) {
+	payload := map[string]any{
+		"last_updated":     "2026-11-19",
+		"confidence_level": "medium",
+		"swot_analysis": map[string]any{"strengths": []any{
+			map[string]any{"id": "s1", "area": "Technology", "description": "A strength that is stored but never rendered."},
+		}},
+		"trend_analysis": map[string]any{"macro_trends": []any{
+			map[string]any{"trend": "A trend that is stored but never rendered."},
+		}},
+		"competitive_landscape": map[string]any{"direct_competitors": []any{
+			map[string]any{"name": "Rendered", "positioning": "This is the only block that shows."},
+		}},
+	}
+	page := renderInsightAnalyses(t, payload)
+	for _, s := range []string{
+		"A strength that is stored but never rendered.", "Technology",
+		"A trend that is stored but never rendered.", "This is the only block that shows.",
+	} {
+		if !strings.Contains(page, s) {
+			t.Errorf("the page is missing %q", s)
+		}
+	}
+	if !strings.Contains(page, "2 sections are stored but have no dedicated view") {
+		t.Errorf("the notice should count the two sections with no dedicated view")
+	}
+
+	// The completeness check counts the legacy keys as present, and the page now
+	// shows them, so the two agree: nothing is reported present that is not shown.
+	present := map[string]bool{}
+	for _, g := range checkInsightGaps(payload) {
+		present[g.Label] = g.Present
+	}
+	if !present["Trends"] || !present["SWOT"] {
+		t.Errorf("legacy trend_analysis and swot_analysis should count as present, got %v", present)
+	}
+}
+
+func TestInsightAnalysesViewShowsAnUnknownTopLevelKey(t *testing.T) {
+	payload, _ := insightSchemaSample(t)
+	payload["foo_analysis"] = map[string]any{"finding": "A finding under a key nobody has a view for."}
+
+	page := renderInsightAnalyses(t, payload)
+	if !strings.Contains(page, "A finding under a key nobody has a view for.") {
+		t.Error("an unknown top-level key was dropped")
+	}
+	if !strings.Contains(page, "1 section is stored but has no dedicated view") {
+		t.Error("the notice for one unknown key is missing")
+	}
+}
+
+// A field the schema defines as text, stored as an object, is not read by the
+// dedicated view, so it must come back through the fallback.
+func TestInsightAnalysesViewShowsAFieldStoredInAnotherShape(t *testing.T) {
+	payload := map[string]any{
+		"market_definition": map[string]any{
+			"tam": map[string]any{"size": "10", "calculation_method": "Bottom up from pilot accounts"},
+			"sam": map[string]any{"size": "4", "definition": map[string]any{"scope": "Two regions only"}},
+		},
+	}
+	page := renderInsightAnalyses(t, payload)
+	for _, s := range []string{"Bottom up from pilot accounts", "Two regions only"} {
+		if !strings.Contains(page, s) {
+			t.Errorf("the page is missing %q", s)
+		}
+	}
+}
+
+// The schema names five trend categories and allows others. A category the page
+// does not know is shown after the known ones, not skipped.
+func TestInsightAnalysesViewShowsATrendCategoryTheSchemaDoesNotName(t *testing.T) {
+	payload := map[string]any{"trends": map[string]any{
+		"technology":    []any{map[string]any{"trend": "A known category."}},
+		"environmental": []any{map[string]any{"trend": "A category the schema does not name."}},
+	}}
+	page := renderInsightAnalyses(t, payload)
+	for _, s := range []string{"A known category.", "A category the schema does not name.", "Environmental"} {
+		if !strings.Contains(page, s) {
+			t.Errorf("the page is missing %q", s)
+		}
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("a trend category is shown by the dedicated view and must not be reported as unshown")
+	}
+}
+
+// The canonical template gives a competitor a market share, target segment and
+// business model, and a trend its implications for us, though the schema does
+// not list them. They belong in the competitor card and the trend, not in the
+// list of content with no view.
+func TestInsightAnalysesViewShowsTheFieldsOnlyTheTemplateHas(t *testing.T) {
+	payload := map[string]any{
+		"trends": map[string]any{"market": []any{map[string]any{
+			"trend": "A trend.", "implications_for_us": "It tells us to move early.",
+		}}},
+		"competitive_landscape": map[string]any{"direct_competitors": []any{map[string]any{
+			"name": "A competitor", "market_share": "About a tenth",
+			"target_segment": "Mid-size operators", "business_model": "Licence plus services",
+		}}},
+	}
+	page := renderInsightAnalyses(t, payload)
+	for _, s := range []string{"It tells us to move early.", "About a tenth", "Mid-size operators", "Licence plus services"} {
+		if !strings.Contains(page, s) {
+			t.Errorf("the page is missing %q", s)
+		}
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("these fields have a place in the dedicated view and must not be reported as unshown")
+	}
+}

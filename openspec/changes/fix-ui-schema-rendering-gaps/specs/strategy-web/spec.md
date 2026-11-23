@@ -30,6 +30,7 @@ a field name, the renderer SHALL read it.
 - **WHEN** an insight analyses payload uses `swot_analysis` instead of `strengths`/`weaknesses`/`opportunities`/`threats`
 - **THEN** the gap checker and the renderer both treat `swot_analysis` as present, or both treat it as absent
 - **AND** they never disagree (gap checker says present, renderer shows blank)
+- **AND** a key the renderer has no dedicated view for is shown by the generic fallback under the notice, so "present" always means "shown"
 
 ## ADDED Requirements
 
