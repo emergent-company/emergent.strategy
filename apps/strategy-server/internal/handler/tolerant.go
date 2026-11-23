@@ -7,8 +7,10 @@ import (
 
 // Tolerant readers, shared by the bespoke pages.
 //
-// The schema says what a field should hold, but a payload that disagrees still
-// validates. These read a number as its text, a lone string as a one-item list,
+// The schema says what a field should hold, but what is stored does not always
+// agree: several schema fields allow a string or an object, the canonical templates
+// use a different shape from the schema in places, and the schemas allow extra
+// properties. These read a number as its text, a lone string as a one-item list,
 // and a plain string where an object is expected, so the page shows them rather
 // than a blank card. Anything they cannot read is left to the fallback.
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/a-h/templ"
 
@@ -12,77 +13,137 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/valuemodel"
 )
 
-// valueModelContent extracts rich data from a value_model payload
-// and returns a bespoke ValueModelContent component.
-// ctx and instanceID are needed to load definitions per component.
+// valueModelContent builds the bespoke ValueModelContent component of a
+// value_model payload. ctx and instanceID are needed to load definitions per
+// component.
 func (s *Server) valueModelContent(ctx context.Context, instanceID, track string, navCtx ui.NavContext, artifactKey, name, status string, payload map[string]any) templ.Component {
-	data := ui.ValueModelViewData{
-		NavContext:  navCtx,
-		ArtifactKey: artifactKey,
-		Name:        name,
-		Status:      status,
-		TrackName:   payloadStr(payload, "track_name"),
-		Description: payloadStr(payload, "description"),
-		Version:     payloadStr(payload, "version"),
-		LastUpdated: payloadStr(payload, "last_updated"),
-	}
-
-	// ── High-Level Model ──
-	if hlm, ok := payload["high_level_model"].(map[string]any); ok {
-		data.ProductMission = payloadStr(hlm, "product_mission")
-		data.MainGoal = payloadStr(hlm, "main_goal")
-		data.ProductGoals = payloadStrSlice(hlm, "product_goals")
-	}
-
-	// ── Load definitions per component ──
 	// track is the DB artifact track column (e.g. "strategy", "org_ops", "orgops", "product", "commercial").
 	// vmTrackDefConfig normalizes "orgops" → "org_ops" internally.
 	defsByComp := s.loadVMDefinitionsByComponent(ctx, instanceID, track, payload)
+	return ui.ValueModelContent(valueModelData(navCtx, artifactKey, name, status, payload, defsByComp))
+}
 
-	// ── Layers ──
-	if layers, ok := payload["layers"].([]any); ok {
-		for _, item := range layers {
-			lm, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			layer := ui.ValueModelLayer{
-				ID:          payloadStr(lm, "id"),
-				Name:        payloadStr(lm, "name"),
-				Description: payloadStr(lm, "description"),
-			}
-
-			if components, ok := lm["components"].([]any); ok {
-				for _, cItem := range components {
-					cm, ok := cItem.(map[string]any)
-					if !ok {
-						continue
-					}
-					compID := payloadStr(cm, "id")
-					comp := ui.ValueModelComponent{
-						ID:          compID,
-						Name:        payloadStr(cm, "name"),
-						Description: payloadStr(cm, "description"),
-						Active:      payloadBool(cm, "active"),
-						Definitions: defsByComp[compID],
-					}
-
-					// Sub-components can be under "sub_components" or "subs".
-					subs := extractValueModelSubs(cm, "sub_components")
-					if len(subs) == 0 {
-						subs = extractValueModelSubs(cm, "subs")
-					}
-					comp.SubComponents = subs
-
-					layer.Components = append(layer.Components, comp)
-				}
-			}
-
-			data.Layers = append(data.Layers, layer)
-		}
+// valueModelData extracts the view data from a value_model payload.
+//
+// The page never drops stored content. Whatever the readers below do not show, as
+// listed in valueModelShownPaths, is handed to the generic renderer under a notice
+// (data.Unshown). That covers the free-form high_level_model, which the schema
+// leaves to the product, and any property a later canonical release adds.
+func valueModelData(navCtx ui.NavContext, artifactKey, name, status string, payload map[string]any, defsByComp map[string][]ui.VMComponentDefinition) ui.ValueModelViewData {
+	data := ui.ValueModelViewData{
+		NavContext:      navCtx,
+		ArtifactKey:     artifactKey,
+		Name:            name,
+		Status:          status,
+		TrackName:       tolStr(payload, "track_name"),
+		Description:     tolStr(payload, "description"),
+		Version:         tolStr(payload, "version"),
+		LastUpdated:     tolStr(payload, "last_updated"),
+		PackagedDefault: payload["packaged_default"] == true,
+		ActivationNotes: tolStr(payload, "activation_notes"),
+	}
+	if ms := tolStr(payload, "status"); ms != status {
+		data.ModelStatus = ms
 	}
 
-	return ui.ValueModelContent(data)
+	if hlm := tolMap(payload, "high_level_model"); hlm != nil {
+		data.ProductMission = tolStr(hlm, "product_mission")
+		data.MainGoal = tolStr(hlm, "main_goal")
+		data.ProductGoals = tolStrs(hlm, "product_goals")
+	}
+	data.Records = readRecords(payload, valueModelRecordSpecs)
+
+	for _, lm := range tolItems(payload["layers"], "name") {
+		layer := ui.ValueModelLayer{
+			ID:            tolStr(lm, "id"),
+			PathSegment:   tolStr(lm, "path_segment"),
+			Name:          tolStr(lm, "name"),
+			Description:   tolStr(lm, "description"),
+			ActiveLabel:   activeLabel(lm),
+			Maturity:      maturitySummaryFacts(tolMap(lm, "maturity_summary"), "l2_distribution"),
+			SolutionSteps: readSolutionSteps(lm["solution_steps"]),
+		}
+		for _, cm := range tolItems(lm["components"], "name") {
+			compID := tolStr(cm, "id")
+			comp := ui.ValueModelComponent{
+				ID:          compID,
+				PathSegment: tolStr(cm, "path_segment"),
+				Name:        tolStr(cm, "name"),
+				Description: tolStr(cm, "description"),
+				Active:      payloadBool(cm, "active"),
+				Maturity:    maturitySummaryFacts(tolMap(cm, "maturity_summary"), "l3_distribution"),
+				Definitions: defsByComp[compID],
+			}
+			// L3 sub-components are written under either key, and both can occur
+			// in one component. The shared parser reads both.
+			for _, key := range vmSubKeys {
+				comp.SubComponents = append(comp.SubComponents, extractValueModelSubs(cm, key)...)
+			}
+			layer.Components = append(layer.Components, comp)
+		}
+		data.Layers = append(data.Layers, layer)
+	}
+
+	data.Unshown = valueModelUnshown(payload)
+	return data
+}
+
+// vmSubKeys are the two keys a component's sub-components are written under.
+var vmSubKeys = []string{"sub_components", "subs"}
+
+// valueModelUnshown returns the stored content the page has no dedicated view for.
+func valueModelUnshown(payload map[string]any) map[string]any {
+	return unshownContent(payload, valueModelShownPaths)
+}
+
+// activeLabel says whether a layer is marked active. A layer need not carry the
+// flag: the schema does not define it, the canonical templates do.
+func activeLabel(m map[string]any) string {
+	active, ok := m["active"].(bool)
+	switch {
+	case !ok:
+		return ""
+	case active:
+		return "active"
+	}
+	return "inactive"
+}
+
+func readSolutionSteps(v any) []ui.VMSolutionStep {
+	var out []ui.VMSolutionStep
+	for _, sm := range tolItems(v, "step") {
+		st := ui.VMSolutionStep{Step: tolStr(sm, "step"), Outcome: tolStr(sm, "outcome")}
+		if st != (ui.VMSolutionStep{}) {
+			out = append(out, st)
+		}
+	}
+	return out
+}
+
+// maturitySummaryFacts reads a layer's or component's maturity summary: the
+// calculated stage, whether it is overridden, and how many of the level below sit
+// at each stage.
+func maturitySummaryFacts(ms map[string]any, distKey string) []ui.RecordFact {
+	if ms == nil {
+		return nil
+	}
+	var out []ui.RecordFact
+	add := func(label, v string) {
+		if v != "" {
+			out = append(out, ui.RecordFact{Label: label, Value: v})
+		}
+	}
+	add("Calculated stage", tolStr(ms, "calculated_stage"))
+	add("Stage override", tolStr(ms, "stage_override"))
+	dist := tolMap(ms, distKey)
+	for _, stage := range vmStages {
+		add(stage.label, tolStr(dist, stage.key))
+	}
+	return out
+}
+
+var vmStages = []struct{ key, label string }{
+	{"hypothetical", "Hypothetical"}, {"emerging", "Emerging"}, {"proven", "Proven"}, {"scaled", "Scaled"},
 }
 
 // loadVMDefinitionsByComponent loads definitions/features for a value model and
@@ -224,24 +285,121 @@ func vmTrackDefConfig(instanceID, track string) (dbType string, viewURL func(key
 }
 
 // extractValueModelSubs extracts a slice of ValueModelSub from a parent map key.
+// The maturity is a stage written as a string, or the schema's object with the
+// stage, an override flag, the milestone reached and the evidence behind it.
 func extractValueModelSubs(parent map[string]any, key string) []ui.ValueModelSub {
-	arr, ok := parent[key].([]any)
-	if !ok {
-		return nil
-	}
 	var out []ui.ValueModelSub
-	for _, item := range arr {
-		sm, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		out = append(out, ui.ValueModelSub{
-			ID:          payloadStr(sm, "id"),
-			Name:        payloadStr(sm, "name"),
-			Description: payloadStr(sm, "description"),
+	for _, sm := range tolItems(parent[key], "name") {
+		sub := ui.ValueModelSub{
+			ID:          tolStr(sm, "id"),
+			PathSegment: tolStr(sm, "path_segment"),
+			Name:        tolStr(sm, "name"),
+			Description: tolStr(sm, "description"),
+			UVP:         tolStr(sm, "uvp"),
 			Active:      payloadBool(sm, "active"),
-			Maturity:    payloadStr(sm, "maturity"),
-		})
+			Premium:     payloadBool(sm, "premium"),
+		}
+		switch mat := sm["maturity"].(type) {
+		case map[string]any:
+			sub.Maturity = tolStr(mat, "stage")
+			for _, f := range []recordField{
+				{"stage_override", "Stage override"}, {"milestone_achieved", "Milestone"}, {"milestone_notes", "Milestone notes"},
+			} {
+				if v := tolStr(mat, f.key); v != "" {
+					sub.MaturityFacts = append(sub.MaturityFacts, ui.RecordFact{Label: f.label, Value: v})
+				}
+			}
+			for _, em := range tolItems(mat["evidence"], "description") {
+				if line := evidenceLine(em); line != "" {
+					sub.Evidence = append(sub.Evidence, line)
+				}
+			}
+		default:
+			sub.Maturity = tolText(mat)
+		}
+		if sub.ID != "" || sub.PathSegment != "" || sub.Name != "" || sub.Description != "" || sub.UVP != "" || sub.Maturity != "" ||
+			len(sub.MaturityFacts) > 0 || len(sub.Evidence) > 0 {
+			out = append(out, sub)
+		}
 	}
 	return out
+}
+
+// evidenceLine is one piece of maturity evidence as a line: its type and
+// description, then where and when it comes from.
+func evidenceLine(em map[string]any) string {
+	var line string
+	if t := tolStr(em, "type"); t != "" {
+		line = t
+	}
+	if d := tolStr(em, "description"); d != "" {
+		if line != "" {
+			line += ": "
+		}
+		line += d
+	}
+	var origin []string
+	for _, k := range []string{"source", "date"} {
+		if v := tolStr(em, k); v != "" {
+			origin = append(origin, v)
+		}
+	}
+	if len(origin) > 0 {
+		if line != "" {
+			line += " "
+		}
+		line += "(" + strings.Join(origin, ", ") + ")"
+	}
+	return line
+}
+
+// ── record sections ──
+
+// valueModelRecordSpecs are the sections of the value model whose entries share
+// one card: the track's maturity.
+var valueModelRecordSpecs = []recordSpec{
+	{kind: ui.VMKindTrackMaturity, path: []string{"track_maturity"}, single: true,
+		facts: []recordField{{"overall_stage", "Overall stage"}, {"stage_override", "Stage override"},
+			{"value_domain", "Value domain"}, {"current_milestone", "Current milestone"}}},
+	{kind: ui.VMKindNextMilestone, path: []string{"track_maturity", "next_milestone_criteria"}, head: "description",
+		facts: []recordField{{"status", "Status"}}},
+	{kind: ui.VMKindDistribution, path: []string{"track_maturity", "l1_distribution"}, single: true,
+		facts: []recordField{{"hypothetical", "Hypothetical"}, {"emerging", "Emerging"}, {"proven", "Proven"}, {"scaled", "Scaled"}}},
+}
+
+// ── shown paths ──
+
+// valueModelShownPaths lists every payload path the page renders. See
+// unshownContent for the syntax. Anything not listed reaches the page through the
+// generic fallback, so this list must hold only what the readers really show:
+// TestValueModelViewShowsEveryFieldOfTheSchema renders a payload built from the
+// embedded schema and checks that each field is on the page.
+var valueModelShownPaths = buildValueModelShownPaths()
+
+func buildValueModelShownPaths() []string {
+	var paths []string
+	add := func(p ...string) { paths = append(paths, p...) }
+
+	add("track_name", "version", "status", "description", "last_updated", "packaged_default", "activation_notes")
+	add("high_level_model.product_mission", "high_level_model.main_goal", "high_level_model.product_goals")
+	add(recordPaths(valueModelRecordSpecs)...)
+
+	dist := func(base string) {
+		for _, stage := range vmStages {
+			add(base + "." + stage.key)
+		}
+	}
+	add(entryPaths("layers", "id", "path_segment", "name", "description", "active", "maturity_summary.calculated_stage", "maturity_summary.stage_override")...)
+	add(entryPaths("layers.*.solution_steps", "step", "outcome")...)
+	dist("layers.*.maturity_summary.l2_distribution")
+	add(entryPaths("layers.*.components", "id", "path_segment", "name", "description", "active",
+		"maturity_summary.calculated_stage", "maturity_summary.stage_override")...)
+	dist("layers.*.components.*.maturity_summary.l3_distribution")
+	for _, key := range vmSubKeys {
+		base := "layers.*.components.*." + key
+		add(entryPaths(base, "id", "path_segment", "name", "description", "uvp", "active", "premium", "maturity",
+			"maturity.stage", "maturity.stage_override", "maturity.milestone_achieved", "maturity.milestone_notes")...)
+		add(entryPaths(base+".*.maturity.evidence", "type", "description", "date", "source")...)
+	}
+	return paths
 }
