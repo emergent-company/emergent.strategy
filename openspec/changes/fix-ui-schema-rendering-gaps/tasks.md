@@ -207,7 +207,7 @@ the handler. Section 5 (CI gate) comes last.
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula, strategy foundations, value models, roadmap. `unshownContent`, `readRecords` and the tolerant readers are
+      strategy formula, strategy foundations, value models, roadmap, LRA. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
@@ -215,16 +215,16 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe` (1.6, 3.2, 3.3, 3.7, 3.4);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe` and `living_reality_assessment`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
