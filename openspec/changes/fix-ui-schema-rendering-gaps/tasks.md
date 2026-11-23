@@ -130,12 +130,29 @@ the handler. Section 5 (CI gate) comes last.
       sections. Pinned by `TestStrategyFoundationsViewShowsEveryFieldOfTheSchema`, the
       template, unwrapped, unknown-key (inside a known section, inside the root and
       beside it), older-names and gate tests; mutation-checked (15).
-- [ ] 3.4 `handler_roadmap.go` / `roadmapRecipeContent`: fix gaps found.
-      Already done in `fix-real-instance-findings` 4.4: `extractRoadmapTrack` reads
-      every `future_okrs_*` group (through `strategyread.OKRGroups`, with a "Planned"
-      label) and shows parked Key Results apart with their reason. Still open: the
-      track badge counts objectives but is labelled "KRs", and there is no total of
-      Key Results found per group (`fix-real-instance-findings` 2.5).
+- [x] 3.4 `handler_roadmap.go` / `roadmapRecipeContent`: fix gaps found. Already
+      done in `fix-real-instance-findings` 4.4: every `future_okrs_*` group is read
+      (through `strategyread.OKRGroups`, with a "Planned" label) and parked Key
+      Results are shown apart with their reason. A payload built from the schema
+      lost 263 of its 464 strings (the canonical template 68 of 131). Causes: the
+      handler read `objective` where the schema has `track_objective`, `milestones`
+      where it has `key_milestones`, `roadmap_id` and `target_completion` where it
+      has `id` and `target_completion_date`, and a number (`cycle`) as nothing; and
+      it had no view for a track's solution scaffold, the Key Result detail fields
+      (status, how it is measured, TRL progression, hypothesis, experiment, success
+      criteria, uncertainty, value model target), an assumption's type, evidence and
+      linked Key Results, the sequencing rationale, parallel tracks, a milestone's
+      Key Results, the roadmap's ids and approval, or tracks beyond the four named
+      ones. The track badge counted objectives under the label "KRs"; it now says
+      "N objectives, M key results" (parked and future ones included), which is the
+      Key Result total of 2.5. The shown paths are built from the payload, because a
+      track names its own future groups. Pinned by
+      `TestRoadmapViewShowsEveryFieldOfTheSchema` (wrapped and unwrapped), the
+      canonical template, the header, Key Result detail, badge, extra tracks,
+      milestones in both layouts, parallel tracks and unknown keys at every level;
+      mutation-checked (21). The sampler in `schema_sample_test.go` now follows
+      `$ref` and `patternProperties`. Still open: `handler_execution.go` and two
+      counts in `queries_phases.go` read only `okrs`; they belong to their own pages.
 - [ ] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found.
 - [ ] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found.
 - [x] 3.7 `handler_valuemodel.go` / `valueModelContent`: fix gaps found. A payload
@@ -175,7 +192,7 @@ the handler. Section 5 (CI gate) comes last.
       here: the general "stored but not shown" notice (section 2).
 - [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula, strategy foundations, value models. `unshownContent`, `readRecords` and the tolerant readers are
+      strategy formula, strategy foundations, value models, roadmap. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
 
 ## 4. Render coverage tests
@@ -183,16 +200,16 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model` (1.6, 3.2, 3.3, 3.7);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe` (1.6, 3.2, 3.3, 3.7, 3.4);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations` and `value_model`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model` and `roadmap_recipe`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and

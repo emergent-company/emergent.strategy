@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -21,18 +22,30 @@ type RoadmapRecipeData struct {
 	TargetCompletion string
 	LastUpdated      string
 
+	// RoadmapStatus is the roadmap's own status (draft, approved, ...) when it
+	// differs from the artifact's.
+	RoadmapStatus string
+	// References are the roadmap's ids and approval.
+	References []RecordFact
+
 	// Tracks (4 tracks, each with OKRs)
 	Tracks []RoadmapTrack
 
 	// Execution plan
-	CriticalPath []RoadmapCriticalPathStep
-	Milestones   []RoadmapMilestone
+	SequencingRationale string
+	ParallelTracks      []Record
+	CriticalPath        []RoadmapCriticalPathStep
+	Milestones          []RoadmapMilestone
 
 	// Cross-track dependencies
 	Dependencies []RoadmapDependency
 
 	// Section completeness gaps
 	Gaps []ReadyGap
+
+	// Stored content that no section shows. It is rendered as stored, under a
+	// notice, so that nothing in the artifact is dropped silently.
+	Unshown map[string]any
 }
 
 // RoadmapTrack is a single strategy track with its OKRs and assumptions.
@@ -41,6 +54,41 @@ type RoadmapTrack struct {
 	Objective   string
 	OKRs        []RoadmapOKR
 	Assumptions []RoadmapAssumption
+	Scaffold    RoadmapScaffold
+}
+
+// RoadmapScaffold is the solution scaffold of a track: what is to be built and
+// the principles and constraints it is built under.
+type RoadmapScaffold struct {
+	Description string
+	Components  []Record
+	Principles  []string
+	Constraints []string
+}
+
+func (sc RoadmapScaffold) isEmpty() bool {
+	return sc.Description == "" && len(sc.Components) == 0 && len(sc.Principles) == 0 && len(sc.Constraints) == 0
+}
+
+// keyResultCount is the number of Key Results of a track, parked ones included.
+func (t RoadmapTrack) keyResultCount() int {
+	n := 0
+	for _, okr := range t.OKRs {
+		n += len(okr.KeyResults) + len(okr.ParkedKeyResults)
+	}
+	return n
+}
+
+func roadmapTrackTotals(ctx context.Context, t RoadmapTrack) string {
+	return fmt.Sprintf(langs.T(ctx, "ui.roadmap.objectives_krs"), len(t.OKRs), t.keyResultCount())
+}
+
+// roadmapCycleLabel says "Cycle 4" for a number and shows anything else as written.
+func roadmapCycleLabel(ctx context.Context, cycle string) string {
+	if n, err := strconv.Atoi(cycle); err == nil {
+		return fmt.Sprintf(langs.T(ctx, "ui.roadmap.cycle_label"), n)
+	}
+	return cycle
 }
 
 // RoadmapOKR is a single Objective with Key Results. Group is empty for the
@@ -64,6 +112,9 @@ type RoadmapKR struct {
 	TRLTarget   string
 	// ParkedReason is why a parked Key Result is not being worked on.
 	ParkedReason string
+	// Facts are its status, how it is measured and tested, and the value model
+	// target it aims at.
+	Facts []RecordFact
 }
 
 // futureGroupLabel turns "future_okrs_q3_2026" into "q3 2026".
@@ -81,10 +132,13 @@ type RoadmapCriticalPathStep struct {
 
 // RoadmapAssumption is a bet the track is making.
 type RoadmapAssumption struct {
-	ID          string
-	Description string
-	Criticality string
-	Confidence  string
+	ID               string
+	Description      string
+	Type             string
+	Criticality      string
+	Confidence       string
+	EvidenceRequired string
+	LinkedKRs        []string
 }
 
 // RoadmapMilestone is a dated milestone in the execution plan.
@@ -93,6 +147,7 @@ type RoadmapMilestone struct {
 	Milestone   string
 	Description string
 	Status      string
+	KeyResults  []string
 }
 
 // RoadmapDependency is a cross-track dependency between KRs.
@@ -126,6 +181,11 @@ templ RoadmapRecipeContent(data RoadmapRecipeData) {
 			@roadmapMilestonesSection(data.Milestones)
 		}
 
+		// ── Sequencing ──
+		if data.SequencingRationale != "" || len(data.ParallelTracks) > 0 {
+			@roadmapSequencingSection(data)
+		}
+
 		// ── Critical Path ──
 		if len(data.CriticalPath) > 0 {
 			@roadmapCriticalPathSection(data.CriticalPath)
@@ -135,6 +195,8 @@ templ RoadmapRecipeContent(data RoadmapRecipeData) {
 		if len(data.Dependencies) > 0 {
 			@roadmapDependenciesSection(data.Dependencies)
 		}
+
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -153,14 +215,24 @@ templ roadmapHero(data RoadmapRecipeData) {
 						if data.Status != "" {
 							@artifactStatusBadge(data.Status)
 						}
+						if data.RoadmapStatus != "" {
+							<span class="badge badge-sm badge-ghost">roadmap { data.RoadmapStatus }</span>
+						}
 						if data.Cycle != "" {
-							<span class="badge badge-sm badge-outline badge-accent">{ data.Cycle }</span>
+							<span class="badge badge-sm badge-outline badge-accent">{ roadmapCycleLabel(ctx, data.Cycle) }</span>
 						}
 						if data.Timeframe != "" {
 							<span class="badge badge-sm badge-warning">{ data.Timeframe }</span>
 						}
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Name }</h1>
+					if len(data.References) > 0 {
+						<div class="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-base-content/75">
+							for _, ref := range data.References {
+								<span><span class="font-medium">{ ref.Label }:</span> { ref.Value }</span>
+							}
+						</div>
+					}
 				</div>
 				if data.StartDate != "" || data.TargetCompletion != "" || data.LastUpdated != "" {
 					<div class="hidden sm:block text-right text-xs text-base-content/75 space-y-0.5">
@@ -200,7 +272,7 @@ templ roadmapTrackAccordion(track RoadmapTrack) {
 		<summary class="flex cursor-pointer items-center gap-3 px-5 py-3.5 text-sm font-semibold text-base-content select-none">
 			<span class={ "iconify size-4", trackIcon(track.Name), textColor(trackColor(track.Name)) }></span>
 			<span class="grow">{ formatTrackName(track.Name) }</span>
-			<span class="badge badge-sm badge-ghost">{ strconv.Itoa(len(track.OKRs)) } { langs.T(ctx, "ui.roadmap.kr_label") }</span>
+			<span class="badge badge-sm badge-ghost">{ roadmapTrackTotals(ctx, track) }</span>
 			<span class="iconify lucide--chevron-right size-4 text-base-content/65 transition-transform group-open:rotate-90"></span>
 		</summary>
 		<div class="border-t border-base-content/5 px-5 pb-4 pt-3 space-y-4">
@@ -214,8 +286,42 @@ templ roadmapTrackAccordion(track RoadmapTrack) {
 			for _, okr := range track.OKRs {
 				@roadmapOKRCard(okr, track.Name)
 			}
+			if !track.Scaffold.isEmpty() {
+				@roadmapScaffold(track.Scaffold)
+			}
 		</div>
 	</details>
+}
+
+templ roadmapScaffold(sc RoadmapScaffold) {
+	<div class="space-y-3">
+		<h6 class="text-xs font-semibold uppercase tracking-wide text-base-content/65">Solution scaffold</h6>
+		if sc.Description != "" {
+			<p class="text-sm text-base-content/80 leading-relaxed">{ sc.Description }</p>
+		}
+		if len(sc.Components) > 0 {
+			<div class="grid gap-3 md:grid-cols-2">
+				for _, rec := range sc.Components {
+					@recordCard(rec)
+				}
+			</div>
+		}
+		@roadmapBulletList("Architecture principles", sc.Principles)
+		@roadmapBulletList("Technical constraints", sc.Constraints)
+	</div>
+}
+
+templ roadmapBulletList(title string, items []string) {
+	if len(items) > 0 {
+		<div>
+			<p class="text-xs font-medium text-base-content/80">{ title }</p>
+			<ul class="list-disc pl-5 text-xs text-base-content/80 space-y-0.5 mt-0.5">
+				for _, item := range items {
+					<li>{ item }</li>
+				}
+			</ul>
+		</div>
+	}
 }
 
 templ roadmapOKRCard(okr RoadmapOKR, trackName string) {
@@ -265,6 +371,16 @@ templ roadmapKRRow(kr RoadmapKR, trackName string) {
 					<p class="mt-1 text-xs text-base-content/80">
 						<span class="font-medium">{ langs.T(ctx, "ui.roadmap.parked_reason") }:</span> { kr.ParkedReason }
 					</p>
+				}
+				if len(kr.Facts) > 0 {
+					<details class="mt-1.5">
+						<summary class="cursor-pointer text-xs text-base-content/65 select-none">Details</summary>
+						<div class="mt-1 space-y-1">
+							for _, f := range kr.Facts {
+								<p class="text-xs text-base-content/80"><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+							}
+						</div>
+					</details>
 				}
 				<div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 items-center">
 					if kr.Baseline != "" || kr.Target != "" {
@@ -347,6 +463,9 @@ templ roadmapAssumptionRow(a RoadmapAssumption) {
 					}
 				</div>
 			<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-xs text-base-content/65">
+				if a.Type != "" {
+					<span class="badge badge-xs badge-outline">{ a.Type }</span>
+				}
 				if a.Criticality != "" {
 					<span class="flex items-center gap-1">
 						<span>Criticality</span>
@@ -364,6 +483,17 @@ templ roadmapAssumptionRow(a RoadmapAssumption) {
 					</span>
 				}
 			</div>
+			if a.EvidenceRequired != "" {
+				<p class="mt-1.5 text-xs text-base-content/80"><span class="font-medium">Evidence required:</span> { a.EvidenceRequired }</p>
+			}
+			if len(a.LinkedKRs) > 0 {
+				<div class="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-base-content/65">
+					<span>Tests</span>
+					for _, id := range a.LinkedKRs {
+						<span class="badge badge-xs badge-ghost font-mono">{ id }</span>
+					}
+				</div>
+			}
 			</div>
 		</div>
 	</div>
@@ -401,8 +531,35 @@ templ roadmapMilestoneEntry(m RoadmapMilestone, latest bool) {
 			if m.Description != "" {
 				<p class="text-xs text-base-content/80 mt-1">{ m.Description }</p>
 			}
+			if len(m.KeyResults) > 0 {
+				<div class="mt-1.5 flex flex-wrap gap-1">
+					for _, id := range m.KeyResults {
+						<span class="badge badge-xs badge-ghost font-mono">{ id }</span>
+					}
+				</div>
+			}
 		</div>
 	</div>
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Sequencing
+// ──────────────────────────────────────────────────────────────────────
+
+templ roadmapSequencingSection(data RoadmapRecipeData) {
+	<section>
+		@sectionHeading("Sequencing", "lucide--workflow", "primary", "How the work is ordered")
+		if data.SequencingRationale != "" {
+			<p class="mt-4 text-sm text-base-content/80 leading-relaxed">{ data.SequencingRationale }</p>
+		}
+		if len(data.ParallelTracks) > 0 {
+			<div class="mt-4 grid gap-3 md:grid-cols-2">
+				for _, rec := range data.ParallelTracks {
+					@recordCard(rec)
+				}
+			</div>
+		}
+	</section>
 }
 
 // ──────────────────────────────────────────────────────────────────────
