@@ -3,7 +3,7 @@
 # The sections here form the basis of the living Org & Ops Requirement Document (ORD).
 
 track_name: "OrgOps"
-version: "1.1.0"
+version: "1.2.0"
 status: "active"
 description: "Builds and maintains the company's operational and cultural engine."
 packaged_default: true
@@ -60,6 +60,16 @@ layers:
         name: Workforce forecasting
         active: false
 
+    - id: orgops-c-advisors-expert-networks
+      name: Advisors & Expert Networks
+      active: false
+      subs:
+      - id: orgops-s-advisor-and-expert-network-engagement
+        name: Advisor and expert network engagement
+        active: false
+      - id: orgops-s-fractional-and-interim-specialists
+        name: Fractional and interim specialists
+        active: false
   - id: orgops-l1-talent-management
     name: TALENT MANAGEMENT
     active: false
@@ -205,6 +215,16 @@ layers:
         name: Open forums
         active: false
 
+    - id: orgops-c-documentation-decision-records
+      name: Documentation & Decision Records
+      active: false
+      subs:
+      - id: orgops-s-documentation-standards
+        name: Documentation standards
+        active: false
+      - id: orgops-s-decision-logging-and-traceability
+        name: Decision logging and traceability
+        active: false
   - id: orgops-l1-financial-legal
     name: FINANCIAL & LEGAL
     active: false
@@ -297,6 +317,19 @@ layers:
         name: IP portfolio reviews
         active: false
 
+    - id: orgops-c-contracts-commercial-legal
+      name: Contracts & Commercial Legal
+      active: false
+      subs:
+      - id: orgops-s-contract-templates-and-lifecycle-management
+        name: Contract templates and lifecycle management
+        active: false
+      - id: orgops-s-nda-and-confidentiality-management
+        name: NDA and confidentiality management
+        active: false
+      - id: orgops-s-export-control-and-sanctions
+        name: Export control and sanctions
+        active: false
   - id: orgops-l1-facilities-it
     name: FACILITIES & IT
     active: false
@@ -363,6 +396,19 @@ layers:
         name: Cross-border data transfers
         active: false
 
+    - id: orgops-c-project-program-management
+      name: Project & Program Management
+      active: false
+      subs:
+      - id: orgops-s-task-and-work-tracking
+        name: Task and work tracking
+        active: false
+      - id: orgops-s-program-planning-and-milestone-tracking
+        name: Program planning and milestone tracking
+        active: false
+      - id: orgops-s-reporting-dashboards
+        name: Reporting dashboards
+        active: false
   - id: orgops-l1-company-governance-compliance
     name: COMPANY GOVERNANCE & COMPLIANCE
     active: false
@@ -444,6 +490,16 @@ layers:
         name: Transfer pricing policies
         active: false
 
+    - id: orgops-c-strategy-artifact-governance
+      name: Strategy Artifact Governance
+      active: false
+      subs:
+      - id: orgops-s-strategic-artifact-maintenance-and-change-control
+        name: Strategic artifact maintenance and change control
+        active: false
+      - id: orgops-s-assessment-and-calibration-cycles
+        name: Assessment and calibration cycles
+        active: false
   - id: orgops-l1-operational-structure
     name: OPERATIONAL STRUCTURE
     active: false
@@ -504,4 +560,123 @@ layers:
         active: false
       - id: orgops-s-workload-balancing
         name: Workload balancing
+        active: false
+    - id: orgops-c-customer-support-success-operations
+      name: Customer Support & Success Operations
+      active: false
+      subs:
+      - id: orgops-s-support-tiers-slas-and-escalation
+        name: Support tiers, SLAs and escalation
+        active: false
+      - id: orgops-s-onboarding-playbooks
+        name: Onboarding playbooks
+        active: false
+      - id: orgops-s-health-scoring-and-renewal-handoff
+        name: Health scoring and renewal handoff
+        active: false
+  - id: orgops-l1-product-assurance
+    name: PRODUCT ASSURANCE
+    active: false
+    components:
+    - id: orgops-c-test-program-management
+      name: Test Program Management
+      active: false
+      subs:
+      - id: orgops-s-test-planning-and-protocols
+        name: Test planning and protocols
+        active: false
+      - id: orgops-s-facility-access-and-booking
+        name: Facility access and booking
+        active: false
+      - id: orgops-s-material-and-component-characterization
+        name: Material and component characterization
+        active: false
+      - id: orgops-s-test-data-capture-and-results-review
+        name: Test data capture and results review
+        active: false
+    - id: orgops-c-pilot-demonstrator-operations
+      name: Pilot & Demonstrator Operations
+      active: false
+      subs:
+      - id: orgops-s-demonstrator-build-and-commissioning
+        name: Demonstrator build and commissioning
+        active: false
+      - id: orgops-s-site-agreements-and-hosting
+        name: Site agreements and hosting
+        active: false
+      - id: orgops-s-operational-monitoring-and-lessons-capture
+        name: Operational monitoring and lessons capture
+        active: false
+    - id: orgops-c-quality-management
+      name: Quality Management
+      active: false
+      subs:
+      - id: orgops-s-quality-system-and-document-control
+        name: Quality system and document control
+        active: false
+      - id: orgops-s-non-conformance-and-corrective-action
+        name: Non-conformance and corrective action
+        active: false
+    - id: orgops-c-health-safety-environment
+      name: Health, Safety & Environment
+      active: false
+      subs:
+      - id: orgops-s-hse-policy-and-hazard-analysis
+        name: HSE policy and hazard analysis
+        active: false
+      - id: orgops-s-incident-reporting-and-site-and-lab-safety
+        name: Incident reporting and site and lab safety
+        active: false
+    - id: orgops-c-regulatory-affairs
+      name: Regulatory Affairs
+      active: false
+      subs:
+      - id: orgops-s-product-regulation-and-conformity
+        name: Product regulation and conformity
+        active: false
+      - id: orgops-s-standards-compliance-and-third-party-certification
+        name: Standards compliance and third-party certification
+        active: false
+      - id: orgops-s-technical-file-maintenance
+        name: Technical file maintenance
+        active: false
+      - id: orgops-s-post-market-surveillance
+        name: Post-market surveillance
+        active: false
+  - id: orgops-l1-supply-chain-procurement
+    name: SUPPLY CHAIN & PROCUREMENT
+    active: false
+    components:
+    - id: orgops-c-sourcing-supplier-management
+      name: Sourcing & Supplier Management
+      active: false
+      subs:
+      - id: orgops-s-supplier-discovery-and-qualification
+        name: Supplier discovery and qualification
+        active: false
+      - id: orgops-s-rfq-quoting-and-ordering
+        name: RFQ, quoting and ordering
+        active: false
+      - id: orgops-s-supplier-performance-and-risk
+        name: Supplier performance and risk
+        active: false
+    - id: orgops-c-contract-manufacturing
+      name: Contract Manufacturing
+      active: false
+      subs:
+      - id: orgops-s-contract-manufacturer-onboarding
+        name: Contract manufacturer onboarding
+        active: false
+      - id: orgops-s-production-readiness-and-design-handoff
+        name: Production readiness and design handoff
+        active: false
+    - id: orgops-c-logistics-inventory
+      name: Logistics & Inventory
+      active: false
+      subs:
+      - id: orgops-s-inbound-logistics-and-customs
+        name: Inbound logistics and customs
+        active: false
+      - id: orgops-s-inventory-control
+        name: Inventory control
         active: false

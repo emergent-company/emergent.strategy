@@ -1,5 +1,5 @@
-7df1b995dd85e965aee614686b92bb0057ab2a32
-# VERSION at this commit: 2.35.0
+e6d0a661d07dac70be5c27422b939731e4579550
+# VERSION at this commit: 2.36.0
 #
 # epf-canonical has no tags or releases — only a VERSION file on main.
 # This file pins an exact commit SHA so builds are reproducible. To

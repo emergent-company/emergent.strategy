@@ -16,6 +16,9 @@ import (
 type MaturityStage string
 
 const (
+	// MaturityNone is the roll-up of an element with no active children. It is not
+	// a stage: such an element has no maturity, which is not "hypothetical".
+	MaturityNone         MaturityStage = ""
 	MaturityHypothetical MaturityStage = "hypothetical"
 	MaturityEmerging     MaturityStage = "emerging"
 	MaturityProven       MaturityStage = "proven"

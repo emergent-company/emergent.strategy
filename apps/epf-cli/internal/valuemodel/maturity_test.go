@@ -23,6 +23,7 @@ func compWithSubs(stages ...MaturityStage) Component {
 	return Component{
 		ID:            "test-comp",
 		Name:          "Test Component",
+		Active:        true,
 		SubComponents: subs,
 	}
 }
@@ -36,6 +37,7 @@ func layerWithComps(compStages ...[]MaturityStage) Layer {
 	return Layer{
 		ID:         "test-layer",
 		Name:       "Test Layer",
+		Active:     true,
 		Components: comps,
 	}
 }
@@ -95,9 +97,9 @@ func TestCalculateL2Maturity(t *testing.T) {
 		expected MaturityStage
 	}{
 		{
-			name:     "empty returns hypothetical",
+			name:     "empty has no maturity",
 			stages:   []MaturityStage{},
-			expected: MaturityHypothetical,
+			expected: MaturityNone,
 		},
 		{
 			name:     "all hypothetical",
@@ -174,11 +176,11 @@ func TestCalculateL2Maturity(t *testing.T) {
 func TestCalculateL2MaturityWithEmptyStage(t *testing.T) {
 	// Empty stage should be treated as hypothetical
 	subs := []SubComponent{
-		{ID: "sub1", Maturity: Maturity{Stage: ""}}, // Empty
-		{ID: "sub2", Maturity: Maturity{Stage: MaturityEmerging}},
-		{ID: "sub3", Maturity: Maturity{Stage: MaturityEmerging}},
-		{ID: "sub4", Maturity: Maturity{Stage: MaturityEmerging}},
-		{ID: "sub5", Maturity: Maturity{Stage: MaturityEmerging}},
+		{ID: "sub1", Active: true, Maturity: Maturity{Stage: ""}}, // Empty
+		{ID: "sub2", Active: true, Maturity: Maturity{Stage: MaturityEmerging}},
+		{ID: "sub3", Active: true, Maturity: Maturity{Stage: MaturityEmerging}},
+		{ID: "sub4", Active: true, Maturity: Maturity{Stage: MaturityEmerging}},
+		{ID: "sub5", Active: true, Maturity: Maturity{Stage: MaturityEmerging}},
 	}
 
 	got := CalculateL2Maturity(subs)
@@ -197,7 +199,7 @@ func TestCalculateL1Maturity(t *testing.T) {
 		{
 			name:     "empty components",
 			comps:    []Component{},
-			expected: MaturityHypothetical,
+			expected: MaturityNone,
 		},
 		{
 			name: "all L2s at emerging",
@@ -247,7 +249,7 @@ func TestCalculateTrackMaturity(t *testing.T) {
 		{
 			name:     "empty layers",
 			layers:   []Layer{},
-			expected: MaturityHypothetical,
+			expected: MaturityNone,
 		},
 		{
 			name: "5 layers - 4 at proven, 1 at emerging",
@@ -378,8 +380,8 @@ func TestAnalyzeL2Maturity(t *testing.T) {
 func TestAnalyzeL2MaturityEmpty(t *testing.T) {
 	analysis := AnalyzeL2Maturity([]SubComponent{})
 
-	if analysis.CalculatedStage != MaturityHypothetical {
-		t.Errorf("CalculatedStage = %v, want %v", analysis.CalculatedStage, MaturityHypothetical)
+	if analysis.CalculatedStage != MaturityNone {
+		t.Errorf("CalculatedStage = %v, want %v", analysis.CalculatedStage, MaturityNone)
 	}
 	if analysis.Total != 0 {
 		t.Errorf("Total = %d, want 0", analysis.Total)
@@ -607,7 +609,7 @@ func TestEdgeCases(t *testing.T) {
 					MaturityProven, MaturityProven, MaturityProven, MaturityProven, MaturityProven,
 				)
 			}
-			layers[i] = Layer{Components: comps}
+			layers[i] = Layer{Active: true, Components: comps}
 		}
 
 		// All L3s are proven → all L2s are proven → all L1s are proven → track is proven
@@ -650,4 +652,81 @@ func TestComponentGetSubComponents(t *testing.T) {
 			t.Errorf("Should return empty, got %v", subs)
 		}
 	})
+}
+
+func inactive(sub SubComponent) SubComponent {
+	sub.Active = false
+	return sub
+}
+
+// A template ships many inactive sub-components. They are capabilities the
+// organization could take up, not ones it chose, so they are not in the
+// denominator: counting them pulled every roll-up toward "hypothetical".
+func TestCalculateL2Maturity_InactiveSubComponentsAreNotCounted(t *testing.T) {
+	subs := []SubComponent{
+		subWithStage(MaturityProven), subWithStage(MaturityProven), subWithStage(MaturityProven), subWithStage(MaturityProven),
+	}
+	for i := 0; i < 6; i++ {
+		subs = append(subs, inactive(subWithStage(MaturityHypothetical)))
+	}
+	if got := CalculateL2Maturity(subs); got != MaturityProven {
+		t.Errorf("4 active proven and 6 inactive: got %v, want proven (4 of 10 would not reach 80%%)", got)
+	}
+}
+
+func TestCalculateL2Maturity_NoActiveSubComponentMeansNoMaturity(t *testing.T) {
+	subs := []SubComponent{inactive(subWithStage(MaturityProven)), inactive(subWithStage(MaturityScaled))}
+	if got := CalculateL2Maturity(subs); got != MaturityNone {
+		t.Errorf("got %q, want no maturity, not %q", got, MaturityHypothetical)
+	}
+}
+
+func TestCalculateL1Maturity_LeavesOutInactiveComponentsAndOnesWithNothingActive(t *testing.T) {
+	proven := compWithSubs(MaturityProven, MaturityProven)
+	inactiveComp := compWithSubs(MaturityHypothetical, MaturityHypothetical)
+	inactiveComp.Active = false
+	noActiveSubs := Component{ID: "idle", Active: true, SubComponents: []SubComponent{inactive(subWithStage(MaturityHypothetical))}}
+
+	if got := CalculateL1Maturity([]Component{proven, inactiveComp, noActiveSubs}); got != MaturityProven {
+		t.Errorf("got %v, want proven: only one component has anything to roll up", got)
+	}
+	if got := CalculateL1Maturity([]Component{inactiveComp, noActiveSubs}); got != MaturityNone {
+		t.Errorf("got %q, want no maturity", got)
+	}
+}
+
+func TestCalculateTrackMaturity_LeavesOutInactiveLayers(t *testing.T) {
+	live := layerWithComps([]MaturityStage{MaturityScaled, MaturityScaled})
+	off := layerWithComps([]MaturityStage{MaturityHypothetical})
+	off.Active = false
+	empty := Layer{ID: "empty", Active: true, Components: []Component{{ID: "c", Active: true}}}
+
+	if got := CalculateTrackMaturity([]Layer{live, off, empty}); got != MaturityScaled {
+		t.Errorf("got %v, want scaled", got)
+	}
+	if got := CalculateTrackMaturity([]Layer{off, empty}); got != MaturityNone {
+		t.Errorf("got %q, want no maturity", got)
+	}
+}
+
+func TestAnalyzeMaturity_CountsActiveElementsOnly(t *testing.T) {
+	subs := []SubComponent{subWithStage(MaturityProven), subWithStage(MaturityProven), inactive(subWithStage(MaturityHypothetical))}
+	a := AnalyzeL2Maturity(subs)
+	if a.Total != 2 || a.CalculatedStage != MaturityProven || a.Distribution.Hypothetical != 0 {
+		t.Errorf("L2: total=%d stage=%v dist=%+v, want 2 active, proven, no hypothetical", a.Total, a.CalculatedStage, a.Distribution)
+	}
+
+	off := compWithSubs(MaturityHypothetical)
+	off.Active = false
+	l1 := AnalyzeL1Maturity([]Component{compWithSubs(MaturityScaled), off})
+	if l1.Total != 1 || l1.CalculatedStage != MaturityScaled {
+		t.Errorf("L1: total=%d stage=%v, want 1 active, scaled", l1.Total, l1.CalculatedStage)
+	}
+
+	offLayer := layerWithComps([]MaturityStage{MaturityHypothetical})
+	offLayer.Active = false
+	tr := AnalyzeTrackMaturity([]Layer{layerWithComps([]MaturityStage{MaturityEmerging}), offLayer})
+	if tr.Total != 1 || tr.CalculatedStage != MaturityEmerging {
+		t.Errorf("track: total=%d stage=%v, want 1 active, emerging", tr.Total, tr.CalculatedStage)
+	}
 }
