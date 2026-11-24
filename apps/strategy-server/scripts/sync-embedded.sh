@@ -271,3 +271,29 @@ echo "  Agents:     $AGENT_COUNT"
 echo "  Skills:     $SKILL_COUNT"
 echo "  Defs:       $DEFINITION_COUNT"
 echo "  Docs:       $DOC_COUNT"
+
+# UI coverage gate. A canonical release can add a property that no page shows, or
+# a schema no page knows about; the web UI would then drop stored content without
+# a word (issue #163). These tests render a payload built from every embedded
+# schema through the real pages and fail on the first string that does not reach
+# the page, and they check that every embedded template still fits its schema.
+# Fix the failure (show the field, or classify the schema) before committing the
+# sync. SKIP_UI_COVERAGE_CHECK=1 skips this, for a sync that only needs the files.
+if [ "${SKIP_UI_COVERAGE_CHECK:-0}" = "1" ]; then
+    echo ""
+    echo "Skipping the UI coverage gate (SKIP_UI_COVERAGE_CHECK=1)."
+else
+    echo ""
+    echo "Checking that every page shows every property of the synced schemas..."
+    if ! (cd "$SERVER_DIR" && go test -count=1 \
+            -run 'TestEverySchemaIsClassified|TestEveryPageShowsEveryStringOfItsSchema' ./internal/handler \
+        && go test -count=1 \
+            -run 'TestEmbeddedTemplatesMatchTheirSchemas|TestTemplatePairsNameEmbeddedFiles' ./internal/embedded); then
+        echo ""
+        echo "UI coverage gate FAILED: the synced canonical content has a property a page drops,"
+        echo "a schema no page is classified for, or a template that no longer fits its schema."
+        echo "See apps/strategy-server/AGENTS.md, \"Bumping the canonical version\"."
+        exit 1
+    fi
+    echo "  UI coverage gate passed"
+fi

@@ -13,6 +13,9 @@ import (
 // loadAssumptionStatements queries the roadmap_recipe for this instance and
 // builds a map of assumption ID → human-readable description string.
 func (s *Server) loadAssumptionStatements(ctx context.Context, instanceID string) map[string]string {
+	if s.db == nil {
+		return nil
+	}
 	var row struct {
 		Payload string `bun:"payload"`
 	}
@@ -96,6 +99,9 @@ func (s *Server) loadAssumptionStatements(ctx context.Context, instanceID string
 // It walks every list under roadmap.tracks.<track>.<any key containing "okr"> to
 // handle both current-cycle and future OKR keys.
 func (s *Server) loadOKRTitles(ctx context.Context, instanceID string) map[string]string {
+	if s.db == nil {
+		return nil
+	}
 	var row struct {
 		Payload string `bun:"payload"`
 	}
@@ -181,40 +187,50 @@ func (s *Server) assessmentContent(ctx context.Context, instanceID string, navCt
 		if data.RoadmapID == "" {
 			data.RoadmapID = payloadStr(meta, "roadmap_id")
 		}
+		data.EPFVersion = tolStr(meta, "epf_version")
 	}
 
 	// ── OKR Assessments ──
-	if okrs, ok := payload["okr_assessments"].([]any); ok {
-		for _, item := range okrs {
-			om, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			id := payloadStr(om, "okr_id")
-			okr := ui.AssessmentOKR{
-				OKRID:      id,
-				Title:      okrTitles[id],
-				Assessment: payloadStr(om, "assessment"),
-			}
-
-			if krs, ok := om["key_results"].([]any); ok {
-				for _, krItem := range krs {
-					km, ok := krItem.(map[string]any)
-					if !ok {
-						continue
-					}
-					okr.KeyResults = append(okr.KeyResults, ui.AssessmentKR{
-						KRID:      payloadStr(km, "kr_id"),
-						Status:    payloadStr(km, "status"),
-						Target:    payloadStr(km, "target"),
-						Actual:    payloadStr(km, "actual"),
-						Learnings: payloadStrSlice(km, "learnings"),
-					})
-				}
-			}
-
-			data.OKRAssessments = append(data.OKRAssessments, okr)
+	for _, om := range tolItems(payload["okr_assessments"], "assessment") {
+		id := tolStr(om, "okr_id")
+		okr := ui.AssessmentOKR{
+			OKRID:           id,
+			Title:           okrTitles[id],
+			Assessment:      tolStr(om, "assessment"),
+			CrossFunctional: tolStrs(om, "cross_functional_insights"),
 		}
+
+		// The schema names the results key_result_outcomes; key_results is what
+		// AI-drafted reports have used, and is read too.
+		for _, key := range []string{"key_result_outcomes", "key_results"} {
+			for _, km := range tolItems(om[key], "kr_id") {
+				okr.KeyResults = append(okr.KeyResults, ui.AssessmentKR{
+					KRID:      tolStr(km, "kr_id"),
+					Status:    tolStr(km, "status"),
+					Target:    tolStr(km, "target"),
+					Actual:    tolStr(km, "actual"),
+					Learnings: tolStrs(km, "learnings"),
+				})
+			}
+		}
+
+		summary := tolMap(om, "data_summary")
+		for _, q := range tolItems(summary["quantitative"], "metric") {
+			okr.Quantitative = append(okr.Quantitative, ui.AssessmentMetric{
+				Metric:   tolStr(q, "metric"),
+				Target:   tolStr(q, "target"),
+				Actual:   tolStr(q, "actual"),
+				Variance: tolStr(q, "variance"),
+			})
+		}
+		for _, q := range tolItems(summary["qualitative"], "insight") {
+			okr.Qualitative = append(okr.Qualitative, ui.AssessmentSourceInsight{
+				Source:  tolStr(q, "source"),
+				Insight: tolStr(q, "insight"),
+			})
+		}
+
+		data.OKRAssessments = append(data.OKRAssessments, okr)
 	}
 
 	// ── Assumption Validations ──
@@ -248,5 +264,27 @@ func (s *Server) assessmentContent(ctx context.Context, instanceID string, navCt
 		data.Recommendations = payloadStrSlice(payload, "recommendations")
 	}
 
+	data.Unshown = unshownContent(payload, assessmentShownPaths)
+
 	return ui.AssessmentContent(data)
+}
+
+// assessmentShownPaths lists every path of the assessment report that the page
+// renders. Anything not listed reaches the page through the generic fallback.
+var assessmentShownPaths = []string{
+	"cycle", "roadmap_id", "last_updated",
+	"meta.last_updated", "meta.roadmap_id", "meta.epf_version",
+	"okr_assessments.*.okr_id", "okr_assessments.*.assessment", "okr_assessments.*.cross_functional_insights",
+	"okr_assessments.*.key_result_outcomes.*.kr_id", "okr_assessments.*.key_result_outcomes.*.status",
+	"okr_assessments.*.key_result_outcomes.*.target", "okr_assessments.*.key_result_outcomes.*.actual",
+	"okr_assessments.*.key_result_outcomes.*.learnings",
+	"okr_assessments.*.key_results.*.kr_id", "okr_assessments.*.key_results.*.status",
+	"okr_assessments.*.key_results.*.target", "okr_assessments.*.key_results.*.actual",
+	"okr_assessments.*.key_results.*.learnings",
+	"okr_assessments.*.data_summary.quantitative.*.metric", "okr_assessments.*.data_summary.quantitative.*.target",
+	"okr_assessments.*.data_summary.quantitative.*.actual", "okr_assessments.*.data_summary.quantitative.*.variance",
+	"okr_assessments.*.data_summary.qualitative.*.source", "okr_assessments.*.data_summary.qualitative.*.insight",
+	"assumption_validations.*.id", "assumption_validations.*.assumption_id", "assumption_validations.*.status",
+	"assumption_validations.*.evidence", "assumption_validations.*.confidence_change",
+	"strategic_insights", "next_cycle_recommendations", "recommendations",
 }

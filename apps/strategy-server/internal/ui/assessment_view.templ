@@ -15,6 +15,7 @@ type AssessmentViewData struct {
 	Cycle         int
 	RoadmapID     string
 	LastUpdated   string
+	EPFVersion    string
 
 	// OKR Assessments
 	OKRAssessments []AssessmentOKR
@@ -25,6 +26,10 @@ type AssessmentViewData struct {
 	// Insights & Recommendations
 	StrategicInsights []string
 	Recommendations   []string
+
+	// Unshown is the stored content no view above shows, rendered as stored
+	// under a notice so nothing is dropped silently.
+	Unshown map[string]any
 }
 
 // AssessmentOKR holds the assessment for a single OKR.
@@ -33,6 +38,26 @@ type AssessmentOKR struct {
 	Title      string // human-readable objective text from roadmap
 	Assessment string
 	KeyResults []AssessmentKR
+
+	// The evidence the assessment rests on.
+	Quantitative    []AssessmentMetric
+	Qualitative     []AssessmentSourceInsight
+	CrossFunctional []string
+}
+
+// AssessmentMetric is one measured result: what was aimed for, what was reached
+// and how far apart they are.
+type AssessmentMetric struct {
+	Metric   string
+	Target   string
+	Actual   string
+	Variance string
+}
+
+// AssessmentSourceInsight is one qualitative finding and where it came from.
+type AssessmentSourceInsight struct {
+	Source  string
+	Insight string
 }
 
 // AssessmentKR holds the outcome for a single Key Result.
@@ -79,6 +104,9 @@ templ AssessmentContent(data AssessmentViewData) {
 		if len(data.Recommendations) > 0 {
 			@assessmentRecommendationsSection(data.Recommendations)
 		}
+
+		// ── Stored content with no dedicated view ──
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -109,6 +137,13 @@ templ assessmentHero(data AssessmentViewData) {
 			if data.LastUpdated != "" {
 				<div class="hidden sm:block text-right text-xs text-base-content/75">
 					<p>Updated { data.LastUpdated }</p>
+					if data.EPFVersion != "" {
+						<p>EPF { data.EPFVersion }</p>
+					}
+				</div>
+			} else if data.EPFVersion != "" {
+				<div class="hidden sm:block text-right text-xs text-base-content/75">
+					<p>EPF { data.EPFVersion }</p>
 				</div>
 			}
 		</div>
@@ -159,8 +194,61 @@ templ assessmentOKRAccordion(okr AssessmentOKR) {
 					}
 				</div>
 			}
+			if len(okr.Quantitative) > 0 {
+				@assessmentMetricsTable(okr.Quantitative)
+			}
+			if len(okr.Qualitative) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">What people told us</p>
+					<ul class="space-y-1">
+						for _, q := range okr.Qualitative {
+							<li class="text-xs text-base-content/80">
+								{ q.Insight }
+								if q.Source != "" {
+									<span class="text-base-content/55"> ({ q.Source })</span>
+								}
+							</li>
+						}
+					</ul>
+				</div>
+			}
+			if len(okr.CrossFunctional) > 0 {
+				<div>
+					<p class="text-xs font-semibold uppercase tracking-wide text-base-content/75 mb-1">Across functions</p>
+					<ul class="space-y-0.5">
+						for _, c := range okr.CrossFunctional {
+							<li class="text-xs text-base-content/80">{ c }</li>
+						}
+					</ul>
+				</div>
+			}
 		</div>
 	</details>
+}
+
+templ assessmentMetricsTable(rows []AssessmentMetric) {
+	<div class="overflow-x-auto">
+		<table class="table table-xs">
+			<thead>
+				<tr>
+					<th>Metric</th>
+					<th>Target</th>
+					<th>Actual</th>
+					<th>Variance</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, r := range rows {
+					<tr>
+						<td>{ r.Metric }</td>
+						<td>{ r.Target }</td>
+						<td>{ r.Actual }</td>
+						<td>{ r.Variance }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
 }
 
 templ assessmentKRRow(kr AssessmentKR) {

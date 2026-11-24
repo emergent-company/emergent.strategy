@@ -123,3 +123,31 @@ func TestNorthStarPageShowsEveryFieldOfTheCanonicalTemplate(t *testing.T) {
 		}
 	}
 }
+
+// The north star names the artifacts it informs by READY phase, in the order of
+// the phase, then any phase the schema does not list.
+func TestNorthStarInformsFollowThePhaseOrder(t *testing.T) {
+	block := map[string]any{
+		"roadmap":          []any{"r1"},
+		"opportunity":      []any{"o1", "o2"},
+		"empty_phase":      []any{},
+		"insight_analyses": []any{"i1"},
+	}
+	// Enough phases the schema does not list that an unsorted tail would
+	// almost never come out in order by chance.
+	for _, name := range []string{"phase_f", "phase_b", "phase_e", "phase_a", "phase_d", "phase_c"} {
+		block[name] = "x"
+	}
+	got := northStarInforms(map[string]any{"informs_ready_phase": block})
+	var phases []string
+	for _, g := range got {
+		phases = append(phases, g.Phase)
+	}
+	want := "insight_analyses,opportunity,roadmap,phase_a,phase_b,phase_c,phase_d,phase_e,phase_f"
+	if strings.Join(phases, ",") != want {
+		t.Fatalf("phases = %v, want %s", phases, want)
+	}
+	if len(got[1].Artifacts) != 2 {
+		t.Errorf("opportunity artifacts = %v, want 2", got[1].Artifacts)
+	}
+}

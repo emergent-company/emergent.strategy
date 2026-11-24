@@ -102,6 +102,11 @@ func (s *Server) calibrationContent(navCtx ui.NavContext, artifactKey, name, sta
 
 	data.NextSteps = strSlice(payload, "next_steps")
 
+	if meta, ok := payload["meta"].(map[string]any); ok {
+		data.EPFVersion = tolStr(meta, "epf_version")
+		data.LastUpdated = tolStr(meta, "last_updated")
+	}
+
 	// Legacy "calibration" sub-object fallback
 	if cal, ok := payload["calibration"].(map[string]any); ok {
 		if data.Decision == "" {
