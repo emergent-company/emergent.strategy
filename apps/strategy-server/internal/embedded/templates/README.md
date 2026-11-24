@@ -167,6 +167,26 @@ placeholder patterns (`PLACEHOLDER:`, `TODO:`, `Example:`, `YYYY-MM-DD`, `[TBD]`
 identities such as `YourProduct` and `@example.com`). Detecting a pattern is not an
 endorsement of it as a marker; the stored-marker rule above applies.
 
+## Templates match their schemas
+
+The schema documents everything a template contains. Every key in a template must be
+declared in its schema, and every value must have the shape (type, enum, required
+fields) the schema expects. A template that follows its own schema is the starting
+point for a valid instance; one that does not forces every tool and author to guess.
+
+`scripts/validate-schemas.sh` checks this for each pair listed in `TEMPLATE_PAIRS`. It
+fails on a wrong type, a missing required field, an invalid enum value, or a template
+key the schema does not list. It ignores `minLength` and `minItems` errors, because
+sample values are shape only (see above). Pairs marked `known-gap` print a warning
+with the number of differences; fix the template, or document the field in the schema,
+and move the pair to `enforce`.
+
+When the template and the schema disagree, decide which one is right from real
+instances, not from the template: count which shape the instances in `_instances/` and
+the product repos actually use, and change the template to match that. Add a field to
+the schema when instances or the template use it; give it the union of the types
+instances use.
+
 ## Notes
 
 - Templates contain **placeholder content** and **instructional comments**

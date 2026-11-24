@@ -9,6 +9,7 @@
 
 strategy:
   id: "strat-001"
+  title: "Strategy Formula Title" # Short name for this strategy
   opportunity_id: "opp-001" # Links back to 03_insight_opportunity.yaml
   informed_by_foundations: "02_strategy_foundations.yaml" # Strategic foundations inform this formula
   aligns_with_north_star: "00_north_star.yaml" # Organizational foundation

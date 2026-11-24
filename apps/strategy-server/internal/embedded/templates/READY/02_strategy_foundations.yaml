@@ -31,14 +31,16 @@ strategy_foundations:
     target_timeframe: "3-5 years"
     
     success_indicators:
-      - "Observable indicator 1: What we'll see in the world when vision is realized"
-      - "Observable indicator 2: How users' lives will be different"
-      - "Observable indicator 3: How the market will have shifted"
+      - indicator: "Observable indicator 1: What we'll see in the world when vision is realized"
+        target: "Measurable level that shows the indicator is met"
+      - indicator: "Observable indicator 2: How users' lives will be different"
+        target: "Measurable level that shows the indicator is met"
+      - indicator: "Observable indicator 3: How the market will have shifted"
+        target: "Measurable level that shows the indicator is met"
     
     vision_alignment:
       informed_by_trends:
-        - trend: "Reference to specific trend from 00_insight_analyses.yaml"
-          how_it_informs: "Why this trend makes our vision timely and achievable"
+        - "Trend from 01_insight_analyses.yaml, and why it makes our vision timely and achievable"
       
       addresses_opportunity:
         opportunity_aspect: "Which part of the opportunity this vision fulfills"
@@ -58,9 +60,7 @@ strategy_foundations:
     
     functional_value:
       jobs_to_be_done:
-        - job: "Primary functional job from User/Problem Analysis"
-          how_we_do_it: "Our specific approach to accomplishing this job"
-          better_than: "How we do it better than current solutions"
+        - "Primary functional job from User/Problem Analysis, how we do it, and why that beats current solutions"
       
       key_benefits:
         - "Specific functional benefit 1"
@@ -69,12 +69,10 @@ strategy_foundations:
     
     emotional_value:
       feelings_we_create:
-        - feeling: "Primary emotion (e.g., confident, in control, relieved)"
-          situation: "When/why users feel this"
+        - "Primary emotion (e.g., confident, in control, relieved) and when users feel it"
       
       pains_we_eliminate:
-        - pain: "Specific pain from User/Problem Analysis"
-          how_eliminated: "How we remove this pain"
+        - "Specific pain from User/Problem Analysis and how we remove it"
     
     economic_value:
       cost_savings: "Quantified savings (time/money) vs. current solution"
@@ -82,8 +80,8 @@ strategy_foundations:
       risk_reduction: "Financial risks we help users avoid"
     
     proof_points:
-      - "Evidence or example that validates this value proposition"
-      - "Customer quote, metric, or case study"
+      - claim: "Claim this value proposition makes"
+        proof: "Evidence that validates it: customer quote, metric, or case study"
     
     consistency_check:
       solves_problem: "Which problem from User/Problem Analysis this solves"
@@ -114,8 +112,10 @@ strategy_foundations:
           - "Core value element 2"
         
         success_criteria:
-          - "What proves this phase succeeded"
-          - "Key metric or milestone"
+          - metric: "What proves this phase succeeded"
+            target: "Level or milestone that counts as success"
+          - metric: "Key metric or milestone"
+            target: "Level or milestone that counts as success"
         
         strategic_rationale: |
           Why this phase comes first. Links to:
@@ -135,7 +135,8 @@ strategy_foundations:
           - "Additional value beyond phase 1"
         
         success_criteria:
-          - "What proves phase 2 succeeded"
+          - metric: "What proves phase 2 succeeded"
+            target: "Level or milestone that counts as success"
         
         strategic_rationale: "Why this is the logical next step"
       
@@ -146,10 +147,13 @@ strategy_foundations:
     
     sequencing_constraints:
       dependencies:
-        - "What must be true before we can proceed (technical, market, organizational)"
+        - from_phase: 1
+          to_phase: 2
+          dependency: "What must be true before we can proceed (technical, market, organizational)"
       
       risks_of_sequence:
-        - "What could go wrong with this sequencing approach"
+        - risk: "What could go wrong with this sequencing approach"
+          mitigation: "How we reduce or absorb that risk"
       
       alternative_considered: "Alternative sequencing we considered and why we rejected it"
     
@@ -178,7 +182,8 @@ strategy_foundations:
       not_in_terms_of:
         - "What users DON'T naturally think in (avoid this in our IA)"
       
-      informed_by_jobs: "How this mental model aligns with jobs-to-be-done"
+      informed_by_jobs:
+        - "Job-to-be-done this mental model aligns with"
     
     primary_structure:
       top_level_navigation:
@@ -206,14 +211,13 @@ strategy_foundations:
           complexity: "simple / medium / complex"
           must_be: "What UX quality this requires (e.g., 'fast', 'guided', 'flexible')"
       
-      information_discovery:
-        how_users_find_things: "Primary discovery mechanism (search, browse, navigate, filters)"
-        how_users_learn_status: "How users know what's happening (dashboard, notifications, timeline)"
+      information_discovery: "How users find things (search, browse, navigate, filters) and learn status (dashboard, notifications, timeline)"
     
     design_principles:
-      - "Principle 1 for IA decisions (e.g., 'Progressive disclosure')"
-      - "Principle 2 for IA decisions (e.g., 'Minimize clicks to common actions')"
-      - "Principle 3 for IA decisions"
+      - principle: "Principle 1 for IA decisions (e.g., 'Progressive disclosure')"
+        manifestation: "How the principle shows up in the product"
+      - principle: "Principle 2 for IA decisions (e.g., 'Minimize clicks to common actions')"
+        manifestation: "How the principle shows up in the product"
     
     competitive_ia_comparison:
       competitor_approach: "How competitors structure their IA"

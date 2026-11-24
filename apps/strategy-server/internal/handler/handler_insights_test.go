@@ -81,10 +81,9 @@ func TestInsightAnalysesViewShowsEveryFieldOfTheSchema(t *testing.T) {
 	}
 }
 
-// The canonical template does not follow the schema in every field (strengths
-// carry "description" where the schema has "strength"), and both validate. What
-// the dedicated view does not read must still reach the page, and the page must
-// say so.
+// Since canonical 2.37.0 the template follows the schema, so every string of it
+// has a dedicated view and the page carries no notice. (Before, strengths carried
+// "description" where the schema has "strength", and the fallback had to show it.)
 func TestInsightAnalysesViewShowsEveryStringOfTheCanonicalTemplate(t *testing.T) {
 	raw, err := embedded.GetTemplate("READY/01_insight_analyses.yaml")
 	if err != nil {
@@ -110,8 +109,8 @@ func TestInsightAnalysesViewShowsEveryStringOfTheCanonicalTemplate(t *testing.T)
 	if len(missing) > 0 {
 		t.Errorf("%d of %d template strings are not on the page:\n  %s", len(missing), len(want), strings.Join(missing, "\n  "))
 	}
-	if !strings.Contains(page, "no dedicated view") {
-		t.Error("the template has fields the view does not read, but the page carries no notice")
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("the canonical template got the 'stored but not shown' notice")
 	}
 }
 
@@ -225,5 +224,66 @@ func TestInsightAnalysesViewShowsTheFieldsOnlyTheTemplateHas(t *testing.T) {
 	}
 	if strings.Contains(page, "no dedicated view") {
 		t.Error("these fields have a place in the dedicated view and must not be reported as unshown")
+	}
+}
+
+// The integer rank of a prioritised problem carries no marker in the schema
+// sample, so it is checked with a value that can be told apart on the page.
+func TestInsightAnalysesViewShowsTheProblemRank(t *testing.T) {
+	page := renderInsightAnalyses(t, map[string]any{"product_problem_fit_analysis": map[string]any{
+		"problem_prioritization": []any{map[string]any{"rank": float64(7), "problem": "ranked-problem", "rationale": "ranked-rationale"}},
+	}})
+	for _, want := range []string{"ranked-problem", "Rank:</span> 7", "ranked-rationale"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page does not show %q", want)
+		}
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("the prioritised problems got the notice")
+	}
+}
+
+// An entry whose only stored field is one the schema added in 1.14.0 is still on
+// the page: it is not skipped as empty.
+func TestInsightAnalysesViewShowsEntriesHoldingOnlyANewField(t *testing.T) {
+	payload := map[string]any{
+		"strengths":     []any{map[string]any{"defensibility": "only-defensibility"}},
+		"weaknesses":    []any{map[string]any{"urgency": "only-urgency"}},
+		"opportunities": []any{map[string]any{"timing": "only-timing"}},
+		"threats":       []any{map[string]any{"monitoring": "only-monitoring"}},
+		"competitive_landscape": map[string]any{
+			"indirect_competitors": []any{map[string]any{"switching_cost": "only-switching-cost"}},
+		},
+		"market_structure": map[string]any{"segments": []any{map[string]any{"accessibility": "only-accessibility"}}},
+		"target_users": []any{map[string]any{"persona": "p", "jobs_to_be_done": []any{
+			map[string]any{"social_job": "only-social-job"}}}},
+	}
+	page := renderInsightAnalyses(t, payload)
+	for _, want := range []string{"only-defensibility", "only-urgency", "only-timing", "only-monitoring", "only-switching-cost", "only-accessibility", "only-social-job"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page does not show %q", want)
+		}
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("fields the schema defines got the notice")
+	}
+}
+
+// Barriers to entry are stored at the top level in the schema and, in older files,
+// under competitive_landscape; both are shown, in one section.
+func TestInsightAnalysesViewShowsBarriersFromBothLocations(t *testing.T) {
+	page := renderInsightAnalyses(t, map[string]any{
+		"barriers_to_entry": []any{map[string]any{"barrier": "top-barrier", "our_position": "top-position"}},
+		"competitive_landscape": map[string]any{
+			"barriers_to_entry": []any{map[string]any{"barrier": "nested-barrier", "height": "nested-height"}},
+		},
+	})
+	for _, want := range []string{"top-barrier", "top-position", "nested-barrier", "nested-height"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page does not show %q", want)
+		}
+	}
+	if strings.Contains(page, "no dedicated view") {
+		t.Error("barriers to entry got the notice")
 	}
 }

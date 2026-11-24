@@ -82,6 +82,26 @@ func entryPaths(base string, fields ...string) []string {
 }
 
 // recordPaths lists the payload paths that the specs read.
+// readFacts reads labelled values from an entry; an empty one is left out.
+func readFacts(m map[string]any, fields []recordField) []ui.RecordFact {
+	var out []ui.RecordFact
+	for _, f := range fields {
+		if v := tolStr(m, f.key); v != "" {
+			out = append(out, ui.RecordFact{Label: f.label, Value: v})
+		}
+	}
+	return out
+}
+
+// factKeys names the fields of a table, for the list of shown paths.
+func factKeys(fields []recordField) []string {
+	keys := make([]string, 0, len(fields))
+	for _, f := range fields {
+		keys = append(keys, f.key)
+	}
+	return keys
+}
+
 func recordPaths(specs []recordSpec) []string {
 	var paths []string
 	for _, spec := range specs {

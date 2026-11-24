@@ -111,19 +111,24 @@ type InsightProblem struct {
 }
 type InsightJob struct {
 	Job, When, DesiredOutcome, Satisfaction string
+	More                                    []RecordFact
 }
 type InsightStrength struct {
 	Strength, StrategicValue string
 	Evidence                 []string
+	More                     []RecordFact
 }
 type InsightWeakness struct {
 	Weakness, Impact, Mitigation string
+	More                         []RecordFact
 }
 type InsightOpportunity struct {
 	Opportunity, Priority, HowToExploit string
+	More                                []RecordFact
 }
 type InsightThreat struct {
 	Threat, Likelihood, Mitigation string
+	More                           []RecordFact
 }
 type InsightCompetitor struct {
 	Name, Positioning                       string
@@ -133,6 +138,7 @@ type InsightCompetitor struct {
 }
 type InsightIndirect struct {
 	Name, ThreatLevel, HowTheySolve string
+	More                            []RecordFact
 }
 type InsightKey struct {
 	Insight, StrategicImplication string
@@ -150,6 +156,7 @@ type InsightSegment struct {
 	Segment, Size    string
 	Characteristics  []string
 	UnmetNeeds       []string
+	More             []RecordFact
 }
 type InsightConvergence struct {
 	Opportunity, Strength string
@@ -297,6 +304,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 											if c.HowTheySolve != "" {
 												<p class="text-xs text-base-content/75 mt-0.5">{ c.HowTheySolve }</p>
 											}
+											@insightFacts(c.More)
 										</div>
 									if c.ThreatLevel != "" {
 										<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/65">
@@ -327,6 +335,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 									if s.StrategicValue != "" {
 										<p class="text-xs text-base-content/75 mt-0.5">{ s.StrategicValue }</p>
 									}
+									@insightFacts(s.More)
 									if len(s.Evidence) > 0 {
 										<div class="flex flex-wrap gap-1 mt-1.5">
 											for _, e := range s.Evidence {
@@ -349,6 +358,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 									if w.Mitigation != "" {
 										<p class="text-xs text-base-content/75 mt-0.5">{ w.Mitigation }</p>
 									}
+									@insightFacts(w.More)
 								</div>
 							}
 						}
@@ -362,6 +372,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 										if o.HowToExploit != "" {
 											<p class="text-xs text-base-content/75 mt-0.5">{ o.HowToExploit }</p>
 										}
+										@insightFacts(o.More)
 									</div>
 									if o.Priority != "" {
 										<span class={ "badge badge-xs shrink-0", priorityBadge(o.Priority) }>{ o.Priority }</span>
@@ -379,6 +390,7 @@ templ InsightAnalysesContent(data InsightAnalysesData) {
 										if t.Mitigation != "" {
 											<p class="text-xs text-base-content/75 mt-0.5">{ t.Mitigation }</p>
 										}
+										@insightFacts(t.More)
 									</div>
 								if t.Likelihood != "" {
 									<span class="flex items-center gap-1 shrink-0 text-xs text-base-content/65">
@@ -549,6 +561,9 @@ templ personaCard(p InsightPersona) {
 								if j.Satisfaction != "" {
 									<p>Satisfaction with today's solution: { j.Satisfaction }</p>
 								}
+								for _, f := range j.More {
+									<p>{ f.Label }: { f.Value }</p>
+								}
 							</div>
 						}
 					</div>
@@ -688,6 +703,13 @@ templ insightProblemRow(prob InsightProblem) {
 	</div>
 }
 
+// insightFacts shows labelled values an entry holds beyond its headline.
+templ insightFacts(facts []RecordFact) {
+	for _, f := range facts {
+		<p class="text-xs text-base-content/75 mt-0.5"><span class="font-medium">{ f.Label }:</span> { f.Value }</p>
+	}
+}
+
 templ segmentRow(seg InsightSegment) {
 	<div class="rounded-lg bg-base-100 px-4 py-3">
 		<div class="flex items-start justify-between gap-2">
@@ -696,6 +718,7 @@ templ segmentRow(seg InsightSegment) {
 				<span class="badge badge-xs badge-ghost shrink-0">{ seg.Size }</span>
 			}
 		</div>
+		@insightFacts(seg.More)
 		if len(seg.Characteristics) > 0 {
 			<div class="flex flex-wrap gap-1 mt-1.5">
 				for _, c := range seg.Characteristics {
