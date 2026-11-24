@@ -325,6 +325,50 @@ export EPF_MEMORY_TOKEN="<project-token>"
 | `apps/epf-cli/internal/wizard/` | Legacy wizard loader (still functional) |
 | `apps/epf-cli/internal/generator/` | Legacy generator loader (permanent) |
 
+## 7. Pull Requests, Tests, Test Data and Public Posts
+
+**Pull requests**
+
+- Every change goes through a PR, squash merged with `gh pr merge --squash --auto`.
+  Required checks: "Test & Build" and "Race Detector". Queue the merge and carry on;
+  do not block on CI. Typical times: Test & Build about 4 minutes, Race Detector 6 to 9.
+- Work in a `git worktree` off `origin/main`, one branch per change. Add files by explicit
+  path: `go.work.sum` and `navigation_demo.md` are often dirty and are not part of a change.
+- Generated `*_templ.go` files are committed. Run `templ generate ./internal/ui` from
+  `apps/strategy-server` (from elsewhere it rewrites the embedded file paths in every
+  generated file).
+- After any MCP tool change run `task selfmodel:generate` and commit `self-model.json`.
+- Full check before a PR: `go test ./...` and `task lint` (0 issues) in the app you changed,
+  and `openspec validate <change> --strict` for a change with a spec.
+
+**Tests**
+
+- Take a baseline before you start and compare after. Report pre-existing failures as such.
+- Write the test first and watch it fail. Mutation-check key tests: break the code in the
+  way the test is meant to catch, confirm the mutation compiles (a build error is not a
+  caught mutation), and confirm the test fails.
+- A schema-built sample marks strings only. An enum, a number or a boolean needs a test of
+  its own. See "Bumping the canonical version" in `apps/strategy-server/AGENTS.md`.
+- A "before" number is measured on untouched `origin/main` in a clean detached worktree.
+
+**Test data and privacy**
+
+- No customer text, names or locations in the repo, in PRs or in issues. Test data comes
+  from the Emergent instance (`docs/EPF/_instances/emergent`), from the pinned canonical
+  templates and schemas, or from synthetic fixtures.
+- When you check an instance that is not ours, report key names, counts and sizes only.
+  Never change someone else's instance (for example `upgrade_instance_schema apply=true`)
+  without asking.
+
+**Public posts and releases**
+
+- An issue, or a comment on another repository, needs a draft and approval before it goes
+  out. Canonical (`epf-canonical`) answers convention questions: read its docs and code
+  rather than guess. Its releases are commits on main.
+- The `epf-cli` version is separate from the canonical version. To release it: bump
+  `apps/epf-cli/VERSION`, merge, tag `v*` on the merge commit using the literal full SHA,
+  verify what the tag points at, and let `release.yaml` run.
+
 ## Detailed Documentation
 
 - **EPF Framework**: `docs/EPF/`
