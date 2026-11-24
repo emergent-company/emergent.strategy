@@ -158,19 +158,71 @@ func (s *Server) createImportOrganisation(ctx context.Context, az *authz.Authori
 		return uuid.Nil, apperror.ErrBadRequest.WithDetail("a name for the new workspace is required")
 	}
 
+	return s.newOrganisationWithWorkspace(ctx, userID, name, req.RepoOwner)
+}
+
+// newOrganisationWithWorkspace creates an organisation called orgName with the
+// caller as its admin, and a workspace for githubOwner in it, and returns the
+// workspace id. An organisation name that is taken, or a GitHub owner that already
+// has a workspace, is a conflict, and nothing is created: this never returns an
+// existing organisation and never adds the caller to one they did not create.
+func (s *Server) newOrganisationWithWorkspace(ctx context.Context, userID uuid.UUID, orgName, githubOwner string) (uuid.UUID, error) {
+	wsSvc := workspacedom.NewService(s.db)
+	if _, err := wsSvc.GetWorkspaceByOwner(ctx, githubOwner); err == nil {
+		return uuid.Nil, apperror.ErrConflict.WithDetail("a workspace for this GitHub owner already exists")
+	}
 	orgSvc := orgdom.NewService(s.db)
-	if _, err := orgSvc.GetByName(ctx, name); err == nil {
+	if _, err := orgSvc.GetByName(ctx, orgName); err == nil {
 		return uuid.Nil, apperror.ErrConflict.WithDetail("an organisation with this name already exists")
 	} else if ae := apperror.AsAppError(err); ae == nil || ae.HTTPStatus != 404 {
 		return uuid.Nil, err
 	}
-	org, err := orgSvc.Create(ctx, orgdom.CreateParams{Name: name}, userID)
+	org, err := orgSvc.Create(ctx, orgdom.CreateParams{Name: orgName}, userID)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("create organisation for github import: %w", err)
+		return uuid.Nil, fmt.Errorf("create organisation: %w", err)
 	}
-	ws, err := wsSvc.CreateWorkspace(ctx, req.RepoOwner, &name, org.ID)
+	ws, err := wsSvc.CreateWorkspace(ctx, githubOwner, &orgName, org.ID)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("create workspace for github import: %w", err)
+		return uuid.Nil, fmt.Errorf("create workspace: %w", err)
 	}
 	return ws.ID, nil
+}
+
+// moveRequest is what the move form asks for.
+type moveRequest struct {
+	WorkspaceID string // a workspace id, "" or importWorkspaceNew for a new one
+	NewName     string // name of the organisation and workspace to create
+}
+
+// resolveMoveTarget decides where an instance may be moved, or refuses with an app
+// error. The caller must administer the instance's organisation, and the target
+// is either a workspace of an organisation they administer or a new organisation
+// of their own; a name that is taken is a conflict, never a way into that
+// organisation.
+func (s *Server) resolveMoveTarget(ctx context.Context, instanceID uuid.UUID, req moveRequest) (uuid.UUID, error) {
+	user := web.UserFromContext(ctx)
+	if user == nil {
+		return uuid.Nil, apperror.ErrUnauthorized
+	}
+	az := s.authorizer()
+	if err := az.InstanceAdmin(ctx, instanceID); err != nil {
+		return uuid.Nil, err
+	}
+
+	switch strings.TrimSpace(req.WorkspaceID) {
+	case "", importWorkspaceNew:
+		name := strings.TrimSpace(req.NewName)
+		if name == "" {
+			return uuid.Nil, apperror.ErrBadRequest.WithDetail("a name for the new workspace is required")
+		}
+		return s.newOrganisationWithWorkspace(ctx, user.ID, name, name)
+	}
+	target, err := parseImportWorkspace(strings.TrimSpace(req.WorkspaceID))
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if err := az.WorkspaceAdmin(ctx, target); err != nil {
+		return uuid.Nil, err
+	}
+	return target, nil
 }

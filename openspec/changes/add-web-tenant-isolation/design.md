@@ -14,10 +14,24 @@ Organisation membership is the only membership (`OrgMembership`: `org_admin`,
    of each class. A test walks `echo.Routes()` and fails for a route with no class,
    so a new handler cannot ship unprotected. This is the lesson of the MCP side,
    where 41 call sites guard 158 tools and the rest are found by audit.
+1a. **Attached per route, not as a group.** Each registration passes `webAccess` as
+   route middleware (small `get`/`post` helpers in `RegisterRoutes`). Echo's
+   `Group.Use` adds catch-all routes to the router, which would change how unknown
+   paths and the routes registered elsewhere (static files, MCP) behave.
 2. **Instance routes.** Read for GET and HEAD, write for other methods. The
    instance id comes from `:id`; the middleware resolves instance, workspace and
    organisation in one query and stores the instance in the request context so
    handlers do not look it up again.
+2a. **Records named beside the instance.** `subResourceSpecs` lists, per route
+   family, the URL parameter, the table and the column that holds the owning
+   instance. After the instance check, the guard refuses (as not-found) when the
+   record exists and belongs to another instance. A record that does not exist, or
+   an id that is not an id, passes through, so the handler keeps its own 404 or
+   400 and no other tenant is revealed. This is one place instead of fourteen
+   handler changes, and a new route family needs a line in the table (the test
+   `TestSubResourceRoutesAreRealRoutes` fails for a route that names a record id
+   and is not covered). The domain methods that take only the record id are left
+   as they are; they are reached only through these routes.
 3. **Not-found, not forbidden.** A caller without access gets the answer for a
    missing instance (404 page). The main spec's HTTP 403 / code 100003 for a
    foreign workspace is dropped for the web: it confirms that the id exists.
@@ -27,6 +41,11 @@ Organisation membership is the only membership (`OrgMembership`: `org_admin`,
 5. **Dev mode.** The dev principal is a member of every organisation the dev
    server creates (`EnsureDevOrg` already adopts unscoped workspaces), so local
    use does not change. A test pins that.
+5a. **`move`.** The source needs `org_admin` (the guard, and again in
+   `resolveMoveTarget`); a picked target workspace needs `org_admin` of its
+   organisation; the inline name always creates a new organisation with the caller
+   as admin and conflicts when the name (or the GitHub owner the workspace would
+   carry) is taken. It shares `newOrganisationWithWorkspace` with the connect import.
 6. **Token principals.** A scoped access token (`add-scoped-readonly-mcp-access`)
    carries instance grants; on the web it is answered by its grants alone, as in
    `assertInstanceAccess`. Whether a token may use the web UI at all is decided

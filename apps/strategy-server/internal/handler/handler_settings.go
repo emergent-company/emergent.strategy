@@ -11,15 +11,14 @@ import (
 	"github.com/emergent-company/go-daisy/render"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/uptrace/bun"
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
-	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
-	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // handleSettings renders the settings/status page.
@@ -223,34 +222,10 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 		return nil
 	}
 
-	type instanceRow struct {
-		ID              string  `bun:"id"`
-		Name            string  `bun:"name"`
-		OrgName         string  `bun:"org_name"`
-		WorkspaceID     string  `bun:"workspace_id"`
-		GithubRepo      *string `bun:"github_repo"`
-		GithubBranch    *string `bun:"github_branch"`
-		GithubCommitSHA *string `bun:"github_commit_sha"`
-	}
-
 	// Load all workspaces once for the move dropdown.
 	allWorkspaces := s.loadWorkspacesForAssignment(ctx)
 
-	var instances []instanceRow
-	err := s.db.NewSelect().
-		TableExpr("strategy_instances AS si").
-		ColumnExpr("si.id, si.name, si.workspace_id, si.github_repo, si.github_branch, si.github_commit_sha").
-		ColumnExpr("o.name AS org_name").
-		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
-		Join("JOIN orgs AS o ON o.id = w.org_id").
-		Where("si.deleted_at IS NULL").
-		Where("si.status != ?", "archived").
-		Where("w.deleted_at IS NULL").
-		Where("w.github_owner NOT LIKE ?", "e2e-%").
-		Where("w.github_owner NOT LIKE ?", "ripple-%").
-		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
-		OrderExpr("o.name ASC, si.name ASC").
-		Scan(ctx, &instances)
+	instances, err := s.loadSyncInstanceRows(ctx)
 	if err != nil {
 		s.log.Error("failed to load instances for github sync status", "err", err)
 		return nil
@@ -337,6 +312,39 @@ func (s *Server) loadGithubSyncStatuses(ctx context.Context) []ui.GithubSyncStat
 }
 
 // loadInstanceMemoryStatuses loads per-instance memory sync status.
+// githubSyncInstanceRow is an instance as the settings page lists it for GitHub sync.
+type githubSyncInstanceRow struct {
+	ID              string  `bun:"id"`
+	Name            string  `bun:"name"`
+	OrgName         string  `bun:"org_name"`
+	WorkspaceID     string  `bun:"workspace_id"`
+	GithubRepo      *string `bun:"github_repo"`
+	GithubBranch    *string `bun:"github_branch"`
+	GithubCommitSHA *string `bun:"github_commit_sha"`
+}
+
+// loadSyncInstanceRows lists the instances of the caller's organisations for the
+// settings page's GitHub sync section.
+func (s *Server) loadSyncInstanceRows(ctx context.Context) ([]githubSyncInstanceRow, error) {
+	var instances []githubSyncInstanceRow
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id, si.name, si.workspace_id, si.github_repo, si.github_branch, si.github_commit_sha").
+		ColumnExpr("o.name AS org_name").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("w.github_owner NOT LIKE ?", "e2e-%").
+		Where("w.github_owner NOT LIKE ?", "ripple-%").
+		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
+		OrderExpr("o.name ASC, si.name ASC").
+		Scan(ctx, &instances)
+	return instances, err
+}
+
 func (s *Server) loadInstanceMemoryStatuses(ctx context.Context) []ui.InstanceMemoryStatus {
 	var rows []struct {
 		ID                          string     `bun:"id"`
@@ -362,6 +370,7 @@ func (s *Server) loadInstanceMemoryStatuses(ctx context.Context) []ui.InstanceMe
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
 		Where("w.github_owner NOT LIKE ?", "ripple-%").
 		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
 		OrderExpr("o.name ASC, si.name ASC").
 		Scan(ctx, &rows)
 	if err != nil {
@@ -425,48 +434,18 @@ func (s *Server) handleMoveInstance(c echo.Context) error {
 		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_instance_id"))
 	}
 
-	workspaceIDStr := strings.TrimSpace(c.FormValue("workspace_id"))
-	newWorkspaceName := strings.TrimSpace(c.FormValue("new_workspace_name"))
-
-	// Sentinel from the "New workspace..." dropdown option.
-	if workspaceIDStr == "__new__" {
-		workspaceIDStr = ""
-	}
-
-	var targetWorkspaceID uuid.UUID
-
-	if workspaceIDStr != "" {
-		targetWorkspaceID, err = uuid.Parse(workspaceIDStr)
-		if err != nil {
-			return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
-		}
-	} else {
-		// Create a new org + workspace on the fly.
-		if newWorkspaceName == "" {
+	// The access guard has already refused a caller who does not administer this
+	// instance; the target is resolved (and authorised) here.
+	targetWorkspaceID, err := s.resolveMoveTarget(ctx, instanceID, moveRequest{
+		WorkspaceID: c.FormValue("workspace_id"),
+		NewName:     c.FormValue("new_workspace_name"),
+	})
+	if err != nil {
+		if ae := apperror.AsAppError(err); ae != nil && ae.HTTPStatus == http.StatusBadRequest &&
+			(strings.TrimSpace(c.FormValue("workspace_id")) == "" || strings.TrimSpace(c.FormValue("workspace_id")) == importWorkspaceNew) {
 			return c.String(http.StatusBadRequest, langs.T(ctx, "error.workspace_name_required"))
 		}
-		user := web.UserFromContext(ctx)
-		actorID := audit.ActorFromContext(ctx)
-		callerID := uuid.Nil
-		if actorID != nil {
-			callerID = *actorID
-		}
-
-		orgSvc := orgdom.NewService(s.db)
-		newOrg, orgErr := orgSvc.GetOrCreate(ctx, newWorkspaceName, callerID)
-		if orgErr != nil {
-			s.log.Error("create org for instance move", "name", newWorkspaceName, "err", orgErr)
-			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
-		}
-		_, _ = orgSvc.AddMember(ctx, newOrg.ID, user.ID, "owner")
-
-		wsSvc := workspacedom.NewService(s.db)
-		ws, wsErr := wsSvc.CreateWorkspace(ctx, newWorkspaceName, &newWorkspaceName, newOrg.ID)
-		if wsErr != nil {
-			s.log.Error("create workspace for instance move", "name", newWorkspaceName, "err", wsErr)
-			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
-		}
-		targetWorkspaceID = ws.ID
+		return s.importRefusal(c, err)
 	}
 
 	instSvc := instancedom.NewService(s.db)

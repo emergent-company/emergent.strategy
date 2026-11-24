@@ -253,6 +253,11 @@ func (s *Server) buildHandlerRegistry() map[navigation.ScreenID]handlerEntry {
 func (s *Server) RegisterRoutes(e *echo.Echo) {
 	handlers := s.buildHandlerRegistry()
 
+	// Every route runs behind the access guard (route_access.go), which checks
+	// the caller's organisation membership before the handler does anything.
+	get := func(path string, h echo.HandlerFunc) { e.GET(path, h, s.webAccess) }
+	post := func(path string, h echo.HandlerFunc) { e.POST(path, h, s.webAccess) }
+
 	for _, screen := range navGraph.Screens {
 		if !screen.WebRoute {
 			continue
@@ -263,82 +268,82 @@ func (s *Server) RegisterRoutes(e *echo.Echo) {
 		if screen.InstanceScoped {
 			pattern := "/strategies/:id" + screen.URLPattern
 			if hasHandler {
-				e.GET(pattern, entry.GET)
+				get(pattern, entry.GET)
 			} else {
-				e.GET(pattern, s.handlePlaceholderFromGraph(screen))
+				get(pattern, s.handlePlaceholderFromGraph(screen))
 			}
 		} else {
 			if hasHandler {
-				e.GET(screen.URLPattern, entry.GET)
+				get(screen.URLPattern, entry.GET)
 			}
 		}
 	}
 
 	// Settings page — registered via the nav graph loop (Settings screen).
 	// The POST endpoints for sync and import are registered separately.
-	e.POST("/settings/sync", s.handleSettingsSync)
-	e.POST("/settings/import", s.handleSettingsImport)
-	e.POST("/settings/lang", s.handleSetLang)
-	e.POST("/strategies/:id/move", s.handleMoveInstance)
-	e.POST("/strategies/:id/delete", s.handleDeleteInstance)
+	post("/settings/sync", s.handleSettingsSync)
+	post("/settings/import", s.handleSettingsImport)
+	post("/settings/lang", s.handleSetLang)
+	post("/strategies/:id/move", s.handleMoveInstance)
+	post("/strategies/:id/delete", s.handleDeleteInstance)
 
 	// GitHub connect flow — repo discovery and instance linking.
-	e.GET("/github/connect", s.handleGithubConnect)
-	e.GET("/github/connect/repos", s.handleGithubConnectRepos)
-	e.GET("/github/connect/authorize", s.handleGithubConnectAuthorize)
-	e.GET("/github/connect/callback", s.handleGithubConnectCallback)
-	e.POST("/github/connect/scan", s.handleGithubConnectScan)
-	e.POST("/github/connect/import", s.handleGithubImportNew)
+	get("/github/connect", s.handleGithubConnect)
+	get("/github/connect/repos", s.handleGithubConnectRepos)
+	get("/github/connect/authorize", s.handleGithubConnectAuthorize)
+	get("/github/connect/callback", s.handleGithubConnectCallback)
+	post("/github/connect/scan", s.handleGithubConnectScan)
+	post("/github/connect/import", s.handleGithubImportNew)
 
 	// Signal action endpoints — HTMX POST, return the updated card fragment.
-	e.POST("/strategies/:id/aim/coherence/signals/:signalID/acknowledge", s.handleSignalAcknowledge)
-	e.POST("/strategies/:id/aim/coherence/signals/:signalID/dismiss", s.handleSignalDismiss)
-	e.POST("/strategies/:id/aim/coherence/signals/:signalID/resolve", s.handleSignalResolve)
+	post("/strategies/:id/aim/coherence/signals/:signalID/acknowledge", s.handleSignalAcknowledge)
+	post("/strategies/:id/aim/coherence/signals/:signalID/dismiss", s.handleSignalDismiss)
+	post("/strategies/:id/aim/coherence/signals/:signalID/resolve", s.handleSignalResolve)
 
 	// Version detail + restore — not in nav graph (detail screen, sub-nav hidden).
-	e.GET("/strategies/:id/aim/versions/:versionID", s.handleVersionDetail)
-	e.POST("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
+	get("/strategies/:id/aim/versions/:versionID", s.handleVersionDetail)
+	post("/strategies/:id/aim/versions/:versionID/restore", s.handleVersionRestore)
 
 	// Evidence endpoints — evidence collection and management.
 	// Note: GET /strategies/:id/aim/evidence is already registered via the nav graph loop.
-	e.GET("/strategies/:id/aim/evidence/interview", s.handleEvidenceInterviewPage)
-	e.POST("/strategies/:id/evidence/ingest", s.handleIngestEvidence)
-	e.POST("/strategies/:id/evidence/interview", s.handleSubmitInterview)
+	get("/strategies/:id/aim/evidence/interview", s.handleEvidenceInterviewPage)
+	post("/strategies/:id/evidence/ingest", s.handleIngestEvidence)
+	post("/strategies/:id/evidence/interview", s.handleSubmitInterview)
 
 	// READY bootstrap draft actions — POST /strategies/:id/ready/draft-:key
-	e.POST("/strategies/:id/ready/draft-:key", s.handleReadyDraft)
+	post("/strategies/:id/ready/draft-:key", s.handleReadyDraft)
 
 	// FIRE canonical definitions — POST /strategies/:id/fire/install-definitions
-	e.POST("/strategies/:id/fire/install-definitions", s.handleInstallDefinitions)
+	post("/strategies/:id/fire/install-definitions", s.handleInstallDefinitions)
 
 	// AIM agent endpoints — AI-assisted draft generation and review.
-	e.POST("/strategies/:id/aim/publish", s.handlePublishVersion)
-	e.POST("/strategies/:id/aim/draft-lra", s.handleDraftLRA)
-	e.POST("/strategies/:id/aim/draft-assessment", s.handleDraftAssessment)
-	e.POST("/strategies/:id/aim/draft-calibration", s.handleDraftCalibration)
-	e.POST("/strategies/:id/aim/apply-calibration", s.handleApplyCalibration)
-	e.GET("/strategies/:id/aim/draft-review/:batchID", s.handleDraftReview)
-	e.POST("/strategies/:id/aim/draft-review/:batchID/commit", s.handleDraftCommit)
-	e.POST("/strategies/:id/aim/draft-review/:batchID/discard", s.handleDraftDiscard)
+	post("/strategies/:id/aim/publish", s.handlePublishVersion)
+	post("/strategies/:id/aim/draft-lra", s.handleDraftLRA)
+	post("/strategies/:id/aim/draft-assessment", s.handleDraftAssessment)
+	post("/strategies/:id/aim/draft-calibration", s.handleDraftCalibration)
+	post("/strategies/:id/aim/apply-calibration", s.handleApplyCalibration)
+	get("/strategies/:id/aim/draft-review/:batchID", s.handleDraftReview)
+	post("/strategies/:id/aim/draft-review/:batchID/commit", s.handleDraftCommit)
+	post("/strategies/:id/aim/draft-review/:batchID/discard", s.handleDraftDiscard)
 
 	// Orchestration endpoints — orchestrated AIM cycle with SSE progress streaming.
-	e.POST("/strategies/:id/aim/runs", s.handleStartAIMRun)
-	e.GET("/strategies/:id/aim/runs/:runID", s.handleGetAIMRun)
-	e.GET("/strategies/:id/aim/runs/:runID/stream", s.handleAIMRunStream)
-	e.POST("/strategies/:id/aim/runs/:runID/abort", s.handleAbortAIMRun)
-	e.POST("/strategies/:id/aim/runs/:runID/retry", s.handleRetryAIMRun)
+	post("/strategies/:id/aim/runs", s.handleStartAIMRun)
+	get("/strategies/:id/aim/runs/:runID", s.handleGetAIMRun)
+	get("/strategies/:id/aim/runs/:runID/stream", s.handleAIMRunStream)
+	post("/strategies/:id/aim/runs/:runID/abort", s.handleAbortAIMRun)
+	post("/strategies/:id/aim/runs/:runID/retry", s.handleRetryAIMRun)
 
 	// Proposal action endpoints — HTMX POST, return the updated card fragment.
-	e.POST("/strategies/:id/aim/proposals/:proposalID/approve", s.handleProposalApprove)
-	e.POST("/strategies/:id/aim/proposals/:proposalID/defer", s.handleProposalDefer)
-	e.POST("/strategies/:id/aim/proposals/:proposalID/dismiss", s.handleProposalDismiss)
+	post("/strategies/:id/aim/proposals/:proposalID/approve", s.handleProposalApprove)
+	post("/strategies/:id/aim/proposals/:proposalID/defer", s.handleProposalDefer)
+	post("/strategies/:id/aim/proposals/:proposalID/dismiss", s.handleProposalDismiss)
 
 	// Activity stream SSE — pushes JSON-encoded activity events to browser clients.
 	// Clients connect with EventSource: new EventSource("/strategies/:id/activity/stream")
-	e.GET("/strategies/:id/activity/stream", s.handleActivityStream)
+	get("/strategies/:id/activity/stream", s.handleActivityStream)
 
 	// Cascade tracker partial — HTMX-compatible fragment for the live cascade panel.
-	e.GET("/strategies/:id/cascade", s.handleGetCascade)
+	get("/strategies/:id/cascade", s.handleGetCascade)
 }
 
 // sidebarGroups builds sidebar navigation groups with instance list.

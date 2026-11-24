@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/skillrun"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
@@ -35,6 +36,7 @@ func (s *Server) loadInstanceSummaries(ctx context.Context) ([]ui.InstanceSummar
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
 		Where("w.github_owner NOT LIKE ?", "ripple-%").
 		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
 		OrderExpr("o.name ASC, si.name ASC").
 		Scan(ctx, &rows)
 	if err != nil {
@@ -97,6 +99,7 @@ func (s *Server) loadAllInstances(ctx context.Context) ([]ui.InstanceInfo, error
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
 		Where("w.github_owner NOT LIKE ?", "ripple-%").
 		Where("w.github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
 		OrderExpr("o.name ASC, si.name ASC").
 		Scan(ctx, &rows)
 	if err != nil {
@@ -534,6 +537,7 @@ func (s *Server) loadWorkspaces(ctx context.Context) ([]ui.WorkspaceInfo, error)
 		Where("github_owner NOT LIKE ?", "e2e-%").
 		Where("github_owner NOT LIKE ?", "ripple-%").
 		Where("github_owner NOT LIKE ?", "aim-ripple-%").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "org_id") }).
 		OrderExpr("display_name ASC").
 		Scan(ctx)
 	if err != nil {
@@ -762,4 +766,16 @@ func cascadeDownstreamHint(agentID string, metadata json.RawMessage) string {
 		}
 	}
 	return ""
+}
+
+// restrictToCallersOrgs limits a query to the organisations the caller belongs to.
+// orgColumn is the organisation id column of the query (for example "w.org_id").
+// A caller with no organisations, or no principal, gets no rows: an empty list is
+// the safe answer, never the whole table.
+func (s *Server) restrictToCallersOrgs(ctx context.Context, q *bun.SelectQuery, orgColumn string) *bun.SelectQuery {
+	ids := s.authorizer().UserOrgIDs(ctx)
+	if len(ids) == 0 {
+		return q.Where("1 = 0")
+	}
+	return q.Where(orgColumn+" IN (?)", bun.List(ids))
 }

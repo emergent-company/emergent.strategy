@@ -28,6 +28,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/database"
 	internaldom "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/orchestration"
 )
 
@@ -223,6 +224,7 @@ func setupTestEnvWithWorkflow(t *testing.T, wf *noopWorkflow) *testEnv {
 
 	e := echo.New()
 	e.HideBanner = true
+	actAsDevAdmin(t, db, e, orgID)
 	webHandler.RegisterRoutes(e)
 
 	return &testEnv{
@@ -244,6 +246,31 @@ func (env *testEnv) startHTTPServer(t *testing.T) *httptest.Server {
 }
 
 // request issues an HTTP request against the Echo server and returns the response.
+// actAsDevAdmin makes every request on e run as the dev user, who is made an admin
+// of org. Production puts an auth middleware in front of the web routes, and the
+// routes' access guard needs the caller's organisation membership; a test that
+// registers the routes bare has to supply both, as dev mode does at startup.
+func actAsDevAdmin(t *testing.T, db *bun.DB, e *echo.Echo, orgID uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := db.NewInsert().Model(&internaldom.User{
+		ID: web.DevUser.ID, Sub: web.DevUser.Sub, Email: web.DevUser.Email,
+	}).On("CONFLICT (id) DO NOTHING").Exec(ctx); err != nil {
+		t.Fatalf("seed dev user: %v", err)
+	}
+	if _, err := db.NewInsert().Model(&internaldom.OrgMembership{
+		ID: uuid.New(), OrgID: orgID, UserID: web.DevUser.ID, Role: internaldom.OrgRoleAdmin,
+	}).Exec(ctx); err != nil {
+		t.Fatalf("seed dev membership: %v", err)
+	}
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.SetRequest(c.Request().WithContext(web.ContextWithPrincipal(c.Request().Context(), web.DevPrincipal)))
+			return next(c)
+		}
+	})
+}
+
 func (env *testEnv) request(t *testing.T, method, path string, headers map[string]string) *http.Response {
 	t.Helper()
 
@@ -801,6 +828,7 @@ func TestStartRun_NoEngine_Returns503(t *testing.T) {
 
 	e := echo.New()
 	e.HideBanner = true
+	actAsDevAdmin(t, db, e, orgID)
 	webHandler.RegisterRoutes(e)
 
 	// POST /aim/runs should return 503.
