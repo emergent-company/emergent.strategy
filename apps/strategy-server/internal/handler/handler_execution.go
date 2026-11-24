@@ -112,17 +112,6 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 		return data
 	}
 
-	trackMeta := []struct {
-		key  string
-		name string
-		icon string
-	}{
-		{"strategy", "Strategy", "lucide--navigation"},
-		{"org_ops", "Org & Ops", "lucide--container"},
-		{"product", "Product", "lucide--code-2"},
-		{"commercial", "Commercial", "lucide--briefcase"},
-	}
-
 	// Load definitions per track. Product uses features as its definition equivalent.
 	defArtifactType := map[string]string{
 		"strategy":   "strategy_def",
@@ -149,26 +138,9 @@ func (s *Server) loadExecutionData(ctx context.Context, instanceID, instanceName
 		krOutcomes:         krOutcomes,
 		trackDefs:          trackDefs,
 	}
-	for _, tm := range trackMeta {
-		trackData, ok := tracks[tm.key].(map[string]any)
-		if !ok {
-			continue
-		}
-		okrsRaw, ok := trackData["okrs"].([]any)
-		if !ok || len(okrsRaw) == 0 {
-			continue
-		}
-
-		track := ui.ExecutionTrack{Name: tm.name, Icon: tm.icon, Definitions: trackDefs[tm.key]}
-		for _, okrRaw := range okrsRaw {
-			okrMap, ok := okrRaw.(map[string]any)
-			if !ok {
-				continue
-			}
-			track.OKRs = append(track.OKRs, s.buildExecutionOKR(ctx, okrMap, deps, &data))
-		}
-		data.Tracks = append(data.Tracks, track)
-	}
+	data.Tracks = executionTracks(tracks, trackDefs, func(om map[string]any) ui.ExecutionOKR {
+		return s.buildExecutionOKR(ctx, om, deps, &data)
+	})
 
 	return data
 }

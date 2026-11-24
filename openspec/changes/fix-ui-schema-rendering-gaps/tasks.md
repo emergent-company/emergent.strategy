@@ -151,8 +151,12 @@ the handler. Section 5 (CI gate) comes last.
       canonical template, the header, Key Result detail, badge, extra tracks,
       milestones in both layouts, parallel tracks and unknown keys at every level;
       mutation-checked (21). The sampler in `schema_sample_test.go` now follows
-      `$ref` and `patternProperties`. Still open: `handler_execution.go` and two
-      counts in `queries_phases.go` read only `okrs`; they belong to their own pages.
+      `$ref` and `patternProperties`. The readers that still saw only `okrs` now walk
+      every `future_okrs_*` list too (`roadmap_okrs.go`): the execution page, the FIRE
+      page's objectives, the per-track counts and the roadmap gap check. A later
+      list's objective is marked "Planned · <name>" on the two pages that list them.
+      On the reporter's instance the execution page read 9 objectives and 26 key
+      results before the change.
 - [x] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found. A
       payload built from the schema lost 2 of its 25 strings: the text of every
       success indicator, because the page read `indicator` while the schema, the

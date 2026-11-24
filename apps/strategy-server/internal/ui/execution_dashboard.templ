@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
@@ -73,6 +74,7 @@ type ExecutionDefinition struct {
 // ExecutionOKR represents a single OKR with its key results.
 type ExecutionOKR struct {
 	ID        string
+	Group     string // "" for the current list, else the later list's name
 	Objective string
 	KRs       []ExecutionKR
 }
@@ -277,6 +279,9 @@ templ executionOKRSection(okr ExecutionOKR, trackName string, instanceID string,
 				<span class="badge badge-xs badge-ghost font-mono shrink-0 mt-0.5">{ okr.ID }</span>
 			</span>
 			<p class="text-sm font-semibold text-base-content leading-snug">{ okr.Objective }</p>
+			if okr.Group != "" {
+				<span class="badge badge-xs badge-outline shrink-0 mt-0.5">{ fmt.Sprintf(langs.T(ctx, "ui.roadmap.future_group"), futureGroupLabel(okr.Group)) }</span>
+			}
 		</div>
 		// KR list
 		if len(okr.KRs) > 0 {
