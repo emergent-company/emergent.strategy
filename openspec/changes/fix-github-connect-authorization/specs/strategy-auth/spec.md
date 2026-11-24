@@ -66,28 +66,47 @@ cannot access it SHALL show only that it is connected elsewhere.
 - **THEN** the rendered page contains no id, name, organisation, workspace or sync data of that instance
 - **AND** the repository is marked as connected in another organisation
 
-### Requirement: GitHub MCP Tools Are Scoped to the Caller
+### Requirement: GitHub MCP Tools Act With the Caller's Own GitHub Account
 
-The MCP tools `list_github_installations` and `scan_github_repos` SHALL return
-and scan only installations visible to the caller's own stored GitHub token, and
-`import_from_github` SHALL require write access to the target instance.
+The MCP tools `list_github_installations` and `scan_github_repos` SHALL use the
+calling user's own stored GitHub token and never the GitHub App's credentials, so
+a caller sees only the installations and repositories their own GitHub account
+sees. They SHALL refuse access tokens. `import_from_github` SHALL require write
+access to the target instance.
 
 #### Scenario: Installations of the caller only
 
 - **WHEN** a user with a stored GitHub token calls `list_github_installations`
 - **THEN** the result holds the installations that token can see and no others
+- **AND** installations of the GitHub App that the token cannot see are not listed
+
+#### Scenario: Repositories of one owner that the caller can see
+
+- **WHEN** a user with a stored GitHub token calls `scan_github_repos` for an owner
+- **THEN** the result holds only repositories of that owner (matched ignoring case) that the user's token can see
+- **AND** EPF detection runs only for those repositories
+
+#### Scenario: Owner the caller cannot see
+
+- **WHEN** a caller scans an owner none of whose repositories their token can see
+- **THEN** the result is empty, whether or not the GitHub App is installed on that owner
 
 #### Scenario: No stored token
 
 - **WHEN** a caller with no stored GitHub token calls `list_github_installations` or `scan_github_repos`
-- **THEN** the tool returns `needs_github_connection` and no installation data
+- **THEN** the tool returns `needs_github_connection` and no installation or repository data
 
-#### Scenario: Owner outside the caller's installations
+#### Scenario: Revoked token
 
-- **WHEN** a caller scans an owner that is not among their installations
-- **THEN** the tool answers as for an owner where the App is not installed
+- **WHEN** GitHub rejects the caller's stored token during either tool
+- **THEN** the stored token is cleared and the tool returns `needs_github_connection`
+
+#### Scenario: Access tokens are refused
+
+- **WHEN** a caller authenticated with an access token (scoped or not) calls `list_github_installations` or `scan_github_repos`
+- **THEN** the call is refused
 
 #### Scenario: Import needs write access
 
-- **WHEN** a caller with read-only access to an instance calls `import_from_github` for it
+- **WHEN** a caller whose access to an instance is read-only calls `import_from_github` for it
 - **THEN** the call is refused and nothing is imported

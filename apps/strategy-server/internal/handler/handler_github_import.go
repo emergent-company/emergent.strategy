@@ -5,16 +5,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
-	orgdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/org"
-	workspacedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
-	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/audit"
 	domain "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 )
 
 // handleGithubImportNew handles POST /github/connect/import — creates a new strategy
@@ -54,88 +51,38 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	}
 	instanceName := repoNameToTitle(repoName)
 
-	// Resolve workspace ID — either from the picker or by creating one inline.
-	// "__new__" = create a new workspace inline.
-	// "__existing__" = re-import into the existing instance's workspace (GetByGithubRepo will find it).
-	if workspaceIDStr == "__new__" {
-		workspaceIDStr = ""
-	}
-	if workspaceIDStr == "__existing__" {
-		workspaceIDStr = ""
-	}
-
-	var workspaceID uuid.UUID
-	if workspaceIDStr != "" {
-		var err error
-		workspaceID, err = uuid.Parse(workspaceIDStr)
-		if err != nil {
-			return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
-		}
-	} else {
-		// No existing workspaces — create an org + workspace on the fly.
-		if newWorkspaceName == "" {
-			newWorkspaceName = repoNameToTitle(repoOwner)
-			if newWorkspaceName == "" {
-				newWorkspaceName = instanceName
-			}
-		}
-		user := web.UserFromContext(ctx)
-		actorID := audit.ActorFromContext(ctx)
-
-		orgSvc := orgdom.NewService(s.db)
-		callerID := uuid.Nil
-		if actorID != nil {
-			callerID = *actorID
-		}
-		newOrg, orgErr := orgSvc.GetOrCreate(ctx, newWorkspaceName, callerID)
-		if orgErr != nil {
-			s.log.Error("create org for github import", "name", newWorkspaceName, "err", orgErr)
-			return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
-		}
-		// Ensure the user is a member of the new org.
-		_, _ = orgSvc.AddMember(ctx, newOrg.ID, user.ID, "owner")
-
-		wsSvc := workspacedom.NewService(s.db)
-		wsName := newWorkspaceName
-		ws, wsErr := wsSvc.CreateWorkspace(ctx, repoOwner, &wsName, newOrg.ID)
-		if wsErr != nil {
-			// Workspace may already exist for this github_owner — look it up.
-			ws, wsErr = wsSvc.GetWorkspaceByOwner(ctx, repoOwner)
-			if wsErr != nil {
-				s.log.Error("create workspace for github import", "owner", repoOwner, "err", wsErr)
-				return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
-			}
-		}
-		workspaceID = ws.ID
+	// Decide where the import may write. This is the tenant boundary of the
+	// connect flow: the workspace must belong to an organisation the caller
+	// administers, an inline workspace is always a new organisation, and an
+	// instance of another organisation is never reused or moved.
+	target, err := s.resolveImportTarget(ctx, importTargetRequest{
+		WorkspaceID:  workspaceIDStr,
+		NewName:      newWorkspaceName,
+		GithubRepo:   githubRepo,
+		BasePath:     basePath,
+		RepoOwner:    repoOwner,
+		InstanceName: instanceName,
+	})
+	if err != nil {
+		return s.importRefusal(c, err)
 	}
 
 	instSvc := instancedom.NewService(s.db)
-
-	// Check for an existing instance already linked to this repo+path.
-	// If found, reuse it — move it to the chosen workspace if different,
-	// update settings, and proceed. This prevents duplicate instances when
-	// the user re-imports or relinks a repo they already connected.
-	existing, lookupErr := instSvc.GetByGithubRepo(ctx, githubRepo, basePath)
-	if lookupErr != nil {
-		s.log.Warn("lookup existing instance by repo", "repo", githubRepo, "err", lookupErr)
-	}
-
 	var inst *domain.StrategyInstance
-	if existing != nil {
-		// Reuse the existing instance.
-		// Move to the chosen workspace if it differs.
-		if existing.WorkspaceID != workspaceID {
-			if moveErr := instSvc.MoveInstance(ctx, existing.ID, workspaceID); moveErr != nil {
-				s.log.Error("move existing instance to new workspace", "instance_id", existing.ID, "err", moveErr)
+	if target.Existing != nil {
+		// Reuse the instance already linked to this repository, so a re-import or
+		// relink does not create a duplicate.
+		if target.NeedsMove {
+			if moveErr := instSvc.MoveInstance(ctx, target.Existing.ID, target.WorkspaceID); moveErr != nil {
+				s.log.Error("move existing instance to new workspace", "instance_id", target.Existing.ID, "err", moveErr)
 				return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
 			}
 		}
-		inst = existing
+		inst = target.Existing
 	} else {
-		// No existing instance — create a new one.
 		var createErr error
 		inst, createErr = instSvc.ImportInstance(ctx, instancedom.ImportParams{
-			WorkspaceID: workspaceID,
+			WorkspaceID: target.WorkspaceID,
 			Name:        instanceName,
 			GithubRepo:  &githubRepo,
 		})
@@ -175,6 +122,29 @@ func (s *Server) handleGithubImportNew(c echo.Context) error {
 	}
 
 	return c.Redirect(http.StatusSeeOther, fmt.Sprintf("/strategies/%s", inst.ID))
+}
+
+// importRefusal answers a refused import with the status of the app error and a
+// message that says nothing about other tenants' data.
+func (s *Server) importRefusal(c echo.Context, err error) error {
+	ctx := c.Request().Context()
+	ae := apperror.AsAppError(err)
+	if ae == nil {
+		s.log.Error("resolve github import target", "err", err)
+		return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
+	}
+	switch ae.HTTPStatus {
+	case http.StatusNotFound:
+		return c.String(http.StatusNotFound, langs.T(ctx, "error.not_found"))
+	case http.StatusForbidden:
+		return c.String(http.StatusForbidden, langs.T(ctx, "error.github_import_forbidden"))
+	case http.StatusConflict:
+		return c.String(http.StatusConflict, langs.T(ctx, "error.github_import_conflict"))
+	case http.StatusBadRequest:
+		return c.String(http.StatusBadRequest, langs.T(ctx, "error.invalid_workspace_id"))
+	}
+	s.log.Error("resolve github import target", "err", err)
+	return c.String(http.StatusInternalServerError, langs.T(ctx, "error.instance_create_failed"))
 }
 
 // repoNameToTitle converts a repo slug like "my-strategy-repo" to "My Strategy Repo".

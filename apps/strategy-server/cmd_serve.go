@@ -304,6 +304,7 @@ func runServer(cfg *config.Config) error {
 		Activity:            activitySvc,
 		Watchdog:            watchdogdom.NewService(db),
 		AccessToken:         accessTokenSvc,
+		User:                user.NewService(db),
 		GithubAppInstallURL: cfg.GithubAppInstallURL(),
 	}
 

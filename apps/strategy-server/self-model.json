@@ -2387,7 +2387,7 @@
     },
     {
       "name": "list_github_installations",
-      "description": "USE WHEN you need to list all GitHub orgs and personal accounts where the GitHub App is installed. This is the entry point for the repo connect flow — call this first to discover which GitHub accounts to scan.",
+      "description": "USE WHEN you need to list the GitHub orgs and personal accounts where the GitHub App is installed and that the calling user can access. It uses the user's own connected GitHub account, so it needs that account to be connected (web UI: /github/connect); without it the result is needs_github_connection. Call this first to discover which GitHub accounts to scan.",
       "category": "admin",
       "input_schema": {
         "properties": {},
@@ -3136,12 +3136,12 @@
     },
     {
       "name": "scan_github_repos",
-      "description": "USE WHEN you need to scan all repositories for a GitHub owner (org or personal account) and detect which contain EPF strategy instances. Returns a repo list with EPF detection results. Results are cached for 5 minutes. Use list_github_installations to discover valid owner values first.",
+      "description": "USE WHEN you need to scan the repositories of a GitHub owner (org or personal account) and detect which contain EPF strategy instances. It lists only the repositories the calling user's own connected GitHub account can see (it needs that account connected: web UI /github/connect; without it the result is needs_github_connection). Returns a repo list with EPF detection results. Results are cached for 30 minutes. Use list_github_installations to discover valid owner values first.",
       "category": "admin",
       "input_schema": {
         "properties": {
           "github_owner": {
-            "description": "GitHub organisation login or personal account login, e.g. 'acme-company' or 'nikolaifasting'.",
+            "description": "GitHub organisation login or personal account login, e.g. 'acme-company'.",
             "type": "string"
           }
         },

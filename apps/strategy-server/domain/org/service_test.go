@@ -270,3 +270,53 @@ func TestEnsureDevOrg(t *testing.T) {
 		t.Error("expected same org on second call")
 	}
 }
+
+// EnsureMember adds a user who is not a member, and changes nothing for one who
+// is: AddMember overwrites the role, which would let a flow that only wants to
+// make sure someone belongs demote an admin.
+func TestEnsureMember(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+	svc := org.NewService(db)
+	admin := seedUser(t, db, "ensure-admin", "ensure-admin@example.com", "Admin")
+	other := seedUser(t, db, "ensure-other", "ensure-other@example.com", "Other")
+
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Ensure Org"}, admin.ID)
+
+	m, err := svc.EnsureMember(ctx, o.ID, other.ID, domain.OrgRoleViewer)
+	if err != nil {
+		t.Fatalf("EnsureMember (new): %v", err)
+	}
+	if m.Role != domain.OrgRoleViewer {
+		t.Errorf("new member role = %q, want org_viewer", m.Role)
+	}
+
+	// The admin already belongs: asking for viewer must leave the admin role alone.
+	m, err = svc.EnsureMember(ctx, o.ID, admin.ID, domain.OrgRoleViewer)
+	if err != nil {
+		t.Fatalf("EnsureMember (existing): %v", err)
+	}
+	if m.Role != domain.OrgRoleAdmin {
+		t.Errorf("existing admin role = %q, want org_admin (unchanged)", m.Role)
+	}
+	isMember, role, err := svc.IsMember(ctx, o.ID, admin.ID)
+	if err != nil || !isMember || role != domain.OrgRoleAdmin {
+		t.Errorf("after EnsureMember the admin is %v/%q/%v, want a member with org_admin", isMember, role, err)
+	}
+}
+
+func TestEnsureMemberRejectsAnUndefinedRole(t *testing.T) {
+	db := database.TestDB(t)
+	ctx := newCtx()
+	svc := org.NewService(db)
+	admin := seedUser(t, db, "role-admin", "role-admin@example.com", "Admin")
+	other := seedUser(t, db, "role-other", "role-other@example.com", "Other")
+	o, _ := svc.Create(ctx, org.CreateParams{Name: "Role Org"}, admin.ID)
+
+	if _, err := svc.EnsureMember(ctx, o.ID, other.ID, "owner"); err == nil {
+		t.Fatal("a role that is neither org_admin nor org_viewer must be refused")
+	}
+	if ok, _, _ := svc.IsMember(ctx, o.ID, other.ID); ok {
+		t.Error("a refused role must not leave a membership behind")
+	}
+}

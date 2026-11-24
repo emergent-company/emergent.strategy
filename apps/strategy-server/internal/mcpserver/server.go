@@ -39,6 +39,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategy"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/strategyread"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	userdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	versiondom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/version"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/workspace"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/agent"
@@ -73,6 +74,7 @@ type Services struct {
 	Activity      *activitydom.Service     // optional — nil disables activity stream MCP tools
 	Watchdog      WatchdogRunner           // optional — nil disables watchdog health checks in health_check
 	AccessToken   *accesstokendom.Service  // optional — nil disables access-token management tools
+	User          *userdom.Service         // optional — nil means no caller has a connected GitHub account
 
 	// GithubSync is what the server found out about GitHub sync at startup. The
 	// zero value means nothing was recorded: Sync != nil then reads as enabled
