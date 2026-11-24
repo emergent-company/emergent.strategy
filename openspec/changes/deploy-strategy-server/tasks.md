@@ -67,6 +67,22 @@ quiet drift.
 
 ---
 
+## 3b. Gate: tenant isolation (blocks any deploy that serves more than one organisation)
+
+An audit of the GitHub connect flow found that the web UI has no organisation
+membership checks and that the connect import can add a user to any organisation.
+The server must not serve two organisations until these are done.
+
+- [ ] 3b.1 `fix-github-connect-authorization` is complete (import writes only into
+  the caller's own organisations, the connect page and MCP GitHub tools are scoped,
+  a revoked token is handled).
+- [ ] 3b.2 `add-web-tenant-isolation` is complete (every web route classified and
+  enforced, lists filtered by organisation).
+- [ ] 3b.3 `encrypt-stored-github-tokens` is complete and the encryption key is
+  provisioned as a secret (§1) before the first user connects GitHub.
+- [ ] 3b.4 A two-user, two-organisation walk-through against staging passes: the
+  second user cannot see, open, import into or move the first user's instances.
+
 ## 4. Staging and Guard Verification
 
 - [ ] 4.1 Deploy to a staging Cloud Run service
