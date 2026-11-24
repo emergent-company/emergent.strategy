@@ -292,64 +292,7 @@ func (s *Server) loadRoadmapOKRsByTrack(ctx context.Context, instanceID string) 
 	if !ok {
 		return nil
 	}
-	tracks, ok := roadmap["tracks"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	result := make(map[string][]ui.FireOKRObjective)
-	for trackKey, trackVal := range tracks {
-		trackMap, ok := trackVal.(map[string]any)
-		if !ok {
-			continue
-		}
-		okrs, ok := trackMap["okrs"].([]any)
-		if !ok {
-			continue
-		}
-		var objectives []ui.FireOKRObjective
-		for _, okrAny := range okrs {
-			okrMap, ok := okrAny.(map[string]any)
-			if !ok {
-				continue
-			}
-			obj, _ := okrMap["objective"].(string)
-			if obj == "" {
-				continue
-			}
-			var krs []ui.FireOKRKeyResult
-			if krList, ok := okrMap["key_results"].([]any); ok {
-				for _, kr := range krList {
-					krMap, ok := kr.(map[string]any)
-					if !ok {
-						continue
-					}
-					desc, _ := krMap["description"].(string)
-					if desc == "" {
-						desc, _ = krMap["target"].(string)
-					}
-					if desc == "" {
-						continue
-					}
-					kr := ui.FireOKRKeyResult{Description: desc}
-					if v, ok := krMap["trl_start"].(float64); ok {
-						kr.TRLStart = int(v)
-					}
-					if v, ok := krMap["trl_target"].(float64); ok {
-						kr.TRLTarget = int(v)
-					}
-					kr.TRLProgression, _ = krMap["trl_progression"].(string)
-					krs = append(krs, kr)
-				}
-			}
-			objectives = append(objectives, ui.FireOKRObjective{
-				Objective:  obj,
-				KeyResults: krs,
-			})
-		}
-		result[trackKey] = objectives
-	}
-	return result
+	return fireObjectivesByTrack(roadmap)
 }
 
 // loadValueModelLayersByTrack returns the L1 layer names per track value model name.
@@ -2093,12 +2036,8 @@ func checkRoadmapGaps(m map[string]any) []ui.ReadyGap {
 	}
 	tracks, _ := roadmap["tracks"].(map[string]any)
 	trackHasOKRs := func(key string) bool {
-		if t, ok := tracks[key].(map[string]any); ok {
-			if okrs, ok := t["okrs"].([]any); ok && len(okrs) > 0 {
-				return true
-			}
-		}
-		return false
+		t, _ := tracks[key].(map[string]any)
+		return len(roadmapTrackOKRs(t)) > 0
 	}
 	hasStrategy := trackHasOKRs("strategy")
 	hasOrgOps := trackHasOKRs("org_ops")
@@ -2360,44 +2299,7 @@ func (s *Server) loadRoadmapOKRs(ctx context.Context, instanceID string) []ui.Tr
 		return nil
 	}
 
-	trackMeta := []struct {
-		key  string
-		name string
-		icon string
-	}{
-		{"strategy", "Strategy", "lucide--navigation"},
-		{"org_ops", "Org & Ops", "lucide--container"},
-		{"product", "Product", "lucide--code-2"},
-		{"commercial", "Commercial", "lucide--briefcase"},
-	}
-
-	var summaries []ui.TrackOKRSummary
-	for _, tm := range trackMeta {
-		t, ok := tracks[tm.key].(map[string]any)
-		if !ok {
-			continue
-		}
-		okrs, ok := t["okrs"].([]any)
-		if !ok {
-			continue
-		}
-		objectives := len(okrs)
-		keyResults := 0
-		for _, okr := range okrs {
-			if okrMap, ok := okr.(map[string]any); ok {
-				if krs, ok := okrMap["key_results"].([]any); ok {
-					keyResults += len(krs)
-				}
-			}
-		}
-		summaries = append(summaries, ui.TrackOKRSummary{
-			Track:      tm.name,
-			Icon:       tm.icon,
-			Objectives: objectives,
-			KeyResults: keyResults,
-		})
-	}
-	return summaries
+	return trackOKRSummaries(tracks)
 }
 
 // ---------------------------------------------------------------------------

@@ -83,6 +83,7 @@ type FireOKRKeyResult struct {
 // FireOKRObjective holds one objective and its key results for a track.
 type FireOKRObjective struct {
 	Objective  string
+	Group      string // "" for the current list, else the later list's name
 	KeyResults []FireOKRKeyResult
 }
 
@@ -252,7 +253,12 @@ templ fireTrackColumn(instanceID string, t FireTrackData) {
 				<div class="space-y-2">
 					for _, obj := range t.Objectives {
 						<div>
-							<p class="text-xs font-medium text-base-content/80 leading-snug">{ obj.Objective }</p>
+							<p class="text-xs font-medium text-base-content/80 leading-snug">
+								{ obj.Objective }
+								if obj.Group != "" {
+									<span class="badge badge-xs badge-outline ml-1">{ fmt.Sprintf(langs.T(ctx, "ui.roadmap.future_group"), futureGroupLabel(obj.Group)) }</span>
+								}
+							</p>
 						if len(obj.KeyResults) > 0 {
 							<ul class="mt-1 space-y-0.5">
 								for _, kr := range obj.KeyResults {
