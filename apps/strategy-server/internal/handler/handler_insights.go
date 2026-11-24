@@ -101,8 +101,9 @@ func extractInsightPersonas(payload map[string]any) []ui.InsightPersona {
 				When:           tolStr(jm, "when"),
 				DesiredOutcome: tolStr(jm, "desired_outcome"),
 				Satisfaction:   tolStr(jm, "current_solution_satisfaction"),
+				More:           readFacts(jm, insightJobMore),
 			}
-			if j.Job == "" && j.When == "" && j.DesiredOutcome == "" && j.Satisfaction == "" {
+			if j.Job == "" && j.When == "" && j.DesiredOutcome == "" && j.Satisfaction == "" && len(j.More) == 0 {
 				continue
 			}
 			persona.Jobs = append(persona.Jobs, j)
@@ -124,7 +125,8 @@ func applyInsightSWOT(data *ui.InsightAnalysesData, payload map[string]any) {
 			StrategicValue: tolStr(sm, "strategic_value"),
 			Evidence:       tolStrs(sm, "evidence"),
 		}
-		if v.Strength != "" || v.StrategicValue != "" || len(v.Evidence) > 0 {
+		v.More = readFacts(sm, insightStrengthMore)
+		if v.Strength != "" || v.StrategicValue != "" || len(v.Evidence) > 0 || len(v.More) > 0 {
 			data.Strengths = append(data.Strengths, v)
 		}
 	}
@@ -134,7 +136,8 @@ func applyInsightSWOT(data *ui.InsightAnalysesData, payload map[string]any) {
 			Impact:     tolStr(wm, "impact"),
 			Mitigation: tolStr(wm, "mitigation"),
 		}
-		if v.Weakness != "" || v.Impact != "" || v.Mitigation != "" {
+		v.More = readFacts(wm, insightWeaknessMore)
+		if v.Weakness != "" || v.Impact != "" || v.Mitigation != "" || len(v.More) > 0 {
 			data.Weaknesses = append(data.Weaknesses, v)
 		}
 	}
@@ -144,7 +147,8 @@ func applyInsightSWOT(data *ui.InsightAnalysesData, payload map[string]any) {
 			Priority:     tolStr(om, "priority"),
 			HowToExploit: tolStr(om, "how_to_exploit"),
 		}
-		if v.Opportunity != "" || v.Priority != "" || v.HowToExploit != "" {
+		v.More = readFacts(om, insightOpportunityMore)
+		if v.Opportunity != "" || v.Priority != "" || v.HowToExploit != "" || len(v.More) > 0 {
 			data.Opportunities = append(data.Opportunities, v)
 		}
 	}
@@ -154,7 +158,8 @@ func applyInsightSWOT(data *ui.InsightAnalysesData, payload map[string]any) {
 			Likelihood: tolStr(tm, "likelihood"),
 			Mitigation: tolStr(tm, "mitigation"),
 		}
-		if v.Threat != "" || v.Likelihood != "" || v.Mitigation != "" {
+		v.More = readFacts(tm, insightThreatMore)
+		if v.Threat != "" || v.Likelihood != "" || v.Mitigation != "" || len(v.More) > 0 {
 			data.Threats = append(data.Threats, v)
 		}
 	}
@@ -175,7 +180,8 @@ func applyInsightCompetitiveLandscape(data *ui.InsightAnalysesData, payload map[
 			ThreatLevel:  tolStr(im, "threat_level"),
 			HowTheySolve: tolStr(im, "how_they_solve"),
 		}
-		if v.Name != "" || v.ThreatLevel != "" || v.HowTheySolve != "" {
+		v.More = readFacts(im, insightIndirectMore)
+		if v.Name != "" || v.ThreatLevel != "" || v.HowTheySolve != "" || len(v.More) > 0 {
 			data.IndirectCompetitors = append(data.IndirectCompetitors, v)
 		}
 	}
@@ -244,7 +250,8 @@ func extractInsightMarketSegments(payload map[string]any) []ui.InsightSegment {
 			Characteristics: tolStrs(sm, "characteristics"),
 			UnmetNeeds:      tolStrs(sm, "unmet_needs"),
 		}
-		if v.Segment != "" || v.Size != "" || len(v.Characteristics) > 0 || len(v.UnmetNeeds) > 0 {
+		v.More = readFacts(sm, insightSegmentMore)
+		if v.Segment != "" || v.Size != "" || len(v.Characteristics) > 0 || len(v.UnmetNeeds) > 0 || len(v.More) > 0 {
 			out = append(out, v)
 		}
 	}
@@ -288,29 +295,48 @@ func extractCompetitors(cl map[string]any, key string) []ui.InsightCompetitor {
 	return out
 }
 
+// ── labelled values beyond an entry's headline ──
+
+var (
+	insightStrengthMore    = []recordField{{"category", "Category"}, {"defensibility", "Defensibility"}}
+	insightWeaknessMore    = []recordField{{"category", "Category"}, {"addressable", "Addressable"}, {"urgency", "Urgency"}}
+	insightOpportunityMore = []recordField{{"addresses_trend", "Addresses trend"}, {"fit_with_strengths", "Fit with strengths"}, {"market_size", "Market size"}, {"required_investment", "Required investment"}, {"timing", "Timing"}}
+	insightThreatMore      = []recordField{{"impact_if_occurs", "Impact if it occurs"}, {"monitoring", "Monitoring"}, {"related_weakness", "Related weakness"}}
+	insightIndirectMore    = []recordField{{"switching_cost", "Switching cost"}}
+	insightSegmentMore     = []recordField{{"current_solutions", "Current solutions"}, {"willingness_to_pay", "Willingness to pay"}, {"accessibility", "Accessibility"}}
+	insightJobMore         = []recordField{{"emotional_job", "Emotional job"}, {"social_job", "Social job"}, {"current_performance", "Current performance"}, {"importance", "Importance"}}
+)
+
 // ── record sections ──
 
 var insightRecordSpecs = []recordSpec{
 	{kind: ui.InsightKindMarketDynamics, path: []string{"market_dynamics"}, head: "dynamic",
 		facts: []recordField{{"implication", "Implication"}}},
 	{kind: ui.InsightKindValueChain, path: []string{"market_structure", "value_chain"}, head: "stage",
-		facts: []recordField{{"value_captured", "Value captured"}},
+		facts: []recordField{{"value_captured", "Value captured"}, {"power", "Power"}, {"needs", "Needs"}},
 		lists: []recordField{{"key_players", "Key players"}, {"inefficiencies", "Inefficiencies"}}},
 	{kind: ui.InsightKindSubstitutes, path: []string{"competitive_landscape", "substitutes"}, head: "substitute",
 		facts: []recordField{{"adoption", "Adoption"}}},
 	{kind: ui.InsightKindBarriers, path: []string{"competitive_landscape", "barriers_to_entry"}, head: "barrier",
 		facts: []recordField{{"height", "Height"}}},
+	{kind: ui.InsightKindBarriers, path: []string{"barriers_to_entry"}, head: "barrier",
+		facts: []recordField{{"height", "Height"}, {"our_position", "Our position"}}},
 	{kind: ui.InsightKindImplications, path: []string{"strategic_implications"}, head: "insight",
 		facts: []recordField{{"action", "Action"}}},
 	{kind: ui.InsightKindTensions, path: []string{"strategic_tensions"}, head: "tension",
-		facts: []recordField{{"tradeoff", "Tradeoff"}}},
+		facts: []recordField{{"tradeoff", "Tradeoff"}, {"resolution", "Resolution"}}},
 	{kind: ui.InsightKindProblemFit, path: []string{"product_problem_fit_analysis"}, single: true,
 		facts: []recordField{{"problem_clarity", "Problem clarity"}, {"problem_severity", "Problem severity"}, {"solution_feasibility", "Solution feasibility"}}},
+	{kind: ui.InsightKindProblemFit, path: []string{"product_problem_fit_analysis", "problem_prioritization"}, head: "problem",
+		facts: []recordField{{"rank", "Rank"}, {"rationale", "Rationale"}}},
+	{kind: ui.InsightKindProblemFit, path: []string{"product_problem_fit_analysis", "problem_severity_map"}, head: "problem",
+		facts: []recordField{{"affected_users", "Affected users"}, {"current_solution_gap", "Current solution gap"}, {"opportunity_score", "Opportunity score"}}},
 	{kind: ui.InsightKindValidation, path: []string{"validation_status"}, head: "hypothesis",
-		facts: []recordField{{"validation_method", "Method"}, {"status", "Status"}},
+		facts: []recordField{{"validation_method", "Method"}, {"status", "Status"}, {"sample_size", "Sample size"}, {"confidence", "Confidence"}, {"key_quote", "Key quote"}, {"quantitative_evidence", "Quantitative evidence"}},
 		lists: []recordField{{"evidence", "Evidence"}}},
 	{kind: ui.InsightKindHypotheses, path: []string{"problem_solution_hypotheses"}, head: "problem",
-		facts: []recordField{{"hypothesis", "Hypothesis"}, {"test_approach", "Test approach"}}},
+		facts: []recordField{{"hypothesis", "Hypothesis"}, {"test_approach", "Test approach"}},
+		lists: []recordField{{"riskiest_assumptions", "Riskiest assumptions"}}},
 	{kind: ui.InsightKindConfidenceGaps, path: []string{"confidence_gaps"}, head: "gap",
 		facts: []recordField{{"why_it_matters", "Why it matters"}, {"how_to_close", "How to close"}}},
 	{kind: ui.InsightKindNextSteps, path: []string{"next_analytical_steps"}, head: "step",
@@ -335,22 +361,22 @@ func buildInsightShownPaths() []string {
 	add(list("trends.*", "trend", "impact", "timeframe", "evidence", "implications_for_us")...)
 	add(list("target_users", "persona", "description", "current_state.goals", "current_state.context", "current_state.frequency")...)
 	add(list("target_users.*.problems", "problem", "severity", "frequency", "current_solution", "workarounds", "cost_of_problem", "willingness_to_solve", "evidence")...)
-	add(list("target_users.*.jobs_to_be_done", "job", "when", "desired_outcome", "current_solution_satisfaction")...)
-	add(list("strengths", "strength", "strategic_value", "evidence")...)
-	add(list("weaknesses", "weakness", "impact", "mitigation")...)
-	add(list("opportunities", "opportunity", "priority", "how_to_exploit")...)
-	add(list("threats", "threat", "likelihood", "mitigation")...)
+	add(list("target_users.*.jobs_to_be_done", append([]string{"job", "when", "desired_outcome", "current_solution_satisfaction"}, factKeys(insightJobMore)...)...)...)
+	add(list("strengths", append([]string{"strength", "strategic_value", "evidence"}, factKeys(insightStrengthMore)...)...)...)
+	add(list("weaknesses", append([]string{"weakness", "impact", "mitigation"}, factKeys(insightWeaknessMore)...)...)...)
+	add(list("opportunities", append([]string{"opportunity", "priority", "how_to_exploit"}, factKeys(insightOpportunityMore)...)...)...)
+	add(list("threats", append([]string{"threat", "likelihood", "mitigation"}, factKeys(insightThreatMore)...)...)...)
 	for _, group := range []string{"direct_competitors", "strategy_tools"} {
 		add(list("competitive_landscape."+group, "name", "positioning", "market_share", "target_segment", "business_model", "strengths", "weaknesses")...)
 	}
-	add(list("competitive_landscape.indirect_competitors", "name", "threat_level", "how_they_solve")...)
+	add(list("competitive_landscape.indirect_competitors", append([]string{"name", "threat_level", "how_they_solve"}, factKeys(insightIndirectMore)...)...)...)
 	add(list("key_insights", "insight", "strategic_implication", "supporting_trends")...)
 	add(list("white_spaces", "gap", "opportunity_potential", "evidence")...)
 	add("market_definition.growth_rate", "market_definition.market_stage",
 		"market_definition.tam", "market_definition.tam.size", "market_definition.tam.calculation_method",
 		"market_definition.sam", "market_definition.sam.size", "market_definition.sam.definition",
 		"market_definition.som", "market_definition.som.size", "market_definition.som.timeframe")
-	add(list("market_structure.segments", "segment", "size", "characteristics", "unmet_needs")...)
+	add(list("market_structure.segments", append([]string{"segment", "size", "characteristics", "unmet_needs"}, factKeys(insightSegmentMore)...)...)...)
 	add(list("opportunity_convergence", "opportunity", "strength", "supporting_analyses")...)
 
 	add(recordPaths(insightRecordSpecs)...)

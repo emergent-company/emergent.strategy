@@ -341,6 +341,25 @@ func (p *Parser) ParseNorthStar() (*NorthStar, error) {
 	return ns, nil
 }
 
+// rawAdvantage is one competitive advantage. The schema allows a plain string
+// (the canonical template uses them) or an object; a string is the name.
+type rawAdvantage struct {
+	Name          string `yaml:"name"`
+	Description   string `yaml:"description"`
+	Defensibility string `yaml:"defensibility"`
+	Evidence      string `yaml:"evidence"`
+}
+
+// UnmarshalYAML reads either form.
+func (a *rawAdvantage) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		a.Name = node.Value
+		return nil
+	}
+	type plain rawAdvantage
+	return node.Decode((*plain)(a))
+}
+
 // ParseInsightAnalyses parses the insight analyses artifact, discovered by content or filename.
 func (p *Parser) ParseInsightAnalyses() (*InsightAnalyses, error) {
 	path := p.resolveReadyPath("insight_analyses", "01_insight_analyses.yaml")
@@ -536,13 +555,8 @@ func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
 			} `yaml:"positioning"`
 
 			CompetitiveMoat struct {
-				Advantages []struct {
-					Name          string `yaml:"name"`
-					Description   string `yaml:"description"`
-					Defensibility string `yaml:"defensibility"`
-					Evidence      string `yaml:"evidence"`
-				} `yaml:"advantages"`
-				Differentiation string `yaml:"differentiation"`
+				Advantages      []rawAdvantage `yaml:"advantages"`
+				Differentiation string         `yaml:"differentiation"`
 				VsCompetitors   []struct {
 					Competitor    string `yaml:"competitor"`
 					TheirStrength string `yaml:"their_strength"`
@@ -577,12 +591,7 @@ func (p *Parser) ParseStrategyFormula() (*StrategyFormula, error) {
 
 	// Convert advantages
 	for _, adv := range raw.Strategy.CompetitiveMoat.Advantages {
-		sf.CompetitiveMoat.Advantages = append(sf.CompetitiveMoat.Advantages, Advantage{
-			Name:          adv.Name,
-			Description:   adv.Description,
-			Defensibility: adv.Defensibility,
-			Evidence:      adv.Evidence,
-		})
+		sf.CompetitiveMoat.Advantages = append(sf.CompetitiveMoat.Advantages, Advantage(adv))
 	}
 
 	// Convert competitor comparisons

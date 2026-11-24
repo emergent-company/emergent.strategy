@@ -1,5 +1,5 @@
 {
-  "version": "1.13.0",
+  "version": "1.14.0",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Insight Analyses Schema",
   "description": "Comprehensive foundational analyses for the INSIGHT phase - trend scanning, market understanding, competitive intelligence, SWOT assessment, and user/problem research that inform strategic opportunity identification and prioritization.",
@@ -64,6 +64,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "implications_for_us": {
+                "type": "string",
+                "description": "What this means for our strategy"
               }
             },
             "required": ["trend", "timeframe", "impact"]
@@ -106,6 +110,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "implications_for_us": {
+                "type": "string",
+                "description": "Creates need for async collaboration tools"
               }
             },
             "required": ["trend", "timeframe", "impact"]
@@ -148,6 +156,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "implications_for_us": {
+                "type": "string",
+                "description": "Must prioritize performance"
               }
             },
             "required": ["trend", "timeframe", "impact"]
@@ -190,6 +202,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "implications_for_us": {
+                "type": "string",
+                "description": "Will require privacy-first architecture"
               }
             },
             "required": ["trend", "timeframe", "impact"]
@@ -232,6 +248,10 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "implications_for_us": {
+                "type": "string",
+                "description": "Window to establish position before market locks"
               }
             },
             "required": ["trend", "timeframe", "impact"]
@@ -398,6 +418,18 @@
                 },
                 "minItems": 1,
                 "maxItems": 10
+              },
+              "current_solutions": {
+                "type": "string",
+                "description": "How they solve today"
+              },
+              "willingness_to_pay": {
+                "type": "string",
+                "description": "low|medium|high"
+              },
+              "accessibility": {
+                "type": "string",
+                "description": "How hard to reach"
               }
             },
             "required": ["segment", "size", "characteristics", "unmet_needs"]
@@ -445,6 +477,14 @@
                 },
                 "minItems": 0,
                 "maxItems": 10
+              },
+              "power": {
+                "type": "string",
+                "description": "Their relative power (low|medium|high)"
+              },
+              "needs": {
+                "type": "string",
+                "description": "What they need from solution"
               }
             },
             "required": ["stage", "key_players", "value_captured"]
@@ -499,6 +539,18 @@
                 },
                 "minItems": 1,
                 "maxItems": 8
+              },
+              "market_share": {
+                "type": "string",
+                "description": "Estimated %"
+              },
+              "target_segment": {
+                "type": "string",
+                "description": "Who they serve"
+              },
+              "business_model": {
+                "type": "string",
+                "description": "How they monetize"
               }
             },
             "required": ["name", "positioning", "strengths", "weaknesses"]
@@ -528,6 +580,10 @@
                 "type": "string",
                 "enum": ["low", "medium", "high"],
                 "description": "How much do they threaten the opportunity? Low = different enough. Medium = some overlap. High = could block adoption."
+              },
+              "switching_cost": {
+                "type": "string",
+                "description": "low|medium|high"
               }
             },
             "required": ["name", "how_they_solve", "threat_level"]
@@ -676,6 +732,14 @@
             "description": "How does this strength help us win? What can we do because of it that competitors can't?",
             "minLength": 30,
             "maxLength": 400
+          },
+          "category": {
+            "type": "string",
+            "description": "capability"
+          },
+          "defensibility": {
+            "type": "string",
+            "description": "How sustainable is this? (low|medium|high)"
           }
         },
         "required": ["strength", "evidence", "strategic_value"]
@@ -707,6 +771,18 @@
             "description": "How can we address this weakness? Investment needed? Workarounds? Accept the limitation?",
             "minLength": 30,
             "maxLength": 400
+          },
+          "category": {
+            "type": "string",
+            "description": "capability"
+          },
+          "addressable": {
+            "type": "string",
+            "description": "Can we fix this? (yes|partially|no)"
+          },
+          "urgency": {
+            "type": "string",
+            "description": "Do we need to fix this now? (critical|important|nice-to-have)"
           }
         },
         "required": ["weakness", "impact", "mitigation"]
@@ -737,6 +813,26 @@
             "type": "string",
             "enum": ["high", "medium", "low"],
             "description": "How urgently should we pursue this? High = do now. Medium = plan for. Low = watch/consider."
+          },
+          "fit_with_strengths": {
+            "type": "string",
+            "description": "Which strengths enable this?"
+          },
+          "addresses_trend": {
+            "type": "string",
+            "description": "Which trend creates this?"
+          },
+          "market_size": {
+            "type": "string",
+            "description": "How big is this?"
+          },
+          "timing": {
+            "type": "string",
+            "description": "When is the window? (now|soon|later)"
+          },
+          "required_investment": {
+            "type": "string",
+            "description": "low|medium|high"
           }
         },
         "required": ["opportunity", "how_to_exploit", "priority"]
@@ -767,6 +863,18 @@
             "description": "How can we reduce impact or prepare for this threat? Defensive moves, contingencies, pivots.",
             "minLength": 40,
             "maxLength": 500
+          },
+          "impact_if_occurs": {
+            "type": "string",
+            "description": "low|medium|high"
+          },
+          "related_weakness": {
+            "type": "string",
+            "description": "Does this exploit our weaknesses?"
+          },
+          "monitoring": {
+            "type": "string",
+            "description": "How we'll track this threat"
           }
         },
         "required": ["threat", "likelihood", "mitigation"]
@@ -947,6 +1055,22 @@
                   "description": "How satisfied are they with current solutions? What's missing?",
                   "minLength": 30,
                   "maxLength": 400
+                },
+                "emotional_job": {
+                  "type": "string",
+                  "description": "Emotional dimension (how they want to feel)"
+                },
+                "social_job": {
+                  "type": "string",
+                  "description": "Social dimension (how they want to be perceived)"
+                },
+                "current_performance": {
+                  "type": "string",
+                  "description": "How well current solutions work (poor|fair|good)"
+                },
+                "importance": {
+                  "type": "string",
+                  "description": "How important is this job? (critical|important|nice)"
                 }
               },
               "required": ["job", "when", "desired_outcome"]
@@ -982,6 +1106,49 @@
           "description": "Can we build a solution? Do we have the capabilities? Is it technically and economically feasible?",
           "minLength": 50,
           "maxLength": 600
+        },
+        "problem_severity_map": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "problem": {
+                "type": "string",
+                "description": "Reference to problem above"
+              },
+              "affected_users": {
+                "type": "string",
+                "description": "How many users (% or number)"
+              },
+              "current_solution_gap": {
+                "type": "string",
+                "description": "How poorly is this served today (1-10)"
+              },
+              "opportunity_score": {
+                "type": "string",
+                "description": "severity × frequency × willingness (calculated)"
+              }
+            }
+          }
+        },
+        "problem_prioritization": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rank": {
+                "type": "integer"
+              },
+              "problem": {
+                "type": "string",
+                "description": "Most critical problem to solve"
+              },
+              "rationale": {
+                "type": "string",
+                "description": "Why this is #1"
+              }
+            }
+          }
         }
       },
       "required": ["problem_clarity", "problem_severity", "solution_feasibility"]
@@ -1020,6 +1187,22 @@
             },
             "minItems": 1,
             "maxItems": 10
+          },
+          "sample_size": {
+            "type": "string",
+            "description": "N=X users"
+          },
+          "confidence": {
+            "type": "string",
+            "description": "low|medium|high"
+          },
+          "key_quote": {
+            "type": "string",
+            "description": "Representative user quote"
+          },
+          "quantitative_evidence": {
+            "type": "string",
+            "description": "Data that proves severity"
           }
         },
         "required": ["hypothesis", "validation_method", "status", "evidence"]
@@ -1051,6 +1234,12 @@
             "description": "How will we test this hypothesis? What's the MVP?",
             "minLength": 40,
             "maxLength": 500
+          },
+          "riskiest_assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": ["problem", "hypothesis", "test_approach"]
@@ -1112,6 +1301,10 @@
             "description": "What's the tradeoff? How do we navigate it?",
             "minLength": 50,
             "maxLength": 600
+          },
+          "resolution": {
+            "type": "string",
+            "description": "How we might resolve this tension"
           }
         },
         "required": ["tension", "tradeoff"]
@@ -1170,6 +1363,26 @@
           },
           "owner": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "barriers_to_entry": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "barrier": {
+            "type": "string",
+            "description": "Technical complexity"
+          },
+          "height": {
+            "type": "string",
+            "description": "high|medium|low"
+          },
+          "our_position": {
+            "type": "string",
+            "description": "How we can overcome"
           }
         }
       }

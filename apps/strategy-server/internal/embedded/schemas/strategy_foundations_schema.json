@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "title": "Strategy Foundations Schema",
   "description": "Defines the structure for core strategic definitions (Product Vision, Value Proposition, Strategic Sequencing, Information Architecture) that inform the Winning Formula.",
   "type": "object",
@@ -228,6 +228,16 @@
                   "strategic_rationale": {
                     "type": "string",
                     "description": "Why this phase comes before/after others"
+                  },
+                  "enabled_by_phase_1": {
+                    "type": "string",
+                    "description": "What phase 1 gives us that makes phase 2 possible"
+                  },
+                  "new_value_delivered": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": ["phase", "name", "timeframe", "focus"]
@@ -269,6 +279,23 @@
                 },
                 "alternative_considered": {
                   "type": "string"
+                }
+              }
+            },
+            "consistency_check": {
+              "type": "object",
+              "properties": {
+                "aligns_with_trends": {
+                  "type": "string",
+                  "description": "How sequencing exploits trends (timing)"
+                },
+                "de_risks_assumptions": {
+                  "type": "string",
+                  "description": "How sequencing tests riskiest assumptions early"
+                },
+                "leverages_moat": {
+                  "type": "string",
+                  "description": "How sequencing builds competitive defensibility"
                 }
               }
             }
@@ -324,6 +351,10 @@
                       },
                       "rationale": {
                         "type": "string"
+                      },
+                      "maps_to_job": {
+                        "type": "string",
+                        "description": "Which job-to-be-done this supports"
                       }
                     }
                   }
@@ -341,6 +372,18 @@
                       },
                       "why_first_class": {
                         "type": "string"
+                      },
+                      "relationships": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "key_attributes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
                       }
                     }
                   }
@@ -363,6 +406,18 @@
                       },
                       "why_prominent": {
                         "type": "string"
+                      },
+                      "frequency": {
+                        "type": "string",
+                        "description": "daily / weekly / monthly"
+                      },
+                      "complexity": {
+                        "type": "string",
+                        "description": "simple / medium / complex"
+                      },
+                      "must_be": {
+                        "type": "string",
+                        "description": "What UX quality this requires (e.g., 'fast', 'guided', 'flexible')"
                       }
                     }
                   }
@@ -409,6 +464,18 @@
                 },
                 "enables_sequencing": {
                   "type": "string"
+                },
+                "reflects_user_problems": {
+                  "type": "string",
+                  "description": "How IA directly addresses user problems from analysis"
+                },
+                "supports_value_prop": {
+                  "type": "string",
+                  "description": "How IA enables delivery of value proposition"
+                },
+                "scales_with_sequencing": {
+                  "type": "string",
+                  "description": "How IA can evolve through strategic phases"
                 }
               }
             }
@@ -432,6 +499,46 @@
         },
         "ia_matches_user_mental_model": {
           "type": "string"
+        },
+        "last_validated": {
+          "type": "string",
+          "description": "YYYY-MM-DD"
+        },
+        "validated_against": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "description": "00_insight_analyses.yaml"
+              },
+              "status": {
+                "type": "string",
+                "description": "consistent"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Product vision aligns with identified trends"
+              }
+            }
+          }
+        },
+        "known_tensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tension": {
+                "type": "string",
+                "description": "Description of any strategic tension or trade-off"
+              },
+              "how_resolved": {
+                "type": "string",
+                "description": "How we're managing this tension"
+              }
+            }
+          }
         }
       }
     },
@@ -452,6 +559,26 @@
           },
           "impact_on_fire_phase": {
             "type": "string"
+          },
+          "changed_by": {
+            "type": "string",
+            "description": "Name or Agent"
+          },
+          "sections_updated": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the change was needed"
+          },
+          "triggered_updates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
