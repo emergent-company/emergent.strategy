@@ -4,9 +4,12 @@ package sync
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	gosync "sync"
 	"time"
 
@@ -57,6 +60,8 @@ type scanCacheEntry struct {
 	expiry    time.Time
 	running   bool // true while a background scan goroutine is active
 	partial   bool // true when results are from quick scan only (full scan pending)
+	// incomplete is true when some organisations' repositories could not be read.
+	incomplete bool
 }
 
 // scanCache holds in-memory scan results keyed by cache key.
@@ -75,6 +80,10 @@ type ScanState struct {
 	Partial bool             // true when Ready but only quick-scan data is available (no EPF detection yet)
 	Results []RepoScanResult // non-nil when Ready and no error
 	Err     error            // non-nil when Ready and scan failed
+	// Incomplete is true when the list leaves out repositories GitHub would not let
+	// us read (an organisation failed to list). It is not an error: what could be
+	// read is in Results.
+	Incomplete bool
 }
 
 // peek returns the current state of the cache entry without blocking.
@@ -93,7 +102,7 @@ func (sc *scanCache) peek(key string) ScanState {
 	if entry.running {
 		return ScanState{} // scan in progress
 	}
-	return ScanState{Ready: true, Partial: entry.partial, Results: entry.results, Err: entry.scanError}
+	return ScanState{Ready: true, Partial: entry.partial, Results: entry.results, Err: entry.scanError, Incomplete: entry.incomplete}
 }
 
 // markRunning sets the running flag, preventing duplicate goroutines.
@@ -116,22 +125,24 @@ func (sc *scanCache) markRunning(key string) bool {
 
 // setPartialResult stores quick-scan results. The entry remains available for
 // the polling loop but the full scan goroutine will overwrite it with full results.
-func (sc *scanCache) setPartialResult(key string, results []RepoScanResult) {
+func (sc *scanCache) setPartialResult(key string, results []RepoScanResult, incomplete bool) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.entries[key] = scanCacheEntry{
-		results: results,
-		partial: true,
-		expiry:  time.Now().Add(scanCacheTTL),
+		results:    results,
+		partial:    true,
+		incomplete: incomplete,
+		expiry:     time.Now().Add(scanCacheTTL),
 	}
 }
 
-func (sc *scanCache) setResult(key string, results []RepoScanResult) {
+func (sc *scanCache) setResult(key string, results []RepoScanResult, incomplete bool) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	sc.entries[key] = scanCacheEntry{
-		results: results,
-		expiry:  time.Now().Add(scanCacheTTL),
+		results:    results,
+		incomplete: incomplete,
+		expiry:     time.Now().Add(scanCacheTTL),
 	}
 }
 
@@ -148,6 +159,47 @@ func (sc *scanCache) invalidate(key string) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	delete(sc.entries, key)
+}
+
+// invalidateWithPrefix drops every entry whose key starts with prefix.
+func (sc *scanCache) invalidateWithPrefix(prefix string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	for k := range sc.entries {
+		if strings.HasPrefix(k, prefix) {
+			delete(sc.entries, k)
+		}
+	}
+}
+
+// userScanKey is the cache key of a user's scan: a hash of the whole token. A
+// prefix of the token must not be used (two users can share one, and a prefix of a
+// credential is a credential fragment in memory and in logs); a different token,
+// after the user authorized again, simply misses.
+func userScanKey(userToken string) string {
+	sum := sha256.Sum256([]byte(userToken))
+	return "user:" + hex.EncodeToString(sum[:16])
+}
+
+// InvalidateUserScan drops the cached scan of the user holding this token.
+func (s *Service) InvalidateUserScan(userToken string) {
+	key := userScanKey(userToken)
+	cache := s.getScanCache()
+	cache.invalidate(key)
+	cache.invalidateWithPrefix(key + "|") // the per-owner scans of the same token
+}
+
+// listUserRepos reads the user's repositories. A PartialResultError is not a
+// failure: the list is returned with incomplete set.
+func (s *Service) listUserRepos(ctx context.Context, userToken string) (repos []UserRepoInfo, incomplete bool, err error) {
+	repos, err = s.reader.ListUserRepos(ctx, userToken)
+	var partial *PartialResultError
+	if errors.As(err, &partial) {
+		slog.WarnContext(ctx, "user repository list is incomplete",
+			"orgs", partial.Orgs, "org_list_failed", partial.OrgListFailed)
+		return repos, true, nil
+	}
+	return repos, false, err
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +238,7 @@ func (s *Service) ListUserInstallations(ctx context.Context, userToken string) (
 // ScanUserRepos discovers all repositories the user has access to via their
 // OAuth token (repo scope), detects EPF instances in each, and marks which
 // repos have the GitHub App installed (enabling write-back).
-// Results are cached in-memory for 5 minutes per user token prefix.
+// Results are cached in-memory for 30 minutes per user token (keyed by its hash).
 func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoScanResult, error) {
 	if s.reader == nil {
 		return nil, apperror.ErrBadRequest.WithDetail("GitHub App is not configured; set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH")
@@ -197,27 +249,65 @@ func (s *Service) ScanUserRepos(ctx context.Context, userToken string) ([]RepoSc
 
 	cache := s.getScanCache()
 
-	// Cache key: first 16 chars of token (never log the full token).
-	cacheKey := "user:" + userToken[:min(16, len(userToken))]
+	cacheKey := userScanKey(userToken)
 	if state := cache.peek(cacheKey); state.Ready {
 		slog.DebugContext(ctx, "scan repos: returning cached results")
 		return state.Results, state.Err
 	}
 
-	results, err := s.doScan(ctx, userToken)
+	results, incomplete, err := s.doScan(ctx, userToken, "")
 	if err != nil {
 		return nil, err
 	}
-	cache.setResult(cacheKey, results)
+	cache.setResult(cacheKey, results, incomplete)
+	return results, nil
+}
+
+// ScanUserOwnerRepos scans the repositories of one GitHub owner that the caller's
+// own token can see, and detects EPF instances in them. The list comes from the
+// user's token, so a caller sees only what their GitHub account sees, never what
+// the GitHub App can see in an organisation they cannot. The owner is matched
+// ignoring case; an owner the token cannot see gives an empty result. Detection
+// runs only for that owner's repositories. Results are cached per token and owner.
+func (s *Service) ScanUserOwnerRepos(ctx context.Context, userToken, owner string) ([]RepoScanResult, error) {
+	if s.reader == nil {
+		return nil, apperror.ErrBadRequest.WithDetail("GitHub App is not configured; set GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY_PATH")
+	}
+	if userToken == "" {
+		return nil, apperror.ErrBadRequest.WithDetail("user token is required")
+	}
+	if strings.TrimSpace(owner) == "" {
+		return nil, apperror.ErrBadRequest.WithDetail("github_owner is required")
+	}
+
+	cache := s.getScanCache()
+	cacheKey := userScanKey(userToken) + "|" + strings.ToLower(strings.TrimSpace(owner))
+	if state := cache.peek(cacheKey); state.Ready {
+		return state.Results, state.Err
+	}
+	results, incomplete, err := s.doScan(ctx, userToken, owner)
+	if err != nil {
+		return nil, err
+	}
+	cache.setResult(cacheKey, results, incomplete)
 	return results, nil
 }
 
 // doScan performs the actual repo listing and EPF detection without touching the cache.
-func (s *Service) doScan(ctx context.Context, userToken string) ([]RepoScanResult, error) {
+func (s *Service) doScan(ctx context.Context, userToken, onlyOwner string) ([]RepoScanResult, bool, error) {
 	// Fetch all repos the user has access to via OAuth (repo scope).
-	userRepos, err := s.reader.ListUserRepos(ctx, userToken)
+	userRepos, incomplete, err := s.listUserRepos(ctx, userToken)
 	if err != nil {
-		return nil, fmt.Errorf("list user repos: %w", err)
+		return nil, false, fmt.Errorf("list user repos: %w", err)
+	}
+	if onlyOwner != "" {
+		kept := make([]UserRepoInfo, 0, len(userRepos))
+		for _, r := range userRepos {
+			if strings.EqualFold(r.Owner, strings.TrimSpace(onlyOwner)) {
+				kept = append(kept, r)
+			}
+		}
+		userRepos = kept
 	}
 
 	// Fetch App installations to know which owners have write-back available.
@@ -285,17 +375,18 @@ func (s *Service) doScan(ctx context.Context, userToken string) ([]RepoScanResul
 	slog.InfoContext(ctx, "scan user repos complete",
 		"repos", len(userRepos),
 		"with_epf", countEPF(results),
-		"with_app_install", countAppInstall(results))
+		"with_app_install", countAppInstall(results),
+		"incomplete", incomplete)
 
-	return results, nil
+	return results, incomplete, nil
 }
 
 // doQuickScan lists repos and returns basic metadata (name, PushedAt, description)
 // without performing EPF detection. Much faster than doScan — no tree API calls.
-func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScanResult, error) {
-	userRepos, err := s.reader.ListUserRepos(ctx, userToken)
+func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScanResult, bool, error) {
+	userRepos, incomplete, err := s.listUserRepos(ctx, userToken)
 	if err != nil {
-		return nil, fmt.Errorf("list user repos (quick): %w", err)
+		return nil, false, fmt.Errorf("list user repos (quick): %w", err)
 	}
 	appInstallOwners := s.loadAppInstallOwners(ctx)
 	results := make([]RepoScanResult, len(userRepos))
@@ -312,8 +403,8 @@ func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScan
 			HasAppInstall: appInstallOwners[r.Owner],
 		}
 	}
-	slog.InfoContext(ctx, "quick scan complete", "repos", len(results))
-	return results, nil
+	slog.InfoContext(ctx, "quick scan complete", "repos", len(results), "incomplete", incomplete)
+	return results, incomplete, nil
 }
 
 // StartScanUserRepos performs the quick scan synchronously and returns partial results
@@ -323,13 +414,13 @@ func (s *Service) doQuickScan(ctx context.Context, userToken string) ([]RepoScan
 // Returns ScanState{} (not ready) when a scan is already running or results are fresh.
 func (s *Service) StartScanUserRepos(ctx context.Context, userToken string) ScanState {
 	cache := s.getScanCache()
-	cacheKey := "user:" + userToken[:min(16, len(userToken))]
+	cacheKey := userScanKey(userToken)
 	if !cache.markRunning(cacheKey) {
 		return ScanState{} // already running or full results fresh — caller uses GetCachedScanState
 	}
 
 	// Phase 1: quick scan — runs synchronously so the caller gets results immediately.
-	quickResults, quickErr := s.doQuickScan(ctx, userToken)
+	quickResults, quickIncomplete, quickErr := s.doQuickScan(ctx, userToken)
 	if quickErr != nil {
 		slog.WarnContext(ctx, "quick scan failed", "err", quickErr)
 		errTTL := scanErrorTTL
@@ -340,13 +431,13 @@ func (s *Service) StartScanUserRepos(ctx context.Context, userToken string) Scan
 		cache.setError(cacheKey, quickErr, errTTL)
 		return ScanState{Ready: true, Err: quickErr}
 	}
-	cache.setPartialResult(cacheKey, quickResults)
+	cache.setPartialResult(cacheKey, quickResults, quickIncomplete)
 
 	// Phase 2: full EPF detection runs in the background.
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
-		results, err := s.doScan(bgCtx, userToken)
+		results, incomplete, err := s.doScan(bgCtx, userToken, "")
 		if err != nil {
 			slog.Warn("background EPF scan failed", "err", err)
 			errTTL := scanErrorTTL
@@ -357,10 +448,10 @@ func (s *Service) StartScanUserRepos(ctx context.Context, userToken string) Scan
 			cache.setError(cacheKey, err, errTTL)
 			return
 		}
-		cache.setResult(cacheKey, results)
+		cache.setResult(cacheKey, results, incomplete)
 	}()
 
-	return ScanState{Ready: true, Partial: true, Results: quickResults}
+	return ScanState{Ready: true, Partial: true, Results: quickResults, Incomplete: quickIncomplete}
 }
 
 // GetCachedScanState returns the current scan state for the user token.
@@ -370,7 +461,7 @@ func (s *Service) GetCachedScanState(userToken string) ScanState {
 		return ScanState{}
 	}
 	cache := s.getScanCache()
-	cacheKey := "user:" + userToken[:min(16, len(userToken))]
+	cacheKey := userScanKey(userToken)
 	return cache.peek(cacheKey)
 }
 
@@ -434,7 +525,7 @@ func (s *Service) ScanInstallationRepos(ctx context.Context, githubOwner string)
 	}
 
 	wg.Wait()
-	cache.setResult(githubOwner, results)
+	cache.setResult(githubOwner, results, false)
 	return results, nil
 }
 
@@ -451,13 +542,6 @@ func (s *Service) loadAppInstallOwners(ctx context.Context) map[string]bool {
 		owners[i.OwnerLogin] = true
 	}
 	return owners
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // InvalidateScanCache clears the cached scan results for an owner.

@@ -638,6 +638,9 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 			if rle := wrapRateLimitError(apiErr); rle != nil {
 				return nil, fmt.Errorf("list user repos: %w", rle)
 			}
+			if isUnauthorized(apiErr) {
+				return nil, &TokenRevokedError{}
+			}
 			return nil, fmt.Errorf("list user repos: %w", apiErr)
 		}
 		for _, r := range repos {
@@ -652,11 +655,22 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 	// Pass 2: enumerate orgs and fetch their repos directly.
 	// This catches orgs that restrict OAuth App access but still allow org-level
 	// repo listing for members.
+	//
+	// A 401 anywhere means the token is revoked. A 403 on one organisation is
+	// the expected "this OAuth App is not approved there" and is skipped. Any
+	// other failure leaves the list incomplete, which the caller is told about
+	// (PartialListError) so a partial list is never shown as complete.
+	var failedOrgs []string
+	orgListFailed := false
 	orgOpts := &gh.ListOptions{PerPage: 100}
 	for {
 		orgs, resp, orgErr := client.Organizations.List(ctx, "", orgOpts)
 		if orgErr != nil {
-			slog.WarnContext(ctx, "list user orgs failed (pass 2 skipped)", "err", orgErr)
+			if isUnauthorized(orgErr) {
+				return nil, &TokenRevokedError{}
+			}
+			slog.WarnContext(ctx, "list user orgs failed (pass 2 incomplete)", "err", orgErr)
+			orgListFailed = true
 			break
 		}
 		for _, org := range orgs {
@@ -668,9 +682,19 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 			for {
 				repos, repoResp, repoErr := client.Repositories.ListByOrg(ctx, orgLogin, repoOpts)
 				if repoErr != nil {
-					// 403 = org restricts this OAuth App — expected, skip silently.
-					slog.DebugContext(ctx, "org repos inaccessible (OAuth App not approved by org)",
-						"org", orgLogin, "err", repoErr)
+					if isUnauthorized(repoErr) {
+						return nil, &TokenRevokedError{}
+					}
+					var ghErr *gh.ErrorResponse
+					if wrapRateLimitError(repoErr) == nil && errors.As(repoErr, &ghErr) &&
+						ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusForbidden {
+						// 403 = org restricts this OAuth App — expected, skip silently.
+						slog.DebugContext(ctx, "org repos inaccessible (OAuth App not approved by org)",
+							"org", orgLogin, "err", repoErr)
+						break
+					}
+					slog.WarnContext(ctx, "org repos failed (list incomplete)", "org", orgLogin, "err", repoErr)
+					failedOrgs = append(failedOrgs, orgLogin)
 					break
 				}
 				for _, r := range repos {
@@ -688,7 +712,41 @@ func (c *Client) ListUserRepos(ctx context.Context, userToken string) ([]UserRep
 		orgOpts.Page = resp.NextPage
 	}
 
+	if len(failedOrgs) > 0 || orgListFailed {
+		return all, &PartialListError{Orgs: failedOrgs, OrgListFailed: orgListFailed}
+	}
 	return all, nil
+}
+
+// isUnauthorized reports whether GitHub answered 401: the token is not valid
+// (revoked, expired, or the OAuth grant was removed).
+func isUnauthorized(err error) bool {
+	var ghErr *gh.ErrorResponse
+	return errors.As(err, &ghErr) && ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusUnauthorized
+}
+
+// TokenRevokedError is returned when GitHub rejects a user's OAuth token. The
+// caller should forget the token and send the user through authorization again.
+type TokenRevokedError struct{}
+
+func (e *TokenRevokedError) Error() string {
+	return "GitHub rejected the access token (revoked or expired)"
+}
+
+// PartialListError accompanies a usable but incomplete repository list: the
+// repositories that could be listed are returned with it. Orgs names the
+// organisations whose repositories could not be read, and OrgListFailed says the
+// list of the user's organisations itself could not be read.
+type PartialListError struct {
+	Orgs          []string
+	OrgListFailed bool
+}
+
+func (e *PartialListError) Error() string {
+	if e.OrgListFailed {
+		return "repository list incomplete: the user's organisations could not be listed"
+	}
+	return fmt.Sprintf("repository list incomplete: %d organisation(s) could not be read", len(e.Orgs))
 }
 
 // ListUserInstallations returns all GitHub App installations accessible to the
@@ -703,6 +761,9 @@ func (c *Client) ListUserInstallations(ctx context.Context, userToken string) ([
 	for {
 		installs, resp, apiErr := client.Apps.ListUserInstallations(ctx, opts)
 		if apiErr != nil {
+			if isUnauthorized(apiErr) {
+				return nil, &TokenRevokedError{}
+			}
 			return nil, fmt.Errorf("list user installations: %w", apiErr)
 		}
 		for _, i := range installs {

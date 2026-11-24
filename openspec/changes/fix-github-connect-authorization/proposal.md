@@ -61,12 +61,14 @@ the shared authorization package the other two changes use.
 - Connect page: the dropdown lists only workspaces the caller administers; the
   annotations show only instances the caller can access, and a bare "already
   connected in another organisation" marker (no identifiers) for the rest.
-- MCP tools: `list_github_installations` and `scan_github_repos` are scoped to
-  the installations the caller's own GitHub token can see; `import_from_github`
-  requires write access.
-- A revoked token is detected (typed error), the stored token is cleared and the
-  page returns to the authorize state. A partial scan is reported as partial.
-- The scan cache is keyed by user id and a hash of the token, not a token prefix.
+- MCP tools: `list_github_installations` and `scan_github_repos` act with the
+  caller's own GitHub token (never the App's credentials) and are refused to
+  access tokens; `scan_github_repos` lists only the repositories that token can
+  see, for one owner; `import_from_github` requires write access.
+- A revoked token is detected (typed error from a 401), the stored token is
+  cleared and the page returns to the authorize state. A list that could not read
+  every organisation says it may be incomplete.
+- The scan cache is keyed by a hash of the whole token, not a token prefix.
 - Fix the `scan_github_repos` tool text (cache lifetime).
 
 ## Impact

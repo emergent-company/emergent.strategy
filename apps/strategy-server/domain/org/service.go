@@ -247,6 +247,47 @@ func (s *Service) AddMember(ctx context.Context, orgID, userID uuid.UUID, role s
 	return membership, nil
 }
 
+// EnsureMember makes sure a user belongs to an org. It adds the user with the
+// given role when they are not a member and changes nothing when they are, so a
+// caller that only wants someone to belong cannot demote or promote an existing
+// member (AddMember overwrites the role). The role must be org_admin or
+// org_viewer; anything else is refused. It returns the membership as stored.
+func (s *Service) EnsureMember(ctx context.Context, orgID, userID uuid.UUID, role string) (*domain.OrgMembership, error) {
+	if role == "" {
+		role = domain.OrgRoleViewer
+	}
+	if role != domain.OrgRoleAdmin && role != domain.OrgRoleViewer {
+		return nil, apperror.ErrBadRequest.WithDetail(fmt.Sprintf("unknown organisation role %q", role))
+	}
+
+	membership := &domain.OrgMembership{ID: uuid.New(), OrgID: orgID, UserID: userID, Role: role}
+	res, err := s.db.NewInsert().Model(membership).
+		On("CONFLICT (org_id, user_id) DO NOTHING").
+		Exec(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ensure member: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		audit.FromContext(ctx).Write(ctx, audit.Entry{
+			EntityType: "org_membership",
+			EntityID:   membership.ID,
+			Action:     "add_member",
+			Source:     audit.SourceFromContext(ctx),
+			ActorID:    audit.ActorFromContext(ctx),
+		})
+		return membership, nil
+	}
+
+	// Already a member: return what is stored.
+	var existing domain.OrgMembership
+	if err := s.db.NewSelect().Model(&existing).
+		Where("org_id = ? AND user_id = ?", orgID, userID).
+		Scan(ctx); err != nil {
+		return nil, fmt.Errorf("read existing membership: %w", err)
+	}
+	return &existing, nil
+}
+
 // RemoveMember removes a user from an org. Fails if removing the last admin.
 func (s *Service) RemoveMember(ctx context.Context, orgID, userID uuid.UUID) error {
 	// Check if this is the last admin.

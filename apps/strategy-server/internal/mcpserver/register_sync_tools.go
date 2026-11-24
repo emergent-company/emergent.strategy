@@ -2,11 +2,15 @@ package mcpserver
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 
 	"github.com/google/uuid"
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -167,7 +171,9 @@ func registerImportFromGithubTool(s *server.MCPServer, svc Services) {
 		if err != nil {
 			return toolErr(ctx, err), nil
 		}
-		if err := assertInstanceAccess(ctx, svc, instID); err != nil {
+		// Importing replaces artifacts, so it needs write access to the instance,
+		// not just read access (a grant that is read-only is refused here).
+		if err := assertInstanceWrite(ctx, svc, instID); err != nil {
 			return toolErr(ctx, err), nil
 		}
 
@@ -250,10 +256,17 @@ func registerSyncToGithubTool(s *server.MCPServer, svc Services) {
 
 func registerListGithubInstallationsTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("list_github_installations",
-		mcp.WithDescription("USE WHEN you need to list all GitHub orgs and personal accounts where the GitHub App is installed. This is the entry point for the repo connect flow — call this first to discover which GitHub accounts to scan."),
+		mcp.WithDescription("USE WHEN you need to list the GitHub orgs and personal accounts where the GitHub App is installed and that the calling user can access. It uses the user's own connected GitHub account, so it needs that account to be connected (web UI: /github/connect); without it the result is needs_github_connection. Call this first to discover which GitHub accounts to scan."),
 	), func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		installs, err := svc.Sync.ListInstallations(ctx)
+		token, refused := githubTokenForCaller(ctx, svc)
+		if refused != nil {
+			return refused, nil
+		}
+		installs, err := svc.Sync.ListUserInstallations(ctx, token)
 		if err != nil {
+			if isTokenRevoked(err) {
+				return forgetRevokedToken(ctx, svc, token), nil
+			}
 			return mustJSON(map[string]any{
 				"app_configured": false,
 				"message":        err.Error(),
@@ -270,12 +283,19 @@ func registerListGithubInstallationsTool(s *server.MCPServer, svc Services) {
 
 func registerScanGithubReposTool(s *server.MCPServer, svc Services) {
 	s.AddTool(mcp.NewTool("scan_github_repos",
-		mcp.WithDescription("USE WHEN you need to scan all repositories for a GitHub owner (org or personal account) and detect which contain EPF strategy instances. Returns a repo list with EPF detection results. Results are cached for 5 minutes. Use list_github_installations to discover valid owner values first."),
-		mcp.WithString("github_owner", mcp.Required(), mcp.Description("GitHub organisation login or personal account login, e.g. 'acme-company' or 'nikolaifasting'.")),
+		mcp.WithDescription("USE WHEN you need to scan the repositories of a GitHub owner (org or personal account) and detect which contain EPF strategy instances. It lists only the repositories the calling user's own connected GitHub account can see (it needs that account connected: web UI /github/connect; without it the result is needs_github_connection). Returns a repo list with EPF detection results. Results are cached for 30 minutes. Use list_github_installations to discover valid owner values first."),
+		mcp.WithString("github_owner", mcp.Required(), mcp.Description("GitHub organisation login or personal account login, e.g. 'acme-company'.")),
 	), func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		token, refused := githubTokenForCaller(ctx, svc)
+		if refused != nil {
+			return refused, nil
+		}
 		owner := argString(req, "github_owner")
-		repos, err := svc.Sync.ScanInstallationRepos(ctx, owner)
+		repos, err := svc.Sync.ScanUserOwnerRepos(ctx, token, owner)
 		if err != nil {
+			if isTokenRevoked(err) {
+				return forgetRevokedToken(ctx, svc, token), nil
+			}
 			// Include install URL so the caller can prompt the user to install the App.
 			return mustJSON(map[string]any{
 				"error":           err.Error(),
@@ -296,6 +316,60 @@ func registerScanGithubReposTool(s *server.MCPServer, svc Services) {
 			"repos_with_epf": epfCount,
 		})
 	})
+}
+
+// githubTokenForCaller returns the calling user's own GitHub OAuth token. The
+// GitHub tools act with that token and never with the GitHub App's credentials,
+// so a caller sees only what their own GitHub account sees. When it cannot return
+// a token it returns the result to send instead: a refusal for an access token
+// (it narrows its owner to one instance and has no authority over the owner's
+// GitHub account), and needs_github_connection when the user has not connected
+// GitHub. In both cases no installation or repository data is included.
+func githubTokenForCaller(ctx context.Context, svc Services) (string, *mcp.CallToolResult) {
+	p := web.PrincipalFromContext(ctx)
+	if p == nil || p.User == nil {
+		return "", toolErr(ctx, apperror.ErrUnauthorized)
+	}
+	if p.TokenID != nil || p.Scoped() {
+		return "", toolErr(ctx, apperror.ErrForbidden.WithDetail(
+			"access tokens cannot use the GitHub connect tools; use an interactive session"))
+	}
+	if svc.User == nil {
+		return "", needsGithubConnection()
+	}
+	token, err := svc.User.GetGithubToken(ctx, p.User.ID)
+	if err != nil {
+		return "", toolErr(ctx, err)
+	}
+	if token == "" {
+		return "", needsGithubConnection()
+	}
+	return token, nil
+}
+
+func needsGithubConnection() *mcp.CallToolResult {
+	res, _ := mustJSON(map[string]any{
+		"needs_github_connection": true,
+		"message":                 "No GitHub account is connected for this user. Connect it in the web UI at /github/connect, then call this tool again.",
+	})
+	return res
+}
+
+func isTokenRevoked(err error) bool {
+	var revoked *syncdom.TokenRevokedError
+	return errors.As(err, &revoked)
+}
+
+// forgetRevokedToken handles a token GitHub no longer accepts: it drops the
+// cached scan and the stored token, and tells the caller to connect again.
+func forgetRevokedToken(ctx context.Context, svc Services, token string) *mcp.CallToolResult {
+	svc.Sync.InvalidateUserScan(token)
+	if u := web.UserFromContext(ctx); u != nil && svc.User != nil {
+		if err := svc.User.ClearGithubToken(ctx, u.ID); err != nil {
+			slog.ErrorContext(ctx, "clear revoked github token", "user_id", u.ID, "err", err)
+		}
+	}
+	return needsGithubConnection()
 }
 
 func registerGetSyncStatusTool(s *server.MCPServer, svc Services) {

@@ -175,6 +175,7 @@ func (a *RepoReaderAdapter) GetPullRequestState(ctx context.Context, token, owne
 // a clean retry UI without exposing raw GitHub API error messages.
 func (a *RepoReaderAdapter) ListUserRepos(ctx context.Context, userToken string) ([]sync.UserRepoInfo, error) {
 	repos, err := a.client.ListUserRepos(ctx, userToken)
+	var listErr error // returned together with the list when the list is usable
 	if err != nil {
 		var rle *RateLimitError
 		if errors.As(err, &rle) {
@@ -183,7 +184,15 @@ func (a *RepoReaderAdapter) ListUserRepos(ctx context.Context, userToken string)
 				Message:    rle.Error(),
 			}
 		}
-		return nil, err
+		var revoked *TokenRevokedError
+		if errors.As(err, &revoked) {
+			return nil, &sync.TokenRevokedError{}
+		}
+		var partial *PartialListError
+		if !errors.As(err, &partial) {
+			return nil, err
+		}
+		listErr = &sync.PartialResultError{Orgs: partial.Orgs, OrgListFailed: partial.OrgListFailed}
 	}
 	out := make([]sync.UserRepoInfo, len(repos))
 	for i, r := range repos {
@@ -198,13 +207,17 @@ func (a *RepoReaderAdapter) ListUserRepos(ctx context.Context, userToken string)
 			PushedAt:      r.PushedAt,
 		}
 	}
-	return out, nil
+	return out, listErr
 }
 
 // ListUserInstallations delegates to the user-token-scoped client method.
 func (a *RepoReaderAdapter) ListUserInstallations(ctx context.Context, userToken string) ([]sync.InstallationInfo, error) {
 	installs, err := a.client.ListUserInstallations(ctx, userToken)
 	if err != nil {
+		var revoked *TokenRevokedError
+		if errors.As(err, &revoked) {
+			return nil, &sync.TokenRevokedError{}
+		}
 		return nil, err
 	}
 	out := make([]sync.InstallationInfo, len(installs))

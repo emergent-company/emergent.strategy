@@ -13,6 +13,7 @@ import (
 	"github.com/uptrace/bun"
 
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	domain "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/domain"
 	ghclient "github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/github"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/langs"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -60,17 +61,21 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 
 	githubToken := s.loadUserGithubToken(ctx, user.ID)
 	if githubToken == "" {
-		return c.Redirect(http.StatusFound, "/github/connect")
+		return redirectToConnect(c)
 	}
 
 	// Check if results (or an error) are ready in the cache.
 	state := s.syncSvc.GetCachedScanState(githubToken)
 	if state.Ready {
+		if isTokenRevoked(state.Err) {
+			return s.forgetRevokedGithubToken(c, user.ID, githubToken)
+		}
 		data := ui.GithubConnectData{
-			AppInstallURL: s.githubAppInstallURL,
-			ReposLoaded:   true,
-			PartialScan:   state.Partial,
-			Workspaces:    s.loadWorkspacesForAssignment(ctx),
+			AppInstallURL:  s.githubAppInstallURL,
+			ReposLoaded:    true,
+			PartialScan:    state.Partial,
+			ScanIncomplete: state.Incomplete,
+			Workspaces:     s.loadWorkspacesForAssignment(ctx),
 		}
 		if state.Err != nil {
 			// Distinguish rate limit from other errors.
@@ -104,11 +109,15 @@ func (s *Server) handleGithubConnectRepos(c echo.Context) error {
 		return nil
 	}
 
+	if isTokenRevoked(state.Err) {
+		return s.forgetRevokedGithubToken(c, user.ID, githubToken)
+	}
 	data := ui.GithubConnectData{
-		AppInstallURL: s.githubAppInstallURL,
-		ReposLoaded:   true,
-		PartialScan:   state.Partial,
-		Workspaces:    s.loadWorkspacesForAssignment(ctx),
+		AppInstallURL:  s.githubAppInstallURL,
+		ReposLoaded:    true,
+		PartialScan:    state.Partial,
+		ScanIncomplete: state.Incomplete,
+		Workspaces:     s.loadWorkspacesForAssignment(ctx),
 	}
 	if state.Err != nil {
 		var rle *syncdom.RateLimitError
@@ -235,12 +244,11 @@ func (s *Server) handleGithubConnectScan(c echo.Context) error {
 
 	githubToken := s.loadUserGithubToken(ctx, user.ID)
 	if githubToken == "" {
-		return c.Redirect(http.StatusFound, "/github/connect")
+		return redirectToConnect(c)
 	}
 
 	// Invalidate the scan cache so the next /github/connect/repos call does a fresh scan.
-	cacheKey := "user:" + githubToken[:min(16, len(githubToken))]
-	s.syncSvc.InvalidateScanCache(cacheKey)
+	s.syncSvc.InvalidateUserScan(githubToken)
 
 	// Return the loading skeleton with hx-trigger="load" pointing at /github/connect/repos.
 	// HTMX swaps this into #github-repo-list, which immediately fires the load trigger.
@@ -348,14 +356,26 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 		MemorySyncStatus *string `bun:"memory_sync_status"`
 		WorkspaceName    string  `bun:"workspace_name"`
 		OrgName          string  `bun:"org_name"`
+		Accessible       bool    `bun:"accessible"`
 	}
 	var rows []row
+	// Which instances the caller may see is decided in the query: the member
+	// check is a join on the caller's own memberships. An instance of an
+	// organisation the caller is not in comes back flagged, and below it fills in
+	// nothing but the "connected elsewhere" marker. With no user in context nothing
+	// is accessible.
+	var userID uuid.UUID
+	if u := web.UserFromContext(ctx); u != nil {
+		userID = u.ID
+	}
 	err := s.db.NewSelect().
 		TableExpr("strategy_instances AS si").
 		ColumnExpr("si.id, si.name, si.github_repo, si.github_base_path, si.github_commit_sha, si.memory_sync_status").
 		ColumnExpr("w.display_name AS workspace_name, o.name AS org_name").
+		ColumnExpr("(m.user_id IS NOT NULL) AS accessible").
 		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Join("LEFT JOIN org_memberships AS m ON m.org_id = o.id AND m.user_id = ?", userID).
 		Where("si.deleted_at IS NULL").
 		Where("si.github_repo IS NOT NULL").
 		Scan(ctx, &rows)
@@ -374,12 +394,20 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 		LastSyncedAt  time.Time // from github_sync_log latest entry
 	}
 	lookup := make(map[string]connInfo, len(rows))
+	elsewhere := make(map[string]bool)
 	for _, r := range rows {
 		basePath := ""
 		if r.GithubBasePath != nil {
 			basePath = *r.GithubBasePath
 		}
 		key := r.GithubRepo + "|" + basePath
+		if !r.Accessible {
+			// Only that it exists: not the id, name, organisation, workspace or
+			// sync state. A repository linked in two organisations still shows
+			// the caller's own instance below.
+			elsewhere[key] = true
+			continue
+		}
 		info := connInfo{ID: r.ID, Name: r.Name, WorkspaceName: r.OrgName + " / " + r.WorkspaceName}
 		if r.GithubCommitSHA != nil && len(*r.GithubCommitSHA) >= 7 {
 			info.CommitSHA = (*r.GithubCommitSHA)[:7]
@@ -423,6 +451,9 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 	for i := range repos {
 		for j := range repos[i].DetectedInstances {
 			key := repos[i].FullName + "|" + repos[i].DetectedInstances[j].BasePath
+			if _, own := lookup[key]; !own && elsewhere[key] {
+				repos[i].DetectedInstances[j].ConnectedElsewhere = true
+			}
 			if info, ok := lookup[key]; ok {
 				repos[i].DetectedInstances[j].ConnectedInstanceID = info.ID
 				repos[i].DetectedInstances[j].ConnectedInstanceName = info.Name
@@ -439,9 +470,17 @@ func (s *Server) annotateConnectedInstances(ctx context.Context, repos []ui.Gith
 	}
 }
 
-// loadWorkspacesForAssignment loads all active workspaces for the assignment dropdown.
+// loadWorkspacesForAssignment loads the active workspaces the caller administers, for the assignment dropdown.
 // Web handlers may query the DB directly for read-only view-assembly queries (per constitution).
 func (s *Server) loadWorkspacesForAssignment(ctx context.Context) []ui.WorkspaceScanItem {
+	// Only workspaces of organisations the caller administers: importing writes
+	// into the chosen workspace, so a viewer, a stranger or no user at all gets
+	// none (the import itself checks the same thing again).
+	u := web.UserFromContext(ctx)
+	if u == nil {
+		return nil
+	}
+
 	type row struct {
 		ID      string `bun:"id"`
 		Name    string `bun:"display_name"`
@@ -453,6 +492,7 @@ func (s *Server) loadWorkspacesForAssignment(ctx context.Context) []ui.Workspace
 		TableExpr("workspaces AS w").
 		ColumnExpr("w.id, w.display_name, o.name AS org_name").
 		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Join("JOIN org_memberships AS m ON m.org_id = o.id AND m.user_id = ? AND m.role = ?", u.ID, domain.OrgRoleAdmin).
 		Where("w.deleted_at IS NULL").
 		Where("w.github_owner NOT LIKE ?", "e2e-%").
 		OrderExpr("o.name ASC, w.display_name ASC").
@@ -467,4 +507,36 @@ func (s *Server) loadWorkspacesForAssignment(ctx context.Context) []ui.Workspace
 		items[i] = ui.WorkspaceScanItem{ID: r.ID, Name: r.Name, OrgName: r.OrgName}
 	}
 	return items
+}
+
+// isTokenRevoked reports whether a scan failed because GitHub rejected the token.
+func isTokenRevoked(err error) bool {
+	var revoked *syncdom.TokenRevokedError
+	return errors.As(err, &revoked)
+}
+
+// forgetRevokedGithubToken handles a token GitHub no longer accepts: it drops the
+// cached scan, clears the stored token so the connect page offers authorization
+// again, and sends the browser there.
+func (s *Server) forgetRevokedGithubToken(c echo.Context, userID uuid.UUID, token string) error {
+	ctx := c.Request().Context()
+	s.syncSvc.InvalidateUserScan(token)
+	if s.userSvc != nil {
+		if err := s.userSvc.ClearGithubToken(ctx, userID); err != nil {
+			s.log.Error("clear revoked github token", "user_id", userID, "err", err)
+		}
+	}
+	s.log.Info("github token rejected by GitHub; cleared", "user_id", userID)
+	return redirectToConnect(c)
+}
+
+// redirectToConnect sends the browser to /github/connect. The repository list is an
+// HTMX fragment: a 302 would be followed by the XHR and the whole page swapped
+// into the list, so an HTMX request gets HX-Redirect, which navigates the browser.
+func redirectToConnect(c echo.Context) error {
+	if c.Request().Header.Get("HX-Request") == "true" {
+		c.Response().Header().Set("HX-Redirect", "/github/connect")
+		return c.NoContent(http.StatusOK)
+	}
+	return c.Redirect(http.StatusFound, "/github/connect")
 }

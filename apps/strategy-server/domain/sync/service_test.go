@@ -3,6 +3,7 @@ package sync_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -703,6 +704,10 @@ type scanMockReader struct {
 	// data race: increments were lost, and the test asserting
 	// detectCalls == 3 failed intermittently in CI while passing locally.
 	detectCalls atomic.Int64
+
+	// userReposErr is returned by ListUserRepos: a *PartialResultError comes with
+	// the list, any other error replaces it.
+	userReposErr error
 }
 
 func (m *scanMockReader) ListInstallations(_ context.Context) ([]syncdom.InstallationInfo, error) {
@@ -714,14 +719,20 @@ func (m *scanMockReader) ListUserInstallations(_ context.Context, _ string) ([]s
 }
 
 func (m *scanMockReader) ListUserRepos(_ context.Context, _ string) ([]syncdom.UserRepoInfo, error) {
+	if m.userReposErr != nil {
+		var partial *syncdom.PartialResultError
+		if !errors.As(m.userReposErr, &partial) {
+			return nil, m.userReposErr // a failure: no list
+		}
+	}
 	out := make([]syncdom.UserRepoInfo, len(m.repos))
 	for i, r := range m.repos {
 		out[i] = syncdom.UserRepoInfo{
-			Name: r.Name, FullName: r.FullName, Owner: "owner",
+			Name: r.Name, FullName: r.FullName, Owner: ownerOfFullName(r.FullName),
 			HTMLURL: r.HTMLURL, DefaultBranch: r.DefaultBranch, Private: r.Private,
 		}
 	}
-	return out, nil
+	return out, m.userReposErr // a partial list comes with its PartialResultError
 }
 
 func (m *mockRepoReader) ListInstallationRepos(_ context.Context, _ string) ([]syncdom.RepoInfo, error) {
@@ -925,4 +936,12 @@ func TestImportFromGithub_ForceDoesNotOverrideServerAhead(t *testing.T) {
 	if result.Status != "server_ahead" || reimporter.reimportedPayloads != nil {
 		t.Errorf("status=%q reimported=%v, want server_ahead and nothing discarded", result.Status, reimporter.reimportedPayloads != nil)
 	}
+}
+
+// ownerOfFullName is the part of "owner/repo" before the slash, "owner" when there is none.
+func ownerOfFullName(full string) string {
+	if i := strings.Index(full, "/"); i > 0 {
+		return full[:i]
+	}
+	return "owner"
 }

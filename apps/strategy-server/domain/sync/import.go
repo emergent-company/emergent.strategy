@@ -112,6 +112,31 @@ type RateLimitError struct {
 
 func (e *RateLimitError) Error() string { return e.Message }
 
+// TokenRevokedError is returned by scan operations when GitHub rejects the user's
+// OAuth token (revoked, expired, or the grant was removed). The caller should
+// forget the token and send the user through authorization again.
+type TokenRevokedError struct{}
+
+func (e *TokenRevokedError) Error() string {
+	return "GitHub rejected the access token (revoked or expired)"
+}
+
+// PartialResultError accompanies a usable but incomplete repository list from
+// ListUserRepos: the repositories that could be read are returned with it. Orgs
+// names the organisations whose repositories could not be read; OrgListFailed says
+// the user's list of organisations itself could not be read.
+type PartialResultError struct {
+	Orgs          []string
+	OrgListFailed bool
+}
+
+func (e *PartialResultError) Error() string {
+	if e.OrgListFailed {
+		return "repository list incomplete: the user's organisations could not be listed"
+	}
+	return "repository list incomplete: some organisations could not be read"
+}
+
 // DetectedEPFInstance is a single EPF instance found within a repository.
 type DetectedEPFInstance struct {
 	BasePath    string `json:"base_path"`     // repo-relative base path; "" = root

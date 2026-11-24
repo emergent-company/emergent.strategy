@@ -36,17 +36,34 @@ tools do not use them, and the web side has no equivalent. Roles are
    a conflict ("already connected in another organisation") that names nothing.
 7. **MCP GitHub tools use the caller's own token.** The App's JWT lists every
    installation of the App; the user's token (`ListUserInstallations`, which
-   exists and is unused) lists only theirs. `list_github_installations` returns
-   those; `scan_github_repos(owner)` requires the owner to be among them. A caller
-   with no stored token gets a structured `needs_github_connection` response, not
-   an error and not the server-wide list.
+   existed and was unused) lists only theirs. `list_github_installations` returns
+   those. `scan_github_repos(owner)` lists with the user's token
+   (`ScanUserOwnerRepos`: the user's repositories, filtered to the owner, EPF
+   detection only for those), as the web page does. Scanning through the App's
+   installation token was rejected: it would show repositories of an organisation
+   that the user's own GitHub account cannot see. A caller with no stored token
+   gets a structured `needs_github_connection` response, not an error and not the
+   server-wide list. An access token (scoped or not) is refused: it narrows its
+   owner to an instance and has no authority over the owner's GitHub account.
+   `User` is added to the MCP `Services` for the token lookup.
 8. **Revoked token.** A new `sync.TokenRevokedError`, produced from a 401 in
-   `ListUserRepos` pass 1 and from any 401 in pass 2, mapped in the adapter like `RateLimitError`. The repos
-   handler clears the token (`ClearGithubToken`), drops the cache entry and
-   renders the authorize state. Other pass-2 errors mark the result partial with
-   the failing org names logged, instead of being dropped.
-9. **Cache key.** `user:<user id>:<sha256(token) first 16 bytes hex>`. A token
-   change (re-authorize) misses the cache; one user never reads another's entry.
+   `ListUserRepos` (any pass) and `ListUserInstallations`, mapped in the adapter
+   like `RateLimitError`. The repos handler clears the token (`ClearGithubToken`),
+   drops the cache entry and sends the browser to `/github/connect`: with
+   `HX-Redirect` for an HTMX request (the list is a fragment, and a 302 would swap
+   a whole page into it), a 302 otherwise. The MCP tools clear it the same way and
+   answer `needs_github_connection`. A 403 on one organisation stays a silent skip:
+   it is the expected "this OAuth App is not approved there", and the page already
+   explains how to request access. Any other failure in pass 2 (an organisation or
+   the organisation list) returns the repositories that could be read together with
+   a `PartialResultError`; the scan carries it as `Incomplete` (not an error, not
+   the "partial" state of the quick scan) and the page says the list may be
+   incomplete.
+9. **Cache key.** `user:<hex of the first 16 bytes of sha256(token)>`, the whole
+   token hashed. The scan service receives only the token, not a user id. A token
+   change (re-authorize) misses the cache; tokens that share a prefix never share
+   an entry; no part of the token is stored. Per-owner MCP scans add `|<owner>` to
+   the key, and `InvalidateUserScan` clears both.
 10. **The connect page's markers.** Annotation of a repository linked in an
     organisation the caller cannot access is a boolean
     `connected_elsewhere`; no instance id, name, organisation, workspace or sync
