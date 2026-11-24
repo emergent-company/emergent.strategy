@@ -42,6 +42,42 @@ build.
 - **WHEN** a user requests any `/strategies/:id/...` route for an instance of an organisation they do not belong to
 - **THEN** the answer is that of a missing instance, for GET and for every write method
 
+### Requirement: Records Named Beside an Instance Belong to It
+
+A route that names a record next to its instance (a staged draft batch, a cycle
+proposal, a coherence signal, an AIM run, a skill run) SHALL answer as for a
+missing record when that record belongs to a different instance, whatever the
+caller's access to the instance in the URL.
+
+#### Scenario: Own instance with another tenant's record
+- **WHEN** a user of organisation A names an instance of A and the id of a record of organisation B in the same URL
+- **THEN** the server answers as for a record that does not exist, for every method
+- **AND** the record of B is not read, changed, committed, discarded, approved or aborted
+
+#### Scenario: Own record
+- **WHEN** the record belongs to the instance in the URL
+- **THEN** the request reaches its handler
+
+#### Scenario: Record that does not exist
+- **WHEN** the id names no record
+- **THEN** the handler answers (not found or bad request) and the guard reveals nothing about any other tenant
+
+### Requirement: Moving an Instance Never Joins an Existing Organisation
+
+Moving an instance SHALL require `org_admin` of its organisation and of the
+target organisation. A new workspace created by the move SHALL belong to a new
+organisation with the caller as admin; a name that is taken, or a GitHub owner
+that already has a workspace, SHALL be a conflict that creates nothing and adds
+the caller to nothing.
+
+#### Scenario: Target in another organisation
+- **WHEN** an admin of A moves an instance of A to a workspace of B
+- **THEN** the server answers as for a workspace that does not exist and the instance stays where it is
+
+#### Scenario: New workspace named like an existing organisation
+- **WHEN** a user names an existing organisation as the new workspace of a move
+- **THEN** the server returns a conflict and the user is not a member of that organisation afterwards
+
 ### Requirement: Lists Show Only the Caller's Organisations
 
 The dashboard, settings and every list, count or lookup in the web UI SHALL
