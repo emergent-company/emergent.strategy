@@ -254,12 +254,17 @@ the handler. Section 5 (CI gate) comes last.
       renders the pinned canonical template, wrapped and unwrapped, and asserts the
       strings it collects from the template itself; it is mutation-checked. Not done
       here: the general "stored but not shown" notice (section 2).
-- [ ] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
+- [x] 3.12 Wire the generic fallback (section 2) into every bespoke handler so
       future schema additions are never silently dropped. Done: insight analyses,
-      strategy formula, strategy foundations, value models, roadmap, LRA, features. `unshownContent`, `readRecords` and the tolerant readers are
-      shared; a page needs its shown paths, its record specs and `StoredNotShown`.
-      Assessment report added. Still without the notice: north star, calibration memo,
-      the portfolio and the generic track definitions.
+      strategy formula, strategy foundations, value models, roadmap, LRA, features,
+      opportunity, assessment report, north star and calibration memo. `unshownContent`,
+      `readRecords` and the tolerant readers are shared; a page needs its shown paths, its
+      record specs and `StoredNotShown`. The remaining types (portfolio, the three track
+      definitions, mappings, work package, trigger config, reality check, track health) have
+      no dedicated view and go through the generic renderer, which shows every stored value.
+      For north star and calibration: a payload built from the schema shows no notice, an
+      unknown key (inside the root block and beside it) shows under it, and the older
+      calibration layout is read without it; 11 mutations caught.
 
 ## 4. Render coverage tests
 
@@ -283,7 +288,7 @@ the handler. Section 5 (CI gate) comes last.
       sampler follows `allOf` now (the three track definitions gave no strings before and
       would have passed without checking anything). 17 of 17 mutations caught.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity`, `feature_definition` and `assessment_report`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity`, `feature_definition`, `assessment_report`, `north_star` and `calibration_memo`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and

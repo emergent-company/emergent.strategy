@@ -17,6 +17,9 @@ type CalibrationViewData struct {
 	EPFVersion  string
 	LastUpdated string
 
+	// Unshown is the stored content no view shows, rendered as stored under a notice.
+	Unshown map[string]any
+
 	// Core decision
 	Decision   string // persevere | pivot | pull_the_plug | pending_assessment
 	Confidence string // low | medium | high
@@ -77,6 +80,8 @@ templ CalibrationContent(data CalibrationViewData) {
 		if len(data.NextSteps) > 0 {
 			@calibrationNextStepsSection(data.NextSteps)
 		}
+
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 

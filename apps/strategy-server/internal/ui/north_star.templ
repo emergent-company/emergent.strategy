@@ -72,6 +72,9 @@ type NorthStarData struct {
 
 	// Section completeness gaps
 	Gaps []ReadyGap
+
+	// Unshown is the stored content no view shows, rendered as stored under a notice.
+	Unshown map[string]any
 }
 
 // BeliefData is a single decomposed belief.
@@ -203,6 +206,9 @@ templ NorthStarContent(data NorthStarData) {
 		if data.UsageGuidance != "" || len(data.Informs) > 0 {
 			@northStarGuidesSection(data)
 		}
+
+		// ── Stored content with no dedicated view ──
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
