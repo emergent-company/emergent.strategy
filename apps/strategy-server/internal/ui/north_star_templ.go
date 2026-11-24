@@ -80,6 +80,9 @@ type NorthStarData struct {
 
 	// Section completeness gaps
 	Gaps []ReadyGap
+
+	// Unshown is the stored content no view shows, rendered as stored under a notice.
+	Unshown map[string]any
 }
 
 // BeliefData is a single decomposed belief.
@@ -253,6 +256,10 @@ func NorthStarContent(data NorthStarData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
+		templ_7745c5c3_Err = StoredNotShown(data.Unshown).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -351,7 +358,7 @@ func northStarHero(data NorthStarData) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(langs.T(ctx, "artifact.label.north_star"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 240, Col: 124}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 246, Col: 124}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -374,7 +381,7 @@ func northStarHero(data NorthStarData) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.Organization)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 245, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 251, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -397,7 +404,7 @@ func northStarHero(data NorthStarData) templ.Component {
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Version)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 250, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 256, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -416,7 +423,7 @@ func northStarHero(data NorthStarData) templ.Component {
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.LastReviewed)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 253, Col: 38}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 259, Col: 38}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -435,7 +442,7 @@ func northStarHero(data NorthStarData) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.NextReview)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 256, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 262, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -503,7 +510,7 @@ func purposeSection(data NorthStarData) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.Purpose.Statement)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 276, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 282, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -594,7 +601,7 @@ func visionSection(data NorthStarData) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.Vision.Statement)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 308, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 314, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -673,7 +680,7 @@ func missionSection(data NorthStarData) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.Mission.Statement)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 335, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 341, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -692,7 +699,7 @@ func missionSection(data NorthStarData) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(data.WhoWeServeSpecific)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 342, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 348, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -731,7 +738,7 @@ func missionSection(data NorthStarData) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(data.BoundariesWhy)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 354, Col: 119}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 360, Col: 119}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -755,7 +762,7 @@ func missionSection(data NorthStarData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(data.HowWeDeliver)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 361, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 367, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -779,7 +786,7 @@ func missionSection(data NorthStarData) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(cap)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 366, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 372, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -886,7 +893,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(v.Value)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 397, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 403, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -904,7 +911,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(v.Definition)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 400, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 406, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -923,7 +930,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(v.ExampleDecision)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 405, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 411, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -952,7 +959,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(b)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 417, Col: 13}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 423, Col: 13}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -981,7 +988,7 @@ func richValueCard(v NorthStarValue) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(b)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 430, Col: 13}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 436, Col: 13}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -1132,7 +1139,7 @@ func beliefCategoryAccordion(category string, beliefs []BeliefData) templ.Compon
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(formatBeliefCategory(category))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 476, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 482, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -1145,7 +1152,7 @@ func beliefCategoryAccordion(category string, beliefs []BeliefData) templ.Compon
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(len(beliefs)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 477, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 483, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -1197,7 +1204,7 @@ func beliefRow(b BeliefData) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(b.Statement)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 490, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 496, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {
@@ -1220,7 +1227,7 @@ func beliefRow(b BeliefData) templ.Component {
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(b.Implication)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 494, Col: 93}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 500, Col: 93}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -1239,7 +1246,7 @@ func beliefRow(b BeliefData) templ.Component {
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(b.Evidence)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 497, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 503, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -1291,7 +1298,7 @@ func challengeCard(ch BeliefChallenge) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(ch.Belief)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 506, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 512, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 		if templ_7745c5c3_Err != nil {
@@ -1309,7 +1316,7 @@ func challengeCard(ch BeliefChallenge) templ.Component {
 			var templ_7745c5c3_Var38 string
 			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(ch.CounterEvidence)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 508, Col: 140}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 514, Col: 140}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
@@ -1328,7 +1335,7 @@ func challengeCard(ch BeliefChallenge) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(ch.Monitoring)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 511, Col: 131}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 517, Col: 131}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -1391,7 +1398,7 @@ func valueConflictsSection(conflicts []ValueConflict) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(c.Tension)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 530, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 536, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
@@ -1409,7 +1416,7 @@ func valueConflictsSection(conflicts []ValueConflict) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(c.ResolutionPrinciple)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 533, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 539, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -1477,7 +1484,7 @@ func alignmentChecksSection(checks []NorthStarStatement) templ.Component {
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(c.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 556, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 562, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -1490,7 +1497,7 @@ func alignmentChecksSection(checks []NorthStarStatement) templ.Component {
 			var templ_7745c5c3_Var45 string
 			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(c.Text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 557, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 563, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 			if templ_7745c5c3_Err != nil {
@@ -1550,7 +1557,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 			var templ_7745c5c3_Var47 string
 			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(m.LastReview)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 570, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 576, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 			if templ_7745c5c3_Err != nil {
@@ -1569,7 +1576,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 			var templ_7745c5c3_Var48 string
 			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(pl.ProductLine)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 576, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 582, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 			if templ_7745c5c3_Err != nil {
@@ -1587,7 +1594,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(pl.Position)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 578, Col: 62}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 584, Col: 62}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -1606,7 +1613,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(pl.Milestone)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 581, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 587, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -1634,7 +1641,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 					var templ_7745c5c3_Var51 string
 					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(tm.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 587, Col: 51}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 593, Col: 51}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 					if templ_7745c5c3_Err != nil {
@@ -1647,7 +1654,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 					var templ_7745c5c3_Var52 string
 					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(tm.Text)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 587, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 593, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 					if templ_7745c5c3_Err != nil {
@@ -1671,7 +1678,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 				var templ_7745c5c3_Var53 string
 				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(pl.Notes)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 592, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 598, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 				if templ_7745c5c3_Err != nil {
@@ -1690,7 +1697,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(pl.FocusAdvice)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 595, Col: 103}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 601, Col: 103}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 				if templ_7745c5c3_Err != nil {
@@ -1714,7 +1721,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(th.Theme)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 602, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 608, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1732,7 +1739,7 @@ func maturitySection(m NorthStarMaturity) templ.Component {
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(th.Implication)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 604, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 610, Col: 113}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
@@ -1797,7 +1804,7 @@ func reviewTriggersSection(scheduled string, events []string) templ.Component {
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(scheduled)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 617, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 623, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 			if templ_7745c5c3_Err != nil {
@@ -1821,7 +1828,7 @@ func reviewTriggersSection(scheduled string, events []string) templ.Component {
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(e)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 622, Col: 13}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 628, Col: 13}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1967,7 +1974,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 		var templ_7745c5c3_Var66 string
 		templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(e.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 653, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 659, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 		if templ_7745c5c3_Err != nil {
@@ -1980,7 +1987,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 		var templ_7745c5c3_Var67 string
 		templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(e.WhatChanged)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 655, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 661, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 		if templ_7745c5c3_Err != nil {
@@ -1998,7 +2005,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(e.Why)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 657, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 663, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 			if templ_7745c5c3_Err != nil {
@@ -2017,7 +2024,7 @@ func evolutionEntry(e EvolutionEntry, latest bool) templ.Component {
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinStringErrs(e.Impact)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 660, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 666, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -2113,7 +2120,7 @@ func sectionHeading(title, icon, color, subtitle string) templ.Component {
 		var templ_7745c5c3_Var75 string
 		templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 677, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 683, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 		if templ_7745c5c3_Err != nil {
@@ -2131,7 +2138,7 @@ func sectionHeading(title, icon, color, subtitle string) templ.Component {
 			var templ_7745c5c3_Var76 string
 			templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(subtitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 679, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 685, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 			if templ_7745c5c3_Err != nil {
@@ -2201,7 +2208,7 @@ func editorialCard(title, body, icon string) templ.Component {
 		var templ_7745c5c3_Var80 string
 		templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 691, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 697, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 		if templ_7745c5c3_Err != nil {
@@ -2214,7 +2221,7 @@ func editorialCard(title, body, icon string) templ.Component {
 		var templ_7745c5c3_Var81 string
 		templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(body)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 693, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 699, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 		if templ_7745c5c3_Err != nil {
@@ -2257,7 +2264,7 @@ func bulletListCard(title string, items []string, icon, color string) templ.Comp
 		var templ_7745c5c3_Var83 string
 		templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 702, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 708, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 		if templ_7745c5c3_Err != nil {
@@ -2297,7 +2304,7 @@ func bulletListCard(title string, items []string, icon, color string) templ.Comp
 			var templ_7745c5c3_Var86 string
 			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(item)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 707, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/ui/north_star.templ`, Line: 713, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 			if templ_7745c5c3_Err != nil {

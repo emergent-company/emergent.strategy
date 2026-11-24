@@ -123,7 +123,21 @@ func (s *Server) calibrationContent(navCtx ui.NavContext, artifactKey, name, sta
 		}
 	}
 
+	data.Unshown = unshownContent(payload, calibrationShownPaths)
+
 	return ui.CalibrationContent(data)
+}
+
+// calibrationShownPaths lists every path of the calibration memo that the page
+// renders, the legacy "calibration" block included. Anything not listed reaches
+// the page through the generic fallback.
+var calibrationShownPaths = []string{
+	"decision", "confidence", "reasoning", "roadmap_id", "cycle", "next_steps",
+	"meta.epf_version", "meta.last_updated",
+	"learnings.validated_assumptions", "learnings.invalidated_assumptions", "learnings.surprises",
+	"next_cycle_focus.continue_building", "next_cycle_focus.stop_building", "next_cycle_focus.start_exploring",
+	"next_ready_inputs.opportunity_update", "next_ready_inputs.strategy_update", "next_ready_inputs.new_assumptions",
+	"calibration.decision", "calibration.continue_doing", "calibration.stop_doing", "calibration.start_exploring",
 }
 
 // strField extracts a string from a map by key.

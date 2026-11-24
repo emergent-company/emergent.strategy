@@ -374,7 +374,48 @@ func buildNorthStarData(navCtx ui.NavContext, artifactKey, name, status string, 
 	}
 
 	data.Gaps = checkNorthStarGaps(payload)
+	data.Unshown = unshownInRoot(outer, "north_star", northStarShownPaths, northStarOuterShownPaths)
 	return data, nil
+}
+
+// northStarShownPaths lists every path of the north star block that the page
+// renders. Anything not listed reaches the page through the generic fallback, so
+// the list must hold only what the page really shows.
+var northStarShownPaths = []string{
+	"organization", "last_reviewed", "next_review", "version",
+	"purpose.statement", "purpose.problem_we_solve", "purpose.who_we_serve", "purpose.impact_we_seek",
+	"vision.vision_statement", "vision.timeframe", "vision.success_looks_like", "vision.not_the_vision",
+	"mission.mission_statement", "mission.what_we_do", "mission.who_we_serve_specifically",
+	"mission.how_we_deliver.approach", "mission.how_we_deliver.key_capabilities",
+	"mission.boundaries.we_dont_do", "mission.boundaries.why_not",
+	"values.*.value", "values.*.definition", "values.*.example_decision",
+	"values.*.behaviors_we_expect", "values.*.behaviors_we_reject",
+	"value_conflicts.*.tension", "value_conflicts.*.resolution_principle",
+	// Beliefs sit under a category (about_our_market, ...) and the challenges to them
+	// under belief_challenges; the page reads both the same way.
+	"core_beliefs.*.*.belief", "core_beliefs.*.*.implication", "core_beliefs.*.*.evidence",
+	"core_beliefs.*.*.counter_evidence", "core_beliefs.*.*.monitoring",
+	"alignment_checks.purpose_vision_alignment", "alignment_checks.mission_purpose_alignment",
+	"alignment_checks.values_mission_alignment", "alignment_checks.beliefs_inform_strategy",
+	"evolution_history.*.date", "evolution_history.*.what_changed", "evolution_history.*.why", "evolution_history.*.impact",
+	"strategic_maturity_context.last_maturity_review",
+	"strategic_maturity_context.portfolio_summary.*.product_line",
+	"strategic_maturity_context.portfolio_summary.*.overall_position",
+	"strategic_maturity_context.portfolio_summary.*.current_milestone",
+	"strategic_maturity_context.portfolio_summary.*.milestone_notes",
+	"strategic_maturity_context.portfolio_summary.*.focus_recommendation",
+	"strategic_maturity_context.portfolio_summary.*.track_maturity.product",
+	"strategic_maturity_context.portfolio_summary.*.track_maturity.strategy",
+	"strategic_maturity_context.portfolio_summary.*.track_maturity.org_ops",
+	"strategic_maturity_context.portfolio_summary.*.track_maturity.commercial",
+	"strategic_maturity_context.maturity_themes.*.theme", "strategic_maturity_context.maturity_themes.*.implication",
+	"next_review_triggers.scheduled", "next_review_triggers.event_based",
+}
+
+// northStarOuterShownPaths are the blocks beside the north star block.
+var northStarOuterShownPaths = []string{
+	"usage_guidance",
+	"informs_ready_phase.*",
 }
 
 // northStarAlignmentChecks reads alignment_checks: statements that purpose,
