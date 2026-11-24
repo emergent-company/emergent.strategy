@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Bespoke handlers render all schema-defined fields
 
@@ -31,8 +31,6 @@ a field name, the renderer SHALL read it.
 - **THEN** the gap checker and the renderer both treat `swot_analysis` as present, or both treat it as absent
 - **AND** they never disagree (gap checker says present, renderer shows blank)
 - **AND** a key the renderer has no dedicated view for is shown by the generic fallback under the notice, so "present" always means "shown"
-
-## ADDED Requirements
 
 ### Requirement: Generic fallback for unrecognised content
 
