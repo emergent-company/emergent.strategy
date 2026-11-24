@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -214,6 +215,7 @@ func (s *Server) northStarContent(navCtx ui.NavContext, artifactKey, name, statu
 // decomposer and the direct field reads below see the same content.
 func buildNorthStarData(navCtx ui.NavContext, artifactKey, name, status string, payload map[string]any) (ui.NorthStarData, error) {
 	inner := payload
+	outer := payload
 	if root, ok := payload["north_star"].(map[string]any); ok {
 		inner = root
 	} else {
@@ -239,6 +241,9 @@ func buildNorthStarData(navCtx ui.NavContext, artifactKey, name, status string, 
 	data.Organization = payloadStr(payload, "organization")
 	data.LastReviewed = payloadStr(payload, "last_reviewed")
 	data.NextReview = payloadStr(payload, "next_review")
+	data.Version = tolStr(payload, "version")
+	data.UsageGuidance = tolStr(outer, "usage_guidance")
+	data.Informs = northStarInforms(outer)
 
 	// ── Purpose (rich fields from payload) ──
 	if purpose, ok := payload["purpose"].(map[string]any); ok {
@@ -581,4 +586,33 @@ func (s *Server) renderArtifactPlaceholder(c echo.Context, instance *domain.Stra
 		ui.InstanceTabContent(tabs, currentPath, content),
 	)
 	return nil
+}
+
+// northStarInforms reads the artifacts the north star informs, one entry per
+// READY phase that names any. The schema lists the phases; the order here is the
+// order of the READY phase, and a phase the schema does not list is read too.
+func northStarInforms(outer map[string]any) []ui.NorthStarInforms {
+	block := tolMap(outer, "informs_ready_phase")
+	var out []ui.NorthStarInforms
+	seen := map[string]bool{}
+	add := func(phase string) {
+		seen[phase] = true
+		if refs := tolStrs(block, phase); len(refs) > 0 {
+			out = append(out, ui.NorthStarInforms{Phase: phase, Artifacts: refs})
+		}
+	}
+	for _, phase := range []string{"insight_analyses", "opportunity", "strategy_foundations", "strategy_formula", "roadmap"} {
+		add(phase)
+	}
+	var rest []string
+	for phase := range block {
+		if !seen[phase] {
+			rest = append(rest, phase)
+		}
+	}
+	sort.Strings(rest)
+	for _, phase := range rest {
+		add(phase)
+	}
+	return out
 }

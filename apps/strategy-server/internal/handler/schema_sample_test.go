@@ -20,6 +20,9 @@ func schemaSample(root, node map[string]any, path string, markers *[]string, pic
 	if ref, ok := node["$ref"].(string); ok {
 		node = resolveSchemaRef(root, ref)
 	}
+	if parts, ok := node["allOf"].([]any); ok && len(parts) > 0 {
+		return sampleAllOf(root, parts, path, markers, pick)
+	}
 	if variants, ok := node["oneOf"].([]any); ok && len(variants) > 0 {
 		chosen, _ := variants[pick%len(variants)].(map[string]any)
 		return schemaSample(root, chosen, path, markers, pick)
@@ -109,4 +112,44 @@ var patternClass = regexp.MustCompile(`\[[^\]]*\]\+`)
 func keyForPattern(pattern string) string {
 	p := strings.TrimSuffix(strings.TrimPrefix(pattern, "^"), "$")
 	return patternClass.ReplaceAllString(p, "q3")
+}
+
+// sampleAllOf samples each part of an allOf and merges the objects into one. A
+// part may name another embedded schema file ("track_definition_base_schema.json");
+// it is sampled against its own root.
+func sampleAllOf(root map[string]any, parts []any, path string, markers *[]string, pick int) any {
+	merged := map[string]any{}
+	for _, p := range parts {
+		part, _ := p.(map[string]any)
+		partRoot := root
+		if ref, ok := part["$ref"].(string); ok && !strings.HasPrefix(ref, "#") {
+			raw, err := embedded.GetSchema(ref)
+			if err != nil {
+				continue
+			}
+			var other map[string]any
+			if json.Unmarshal(raw, &other) != nil {
+				continue
+			}
+			partRoot, part = other, other
+		}
+		if obj, ok := schemaSample(partRoot, part, path, markers, pick).(map[string]any); ok {
+			mergeSample(merged, obj)
+		}
+	}
+	return merged
+}
+
+// mergeSample copies src into dst. Where both hold an object under one key the
+// two are merged, because a payload has to satisfy every part of an allOf.
+func mergeSample(dst, src map[string]any) {
+	for k, v := range src {
+		if from, ok := v.(map[string]any); ok {
+			if into, ok := dst[k].(map[string]any); ok {
+				mergeSample(into, from)
+				continue
+			}
+		}
+		dst[k] = v
+	}
 }

@@ -229,10 +229,21 @@ the handler. Section 5 (CI gate) comes last.
       Pinned by `TestLRAViewShowsEveryFieldOfTheSchema`, the canonical template, the
       numbers, booleans and enums that carry no marker, an older layout, listed
       baselines, the track order and the runway alone; mutation-checked (24).
-- [ ] 3.9 `handler_assessment.go` / `assessmentContent`: fix gaps found.
-- [ ] 3.10 `handler_calibration.go` / `calibrationContent`: fix gaps found.
+- [x] 3.9 `handler_assessment.go` / `assessmentContent`: fix gaps found. The page was
+      expected to need no change (100% on the reporter's instance), but a payload built
+      from the schema dropped 49 of its strings: the results of an objective are
+      `key_result_outcomes` in the schema and the page read only `key_results`, and it had
+      no view for `data_summary` (quantitative table, qualitative findings),
+      `cross_functional_insights` or `meta.epf_version`. All shown now; `key_results` is
+      still read, and a key no view reads shows under the notice. The reporter's 100% was
+      a measure of its own layout, not of the schema.
+- [x] 3.10 `handler_calibration.go` / `calibrationContent`: fix gaps found. Two strings
+      of the schema were dropped, `meta.epf_version` and `meta.last_updated`; the header
+      shows them now. (Found by the test of 4.2, together with the north star's.)
 - [x] 3.11 `handler_artifact.go` / `northStarContent`: fix gaps found. Done for
-      emergent.strategy#179. The page read its rich fields as flat keys while the
+      emergent.strategy#179. The test of 4.2 later found three more schema properties
+      with no view: `version`, `usage_guidance` and `informs_ready_phase` (the artifacts
+      the north star informs, by READY phase); the page shows them now. The page read its rich fields as flat keys while the
       schema and template wrap them in `north_star`, so the values, value conflicts,
       boundaries, success criteria, evolution history and the rest were all empty
       whenever the root key was present. `buildNorthStarData` removes the root once
@@ -247,6 +258,8 @@ the handler. Section 5 (CI gate) comes last.
       future schema additions are never silently dropped. Done: insight analyses,
       strategy formula, strategy foundations, value models, roadmap, LRA, features. `unshownContent`, `readRecords` and the tolerant readers are
       shared; a page needs its shown paths, its record specs and `StoredNotShown`.
+      Assessment report added. Still without the notice: north star, calibration memo,
+      the portfolio and the generic track definitions.
 
 ## 4. Render coverage tests
 
@@ -259,10 +272,18 @@ the handler. Section 5 (CI gate) comes last.
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
       `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and `feature_definition`, as a
-      payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
-      needed there. Not yet a test over every embedded schema.
+      payload built from the schema and `unshownContent` (1.6). Now one test over every
+      embedded schema (`internal/handler/schema_coverage_test.go`): every schema is
+      classified (`schemaPages`, or `schemasWithoutAPage` with the reason, so a new schema
+      fails until someone decides), a payload built from it is rendered through the page
+      dispatcher in both variants of every `oneOf`, and each string must reach the page.
+      The `ignoreList` is `markersNotShown`: empty, and an entry that is no longer needed
+      fails. Result on `7bfe5819`: 20 schemas, 3 pages dropped strings (assessment 49,
+      north star 12, calibration 2), all fixed (3.9, 3.10, 3.11), nothing ignored. The
+      sampler follows `allOf` now (the three track definitions gave no strings before and
+      would have passed without checking anything). 17 of 17 mutations caught.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and `feature_definition`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity`, `feature_definition` and `assessment_report`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
@@ -271,12 +292,17 @@ the handler. Section 5 (CI gate) comes last.
 
 ## 5. Canonical bump CI gate
 
-- [ ] 5.1 `scripts/sync-embedded.sh`: after syncing schemas and templates, run
+- [x] 5.1 `scripts/sync-embedded.sh`: after syncing schemas and templates, run
       the schema coverage test (4.2) so a new or changed property with no
-      handler or ignore-list entry fails the sync.
-- [ ] 5.2 Document in the sync checklist (and `AGENTS.md` if appropriate) that
+      handler or ignore-list entry fails the sync. It runs the 4.2 tests and the
+      template-against-schema test, exits 1 with a pointer to `AGENTS.md` on failure,
+      and takes `SKIP_UI_COVERAGE_CHECK=1` for a sync that only needs the files. Run
+      against a clone at the pinned 2.37.0: passes, 12 s, no embedded file changes
+      beyond the `MANIFEST.txt` timestamp.
+- [x] 5.2 Document in the sync checklist (and `AGENTS.md` if appropriate) that
       a canonical bump must cover UI handlers alongside schemas, decomposer,
-      MCP readers, export and import.
+      MCP readers, export and import. There was no sync checklist; added "Bumping the
+      canonical version" to `apps/strategy-server/AGENTS.md`.
 
 ## 6. Verification
 

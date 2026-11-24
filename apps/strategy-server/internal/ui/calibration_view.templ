@@ -14,6 +14,8 @@ type CalibrationViewData struct {
 	Status      string
 	Cycle       int
 	RoadmapID   string
+	EPFVersion  string
+	LastUpdated string
 
 	// Core decision
 	Decision   string // persevere | pivot | pull_the_plug | pending_assessment
@@ -141,9 +143,17 @@ templ calibrationHero(data CalibrationViewData) {
 					}
 				</div>
 
-				if data.RoadmapID != "" {
+				if data.RoadmapID != "" || data.EPFVersion != "" || data.LastUpdated != "" {
 					<div class="hidden sm:block text-right text-xs text-base-content/75 shrink-0">
-						<p class="font-mono">{ data.RoadmapID }</p>
+						if data.RoadmapID != "" {
+							<p class="font-mono">{ data.RoadmapID }</p>
+						}
+						if data.LastUpdated != "" {
+							<p>Updated { data.LastUpdated }</p>
+						}
+						if data.EPFVersion != "" {
+							<p>EPF { data.EPFVersion }</p>
+						}
 					</div>
 				}
 			</div>

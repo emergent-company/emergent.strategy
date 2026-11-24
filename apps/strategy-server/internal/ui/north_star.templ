@@ -18,6 +18,12 @@ type NorthStarData struct {
 	Organization string
 	LastReviewed string
 	NextReview   string
+	Version      string
+
+	// How the north star guides the READY phase: the guidance for using it, and
+	// the artifacts it informs, by phase.
+	UsageGuidance string
+	Informs       []NorthStarInforms
 
 	// Purpose
 	Purpose          BeliefData
@@ -192,7 +198,32 @@ templ NorthStarContent(data NorthStarData) {
 		if len(data.Evolution) > 0 {
 			@evolutionSection(data.Evolution)
 		}
+
+		// ── How it guides the READY phase ──
+		if data.UsageGuidance != "" || len(data.Informs) > 0 {
+			@northStarGuidesSection(data)
+		}
 	</div>
+}
+
+// NorthStarInforms names the artifacts of one READY phase that the north star informs.
+type NorthStarInforms struct {
+	Phase     string
+	Artifacts []string
+}
+
+templ northStarGuidesSection(data NorthStarData) {
+	<section>
+		@sectionHeading("How it guides the READY phase", "lucide--compass", "info", "")
+		<div class="mt-4 grid gap-4 md:grid-cols-2">
+			if data.UsageGuidance != "" {
+				@editorialCard("Using the north star", data.UsageGuidance, "lucide--book-open")
+			}
+			for _, in := range data.Informs {
+				@bulletListCard("Informs "+formatKey(in.Phase), in.Artifacts, "lucide--arrow-right", "info")
+			}
+		</div>
+	</section>
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -213,8 +244,11 @@ templ northStarHero(data NorthStarData) {
 					</div>
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Organization }</h1>
 				</div>
-				if data.LastReviewed != "" || data.NextReview != "" {
+				if data.LastReviewed != "" || data.NextReview != "" || data.Version != "" {
 					<div class="hidden sm:block text-right text-xs text-base-content/75 space-y-0.5">
+						if data.Version != "" {
+							<p>Version { data.Version }</p>
+						}
 						if data.LastReviewed != "" {
 							<p>Reviewed { data.LastReviewed }</p>
 						}

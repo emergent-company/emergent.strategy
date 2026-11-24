@@ -286,6 +286,33 @@ go test ./pkg/... ./internal/audit/... ./internal/agent/... ./internal/embedded/
 task lint
 ```
 
+## Bumping the canonical version
+
+A canonical release changes more than the files under `internal/embedded/`. Work
+through this list, in this order:
+
+1. Check out the canonical release in a real clone (a `git worktree` yields an empty
+   integrity manifest), set `.epf-canonical-version` to its commit, and run
+   `task sync-embedded CANONICAL_EPF_PATH=<clone>`. The script ends with the UI
+   coverage gate (below); do not skip it for a real bump.
+2. **UI pages.** Every page must show every property its schema defines, or say
+   it has no view for it (`StoredNotShown`). The gate is
+   `internal/handler/schema_coverage_test.go`:
+   - `TestEverySchemaIsClassified` fails for an embedded schema that is in neither
+     `schemaPages` nor `schemasWithoutAPage`. Add it, and give its artifact a view.
+   - `TestEveryPageShowsEveryStringOfItsSchema` renders a payload built from each
+     schema and fails for every string the page drops. Show the field (a reader in
+     `internal/handler`, a view in `internal/ui`, then `templ generate ./internal/ui`),
+     or, only for something a page must not show, add it to `markersNotShown` with the
+     reason. An enum, number or boolean carries no marker, so give it a test of its own.
+3. **Templates.** `TestEmbeddedTemplatesMatchTheirSchemas` fails when a template no
+   longer validates. Canonical's known gaps are listed in that test; a gap that
+   reaches zero must move to the enforced list.
+4. **Decomposer, MCP readers, export and import.** Run the whole suite: the decompose,
+   mcpserver and portfolio tests read the same schemas.
+5. If an MCP tool changed, `task selfmodel:generate`. If `epf-cli` reads the changed
+   artifact, run `apps/epf-cli/scripts/sync-embedded.sh` and its tests too.
+
 ## CSS Build — Critical Rules
 
 The Tailwind CSS build **must** run from `apps/strategy-server/`, not from inside `web/`.
