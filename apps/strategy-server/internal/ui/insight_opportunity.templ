@@ -15,6 +15,12 @@ type InsightOpportunityData struct {
 	Description     string
 	ConfidenceLevel string
 	ValidationDate  string
+	StoredStatus    string // the opportunity's own lifecycle: identified, validated, ...
+
+	// The analyses the opportunity was drawn from
+	AnalysesSource  string
+	BasedOnAnalyses string
+	AnalysesUpdated string
 
 	// Context
 	Urgency       string
@@ -37,6 +43,9 @@ type InsightOpportunityData struct {
 
 	// Section completeness gaps
 	Gaps []ReadyGap
+
+	// Stored content the page has no dedicated view for
+	Unshown map[string]any
 }
 
 type OpportunityEvidence struct {
@@ -76,6 +85,7 @@ templ InsightOpportunityContent(data InsightOpportunityData) {
 		if len(data.SuccessIndicators) > 0 {
 			@opportunitySuccessSection(data.SuccessIndicators)
 		}
+		@StoredNotShown(data.Unshown)
 	</div>
 }
 
@@ -101,6 +111,22 @@ templ opportunityHero(data InsightOpportunityData) {
 					<h1 class="text-2xl font-bold text-base-content sm:text-3xl">{ data.Title }</h1>
 					if data.OpportunityID != "" {
 						<p class="text-xs font-mono text-base-content/55">{ data.OpportunityID }</p>
+					}
+					if data.StoredStatus != "" {
+						<p class="text-xs text-base-content/75">Opportunity status: <span class="font-semibold">{ data.StoredStatus }</span></p>
+					}
+					if data.AnalysesSource != "" || data.BasedOnAnalyses != "" || data.AnalysesUpdated != "" {
+						<p class="text-xs text-base-content/75">
+							if data.AnalysesSource != "" {
+								<span>Analyses source: { data.AnalysesSource }</span>
+							}
+							if data.BasedOnAnalyses != "" {
+								<span class="ml-3">Based on: { data.BasedOnAnalyses }</span>
+							}
+							if data.AnalysesUpdated != "" {
+								<span class="ml-3">Analyses last updated: { data.AnalysesUpdated }</span>
+							}
+						</p>
 					}
 				</div>
 			if data.ValidationDate != "" {

@@ -153,7 +153,19 @@ the handler. Section 5 (CI gate) comes last.
       mutation-checked (21). The sampler in `schema_sample_test.go` now follows
       `$ref` and `patternProperties`. Still open: `handler_execution.go` and two
       counts in `queries_phases.go` read only `okrs`; they belong to their own pages.
-- [ ] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found.
+- [x] 3.5 `handler_opportunity.go` / `insightOpportunityContent`: fix gaps found. A
+      payload built from the schema lost 2 of its 25 strings: the text of every
+      success indicator, because the page read `indicator` while the schema, the
+      template and the Emergent instance use `metric` (`indicator` is still read).
+      Also dropped: the opportunity's stored status (identified, validated, ...), the
+      three links to the analyses it was drawn from (`analyses_source`,
+      `based_on_analyses`, `analyses_last_updated`, which the template and the Emergent
+      instance carry beside the opportunity block) and any key the schema does not
+      define. The readers are the tolerant ones; the page ends with the notice.
+      Tests: `handler_opportunity_test.go` (schema coverage, canonical template,
+      enums and dates, both indicator keys, the analyses links, unknown keys, an
+      unwrapped payload); mutation-checked (19). Emergent's own opportunity file
+      shows in full.
 - [x] 3.6 `handler_feature.go` / `featureViewContent`: fix gaps found. A payload
       built from the schema lost 92 of its 177 strings; seven top-level sections had
       no complete view. Causes: the feature maturity (overall stage, capability
@@ -237,16 +249,16 @@ the handler. Section 5 (CI gate) comes last.
 - [ ] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
-      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and (without a template) `feature_definition` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8, 3.6);
+      `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and (without a template) `feature_definition` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8, 3.5, 3.6);
       the other artifact types are not covered yet.
 - [ ] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
-      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and `feature_definition`, as a
+      `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and `feature_definition`, as a
       payload built from the schema and `unshownContent` (1.6); no `ignoreList` was
       needed there. Not yet a test over every embedded schema.
 - [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment` and `feature_definition`.
+      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and `feature_definition`.
 - [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
