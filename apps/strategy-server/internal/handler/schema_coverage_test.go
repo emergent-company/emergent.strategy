@@ -141,3 +141,39 @@ func TestEveryPageShowsEveryStringOfItsSchema(t *testing.T) {
 		})
 	}
 }
+
+// pagesOnTheGenericRenderer are the artifact types that have no dedicated view.
+// The generic renderer shows every stored value, so it needs no notice.
+var pagesOnTheGenericRenderer = map[string]bool{
+	"aim_trigger_config": true, "commercial_def": true, "mappings": true, "org_ops_def": true,
+	"product_portfolio": true, "strategic_reality_check": true, "strategy_def": true,
+	"track_health_assessment": true, "work_package": true,
+}
+
+// A key no schema defines is never dropped: on every page it is shown as stored,
+// and a page with a dedicated view says so under the notice (#163).
+func TestEveryPageShowsAnUnknownTopLevelKey(t *testing.T) {
+	var files []string
+	for f := range schemaPages {
+		files = append(files, f)
+	}
+	sort.Strings(files)
+	for _, file := range files {
+		artifactType := schemaPages[file]
+		t.Run(artifactType, func(t *testing.T) {
+			payload, _ := sampleOfSchema(t, file, 0, 1)
+			payload["zz_unknown_section"] = map[string]any{"headline": "unknown-marker-text"}
+			page := renderPageOfType(t, artifactType, payload)
+			if !strings.Contains(page, "unknown-marker-text") {
+				t.Errorf("%s: an unknown top-level key is dropped", artifactType)
+			}
+			notice := strings.Contains(page, "no dedicated view")
+			if !pagesOnTheGenericRenderer[artifactType] && !notice {
+				t.Errorf("%s: a page with a dedicated view does not say it has no view for the key", artifactType)
+			}
+			if pagesOnTheGenericRenderer[artifactType] && notice {
+				t.Errorf("%s: is listed as generic but shows the notice; remove it from pagesOnTheGenericRenderer", artifactType)
+			}
+		})
+	}
+}
