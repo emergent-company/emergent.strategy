@@ -171,3 +171,24 @@ func TestRoadmapViewShowsUnknownKeysAtEveryLevel(t *testing.T) {
 		t.Error("the notice is missing")
 	}
 }
+
+// A roadmap as real instances write it: it validates against the schema but is
+// not the canonical template. Objectives sit in a later list with a name of the
+// author's choosing, and the roadmap carries a timeline and integration points
+// the schema does not define. The later list is shown with its objective, and the
+// blocks the schema does not define are shown as stored, under the notice.
+func TestRoadmapOfARealInstanceLayoutShowsLaterListsAndUnknownBlocks(t *testing.T) {
+	payload, _ := sampleOfSchema(t, "roadmap_recipe_schema.json", 0, 100)
+	root := payload["roadmap"].(map[string]any)
+	tracks := root["tracks"].(map[string]any)
+	track := tracks["product"].(map[string]any)
+	track["future_okrs_h2_2027"] = []any{map[string]any{
+		"id": "okr-p-900", "objective": "objective-in-a-later-list",
+		"key_results": []any{map[string]any{"id": "kr-p-900", "description": "result-in-a-later-list"}},
+	}}
+	root["timeline"] = map[string]any{"phase_one": "timeline-block-text"}
+	root["integration_points"] = []any{"integration-point-text"}
+
+	page := renderRoadmap(t, payload)
+	mustContain(t, page, "objective-in-a-later-list", "timeline-block-text", "integration-point-text", "2 sections are stored but have no dedicated view")
+}

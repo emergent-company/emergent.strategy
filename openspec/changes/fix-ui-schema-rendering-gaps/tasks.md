@@ -87,9 +87,29 @@ the handler. Section 5 (CI gate) comes last.
 
 ## 3. Audit and fix other bespoke handlers
 
-- [ ] 3.1 For each bespoke handler, compare the schema's property list against
+- [x] 3.1 For each bespoke handler, compare the schema's property list against
       the handler's extracted fields. Record the delta in a table (handler,
-      schema property, status: read / missing / sub-field missing).
+      schema property, status: read / missing / sub-field missing). The comparison
+      is no longer done by hand: `TestEveryPageShowsEveryStringOfItsSchema` (4.2)
+      builds a payload from each schema and names every string a page drops, so the
+      delta is recomputed on every run and on every canonical bump. Per page, with the
+      strings the schema defines now (2.37.0) and the strings the page dropped before
+      its fix, as measured then (the schema was smaller then, so the totals differ):
+
+      | page (handler) | strings now | dropped before | dropped now | task |
+      |---|---|---|---|---|
+      | insight analyses | 356 | not counted (reporter's page: 28% of long text) | 0 | PR #200 |
+      | strategy formula | 128 | 80 of 127 | 0 | 3.2 |
+      | strategy foundations | 163 | 77 of 112 | 0 | 3.3 |
+      | roadmap | 464 | 263 of 464 | 0 | 3.4 |
+      | opportunity | 25 | 2 of 25 | 0 | 3.5 |
+      | feature | 177 | 92 of 177 | 0 | 3.6 |
+      | value model | 126 | 76 of 98 | 0 | 3.7 |
+      | living reality assessment | 61 | 30 of 61 | 0 | 3.8 |
+      | assessment report | 63 | 49 of 63 | 0 | 3.9 |
+      | calibration memo | 22 | 2 of 22 | 0 | 3.10 |
+      | north star | 115 | 12 of 115 (after the root-key fix of PR #191) | 0 | 3.11 |
+      | generic renderer: portfolio, 3 track definitions, mappings, work package, trigger config, reality check, track health | 16 to 150 each | 0 (shows every stored value) | 0 | 3.12 |
 - [x] 3.2 `handler_formula.go` / `strategyFormulaContent`: fix gaps found. Before
       this, a payload built from the schema lost 80 of its 127 strings and the
       canonical template 20 of 27. Causes: every list item that was a plain string
@@ -268,12 +288,17 @@ the handler. Section 5 (CI gate) comes last.
 
 ## 4. Render coverage tests
 
-- [ ] 4.1 Per-artifact render test: for each artifact type, render the
+- [x] 4.1 Per-artifact render test: for each artifact type, render the
       canonical template through its bespoke handler and assert every non-empty
       field appears in the output. Canonical templates live in
       `internal/embedded/templates/READY/*.yaml` and `templates/AIM/*.yaml`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and (without a template) `feature_definition` (1.6, 3.2, 3.3, 3.7, 3.4, 3.8, 3.5, 3.6);
-      the other artifact types are not covered yet.
-- [ ] 4.2 Schema coverage test: for every property in every embedded schema,
+      the other artifact types are not covered yet. Now one test over every embedded
+      template that has a page (`internal/handler/template_coverage_test.go`,
+      `TestEveryTemplateReachesItsPage`): 19 templates, each string must reach the page
+      of its artifact (case and underscores are not compared, so a status shows as a
+      label); a template with a page that is not listed is reported. Nothing is
+      excluded. 6 mutations caught across this test and 4.3.
+- [x] 4.2 Schema coverage test: for every property in every embedded schema,
       assert that a handler reads it or it is on an explicit `ignoreList`. An
       unhandled, non-ignored property fails the test. Similar pattern to
       `TestDecomposerFieldsMatchSchemas`. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity` and `feature_definition`, as a
@@ -287,13 +312,20 @@ the handler. Section 5 (CI gate) comes last.
       north star 12, calibration 2), all fixed (3.9, 3.10, 3.11), nothing ignored. The
       sampler follows `allOf` now (the three track definitions gave no strings before and
       would have passed without checking anything). 17 of 17 mutations caught.
-- [ ] 4.3 Fallback test: an unknown top-level key in any artifact type produces
-      the generic fallback section and the notice. Done for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity`, `feature_definition`, `assessment_report`, `north_star` and `calibration_memo`.
-- [ ] 4.4 Real-instance fixture tests: include at least two fixtures with
+- [x] 4.3 Fallback test: an unknown top-level key in any artifact type produces
+      the generic fallback section and the notice. Now one test over every page
+      (`TestEveryPageShowsAnUnknownTopLevelKey`): the key is shown on all 20, and a page with
+      a dedicated view also shows the notice; the types on the generic renderer are listed
+      (`pagesOnTheGenericRenderer`) and must not show it. Done before as separate tests for `insight_analyses`, `strategy_formula`, `strategy_foundations`, `value_model`, `roadmap_recipe`, `living_reality_assessment`, `insight_opportunity`, `feature_definition`, `assessment_report`, `north_star` and `calibration_memo`.
+- [x] 4.4 Real-instance fixture tests: include at least two fixtures with
       layouts that validate but differ from the canonical template (e.g. the
       legacy insight analyses layout, a roadmap with `future_okrs_*` and
-      `timeline`). Two so far: the legacy insight analyses layout, and the
-      older flat value proposition and design principles paths of the foundations.
+      `timeline`). Three: the legacy insight analyses layout, the older flat value
+      proposition and design principles paths of the foundations, and a roadmap with a
+      later OKR list named by its author, a `timeline` and `integration_points`
+      (`TestRoadmapOfARealInstanceLayoutShowsLaterListsAndUnknownBlocks`: the objective of
+      the later list shows, and the notice counts exactly the two unknown blocks). All
+      synthetic; no instance content is stored in the repo.
 
 ## 5. Canonical bump CI gate
 
@@ -311,9 +343,9 @@ the handler. Section 5 (CI gate) comes last.
 
 ## 6. Verification
 
-- [ ] 6.1 `cd apps/strategy-server && go test ./...` green, no regressions.
-- [ ] 6.2 `cd apps/strategy-server && task lint` clean.
-- [ ] 6.3 `openspec validate fix-ui-schema-rendering-gaps --strict` passes.
+- [x] 6.1 `cd apps/strategy-server && go test ./...` green, no regressions. 55 packages ok.
+- [x] 6.2 `cd apps/strategy-server && task lint` clean. 0 issues.
+- [x] 6.3 `openspec validate fix-ui-schema-rendering-gaps --strict` passes.
 - [x] 6.4 Verify on the Huma instance: insight analyses page renders all 7
       stored sections, not just direct competitors. Checked on the dev server
       built from `378e297e` against the reporter's instance, by reading the rendered
