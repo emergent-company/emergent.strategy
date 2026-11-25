@@ -493,10 +493,12 @@ func pushBlockedReason(repo string, err error) string {
 
 // loadInstanceRepoLinks loads read-only GitHub repo metadata for all instances
 // that have a github_repo set. This is independent of GitHub App configuration.
+// Scoped to the caller's organisations, excluding deleted/archived instances.
 func (s *Server) loadInstanceRepoLinks(ctx context.Context) []ui.InstanceRepoLink {
 	type repoRow struct {
 		ID        string `bun:"id"`
 		Name      string `bun:"name"`
+		OrgName   string `bun:"org_name"`
 		Repo      string `bun:"github_repo"`
 		Branch    string `bun:"github_branch"`
 		BasePath  string `bun:"github_base_path"`
@@ -505,10 +507,17 @@ func (s *Server) loadInstanceRepoLinks(ctx context.Context) []ui.InstanceRepoLin
 
 	var rows []repoRow
 	err := s.db.NewSelect().
-		TableExpr("strategy_instances").
-		ColumnExpr("id, name, github_repo, github_branch, github_base_path, github_commit_sha").
-		Where("github_repo != '' AND github_repo IS NOT NULL").
-		OrderExpr("name ASC").
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id, si.name, si.github_repo, si.github_branch, si.github_base_path, si.github_commit_sha").
+		ColumnExpr("o.name AS org_name").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("si.github_repo != '' AND si.github_repo IS NOT NULL").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
+		OrderExpr("o.name ASC, si.name ASC").
 		Scan(ctx, &rows)
 	if err != nil {
 		return nil
