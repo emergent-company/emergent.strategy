@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/seal"
 )
 
 // ServerCmd is the subcommand for running the HTTP/MCP server.
@@ -178,6 +180,11 @@ type Config struct {
 	GithubClientSecret string `arg:"env:EPF_OAUTH_CLIENT_SECRET" help:"GitHub OAuth App client secret (legacy — use GITHUB_OAUTH_CLIENT_SECRET)"`
 	SessionSecret      string `arg:"env:EPF_SESSION_SECRET" help:"Session signing secret (legacy)"`
 
+	// Encryption of stored credentials (users' GitHub tokens). "id:base64key"
+	// entries separated by commas, 32-byte keys: the first one writes, all read.
+	DataEncryptionKeys            string `arg:"env:EPF_DATA_ENCRYPTION_KEYS" help:"Keys encrypting stored credentials: id:base64key[,id:base64key...] with 32-byte keys; the first writes. Required in production with GitHub OAuth"`
+	DataEncryptionRefusePlaintext bool   `arg:"env:EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT" help:"Refuse to read credentials stored before encryption was configured"`
+
 	// emergent.memory (semantic graph)
 	MemoryURL      string `arg:"env:EPF_MEMORY_URL" default:"http://localhost:3002" help:"emergent.memory base URL"`
 	MemoryProject  string `arg:"env:EPF_MEMORY_PROJECT" help:"emergent.memory project ID"`
@@ -315,7 +322,34 @@ func (c *Config) ValidateProduction() error {
 				"while the server otherwise appears healthy")
 	}
 
+	keys, err := c.TokenKeyring()
+	if err != nil {
+		return err
+	}
+	if c.GithubOAuthConfigured() && keys == nil {
+		return fmt.Errorf(
+			"ENV=production with GitHub OAuth configured requires EPF_DATA_ENCRYPTION_KEYS: " +
+				"without it users' GitHub tokens, which can write to their private " +
+				"repositories, are stored in plain text. Generate a key with " +
+				"`openssl rand -base64 32` and set it as k1:<that value>")
+	}
+
 	return nil
+}
+
+// TokenKeyring parses the keys that encrypt stored credentials. It returns a nil
+// keyring when none is set.
+func (c *Config) TokenKeyring() (*seal.Keyring, error) {
+	keys, err := seal.ParseKeyring(c.DataEncryptionKeys)
+	if err != nil {
+		return nil, fmt.Errorf("EPF_DATA_ENCRYPTION_KEYS: %w", err)
+	}
+	if keys == nil && c.DataEncryptionRefusePlaintext {
+		return nil, fmt.Errorf(
+			"EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT needs EPF_DATA_ENCRYPTION_KEYS: " +
+				"without a key every stored credential is plain text")
+	}
+	return keys, nil
 }
 
 // GetDBMode returns the parsed database mode. Defaults to DBModeDev for invalid values.

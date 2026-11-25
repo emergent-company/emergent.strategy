@@ -9,6 +9,7 @@ import (
 
 	instancedom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/instance"
 	syncdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/sync"
+	userdom "github.com/emergent-company/emergent-strategy/apps/strategy-server/domain/user"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/web"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/pkg/apperror"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -338,6 +339,11 @@ func githubTokenForCaller(ctx context.Context, svc Services) (string, *mcp.CallT
 		return "", needsGithubConnection()
 	}
 	token, err := svc.User.GetGithubToken(ctx, p.User.ID)
+	if errors.Is(err, userdom.ErrTokenUnreadable) {
+		// Connecting again replaces it, so the answer is the same as for no token.
+		slog.WarnContext(ctx, "stored github token cannot be read", "user_id", p.User.ID, "err", err)
+		return "", needsGithubConnection()
+	}
 	if err != nil {
 		return "", toolErr(ctx, err)
 	}

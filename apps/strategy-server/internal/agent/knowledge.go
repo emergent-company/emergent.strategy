@@ -873,8 +873,9 @@ See docs/GITHUB_AUTH_MODEL.md for the full reference.
   MCP tool calls. Requires the App to be installed on the target org by an admin.
 
 **User OAuth token (GITHUB_OAUTH_CLIENT_ID + GITHUB_OAUTH_CLIENT_SECRET):**
-  Per-user credential. Stored in users.github_access_token after the user
-  connects their GitHub account via /github/connect. Uses repo scope. Allows
+  Per-user credential. Stored in users.github_access_token, encrypted with
+  EPF_DATA_ENCRYPTION_KEYS, after the user connects their GitHub account via
+  /github/connect. Uses repo scope. Allows
   the user to browse and import/push to any repo they personally have access to,
   across ALL their orgs — NO App installation required from org admins.
 

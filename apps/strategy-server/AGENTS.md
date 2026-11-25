@@ -916,6 +916,12 @@ Strategy-server uses **two separate GitHub auth mechanisms**:
 | AIM auto-push | App | Yes |
 | Sync state / history — MCP | App | Yes |
 
+**Stored user tokens are encrypted** (`internal/seal`, AES-256-GCM, bound to the
+user) with `EPF_DATA_ENCRYPTION_KEYS`; `domain/user/github_token.go` is the only
+reader and writer of `users.github_access_token`, and `domain.User` has no field
+for it. Production with OAuth configured refuses to start without a key.
+Development without one stores tokens unencrypted and says so at start-up.
+
 **There is no user-token push path.** `domain/sync.SyncToGithub` returns
 `ErrBadRequest` when the App writer is nil, and the web UI's push button
 (`internal/handler/handler_settings.go`) calls straight through to it. No

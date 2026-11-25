@@ -25,6 +25,9 @@ func parseWithEnv(t *testing.T, env map[string]string) config.Config {
 	for _, key := range []string{
 		"ENV", "AUTH_ENABLED", "ZITADEL_DEBUG_TOKEN",
 		"ZITADEL_ISSUER", "ZITADEL_CLIENT_ID",
+		"GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET",
+		"EPF_OAUTH_CLIENT_ID", "EPF_OAUTH_CLIENT_SECRET",
+		"EPF_DATA_ENCRYPTION_KEYS", "EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT",
 	} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
@@ -228,6 +231,54 @@ func TestGithubOAuthRedirectURL(t *testing.T) {
 	for _, tt := range tests {
 		if got := config.GithubOAuthRedirectURL(tt.base); got != tt.want {
 			t.Errorf("GithubOAuthRedirectURL(%q) = %q, want %q", tt.base, got, tt.want)
+		}
+	}
+}
+
+const testDataKey = "k1:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+
+// GitHub OAuth means the server stores users' tokens, so production needs the key
+// that seals them. Both spellings of the OAuth variables count.
+func TestValidateProduction_GithubOAuthRequiresADataKey(t *testing.T) {
+	for _, prefix := range []string{"GITHUB_OAUTH_", "EPF_OAUTH_"} {
+		oauth := withEnv(prodBase(), map[string]string{
+			prefix + "CLIENT_ID": "Iv1.x", prefix + "CLIENT_SECRET": "s",
+		})
+		cfg := parseWithEnv(t, oauth)
+		err := cfg.ValidateProduction()
+		if err == nil || !strings.Contains(err.Error(), "EPF_DATA_ENCRYPTION_KEYS") {
+			t.Errorf("%s without a key: err = %v, want one naming EPF_DATA_ENCRYPTION_KEYS", prefix, err)
+		}
+
+		cfg = parseWithEnv(t, withEnv(oauth, map[string]string{"EPF_DATA_ENCRYPTION_KEYS": testDataKey}))
+		if err := cfg.ValidateProduction(); err != nil {
+			t.Errorf("%s with a key was refused: %v", prefix, err)
+		}
+	}
+}
+
+// An unusable key setting is refused in every environment, before anything runs.
+func TestTokenKeyring(t *testing.T) {
+	cfg := parseWithEnv(t, nil)
+	if k, err := cfg.TokenKeyring(); k != nil || err != nil {
+		t.Errorf("no setting: %v, %v", k, err)
+	}
+	cfg = parseWithEnv(t, map[string]string{"EPF_DATA_ENCRYPTION_KEYS": testDataKey})
+	if k, err := cfg.TokenKeyring(); k == nil || err != nil {
+		t.Errorf("a good setting: %v, %v", k, err)
+	}
+	for name, env := range map[string]map[string]string{
+		"bad key":               {"EPF_DATA_ENCRYPTION_KEYS": "k1:short"},
+		"refuse plain, no key":  {"EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT": "true"},
+		"bad key in production": withEnv(prodBase(), map[string]string{"EPF_DATA_ENCRYPTION_KEYS": "nonsense"}),
+	} {
+		cfg := parseWithEnv(t, env)
+		_, err := cfg.TokenKeyring()
+		if err == nil || !strings.Contains(err.Error(), "EPF_DATA_ENCRYPTION") {
+			t.Errorf("%s: err = %v, want one naming the setting", name, err)
+		}
+		if env["ENV"] == "production" && cfg.ValidateProduction() == nil {
+			t.Errorf("%s: ValidateProduction accepted it", name)
 		}
 	}
 }

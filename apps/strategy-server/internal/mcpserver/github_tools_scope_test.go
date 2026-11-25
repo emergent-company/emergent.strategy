@@ -2,6 +2,7 @@ package mcpserver_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -158,6 +159,31 @@ func TestARevokedTokenIsClearedByTheGithubTools(t *testing.T) {
 	}
 	if tok, _ := svc.User.GetGithubToken(context.Background(), web.DevUser.ID); tok != "" {
 		t.Error("the revoked token is still stored")
+	}
+}
+
+// A stored value that cannot be read (here: encrypted, and no key configured) asks
+// the caller to connect again. It is never sent to GitHub, nor destroyed.
+func TestAnUnreadableTokenAsksTheCallerToConnectAgain(t *testing.T) {
+	const stored = "enc:v1:k1:bm90LWEtcmVhbC12YWx1ZS1idXQtbG9uZy1lbm91Z2g="
+	fake := &githubFake{byToken: map[string]githubAccount{stored: {
+		installs: []syncdom.InstallationInfo{{ID: 11, OwnerLogin: "my-org"}},
+	}}}
+	svc, _ := githubServices(t, fake, false)
+	if err := svc.User.StoreGithubToken(context.Background(), web.DevUser.ID, stored); err != nil {
+		t.Fatal(err)
+	}
+	c := newMCPClient(t, svc)
+	c.activateAllTools()
+
+	res := c.call(1, "list_github_installations", nil).assertOK()
+	var out map[string]any
+	res.decode(&out)
+	if out["needs_github_connection"] != true || out["installations"] != nil {
+		t.Errorf("response = %v, want needs_github_connection only", out)
+	}
+	if _, err := svc.User.GetGithubToken(context.Background(), web.DevUser.ID); !errors.Is(err, userdom.ErrTokenUnreadable) {
+		t.Errorf("the stored value was changed: err = %v", err)
 	}
 }
 
