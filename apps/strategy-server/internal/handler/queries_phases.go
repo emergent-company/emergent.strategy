@@ -1810,19 +1810,24 @@ func toTitleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-// firstSentence returns the first sentence (up to the first period or newline) from s,
-// trimmed of whitespace. Returns the whole string (trimmed) if no sentence boundary found.
+// firstSentence returns the first sentence of the first paragraph of s, on one
+// line. A single newline is only wrapping (YAML block scalars keep it), so it
+// does not end the sentence; a blank line does. A period ends the sentence when
+// whitespace or the end follows it, unless it only closes a leading list number.
+// Returns the whole first paragraph if no such period is found.
 func firstSentence(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return ""
-	}
-	for i, ch := range s {
-		if ch == '.' || ch == '\n' {
-			return strings.TrimSpace(s[:i+1])
+	paragraph, _, _ := strings.Cut(strings.ReplaceAll(strings.TrimSpace(s), "\r\n", "\n"), "\n\n")
+	words := strings.Fields(paragraph)
+	for i, word := range words {
+		if !strings.HasSuffix(word, ".") {
+			continue
 		}
+		if i == 0 && strings.Trim(word, "0123456789.") == "" {
+			continue
+		}
+		return strings.Join(words[:i+1], " ")
 	}
-	return s
+	return strings.Join(words, " ")
 }
 
 // --- section completeness gap checkers ---
