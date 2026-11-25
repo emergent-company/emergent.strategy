@@ -22,6 +22,12 @@ type WorkspaceInfo struct {
 	GithubOwner string
 }
 
+// ConsumerRepoInfo holds the minimal data for a consumer repository link.
+type ConsumerRepoInfo struct {
+	Repo     string // "owner/repo"
+	BasePath string // path within the consuming repo; "" = root
+}
+
 // InstanceInfo holds instance data for the global dashboard cards.
 type InstanceInfo struct {
 	ID            string
@@ -48,6 +54,15 @@ type InstanceInfo struct {
 	// Assumption risk profile
 	AssumptionCount       int
 	TestedAssumptionCount int
+
+	// GitHub linkage — read-only metadata from the instance row
+	GithubRepo     string // "owner/repo" or ""
+	GithubBranch   string // branch name; "" = default
+	GithubBasePath string // EPF directory path within repo, or ""
+	CommitSHA      string // first 7 chars of registered commit, or ""
+
+	// Consumer repos — instances that consume this instance via submodule
+	ConsumerRepos []ConsumerRepoInfo
 }
 
 // GlobalDashboardPage renders the full dashboard page with shell.
@@ -175,6 +190,62 @@ templ instanceCard(inst InstanceInfo) {
 				</span>
 			}
 			</div>
+
+			// ── GitHub repo link ──
+			if inst.GithubRepo != "" {
+				<div class="flex items-center gap-2 text-xs border-t border-base-content/5 pt-2">
+					<span class="iconify lucide--github size-3.5 text-base-content/45 shrink-0"></span>
+					<a href={ templ.SafeURL("https://github.com/" + inst.GithubRepo) }
+						target="_blank" rel="noopener"
+						class="text-primary/80 hover:text-primary font-mono truncate">
+						{ inst.GithubRepo }
+					</a>
+					if inst.GithubBranch != "" {
+						<span class="inline-flex items-center gap-0.5 text-base-content/55 font-mono shrink-0">
+							<span class="iconify lucide--git-branch size-2.5"></span>
+							{ inst.GithubBranch }
+						</span>
+					} else {
+						<span class="text-base-content/45 font-mono shrink-0">main</span>
+					}
+					if inst.CommitSHA != "" {
+						<a href={ templ.SafeURL("https://github.com/" + inst.GithubRepo + "/commit/" + inst.CommitSHA) }
+							target="_blank" rel="noopener"
+							class="text-base-content/45 hover:text-primary font-mono shrink-0"
+							title="Registered commit">
+							{ inst.CommitSHA }
+						</a>
+					}
+				</div>
+				// EPF directory link
+				if inst.GithubBasePath != "" {
+					<div class="flex items-center gap-1 text-xs mt-0.5 pl-[22px]">
+						<span class="iconify lucide--folder-tree size-3 text-base-content/30 shrink-0"></span>
+						<a href={ templ.SafeURL("https://github.com/" + inst.GithubRepo + "/tree/main/" + inst.GithubBasePath) }
+							target="_blank" rel="noopener"
+							class="text-base-content/50 hover:text-primary truncate">
+							{ langs.T(ctx, "ui.github.open_strategy") }
+						</a>
+					</div>
+				}
+			}
+			// ── Consumer repos ──
+			if len(inst.ConsumerRepos) > 0 {
+				<div class="flex items-center gap-1 text-xs mt-1 pl-[22px]">
+					<span class="iconify lucide--git-merge size-3 text-base-content/30 shrink-0"></span>
+					<span class="text-base-content/45">{ langs.T(ctx, "ui.github.consumers") }:</span>
+					for _, cr := range inst.ConsumerRepos {
+						<a href={ templ.SafeURL("https://github.com/" + cr.Repo) }
+							target="_blank" rel="noopener"
+							class="text-base-content/50 hover:text-primary font-mono">
+							{ cr.Repo }
+							if cr.BasePath != "" {
+								<span class="text-base-content/30">/{ cr.BasePath }</span>
+							}
+						</a>
+					}
+				</div>
+			}
 
 			// ── Stats strip ──
 			<div class="flex items-center gap-1 flex-wrap pt-1 border-t border-base-content/5">

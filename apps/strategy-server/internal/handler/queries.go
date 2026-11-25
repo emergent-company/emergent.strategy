@@ -282,6 +282,54 @@ func (s *Server) loadInstanceInfo(ctx context.Context, id, name, status, workspa
 		OrgName:     orgName,
 	}
 
+	// GitHub linkage (read-only metadata)
+	var gh struct {
+		Repo      *string `bun:"github_repo"`
+		Branch    *string `bun:"github_branch"`
+		BasePath  *string `bun:"github_base_path"`
+		CommitSHA *string `bun:"github_commit_sha"`
+	}
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances").
+		ColumnExpr("github_repo, github_branch, github_base_path, github_commit_sha").
+		Where("id = ?", id).
+		Limit(1).
+		Scan(ctx, &gh)
+	if err == nil {
+		if gh.Repo != nil && *gh.Repo != "" {
+			info.GithubRepo = *gh.Repo
+		}
+		if gh.Branch != nil && *gh.Branch != "" {
+			info.GithubBranch = *gh.Branch
+		}
+		if gh.BasePath != nil && *gh.BasePath != "" {
+			info.GithubBasePath = *gh.BasePath
+		}
+		if gh.CommitSHA != nil && len(*gh.CommitSHA) >= 7 {
+			info.CommitSHA = (*gh.CommitSHA)[:7]
+		}
+	}
+
+	// Consumer repos
+	instID, parseErr := uuid.Parse(id)
+	if parseErr == nil {
+		var consumerRows []struct {
+			Repo     string `bun:"github_repo"`
+			BasePath string `bun:"base_path"`
+		}
+		_ = s.db.NewSelect().
+			TableExpr("instance_consumer_repos").
+			ColumnExpr("github_repo, base_path").
+			Where("instance_id = ?", instID).
+			OrderExpr("github_repo ASC, base_path ASC").
+			Scan(ctx, &consumerRows)
+		for _, cr := range consumerRows {
+			info.ConsumerRepos = append(info.ConsumerRepos, ui.ConsumerRepoInfo{
+				Repo: cr.Repo, BasePath: cr.BasePath,
+			})
+		}
+	}
+
 	// Feature and artifact counts
 	featureCount, _ := s.db.NewSelect().
 		TableExpr("strategy_artifacts").

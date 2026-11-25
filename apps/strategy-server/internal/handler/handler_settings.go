@@ -25,23 +25,26 @@ import (
 func (s *Server) handleSettings(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	// Run all three independent data-loading operations concurrently.
+	// Run all four independent data-loading operations concurrently.
 	var (
 		memoryStatus ui.MemoryHealthStatus
 		instances    []ui.InstanceMemoryStatus
 		githubSync   []ui.GithubSyncStatus
+		repoLinks    []ui.InstanceRepoLink
 		wg           gosync.WaitGroup
 	)
-	wg.Add(3)
+	wg.Add(4)
 	go func() { defer wg.Done(); memoryStatus = s.probeMemoryHealth(ctx) }()
 	go func() { defer wg.Done(); instances = s.loadInstanceMemoryStatuses(ctx) }()
 	go func() { defer wg.Done(); githubSync = s.loadGithubSyncStatuses(ctx) }()
+	go func() { defer wg.Done(); repoLinks = s.loadInstanceRepoLinks(ctx) }()
 	wg.Wait()
 
 	data := ui.SettingsData{
 		Memory:     memoryStatus,
 		Instances:  instances,
 		GithubSync: githubSync,
+		RepoLinks:  repoLinks,
 		Github: ui.GithubConfigStatus{
 			// syncSvc is only constructed when the GitHub App is configured;
 			// githubOAuth is only set when OAuth App credentials are present.
@@ -486,4 +489,53 @@ func pushBlockedReason(repo string, err error) string {
 	default:
 		return fmt.Sprintf("GitHub sync state could not be determined for %s: %v", repo, err)
 	}
+}
+
+// loadInstanceRepoLinks loads read-only GitHub repo metadata for all instances
+// that have a github_repo set. This is independent of GitHub App configuration.
+// Scoped to the caller's organisations, excluding deleted/archived instances.
+func (s *Server) loadInstanceRepoLinks(ctx context.Context) []ui.InstanceRepoLink {
+	type repoRow struct {
+		ID        string `bun:"id"`
+		Name      string `bun:"name"`
+		OrgName   string `bun:"org_name"`
+		Repo      string `bun:"github_repo"`
+		Branch    string `bun:"github_branch"`
+		BasePath  string `bun:"github_base_path"`
+		CommitSHA string `bun:"github_commit_sha"`
+	}
+
+	var rows []repoRow
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances AS si").
+		ColumnExpr("si.id, si.name, si.github_repo, si.github_branch, si.github_base_path, si.github_commit_sha").
+		ColumnExpr("o.name AS org_name").
+		Join("JOIN workspaces AS w ON w.id = si.workspace_id").
+		Join("JOIN orgs AS o ON o.id = w.org_id").
+		Where("si.deleted_at IS NULL").
+		Where("si.status != ?", "archived").
+		Where("w.deleted_at IS NULL").
+		Where("si.github_repo != '' AND si.github_repo IS NOT NULL").
+		Apply(func(q *bun.SelectQuery) *bun.SelectQuery { return s.restrictToCallersOrgs(ctx, q, "w.org_id") }).
+		OrderExpr("o.name ASC, si.name ASC").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil
+	}
+
+	links := make([]ui.InstanceRepoLink, 0, len(rows))
+	for _, r := range rows {
+		link := ui.InstanceRepoLink{
+			InstanceID:   r.ID,
+			InstanceName: r.Name,
+			Repo:         r.Repo,
+			Branch:       r.Branch,
+			BasePath:     r.BasePath,
+		}
+		if len(r.CommitSHA) >= 7 {
+			link.CommitSHA = r.CommitSHA[:7]
+		}
+		links = append(links, link)
+	}
+	return links
 }

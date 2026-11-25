@@ -60,12 +60,24 @@ type InstanceMemoryStatus struct {
 	LastSyncedAt          *time.Time // last successful sync time
 }
 
+// InstanceRepoLink holds read-only repo metadata for an instance.
+// Always loaded, independent of GitHub App configuration.
+type InstanceRepoLink struct {
+	InstanceID   string
+	InstanceName string
+	Repo         string // "owner/repo" or ""
+	Branch       string // branch; "" = default (main)
+	CommitSHA    string // first 7 chars or ""
+	BasePath     string // EPF directory path or ""
+}
+
 // SettingsData is the full data bundle for the settings page.
 type SettingsData struct {
 	Memory      MemoryHealthStatus
 	Instances   []InstanceMemoryStatus
 	GithubSync  []GithubSyncStatus // one entry per instance; empty when App not configured
 	Github      GithubConfigStatus // server-side GitHub configuration state
+	RepoLinks   []InstanceRepoLink // always loaded — read-only repo metadata
 	ActiveLang  string             // current locale code, e.g. "en" or "nb"
 }
 
@@ -108,15 +120,107 @@ templ SettingsContent(data SettingsData) {
 			@instanceIngestTable(data.Instances)
 		}
 
-		<!-- GitHub sync status -->
+		<!-- GitHub repo links — always visible when instances have repos -->
+		if len(data.RepoLinks) > 0 {
+			@githubRepoLinksCard(data.RepoLinks, data.Github)
+		}
+
+		<!-- GitHub sync status — only when App is configured -->
 		if data.Github.AppConfigured && len(data.GithubSync) > 0 {
 			@githubSyncCard(data.GithubSync)
-		} else {
+		} else if len(data.RepoLinks) == 0 {
 			@githubNotConfiguredCard(data.Github)
 		}
 
 		<!-- Language preference -->
 		@langPickerCard(data.ActiveLang)
+	</div>
+}
+
+// githubRepoLinksCard renders a read-only overview of registered GitHub repositories
+// for all instances. It is always visible regardless of GitHub App configuration.
+templ githubRepoLinksCard(links []InstanceRepoLink, config GithubConfigStatus) {
+	<div class="rounded-xl border border-base-content/15 bg-base-100 shadow-sm overflow-hidden">
+		<!-- Header -->
+		<div class="flex items-center gap-3 px-5 py-4 border-b border-base-content/15">
+			<span class="iconify lucide--github size-5 text-base-content/75"></span>
+			<div class="grow">
+				<h2 class="text-sm font-bold text-base-content uppercase tracking-widest">{ langs.T(ctx, "settings.github_repos.title") }</h2>
+				<p class="text-xs text-base-content/65 mt-0.5">{ langs.T(ctx, "settings.github_repos.subtitle") }</p>
+			</div>
+			<span class="badge badge-ghost badge-sm">{ fmt.Sprintf("%d repos", len(links)) }</span>
+			<!-- Status indicators -->
+			<span class="badge badge-success badge-sm" title="Repositories registered in database">
+				<span class="iconify lucide--check size-3"></span>
+				{ langs.T(ctx, "settings.github.repo_registered") }
+			</span>
+			if config.AppConfigured {
+				<span class="badge badge-success badge-sm" title="GitHub App configured for sync operations">
+					<span class="iconify lucide--check size-3"></span>
+					{ langs.T(ctx, "settings.github.sync_configured") }
+				</span>
+			} else {
+				<span class="badge badge-ghost badge-sm" title="GitHub App not configured — sync operations unavailable">
+					<span class="iconify lucide--x size-3"></span>
+					{ langs.T(ctx, "settings.github.sync_not_configured") }
+				</span>
+			}
+		</div>
+		<div class="divide-y divide-base-content/5">
+			for _, link := range links {
+				@githubRepoLinkRow(link)
+			}
+		</div>
+	</div>
+}
+
+// githubRepoLinkRow renders a single instance's repo information.
+templ githubRepoLinkRow(link InstanceRepoLink) {
+	<div class="flex items-center gap-4 px-5 py-3">
+		<!-- Instance name -->
+		<div class="grow min-w-0">
+			<p class="text-sm font-medium text-base-content truncate">{ link.InstanceName }</p>
+			if link.Repo != "" {
+				<div class="flex items-center gap-2 mt-0.5 flex-wrap">
+					<!-- Repo link -->
+					<a href={ templ.SafeURL("https://github.com/" + link.Repo) }
+						target="_blank" rel="noopener"
+						class="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary font-mono">
+						<span class="iconify lucide--github size-3"></span>
+						{ link.Repo }
+					</a>
+					<!-- Branch -->
+					<span class="inline-flex items-center gap-0.5 text-xs text-base-content/55 font-mono">
+						<span class="iconify lucide--git-branch size-2.5"></span>
+						if link.Branch != "" {
+							{ link.Branch }
+						} else {
+							main
+						}
+					</span>
+					<!-- Commit SHA -->
+					if link.CommitSHA != "" {
+						<a href={ templ.SafeURL("https://github.com/" + link.Repo + "/commit/" + link.CommitSHA) }
+							target="_blank" rel="noopener"
+							class="text-xs text-base-content/45 hover:text-primary font-mono"
+							title={ langs.T(ctx, "settings.github.registered_commit") }>
+							{ link.CommitSHA }
+						</a>
+					}
+					<!-- EPF directory link -->
+					if link.BasePath != "" {
+						<a href={ templ.SafeURL("https://github.com/" + link.Repo + "/tree/main/" + link.BasePath) }
+							target="_blank" rel="noopener"
+							class="inline-flex items-center gap-0.5 text-xs text-base-content/50 hover:text-primary">
+							<span class="iconify lucide--folder-tree size-2.5"></span>
+							{ langs.T(ctx, "ui.github.open_strategy") }
+						</a>
+					}
+				</div>
+			} else {
+				<p class="text-xs text-base-content/55 mt-0.5">{ langs.T(ctx, "settings.github.no_repo_configured") }</p>
+			}
+		</div>
 	</div>
 }
 
