@@ -211,6 +211,9 @@ var messages = map[Locale]map[string]string{
 		"nav.screen.evidence_interview":   "Evidence Interview",
 		"nav.screen.version_detail":       "Version Detail",
 		"nav.screen.settings":             "Settings",
+		"nav.screen.tenders":              "Tenders & Funding",
+		"nav.screen.tender_detail":        "Tender Detail",
+		"nav.sidebar_group.tenders":       "Tenders & Funding",
 
 		// Navigation — sidebar groups
 		"nav.sidebar_group.overview": "Overview",
@@ -450,7 +453,16 @@ var messages = map[Locale]map[string]string{
 		"settings.github.view_pr":              "View PR",
 		"settings.github.push_btn":             "Push",
 		"settings.github.push_unavailable":     "Push unavailable",
-		"settings.github.import_btn":           "Import",
+		"settings.github.import_btn":             "Import",
+		"settings.github.registered_commit":      "Registered commit",
+		"settings.github.repo_registered":        "Repos registered",
+		"settings.github.sync_configured":        "Sync configured",
+		"settings.github.sync_not_configured":    "Sync not configured",
+		"settings.github_repos.title":            "GitHub Repositories",
+		"settings.github_repos.subtitle":         "Registered repositories for each strategy instance (read-only)",
+
+		"ui.github.open_strategy":               "Strategy",
+		"ui.github.consumers":                    "Consumed by",
 
 		"settings.memory.title":             "Semantic Memory",
 		"settings.memory.subtitle":          "emergent.memory — semantic graph for strategy search and contradiction detection",
@@ -690,6 +702,9 @@ var messages = map[Locale]map[string]string{
 		"nav.screen.evidence_interview":   "Bevisintervju",
 		"nav.screen.version_detail":       "Versjonsdetalj",
 		"nav.screen.settings":             "Innstillinger",
+		"nav.screen.tenders":              "Anbud og finansiering",
+		"nav.screen.tender_detail":        "Anbudsdetalj",
+		"nav.sidebar_group.tenders":       "Anbud og finansiering",
 
 		// Navigation — sidebar groups
 		"nav.sidebar_group.overview": "Oversikt",
@@ -929,7 +944,16 @@ var messages = map[Locale]map[string]string{
 		"settings.github.view_pr":              "Vis PR",
 		"settings.github.push_btn":             "Dytt",
 		"settings.github.push_unavailable":     "Dytting utilgjengelig",
-		"settings.github.import_btn":           "Importer",
+		"settings.github.import_btn":             "Importer",
+		"settings.github.registered_commit":      "Registrert commit",
+		"settings.github.repo_registered":        "Repos registrert",
+		"settings.github.sync_configured":        "Synk konfigurert",
+		"settings.github.sync_not_configured":    "Synk ikke konfigurert",
+		"settings.github_repos.title":            "GitHub-repositorier",
+		"settings.github_repos.subtitle":         "Registrerte repositorier for hver strategiinstans (skrivebeskyttet)",
+
+		"ui.github.open_strategy":               "Strategi",
+		"ui.github.consumers":                    "Brukes av",
 
 		"settings.memory.title":             "Semantisk minne",
 		"settings.memory.subtitle":          "emergent.memory — semantisk graf for strategisøk og motstridingdeteksjon",

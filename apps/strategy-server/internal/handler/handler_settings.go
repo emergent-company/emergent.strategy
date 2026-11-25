@@ -25,23 +25,26 @@ import (
 func (s *Server) handleSettings(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	// Run all three independent data-loading operations concurrently.
+	// Run all four independent data-loading operations concurrently.
 	var (
 		memoryStatus ui.MemoryHealthStatus
 		instances    []ui.InstanceMemoryStatus
 		githubSync   []ui.GithubSyncStatus
+		repoLinks    []ui.InstanceRepoLink
 		wg           gosync.WaitGroup
 	)
-	wg.Add(3)
+	wg.Add(4)
 	go func() { defer wg.Done(); memoryStatus = s.probeMemoryHealth(ctx) }()
 	go func() { defer wg.Done(); instances = s.loadInstanceMemoryStatuses(ctx) }()
 	go func() { defer wg.Done(); githubSync = s.loadGithubSyncStatuses(ctx) }()
+	go func() { defer wg.Done(); repoLinks = s.loadInstanceRepoLinks(ctx) }()
 	wg.Wait()
 
 	data := ui.SettingsData{
 		Memory:     memoryStatus,
 		Instances:  instances,
 		GithubSync: githubSync,
+		RepoLinks:  repoLinks,
 		Github: ui.GithubConfigStatus{
 			// syncSvc is only constructed when the GitHub App is configured;
 			// githubOAuth is only set when OAuth App credentials are present.
@@ -486,4 +489,44 @@ func pushBlockedReason(repo string, err error) string {
 	default:
 		return fmt.Sprintf("GitHub sync state could not be determined for %s: %v", repo, err)
 	}
+}
+
+// loadInstanceRepoLinks loads read-only GitHub repo metadata for all instances
+// that have a github_repo set. This is independent of GitHub App configuration.
+func (s *Server) loadInstanceRepoLinks(ctx context.Context) []ui.InstanceRepoLink {
+	type repoRow struct {
+		ID        string `bun:"id"`
+		Name      string `bun:"name"`
+		Repo      string `bun:"github_repo"`
+		Branch    string `bun:"github_branch"`
+		BasePath  string `bun:"github_base_path"`
+		CommitSHA string `bun:"github_commit_sha"`
+	}
+
+	var rows []repoRow
+	err := s.db.NewSelect().
+		TableExpr("strategy_instances").
+		ColumnExpr("id, name, github_repo, github_branch, github_base_path, github_commit_sha").
+		Where("github_repo != '' AND github_repo IS NOT NULL").
+		OrderExpr("name ASC").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil
+	}
+
+	links := make([]ui.InstanceRepoLink, 0, len(rows))
+	for _, r := range rows {
+		link := ui.InstanceRepoLink{
+			InstanceID:   r.ID,
+			InstanceName: r.Name,
+			Repo:         r.Repo,
+			Branch:       r.Branch,
+			BasePath:     r.BasePath,
+		}
+		if len(r.CommitSHA) >= 7 {
+			link.CommitSHA = r.CommitSHA[:7]
+		}
+		links = append(links, link)
+	}
+	return links
 }
