@@ -304,15 +304,14 @@ const (
 type User struct {
 	bun.BaseModel `bun:"table:users,alias:u"`
 
-	ID                uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
-	Sub               string     `bun:"sub,notnull"                        json:"sub"`
-	Email             string     `bun:"email,notnull"                      json:"email"`
-	Name              *string    `bun:"name"                               json:"name,omitempty"`
-	Status            string     `bun:"status,notnull,default:'active'"    json:"status"`
-	GithubAccessToken *string    `bun:"github_access_token"                json:"-"` // never serialised — contains OAuth token
-	CreatedAt         time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
-	UpdatedAt         time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
-	DeletedAt         *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
+	ID        uuid.UUID  `bun:"id,pk,type:uuid"                   json:"id"`
+	Sub       string     `bun:"sub,notnull"                        json:"sub"`
+	Email     string     `bun:"email,notnull"                      json:"email"`
+	Name      *string    `bun:"name"                               json:"name,omitempty"`
+	Status    string     `bun:"status,notnull,default:'active'"    json:"status"`
+	CreatedAt time.Time  `bun:"created_at,notnull,default:now()"   json:"created_at"`
+	UpdatedAt time.Time  `bun:"updated_at,notnull,default:now()"   json:"updated_at"`
+	DeletedAt *time.Time `bun:"deleted_at,soft_delete"             json:"deleted_at,omitempty"`
 }
 
 // UserStatus values.

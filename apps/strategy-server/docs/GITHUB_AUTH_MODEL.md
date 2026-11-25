@@ -100,6 +100,7 @@ API. It is leftover from a GitHub-App-OAuth design that was never deployed.
 GITHUB_OAUTH_CLIENT_ID=<classic OAuth App client ID — starts with Ov23li...>
 GITHUB_OAUTH_CLIENT_SECRET=<secret>
 GITHUB_OAUTH_STATE_SECRET=<32-byte-hex>
+EPF_DATA_ENCRYPTION_KEYS=<secret, k1:base64>
 SERVER_URL=https://strategy.emergent.ai
 ```
 
@@ -194,6 +195,9 @@ Whether the asymmetry should stay is tracked in issue #55.
 - [ ] `GITHUB_OAUTH_CLIENT_ID` set (starts with `Ov23li...`)
 - [ ] `GITHUB_OAUTH_CLIENT_SECRET` stored securely
 - [ ] `GITHUB_OAUTH_STATE_SECRET` set: `openssl rand -hex 32`
+- [ ] `EPF_DATA_ENCRYPTION_KEYS` stored securely: `k1:$(openssl rand -base64 32)`.
+  It encrypts the stored user tokens; production refuses to start without it.
+  Rotation and key loss are described in `DEPLOYMENT.md`
 - [ ] `SERVER_URL` set to public base URL
 - [ ] Callback URL registered: `{SERVER_URL}/github/connect/callback`
 - [ ] OAuth App approved by org admins for orgs with private repos

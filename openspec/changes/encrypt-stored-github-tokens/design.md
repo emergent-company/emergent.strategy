@@ -22,6 +22,34 @@
    split of read and write. That is a product decision with a migration cost;
    this change records the answer and does not implement it.
 
+## As built
+
+6. **Package.** `internal/seal`; the additional authenticated data is the column
+   name and the user id (`users.github_access_token:<uuid>`).
+7. **One reader and writer.** `domain/user/github_token.go`. `domain.User` has no
+   field for the column, so signing in (a whole-row update) can no longer write a
+   stale value over a cleared or re-sealed one.
+8. **Unreadable values are kept.** Unknown key, wrong row, altered text, or plain
+   text when refused give `ErrTokenUnreadable`: the web UI offers to connect
+   again, the MCP tools answer `needs_github_connection`, and nothing deletes the
+   value, so a wrong key setting is recoverable.
+9. **Start-up.** The backfill runs before the server takes requests and also moves
+   older keys to the first one. A database error stops the start; an unreadable
+   row is logged by user id and skipped. Updates apply only while the value read
+   is still stored. A read re-seals the same way.
+10. **Settings.** `EPF_DATA_ENCRYPTION_KEYS` is parsed in every environment, so a
+    bad value never starts a server. `EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT`
+    (default off) refuses plain values; it needs a key.
+
+## Scope (task 3.1, open)
+
+The scopes are unchanged (`repo`, `read:user`, `read:org`). `repo` is kept until
+the owner decides otherwise. For the decision: strategy-server never pushes with
+a user token (every write goes through the GitHub App), so the write half of
+`repo` is unused, but classic OAuth has no read-only scope for private
+repositories. Removing it means moving to a GitHub App user token, which only
+reaches repositories where the App is installed.
+
 ## Risks
 
 - Losing the key loses every stored token. Users reconnect (the revoked-token path

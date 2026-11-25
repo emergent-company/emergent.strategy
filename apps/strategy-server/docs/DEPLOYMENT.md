@@ -106,6 +106,36 @@ gcloud secrets create strategy-server-llm-api-key   --project=outblocks \
   --replication-policy=automatic --data-file=-
 ```
 
+**Data encryption key.** Required before GitHub OAuth is configured: it encrypts
+users' GitHub tokens, which can write to their private repositories, and
+production refuses to start with OAuth and no key.
+
+```bash
+printf 'k1:%s' "$(openssl rand -base64 32)" \
+  | gcloud secrets create strategy-server-data-encryption-keys --project=outblocks \
+      --replication-policy=automatic --data-file=-
+```
+
+The value is a list of `id:base64key` pairs, 32 bytes each; the first key writes
+and every key reads. Rotate in three deploys, because the old revision keeps
+serving while a new one starts and a rollback may bring it back:
+
+1. `k1:<old>,k2:<new>`: every revision can now read both.
+2. `k2:<new>,k1:<old>`: start-up re-encrypts every stored token with `k2`.
+3. `k2:<new>`, once the log line `stored github tokens are encrypted` reports
+   `unreadable=0`.
+
+Losing the key loses the stored tokens and nothing else: each user connects
+GitHub again.
+
+Tokens stored before the key existed are encrypted at the next start-up. Database
+backups taken before that still hold them in plain text; if such a backup may have
+been read, have the users revoke the OAuth App's access on GitHub and reconnect.
+`EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT=true` stops plain values being read at all.
+
+A revision from before token encryption cannot read an encrypted token: after rolling
+back to one, GitHub rejects what it sends, and users connect GitHub again.
+
 ### GitHub repository variables
 
 Not secrets:
@@ -143,6 +173,8 @@ Set by the deploy workflow. Mandatory ones are mandatory because
 | `PGPASSWORD` | from Secret Manager | yes | |
 | `PORT` | injected by Cloud Run | — | See below |
 | `ZITADEL_DEBUG_TOKEN` | **never set** | — | Total auth bypass; refused under production |
+| `EPF_DATA_ENCRYPTION_KEYS` | from Secret Manager | with GitHub OAuth | Encrypts stored GitHub tokens; see "Data encryption key" above |
+| `EPF_DATA_ENCRYPTION_REFUSE_PLAINTEXT` | `true` or unset | no | Refuse tokens stored before encryption; needs the key |
 | `EPF_MEMORY_*` | optional | no | Unset ⇒ semantic features disabled |
 | `LLM_*` | optional | no | Unset ⇒ formula/agent-orchestrated mode |
 

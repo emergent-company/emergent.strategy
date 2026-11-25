@@ -355,6 +355,8 @@ else
 #   GITHUB_OAUTH_CLIENT_ID=Iv1.xxxxxxxx
 #   GITHUB_OAUTH_CLIENT_SECRET=xxxxxxxx
 #   GITHUB_OAUTH_STATE_SECRET=some-random-string
+#   # Encrypts the stored token (openssl rand -base64 32); unset stores it as is.
+#   EPF_DATA_ENCRYPTION_KEYS=k1:<base64 key>
 EOF
     warn "GitHub not configured — create .env.local.secrets to enable (see .env.local for the template)"
 fi

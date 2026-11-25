@@ -120,7 +120,10 @@ jobs:
           # /health reports it as "disabled" and still returns 200. This is the
           # Memory-degraded posture chosen in §0.5 — semantic search,
           # contradiction detection and scenarios switch off, the rest works.
+          # EPF_DATA_ENCRYPTION_KEYS is optional only while GitHub OAuth is not
+          # configured: with OAuth and no key the server refuses to start.
           for OPTIONAL in \
+            "EPF_DATA_ENCRYPTION_KEYS=strategy-server-data-encryption-keys" \
             "EPF_MEMORY_TOKEN=strategy-server-memory-token" \
             "LLM_API_KEY=strategy-server-llm-api-key"; do
             ENV_NAME="${OPTIONAL%%=*}"

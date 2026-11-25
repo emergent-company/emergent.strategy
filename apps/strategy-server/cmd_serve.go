@@ -53,6 +53,7 @@ import (
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/handler"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/llm"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/mcpserver"
+	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/seal"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/selfmodel"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/skillrunner"
 	"github.com/emergent-company/emergent-strategy/apps/strategy-server/internal/ui"
@@ -71,6 +72,12 @@ func runServer(cfg *config.Config) error {
 	if err := cfg.ValidateProduction(); err != nil {
 		return err
 	}
+	// Parsed here for every environment: an unusable key setting must not start a
+	// server that then stores tokens unsealed.
+	tokenKeys, err := cfg.TokenKeyring()
+	if err != nil {
+		return err
+	}
 
 	log.Info("starting strategy-server", "env", cfg.Env, "port", cfg.Port)
 
@@ -83,6 +90,12 @@ func runServer(cfg *config.Config) error {
 
 	if err := database.Migrate(db); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+
+	// The one user service: it alone reads and writes stored GitHub tokens.
+	userSvc, err := setupUsers(context.Background(), log, db, tokenKeys, cfg.DataEncryptionRefusePlaintext)
+	if err != nil {
+		return err
 	}
 
 	// Schema registry — auto-imports embedded schemas on first run.
@@ -304,7 +317,7 @@ func runServer(cfg *config.Config) error {
 		Activity:            activitySvc,
 		Watchdog:            watchdogdom.NewService(db),
 		AccessToken:         accessTokenSvc,
-		User:                user.NewService(db),
+		User:                userSvc,
 		GithubAppInstallURL: cfg.GithubAppInstallURL(),
 	}
 
@@ -370,8 +383,7 @@ func runServer(cfg *config.Config) error {
 		}
 	}
 
-	// User service for EnsureUser on auth.
-	userSvc := user.NewService(db)
+	// EnsureUser on auth.
 	ensureUser := func(ctx context.Context, sub, email, name string) (uuid.UUID, error) {
 		u, err := userSvc.EnsureUser(ctx, sub, email, name)
 		if err != nil {
@@ -788,6 +800,24 @@ func availabilityFromProbe(cap *ghclient.AppCapability, err error) syncdom.Avail
 		}
 	}
 	return syncdom.Availability{State: syncdom.AvailabilityEnabled, CheckedAt: now}
+}
+
+// setupUsers builds the user service and, before the server takes requests,
+// encrypts the GitHub tokens that are still plain text and moves those under an
+// older key to the first one.
+func setupUsers(ctx context.Context, log *slog.Logger, db *bun.DB, keys *seal.Keyring, refusePlaintext bool) (*user.Service, error) {
+	users := user.NewService(db).WithTokenKeys(keys, refusePlaintext)
+	if keys == nil {
+		log.Warn("EPF_DATA_ENCRYPTION_KEYS is not set: users' GitHub tokens are stored unencrypted")
+		return users, nil
+	}
+	report, err := users.SealStoredTokens(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt stored github tokens: %w", err)
+	}
+	log.Info("stored github tokens are encrypted",
+		"sealed", report.Sealed, "resealed", report.Resealed, "unreadable", report.Unreadable)
+	return users, nil
 }
 
 // seedDevIdentity ensures the dev user, dev org, orphan-workspace adoption, and

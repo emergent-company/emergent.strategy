@@ -27,3 +27,12 @@ is configured. The token SHALL NOT appear in logs, error messages or cache keys.
 #### Scenario: Key rotation
 - **WHEN** a new key is added first in the key list
 - **THEN** new values use it and values sealed with an older key in the list still decrypt
+
+#### Scenario: Value that cannot be read
+- **WHEN** a stored value cannot be decrypted with the configured keys
+- **THEN** the user is asked to connect GitHub again
+- **AND** the stored value is left as it is
+
+#### Scenario: Start-up encrypts what is stored
+- **WHEN** the server starts with a key and the database holds a plain-text token or one under an older key
+- **THEN** it is encrypted with the first key before requests are served
