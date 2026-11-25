@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -105,12 +107,18 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 		}
 		rep.ActiveComponents = len(active)
 
-		// Definitions, per track, resolved against that track's models.
-		for track, models := range byTrack {
-			defType, ok := valuemodel.DefinitionTypes[track]
-			if !ok {
-				continue
+		// Definitions are read for each track that has a model. The track of a
+		// definition does not limit what it may contribute to: the schemas let a
+		// path name any track, so each path picks its own models.
+		var defTypes []string
+		for track := range byTrack {
+			if t, ok := valuemodel.DefinitionTypes[track]; ok {
+				defTypes = append(defTypes, t)
 			}
+		}
+		slices.Sort(defTypes)
+
+		for _, defType := range slices.Compact(defTypes) {
 			defs, err := svc.Strategy.ListCurrentArtifacts(ctx, instID, defType)
 			if err != nil {
 				return toolErr(ctx, err), nil
@@ -122,6 +130,9 @@ func registerValueModelLinkTools(s *server.MCPServer, svc Services) {
 				}
 				for _, path := range valuemodel.ContributesTo(payload) {
 					rep.PathsFound++
+					head, _, _ := strings.Cut(path, ".")
+					track := valuemodel.NormalizeTrack(strings.TrimSpace(head))
+					models := byTrack[track]
 					if !resolvePath(path, models, &rep, served, active) {
 						reason := lastResolveError(path, models)
 						rep.Unresolved = append(rep.Unresolved, unresolvedPath{d.ArtifactKey, path, reason})
@@ -216,7 +227,7 @@ func registerKRFitnessTool(s *server.MCPServer, svc Services) {
 }
 
 // resolvePath places one path and records what it reached. Returns false only
-// when the path names nothing in any model of its track.
+// when the path names nothing in any of the models it is given.
 type modelRef struct {
 	key   string
 	model valuemodel.Model
